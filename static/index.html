@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Casino Spin Wheel</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background: radial-gradient(ellipse at center, #1a0a00 0%, #0a0000 70%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Oswald', 'Arial Black', sans-serif;
+      overflow: hidden;
+    }
+
+    /* Ambient light border */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      border: 6px solid;
+      border-image: linear-gradient(90deg, #FFD700, #FF6600, #FFD700, #FF6600) 1;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .casino-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      position: relative;
+      z-index: 101;
+    }
+
+    .casino-title {
+      font-size: 3.5rem;
+      color: #FFD700;
+      text-shadow:
+        0 0 10px #FFD700,
+        0 0 30px #FF8C00,
+        0 0 60px #FF4500;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      animation: titleFlicker 3s infinite;
+    }
+
+    @keyframes titleFlicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 0 0 10px #FFD700, 0 0 30px #FF8C00, 0 0 60px #FF4500;
+      }
+      20%, 24%, 55% {
+        text-shadow: none;
+      }
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: #FF6600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: -20px;
+    }
+
+    /* Wheel wrapper */
+    .wheel-wrapper {
+      position: relative;
+      width: 380px;
+      height: 380px;
+    }
+
+    /* Glow ring behind wheel */
+    .wheel-wrapper::before {
+      content: '';
+      position: absolute;
+      inset: -16px;
+      border-radius: 50%;
+      background: transparent;
+      box-shadow:
+        0 0 30px 12px rgba(255, 215, 0, 0.4),
+        0 0 70px 20px rgba(255, 140, 0, 0.25),
+        inset 0 0 20px rgba(255, 215, 0, 0.1);
+    }
+
+    .wheel-canvas {
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 4.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+      position: relative;
+      z-index: 2;
+    }
+
+    .wheel-canvas.spinning {
+      cursor: not-allowed;
+    }
+
+    /* Pointer */
+    .pointer {
+      position: absolute;
+      top: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 42px solid #FFD700;
+      filter: drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FF8C00);
+      z-index: 10;
+      animation: pointerBounce 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pointerBounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(-6px); }
+    }
+
+    .pointer.spinning {
+      animation: none;
+    }
+
+    /* Center hub */
+    .center-hub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #FFD700, #B8860B);
+      border: 4px solid #FFF8DC;
+      box-shadow: 0 0 20px #FFD700, 0 0 40px #FF8C00;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    /* Spin button / prompt */
+    .spin-prompt {
+      font-size: 1.5rem;
+      color: #FFD700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      animation: promptPulse 1s ease-in-out infinite;
+      cursor: pointer;
+      text-shadow: 0 0 10px #FFD700;
+    }
+
+    @keyframes promptPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.6; transform: scale(0.97); }
+    }
+
+    .spin-prompt.hidden { opacity: 0; pointer-events: none; }
+
+    /* Auto-spin toggle */
+    .autospin-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .autospin-row input[type="checkbox"] {
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border: 2px solid #FFD700;
+      border-radius: 4px;
+      background: rgba(255,215,0,0.08);
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .autospin-row input[type="checkbox"]:checked {
+      background: #FFD700;
+      box-shadow: 0 0 12px #FFD700;
+    }
+
+    .autospin-row input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -52%);
+      color: #000;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .autospin-label {
+      font-size: 0.9rem;
+      letter-spacing: 3px;
+      color: #FFD700;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(255,215,0,0.4);
+    }
+
+    .autospin-row input:checked ~ .autospin-label {
+      text-shadow: 0 0 14px #FFD700;
+    }
+
+    /* Result banner */
+    .result-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      pointer-events: none;
+    }
+
+    .result-banner.show {
+      animation: bannerPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      pointer-events: all;
+    }
+
+    .result-banner.hide {
+      animation: bannerFade 0.3s ease-in forwards;
+    }
+
+    @keyframes bannerPop {
+      from { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; }
+      to   { transform: translate(-50%, -50%) scale(1) rotate(0deg);   opacity: 1; }
+    }
+
+    @keyframes bannerFade {
+      from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      to   { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
+
+    .result-text {
+      font-size: 5rem;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      padding: 20px 60px;
+      border-radius: 8px;
+      animation: textShake 0.3s ease-in-out 0.5s;
+    }
+
+    .result-text.win {
+      color: #FFD700;
+      background: rgba(0,0,0,0.85);
+      border: 4px solid #FFD700;
+      text-shadow: 0 0 20px #FFD700, 0 0 50px #FFD700;
+      box-shadow: 0 0 40px #FFD700, inset 0 0 20px rgba(255,215,0,0.1);
+    }
+
+    .result-text.lose {
+      color: #FF3333;
+      background: rgba(0,0,0,0.85);
+      border: 4px solid #CC0000;
+      text-shadow: 0 0 20px #FF0000, 0 0 50px #CC0000;
+      box-shadow: 0 0 40px #CC0000, inset 0 0 20px rgba(200,0,0,0.1);
+    }
+
+    @keyframes textShake {
+      0%, 100% { transform: translateX(0); }
+      20%      { transform: translateX(-8px); }
+      40%      { transform: translateX(8px); }
+      60%      { transform: translateX(-4px); }
+      80%      { transform: translateX(4px); }
+    }
+
+    .spin-again-btn {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 3px;
+      padding: 14px 48px;
+      background: linear-gradient(135deg, #FFD700, #FF8C00);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px rgba(255,215,0,0.5);
+      transition: transform 0.1s, box-shadow 0.1s;
+      animation: btnBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both;
+    }
+
+    @keyframes btnBounce {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .spin-again-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 40px rgba(255,215,0,0.8);
+    }
+
+    .spin-again-btn:active { transform: scale(0.97); }
+
+    /* Confetti particles */
+    .confetti-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 40;
+      overflow: hidden;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      opacity: 0;
+      animation: confettiFall linear forwards;
+    }
+
+    @keyframes confettiFall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* Decorative bulbs */
+    .bulbs {
+      display: flex;
+      gap: 16px;
+    }
+
+    .bulb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      animation: bulbFlash 0.8s ease-in-out infinite;
+    }
+
+    .bulb:nth-child(odd)  { background: #FFD700; box-shadow: 0 0 8px #FFD700; animation-delay: 0s; }
+    .bulb:nth-child(even) { background: #FF4500; box-shadow: 0 0 8px #FF4500; animation-delay: 0.4s; }
+
+    @keyframes bulbFlash {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.2; }
+    }
+
+    /* Win/Loss Counter */
+    .scoreboard {
+      display: flex;
+      gap: 40px;
+    }
+
+    .score-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 36px;
+      border-radius: 6px;
+      border: 2px solid;
+    }
+
+    .score-box.wins-box {
+      border-color: #FFD700;
+      background: rgba(255, 215, 0, 0.08);
+      box-shadow: 0 0 16px rgba(255, 215, 0, 0.2);
+    }
+
+    .score-box.losses-box {
+      border-color: #CC0000;
+      background: rgba(200, 0, 0, 0.08);
+      box-shadow: 0 0 16px rgba(200, 0, 0, 0.2);
+    }
+
+    .score-label {
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .score-box.wins-box .score-label   { color: #FFD700; }
+    .score-box.losses-box .score-label { color: #FF4444; }
+
+    .score-value {
+      font-size: 2.8rem;
+      line-height: 1;
+    }
+
+    .score-box.wins-box .score-value   { color: #FFD700; text-shadow: 0 0 12px #FFD700; }
+    .score-box.losses-box .score-value { color: #FF4444; text-shadow: 0 0 12px #CC0000; }
+
+    .score-bump {
+      animation: scoreBump 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes scoreBump {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.5); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── Fish ─────────────────────────────────────────────────────────────── */
+    .fish-panel {
+      position: fixed;
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      z-index: 102;
+    }
+
+    .fish-body {
+      font-size: 15rem;
+      line-height: 1;
+      display: block;
+      filter: drop-shadow(0 0 8px rgba(255,215,0,0.3));
+      animation: fishBob 2.4s ease-in-out infinite;
+      transition: filter 0.4s;
+    }
+
+    @keyframes fishBob {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50%       { transform: translateY(-12px) rotate(3deg); }
+    }
+
+    .fish-body.happy {
+      animation: fishHappy 0.7s ease-out forwards;
+      filter: drop-shadow(0 0 16px #FFD700) drop-shadow(0 0 32px #FF8C00);
+    }
+
+    @keyframes fishHappy {
+      0%   { transform: translateY(0) rotate(0deg) scaleX(1); }
+      20%  { transform: translateY(-40px) rotate(20deg) scaleX(1.1); }
+      40%  { transform: translateY(-60px) rotate(-15deg) scaleX(-1.1); }
+      60%  { transform: translateY(-30px) rotate(10deg) scaleX(1); }
+      80%  { transform: translateY(-10px) rotate(-5deg); }
+      100% { transform: translateY(0) rotate(0deg); }
+    }
+
+    .fish-body.sad {
+      animation: fishSad 1.2s ease-out forwards;
+      filter: drop-shadow(0 0 8px rgba(100,0,0,0.6)) grayscale(0.7);
+    }
+
+    @keyframes fishSad {
+      0%   { transform: translateY(0) rotate(0deg); }
+      30%  { transform: translateY(30px) rotate(-20deg); }
+      60%  { transform: translateY(20px) rotate(10deg); }
+      100% { transform: translateY(0) rotate(-5deg); }
+    }
+
+    .fish-body.spinning-fish {
+      animation: fishSpin 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+      cursor: wait;
+    }
+
+    @keyframes fishSpin {
+      0%   { transform: rotate(0deg)   scale(1); }
+      50%  { transform: rotate(180deg) scale(1.2); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    .fish-panel { cursor: pointer; z-index: 102; }
+    .fish-body  { position: relative; z-index: 1; }
+    .fish-label { position: relative; z-index: 1; }
+
+    /* Aura behind fish — absolute inside fish-panel (which is a fixed stacking context) */
+    .fish-aura {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      transition: width 1.2s ease, height 1.2s ease, opacity 1.2s ease, box-shadow 1.2s ease;
+    }
+
+    /* Fish click counter */
+    .fish-counter {
+      position: fixed;
+      bottom: 24px;
+      left: 32px;
+      z-index: 102;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    .fish-counter-label {
+      font-size: 0.6rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #555;
+    }
+
+    .fish-counter-value {
+      font-size: 1.4rem;
+      color: #888;
+      text-shadow: 0 0 6px rgba(255,255,255,0.1);
+    }
+
+    .fish-label {
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    .fish-label.happy { color: #FFD700; }
+    .fish-label.sad   { color: #FF4444; }
+    .fish-label.idle  { color: #888; }
+
+    /* ── Streak Panel ──────────────────────────────────────────────────────── */
+    .streak-panel {
+      position: fixed;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 102;
+      animation: streakEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes streakEntrance {
+      from { opacity: 0; transform: translateY(-50%) scale(0.5) translateX(40px); }
+      to   { opacity: 1; transform: translateY(-50%) scale(1)   translateX(0); }
+    }
+
+    .streak-fire {
+      font-size: 2.2rem;
+      animation: fireShake 0.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes fireShake {
+      from { transform: rotate(-8deg) scale(1); }
+      to   { transform: rotate(8deg) scale(1.1); }
+    }
+
+    .streak-count {
+      font-size: 3.5rem;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .streak-panel.win-streak .streak-count {
+      color: #FFD700;
+      text-shadow: 0 0 16px #FFD700, 0 0 40px #FF8C00;
+    }
+
+    .streak-panel.lose-streak .streak-count {
+      color: #FF3333;
+      text-shadow: 0 0 16px #FF0000, 0 0 40px #CC0000;
+    }
+
+    .streak-label {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .streak-panel.win-streak  .streak-label { color: #FFD700; }
+    .streak-panel.lose-streak .streak-label { color: #FF3333; }
+
+    .streak-bonus {
+      margin-top: 4px;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .streak-panel.win-streak .streak-bonus {
+      color: #000;
+      background: #FFD700;
+      box-shadow: 0 0 12px #FFD700;
+    }
+
+    .streak-panel.lose-streak .streak-bonus {
+      color: #FFF;
+      background: #CC0000;
+      box-shadow: 0 0 12px #CC0000;
+    }
+
+    /* Bonus flash on result banner */
+    .bonus-line {
+      font-size: 1.6rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #FFD700;
+      text-shadow: 0 0 12px #FFD700;
+      animation: bonusPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s both;
+    }
+
+    .bonus-line.lose-bonus {
+      color: #FF3333;
+      text-shadow: 0 0 12px #FF0000;
+    }
+
+    @keyframes bonusPop {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    /* Overlay for blocking clicks */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+    }
+    .overlay.active { display: block; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback } = React;
+
+    // ── Draw wheel ────────────────────────────────────────────────────────────
+    function drawWheel(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const cx = size / 2, cy = size / 2, r = size / 2 - 4;
+
+      ctx.clearRect(0, 0, size, size);
+
+      const segments = [
+        { label: 'WIN',  color: '#B8860B', bright: '#FFD700', start: -Math.PI/2,       end: Math.PI/2       },
+        { label: 'LOSE', color: '#8B0000', bright: '#FF3333', start: Math.PI/2,         end: Math.PI * 1.5   },
+      ];
+
+      segments.forEach(seg => {
+        // Main fill
+        const grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+        grad.addColorStop(0, seg.bright);
+        grad.addColorStop(1, seg.color);
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, seg.start, seg.end);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Segment border
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, seg.start, seg.end);
+        ctx.closePath();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Divider line
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        const mx = cx + r * Math.cos(seg.start);
+        const my = cy + r * Math.sin(seg.start);
+        ctx.lineTo(mx, my);
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Label
+        const midAngle = (seg.start + seg.end) / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(midAngle);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `bold ${size * 0.1}px 'Oswald', Arial Black, sans-serif`;
+        ctx.fillStyle = '#FFF';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 8;
+        ctx.fillText(seg.label, r * 0.55, 0);
+        ctx.restore();
+
+        // Decorative dots along arc
+        const dotCount = 8;
+        for (let i = 0; i <= dotCount; i++) {
+          const a = seg.start + (seg.end - seg.start) * (i / dotCount);
+          const dr = r * 0.88;
+          const dx = cx + dr * Math.cos(a);
+          const dy = cy + dr * Math.sin(a);
+          ctx.beginPath();
+          ctx.arc(dx, dy, 5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.fill();
+        }
+      });
+
+      // Outer ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+
+      // Inner ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.12, 0, Math.PI * 2);
+      ctx.fillStyle = '#111';
+      ctx.fill();
+    }
+
+    // ── Scoreboard ───────────────────────────────────────────────────────────
+    function Scoreboard({ wins, losses, lastResult }) {
+      return (
+        <div className="scoreboard">
+          <div className="score-box wins-box">
+            <span className="score-label">Wins</span>
+            <span className={`score-value ${lastResult === 'win' ? 'score-bump' : ''}`} key={wins}>{wins}</span>
+          </div>
+          <div className="score-box losses-box">
+            <span className="score-label">Losses</span>
+            <span className={`score-value ${lastResult === 'lose' ? 'score-bump' : ''}`} key={losses}>{losses}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Confetti ──────────────────────────────────────────────────────────────
+    function Confetti({ active }) {
+      const pieces = active ? Array.from({ length: 80 }, (_, i) => i) : [];
+      const colors = ['#FFD700','#FF6600','#FF3333','#00FF88','#00AAFF','#FF00FF','#FFFFFF'];
+
+      return (
+        <div className="confetti-container">
+          {pieces.map(i => {
+            const left   = Math.random() * 100;
+            const delay  = Math.random() * 0.8;
+            const dur    = 1.8 + Math.random() * 1.5;
+            const color  = colors[Math.floor(Math.random() * colors.length)];
+            const size   = 8 + Math.floor(Math.random() * 10);
+            const shape  = Math.random() > 0.5 ? '50%' : '2px';
+            return (
+              <div key={i} className="confetti-piece" style={{
+                left: `${left}%`,
+                top: 0,
+                width: size,
+                height: size,
+                background: color,
+                borderRadius: shape,
+                animationDuration: `${dur}s`,
+                animationDelay: `${delay}s`,
+              }} />
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ── Fish ─────────────────────────────────────────────────────────────────
+    function Fish({ mood, net, fishClicks, onFishClick }) {
+      const [spinKey, setSpinKey] = React.useState(0);
+      const [fishSpinning, setFishSpinning] = React.useState(false);
+      const timerRef = React.useRef(null);
+      const labels = { happy: '🎉 Nice!', sad: '💀 Ouch!', idle: 'Click me!' };
+
+      const handleClick = () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setFishSpinning(true);
+        setSpinKey(k => k + 1);
+        timerRef.current = setTimeout(() => setFishSpinning(false), 650);
+        onFishClick();
+      };
+
+      // Aura: only show when one side is clearly ahead
+      const diff = Math.abs(net);
+      const auraSize = Math.min(40 + diff * 8, 600);
+      const fireAura = net > 0 ? {
+        width: auraSize, height: auraSize,
+        opacity: Math.min(0.25 + diff * 0.015, 0.85),
+        boxShadow: `0 0 ${auraSize*0.4}px ${auraSize*0.25}px rgba(255,140,0,0.7), 0 0 ${auraSize*0.8}px ${auraSize*0.4}px rgba(255,60,0,0.4)`,
+        background: 'radial-gradient(circle, rgba(255,200,0,0.3) 0%, rgba(255,80,0,0.15) 50%, transparent 70%)',
+      } : null;
+      const gloomAura = net < 0 ? {
+        width: auraSize, height: auraSize,
+        opacity: Math.min(0.25 + diff * 0.015, 0.85),
+        boxShadow: `0 0 ${auraSize*0.4}px ${auraSize*0.25}px rgba(160,0,255,0.7), 0 0 ${auraSize*0.8}px ${auraSize*0.4}px rgba(80,0,180,0.4)`,
+        background: 'radial-gradient(circle, rgba(200,0,255,0.3) 0%, rgba(80,0,200,0.15) 50%, transparent 70%)',
+      } : null;
+      const auraStyle = fireAura || gloomAura;
+
+      const animClass = fishSpinning ? 'spinning-fish' : mood;
+      return (
+        <>
+          <div className="fish-panel" onClick={handleClick} title="Wheeee!">
+            {auraStyle && <div className="fish-aura" style={auraStyle} />}
+            <span className={`fish-body ${animClass}`} key={spinKey || mood}>🐟</span>
+            <span className={`fish-label ${mood}`}>{labels[mood]}</span>
+          </div>
+          <div className="fish-counter">
+            <span className="fish-counter-label">Fish clicks</span>
+            <span className="fish-counter-value">🐟 × {fishClicks}</span>
+          </div>
+        </>
+      );
+    }
+
+    // ── Streak Panel ─────────────────────────────────────────────────────────
+    function StreakPanel({ streak }) {
+      if (Math.abs(streak) < 2) return null;
+      const isWin  = streak > 0;
+      const count  = Math.abs(streak);
+      const bonus  = count >= 3 ? Math.pow(2, count - 3) : 0;
+      return (
+        <div className={`streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`} key={streak}>
+          <span className="streak-fire">{isWin ? '🔥' : '💀'}</span>
+          <span className="streak-count">{count}x</span>
+          <span className="streak-label">{isWin ? 'Win Streak' : 'Lose Streak'}</span>
+          {bonus > 0 && (
+            <span className="streak-bonus">Bonus +{bonus}</span>
+          )}
+        </div>
+      );
+    }
+
+    // ── Main App ──────────────────────────────────────────────────────────────
+    function App() {
+      const canvasRef    = useRef(null);
+      const [rotation, setRotation]       = useState(0);
+      const [spinning, setSpinning]       = useState(false);
+      const [result, setResult]           = useState(null);   // 'win'|'lose'|null
+      const [showResult, setShowResult]   = useState(false);
+      const [hideResult, setHideResult]   = useState(false);
+      const [confetti, setConfetti]       = useState(false);
+      const [wins, setWins]               = useState(() => Number(localStorage.getItem('wheel_wins'))   || 0);
+      const [losses, setLosses]           = useState(() => Number(localStorage.getItem('wheel_losses')) || 0);
+      const [streak, setStreak]           = useState(0); // +N = win streak, -N = lose streak (not persisted)
+      const [fishMood, setFishMood]       = useState('idle');
+      const [fishClicks, setFishClicks]   = useState(() => Number(localStorage.getItem('wheel_fishclicks')) || 0);
+      const [bonusEarned, setBonusEarned] = useState(0);
+      const [autoSpin, setAutoSpin]       = useState(false);
+      const currentRotationRef            = useRef(0);
+      const fishTimerRef                  = useRef(null);
+      const autoSpinRef                   = useRef(false);
+
+      // Keep ref in sync so the setTimeout callback always sees the latest value
+      useEffect(() => {
+        autoSpinRef.current = autoSpin;
+        if (autoSpin && !spinning) spin();
+      }, [autoSpin]);
+
+      // Persist wins/losses to localStorage
+      useEffect(() => { localStorage.setItem('wheel_wins',       wins);       }, [wins]);
+      useEffect(() => { localStorage.setItem('wheel_losses',     losses);     }, [losses]);
+      useEffect(() => { localStorage.setItem('wheel_fishclicks', fishClicks); }, [fishClicks]);
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (canvas) drawWheel(canvas);
+      }, []);
+
+      const spin = useCallback(async () => {
+        if (spinning || autoSpin) return;
+        // Dismiss any current result first
+        if (showResult) {
+          setHideResult(true);
+          await new Promise(r => setTimeout(r, 350));
+          setShowResult(false);
+          setHideResult(false);
+          setResult(null);
+          setConfetti(false);
+        }
+
+        setBonusEarned(0);
+        setSpinning(true);
+
+        let data;
+        try {
+          const res = await fetch('/api/spin', { method: 'POST' });
+          data = await res.json();
+        } catch (e) {
+          setSpinning(false);
+          return;
+        }
+
+        // Calculate the next CSS rotation that lands on the correct segment.
+        // data.angle % 360 is the intended landing angle (what should be under the pointer).
+        // We find the next occurrence of that angle that is at least 5 full spins ahead.
+        const base = currentRotationRef.current;
+        const segmentAngle = data.angle % 360;
+        const minTarget = base + 5 * 360;
+        const newRotation = Math.ceil((minTarget - segmentAngle) / 360) * 360 + segmentAngle;
+
+        currentRotationRef.current = newRotation;
+        setRotation(newRotation);
+
+        // Wait for animation to finish (4.5s transition)
+        setTimeout(() => {
+          setResult(data.result);
+          setShowResult(true);
+
+          // Update streak and calculate bonus
+          setStreak(prev => {
+            const newStreak = data.result === 'win'
+              ? (prev >= 0 ? prev + 1 : 1)
+              : (prev <= 0 ? prev - 1 : -1);
+            const count = Math.abs(newStreak);
+            const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
+            setBonusEarned(bonus);
+            if (data.result === 'win') {
+              setWins(w => w + 1 + bonus);
+              setConfetti(true);
+            } else {
+              setLosses(l => l + 1 + bonus);
+            }
+            return newStreak;
+          });
+
+          // Fish reaction
+          const mood = data.result === 'win' ? 'happy' : 'sad';
+          setFishMood(mood);
+          if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
+          fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
+
+          setSpinning(false);
+
+          // Auto-spin: wait 1.5s so user sees result, then spin again
+          if (autoSpinRef.current) {
+            setTimeout(() => {
+              if (autoSpinRef.current) {
+                setHideResult(true);
+                setTimeout(() => {
+                  setShowResult(false);
+                  setHideResult(false);
+                  setResult(null);
+                  setConfetti(false);
+                  spin();
+                }, 320);
+              }
+            }, 1500);
+          }
+        }, 4700);
+      }, [spinning, showResult]);
+
+      const handleSpinAgain = useCallback(() => {
+        setHideResult(true);
+        setTimeout(() => {
+          setShowResult(false);
+          setHideResult(false);
+          setResult(null);
+          setConfetti(false);
+          spin();
+        }, 320);
+      }, [spin]);
+
+      return (
+        <div>
+        <Fish
+          mood={fishMood}
+          net={wins - losses}
+          fishClicks={fishClicks}
+          onFishClick={() => setFishClicks(c => c + 1)}
+        />
+        <StreakPanel streak={streak} />
+        <div className="casino-container">
+          {/* Decorative bulbs top */}
+          <div className="bulbs">
+            {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+          </div>
+
+          <div>
+            <div className="casino-title">Lucky Wheel</div>
+            <div className="subtitle">Try Your Fortune</div>
+          </div>
+
+          <div className="wheel-wrapper" onClick={!spinning && !autoSpin ? spin : undefined} title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}>
+            <div className={`pointer ${spinning ? 'spinning' : ''}`} />
+            <canvas
+              ref={canvasRef}
+              width={380}
+              height={380}
+              className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
+              style={{ transform: `rotate(${rotation}deg)` }}
+            />
+            <div className="center-hub">★</div>
+          </div>
+
+          <div className={`spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`} onClick={spin}>
+            {spinning || autoSpin ? '' : '▶ Click to Spin ◀'}
+          </div>
+
+          <label className="autospin-row">
+            <input
+              type="checkbox"
+              checked={autoSpin}
+              onChange={e => setAutoSpin(e.target.checked)}
+            />
+            <span className="autospin-label">Auto Spin</span>
+          </label>
+
+          <Scoreboard wins={wins} losses={losses} lastResult={result} />
+
+          {/* Decorative bulbs bottom */}
+          <div className="bulbs">
+            {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+          </div>
+
+          {/* Confetti */}
+          <Confetti active={confetti} />
+
+          {/* Overlay while result showing */}
+          <div className={`overlay ${showResult ? 'active' : ''}`} />
+
+          {/* Result banner */}
+          {showResult && (
+            <div className={`result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`}>
+              <div className={`result-text ${result}`}>
+                {result === 'win' ? '🎰 YOU WIN! 🎰' : '💀 YOU LOSE 💀'}
+              </div>
+              {bonusEarned > 0 && (
+                <div className={`bonus-line ${result === 'lose' ? 'lose-bonus' : ''}`}>
+                  🔥 Streak Bonus +{bonusEarned}!
+                </div>
+              )}
+              <button className="spin-again-btn" onClick={handleSpinAgain}>
+                Spin Again
+              </button>
+            </div>
+          )}
+        </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
