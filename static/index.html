@@ -1020,6 +1020,80 @@
       text-shadow: 0 0 8px #4488FF;
     }
 
+    /* ── Leaderboard ──────────────────────────────────────────────────────── */
+    .leaderboard {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 102;
+      width: 210px;
+      background: rgba(10,5,0,0.88);
+      border: 1px solid rgba(255,215,0,0.25);
+      border-radius: 6px;
+      padding: 10px 12px;
+      box-shadow: 0 0 16px rgba(255,215,0,0.08);
+    }
+
+    .leaderboard-title {
+      font-size: 0.55rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #FFD700;
+      text-shadow: 0 0 8px rgba(255,215,0,0.5);
+      margin-bottom: 8px;
+    }
+
+    .leaderboard-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,215,0,0.07);
+    }
+    .leaderboard-row:last-child { border-bottom: none; }
+
+    .lb-rank {
+      font-size: 0.6rem;
+      color: #555;
+      width: 14px;
+      flex-shrink: 0;
+    }
+    .lb-rank.gold   { color: #FFD700; text-shadow: 0 0 6px #FFD700; }
+    .lb-rank.silver { color: #aaa; }
+    .lb-rank.bronze { color: #CD7F32; }
+
+    .lb-name {
+      font-size: 0.7rem;
+      color: #ddd;
+      letter-spacing: 1px;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+    .lb-name.is-you { color: #FFD700; }
+
+    .lb-wins {
+      font-size: 0.65rem;
+      color: #FFD700;
+      flex-shrink: 0;
+      letter-spacing: 1px;
+    }
+
+    .lb-ratio {
+      font-size: 0.55rem;
+      color: #666;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 600px) {
+      .leaderboard { width: 160px; bottom: 160px; right: 4px; padding: 7px 8px; }
+      .lb-name { font-size: 0.6rem; }
+      .lb-wins { font-size: 0.6rem; }
+    }
+
     /* Session-booted banner */
     .session-banner {
       position: fixed;
@@ -1316,6 +1390,36 @@
           <span className="streak-count">{count}x</span>
           <span className="streak-label">{isWin ? 'Win Streak' : 'Lose Streak'}</span>
           {bonus > 0 && <span className="streak-bonus">Bonus +{bonus}</span>}
+        </div>
+      );
+    }
+
+    // ── Leaderboard ───────────────────────────────────────────────────────────
+    function Leaderboard({ currentUser }) {
+      const [rows, setRows] = useState([]);
+
+      useEffect(() => {
+        const load = () => apiFetch('/api/leaderboard').then(r => { if (r.ok) setRows(r.data); });
+        load();
+        const id = setInterval(load, 30000);
+        return () => clearInterval(id);
+      }, []);
+
+      if (rows.length === 0) return null;
+
+      const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+
+      return (
+        <div className="leaderboard">
+          <div className="leaderboard-title">🏆 Top Players</div>
+          {rows.map((r, i) => (
+            <div key={r.username} className="leaderboard-row">
+              <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
+              <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
+              <span className="lb-wins">{r.wins}W</span>
+              <span className="lb-ratio">{r.wins}W:{r.losses}L</span>
+            </div>
+          ))}
         </div>
       );
     }
@@ -1766,6 +1870,9 @@
           {shieldCharges > 0 && (
             <div className="shield-indicator">🛡️ {shieldCharges} charge{shieldCharges !== 1 ? 's' : ''}</div>
           )}
+
+          {/* Leaderboard */}
+          <Leaderboard currentUser={username} />
 
           <StreakPanel streak={streak} />
 

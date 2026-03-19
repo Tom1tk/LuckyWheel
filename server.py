@@ -652,5 +652,28 @@ def click_frenzy():
         conn.close()
 
 
+@app.route('/api/leaderboard')
+def leaderboard():
+    conn = get_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                '''SELECT u.username, gs.wins, gs.losses
+                   FROM game_state gs
+                   JOIN users u ON u.id = gs.user_id
+                   ORDER BY gs.wins DESC
+                   LIMIT 5'''
+            )
+            rows = cur.fetchall()
+        return jsonify([
+            {'username': r['username'], 'wins': r['wins'], 'losses': r['losses']}
+            for r in rows
+        ])
+    except Exception:
+        return jsonify([])
+    finally:
+        conn.close()
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
