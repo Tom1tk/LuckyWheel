@@ -1,10 +1,10 @@
-# FishSpin 🐟
+# Lucky Wheel 🎰
 
 A casino-style spinning wheel game with a fish mascot, streaks, and a full upgrade shop — running on a Python/Flask backend with PostgreSQL persistence and user authentication.
 
 ## Overview
 
-FishSpin is a browser-based gambling wheel built with a Python/Flask backend and a React frontend loaded entirely from CDN (no build step required). Spin the wheel, rack up wins, collect fish clicks, and spend them in the shop on cosmetic upgrades and gameplay boosts.
+Lucky Wheel is a browser-based gambling wheel built with a Python/Flask backend and a React frontend loaded entirely from CDN (no build step required). Spin the wheel, rack up wins, collect fish clicks, and spend them in the shop on cosmetic upgrades and gameplay boosts.
 
 All game state is stored server-side in PostgreSQL — progress persists across devices and sessions, and client-side cheating is prevented.
 
@@ -19,9 +19,11 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
-- One account per IP address
+- One account per device (enforced via a long-lived `device_id` cookie; multiple users on the same IP are fine)
+- Strict single-session enforcement — logging in on a new device boots the previous session
 - 30-day persistent login sessions (signed HTTP-only cookies)
-- Brute-force protection: escalating lockouts after 5/10/20 failed attempts (1min/5min/1hr)
+- Brute-force protection: escalating lockouts after 5/10/20 failed attempts per username (1min/5min/1hr)
+- All login and registration attempts are logged with IP, normalised username, User-Agent, and rejection reason
 
 ### Fish Mascot
 - A fish lives on the left side of the screen, centred vertically
@@ -105,13 +107,17 @@ Visual trail effect on the fish.
 | Frenzy III | 2400 | +20 clicks per 5s |
 
 ### Streak Shield
-Protects your win streak on a loss. Charges reset each session (login or page load).
-| Tier | Cost | Charges per Session |
-|------|------|---------------------|
-| Shield | 150 | 1 charge |
-| Reinforced Shield | 600 | 3 charges |
+Shields protect your win streak by absorbing a loss. All three can be owned simultaneously and are consumed in priority order: **Shield → Reinforced → Regenerating**.
 
-> **Note:** The old infinite-shield behaviour has been removed. Shields are now limited per session to keep streak bonuses balanced.
+| Item | Cost | Behaviour |
+|------|------|-----------|
+| 🛡️ Shield | 150 | Blocks 1 loss, then breaks. Must be repurchased. |
+| ⚔️ Reinforced Shield | 600 | Blocks 3 losses, then breaks. Must be repurchased. |
+| 🔄 Regenerating Shield | 800 | Blocks 1 loss, recharges after 3 wins, loops forever. Never permanently breaks. |
+
+- Shields only activate while you are on a **win streak** — they prevent it from being broken.
+- No prerequisite between shields — all three are independently purchasable at any time.
+- Refreshing the page does **not** restore charges (exploit patched).
 
 ### Wheel Theme
 Changes the canvas colour palette of the wheel.
@@ -216,12 +222,13 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 ### Game
 | Endpoint | Method | Rate Limit | Description |
 |----------|--------|------------|-------------|
-| `/api/state` | GET | — | Full game state; resets shield charges |
+| `/api/state` | GET | — | Full game state |
 | `/api/spin` | POST | 10/sec | Server determines outcome, updates DB |
 | `/api/buy` | POST | — | Purchase shop item |
 | `/api/equip` | POST | — | Equip a fish skin |
 | `/api/fish-click` | POST | 30/sec | Increment fish clicks |
 | `/api/click-frenzy` | POST | — | Passive click income tick |
+| `/api/leaderboard` | GET | — | Public — top 5 players by wins |
 
 `/api/spin` response:
 ```json
@@ -231,11 +238,23 @@ All game endpoints require authentication (session cookie). POST endpoints requi
   "wins": 10,
   "losses": 3,
   "streak": 4,
+  "owned_items": ["shield_1"],
   "shield_charges": 2,
+  "regen_recharge_wins": 0,
   "shield_used": false,
+  "shield_broke": false,
   "bonus_earned": 4
 }
 ```
+
+`/api/leaderboard` (public, no auth required):
+```json
+[
+  { "username": "alice", "wins": 42, "losses": 18 },
+  ...
+]
+```
+Returns top 5 players by win count. Auto-refreshed client-side every 60 seconds.
 
 ---
 
@@ -253,6 +272,7 @@ The entire frontend lives in `static/index.html` as a single-file React app. Key
 | `ShopPanel` | Full shop — locked tiers hidden until prerequisite owned |
 | `ShopItem` | Individual item card (buy / equip / active states) |
 | `Confetti` | Win confetti overlay |
+| `Leaderboard` | Fixed bottom-right panel — top 5 players by wins, auto-refreshes every 60s |
 | `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon) |
 
 **No localStorage** — all state lives in PostgreSQL. Legacy `localStorage` keys are cleared on mount.
