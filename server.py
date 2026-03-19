@@ -7,7 +7,7 @@ from datetime import timedelta, datetime, timezone
 import bcrypt
 import psycopg2
 import psycopg2.extras
-from flask import Flask, jsonify, request, send_from_directory, session
+from flask import Flask, jsonify, make_response, request, send_from_directory, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import (
@@ -202,9 +202,21 @@ def require_json():
 
 # ── Static route ──────────────────────────────────────────────────────────────
 
+DEVICE_COOKIE = 'device_id'
+DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600  # 1 year
+
+
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    resp = make_response(send_from_directory('static', 'index.html'))
+    if not request.cookies.get(DEVICE_COOKIE):
+        device_id = secrets.token_hex(32)
+        resp.set_cookie(
+            DEVICE_COOKIE, device_id,
+            max_age=DEVICE_COOKIE_MAX_AGE,
+            httponly=True, samesite='Lax',
+        )
+    return resp
 
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
@@ -233,15 +245,17 @@ def register():
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
 
     ip = get_remote_address()
+    device_id = request.cookies.get(DEVICE_COOKIE)
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     conn = get_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # One account per IP
-            cur.execute('SELECT id FROM users WHERE ip_address = %s', (ip,))
-            if cur.fetchone():
-                return jsonify({'error': 'An account already exists from this IP address'}), 409
+            # One account per device (cookie-based)
+            if device_id:
+                cur.execute('SELECT id FROM users WHERE device_id = %s', (device_id,))
+                if cur.fetchone():
+                    return jsonify({'error': 'An account already exists on this device'}), 409
 
             # Username uniqueness
             cur.execute('SELECT id FROM users WHERE username = %s', (username,))
@@ -249,8 +263,8 @@ def register():
                 return jsonify({'error': 'Username already taken'}), 409
 
             cur.execute(
-                'INSERT INTO users (username, password_hash, ip_address) VALUES (%s, %s, %s) RETURNING id',
-                (username, pw_hash, ip),
+                'INSERT INTO users (username, password_hash, ip_address, device_id) VALUES (%s, %s, %s, %s) RETURNING id',
+                (username, pw_hash, ip, device_id),
             )
             user_id = cur.fetchone()['id']
 

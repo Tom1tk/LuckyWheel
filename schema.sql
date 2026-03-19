@@ -7,10 +7,12 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(128) NOT NULL,
     ip_address    INET NOT NULL,
     session_token VARCHAR(64),
+    device_id     VARCHAR(64),                  -- set from long-lived browser cookie
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ip ON users(ip_address);
+-- One account per device (cookie-based; partial index ignores NULL device_id)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_device ON users(device_id) WHERE device_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS game_state (
     user_id        INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
