@@ -476,7 +476,7 @@
     .fish-body  { position: relative; z-index: 1; }
     .fish-label { position: relative; z-index: 1; }
 
-    /* Aura behind fish — absolute inside fish-panel (which is a fixed stacking context) */
+    /* Aura behind fish */
     .fish-aura {
       position: absolute;
       top: 50%;
@@ -723,7 +723,22 @@
     }
     .shop-item.owned   { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.07); }
     .shop-item.equipped { border-color: #FFD700; background: rgba(255,215,0,0.12); box-shadow: 0 0 8px rgba(255,215,0,0.2); }
-    .shop-item.locked  { opacity: 0.4; }
+
+    /* Singularity card */
+    .shop-item.singularity-item {
+      border-color: transparent;
+      background: rgba(100,0,200,0.1);
+      animation: singularityBorder 3s linear infinite;
+    }
+    @keyframes singularityBorder {
+      0%   { box-shadow: 0 0 8px 2px #FF0000, inset 0 0 4px rgba(255,0,0,0.1); border-color: #FF0000; }
+      16%  { box-shadow: 0 0 8px 2px #FF8C00, inset 0 0 4px rgba(255,140,0,0.1); border-color: #FF8C00; }
+      33%  { box-shadow: 0 0 8px 2px #FFD700, inset 0 0 4px rgba(255,215,0,0.1); border-color: #FFD700; }
+      50%  { box-shadow: 0 0 8px 2px #00FF88, inset 0 0 4px rgba(0,255,136,0.1); border-color: #00FF88; }
+      66%  { box-shadow: 0 0 8px 2px #00AAFF, inset 0 0 4px rgba(0,170,255,0.1); border-color: #00AAFF; }
+      83%  { box-shadow: 0 0 8px 2px #CC00FF, inset 0 0 4px rgba(204,0,255,0.1); border-color: #CC00FF; }
+      100% { box-shadow: 0 0 8px 2px #FF0000, inset 0 0 4px rgba(255,0,0,0.1); border-color: #FF0000; }
+    }
 
     .shop-item-emoji { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
 
@@ -849,6 +864,159 @@
       83%  { filter: drop-shadow(0 0 16px #CC00FF); }
       100% { filter: drop-shadow(0 0 16px #FF0000); }
     }
+
+    /* ── Auth Page ─────────────────────────────────────────────────────────── */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+
+    .auth-card {
+      background: rgba(10, 4, 0, 0.97);
+      border: 2px solid #FFD700;
+      border-radius: 10px;
+      padding: 40px 48px;
+      width: 380px;
+      box-shadow: 0 0 60px rgba(255,215,0,0.3), inset 0 0 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: authCardIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    @keyframes authCardIn {
+      from { transform: scale(0.85) translateY(30px); opacity: 0; }
+      to   { transform: scale(1)    translateY(0);    opacity: 1; }
+    }
+
+    .auth-title {
+      font-size: 1.8rem;
+      letter-spacing: 5px;
+      color: #FFD700;
+      text-shadow: 0 0 16px #FFD700;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .auth-subtitle {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      color: #888;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: -12px;
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255,215,0,0.05);
+      border: 1px solid rgba(255,215,0,0.3);
+      border-radius: 4px;
+      color: #FFD700;
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .auth-input::placeholder { color: #555; }
+    .auth-input:focus {
+      border-color: #FFD700;
+      box-shadow: 0 0 12px rgba(255,215,0,0.3);
+    }
+
+    .auth-submit-btn {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 3px;
+      padding: 14px;
+      background: linear-gradient(135deg, #B8860B, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px rgba(255,215,0,0.4);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .auth-submit-btn:hover { transform: scale(1.03); box-shadow: 0 0 30px rgba(255,215,0,0.7); }
+    .auth-submit-btn:active { transform: scale(0.98); }
+    .auth-submit-btn:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; transform: none; }
+
+    .auth-toggle {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: #888;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .auth-toggle a {
+      color: #FFD700;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .auth-error {
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      color: #FF4444;
+      text-align: center;
+      padding: 8px;
+      background: rgba(200,0,0,0.1);
+      border: 1px solid rgba(200,0,0,0.3);
+      border-radius: 4px;
+    }
+
+    /* ── Logout bar ────────────────────────────────────────────────────────── */
+    .user-bar {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-bar-name {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    .logout-btn {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      padding: 5px 10px;
+      background: rgba(255,255,255,0.05);
+      color: #666;
+      border: 1px solid #333;
+      border-radius: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .logout-btn:hover { color: #FF4444; border-color: #FF4444; }
+
+    /* Shield indicator */
+    .shield-indicator {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      z-index: 102;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      color: #4488FF;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px #4488FF;
+    }
   </style>
 </head>
 <body>
@@ -856,6 +1024,16 @@
 
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
+
+    // ── API helpers ───────────────────────────────────────────────────────────
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      const json = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data: json };
+    }
 
     // ── Draw wheel ────────────────────────────────────────────────────────────
     function drawWheel(canvas, theme = 'default') {
@@ -971,26 +1149,20 @@
     function Confetti({ active, count = 80 }) {
       const pieces = active ? Array.from({ length: count }, (_, i) => i) : [];
       const colors = ['#FFD700','#FF6600','#FF3333','#00FF88','#00AAFF','#FF00FF','#FFFFFF'];
-
       return (
         <div className="confetti-container">
           {pieces.map(i => {
-            const left   = Math.random() * 100;
-            const delay  = Math.random() * 0.8;
-            const dur    = 1.8 + Math.random() * 1.5;
-            const color  = colors[Math.floor(Math.random() * colors.length)];
-            const size   = 8 + Math.floor(Math.random() * 10);
-            const shape  = Math.random() > 0.5 ? '50%' : '2px';
+            const left  = Math.random() * 100;
+            const delay = Math.random() * 0.8;
+            const dur   = 1.8 + Math.random() * 1.5;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const size  = 8 + Math.floor(Math.random() * 10);
+            const shape = Math.random() > 0.5 ? '50%' : '2px';
             return (
               <div key={i} className="confetti-piece" style={{
-                left: `${left}%`,
-                top: 0,
-                width: size,
-                height: size,
-                background: color,
-                borderRadius: shape,
-                animationDuration: `${dur}s`,
-                animationDelay: `${delay}s`,
+                left: `${left}%`, top: 0, width: size, height: size,
+                background: color, borderRadius: shape,
+                animationDuration: `${dur}s`, animationDelay: `${delay}s`,
               }} />
             );
           })}
@@ -1000,9 +1172,9 @@
 
     // ── Fish ─────────────────────────────────────────────────────────────────
     function Fish({ mood, net, fishClicks, onFishClick, fishData, sizeRem, trailClass }) {
-      const [spinKey, setSpinKey] = React.useState(0);
-      const [fishSpinning, setFishSpinning] = React.useState(false);
-      const timerRef = React.useRef(null);
+      const [spinKey, setSpinKey] = useState(0);
+      const [fishSpinning, setFishSpinning] = useState(false);
+      const timerRef = useRef(null);
       const { emoji, labels } = fishData || DEFAULT_FISH;
 
       const handleClick = () => {
@@ -1013,7 +1185,6 @@
         onFishClick();
       };
 
-      // Aura: only show when one side is clearly ahead
       const diff = Math.abs(net);
       const auraSize = Math.min(40 + diff * 8, 600);
       const fireAura = net > 0 ? {
@@ -1029,8 +1200,8 @@
         background: 'radial-gradient(circle, rgba(200,0,255,0.3) 0%, rgba(80,0,200,0.15) 50%, transparent 70%)',
       } : null;
       const auraStyle = fireAura || gloomAura;
-
       const animClass = fishSpinning ? 'spinning-fish' : mood;
+
       return (
         <>
           <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} title="Wheeee!">
@@ -1049,22 +1220,20 @@
     // ── Streak Panel ─────────────────────────────────────────────────────────
     function StreakPanel({ streak }) {
       if (Math.abs(streak) < 2) return null;
-      const isWin  = streak > 0;
-      const count  = Math.abs(streak);
-      const bonus  = count >= 3 ? Math.pow(2, count - 3) : 0;
+      const isWin = streak > 0;
+      const count = Math.abs(streak);
+      const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
       return (
         <div className={`streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`} key={streak}>
           <span className="streak-fire">{isWin ? '🔥' : '💀'}</span>
           <span className="streak-count">{count}x</span>
           <span className="streak-label">{isWin ? 'Win Streak' : 'Lose Streak'}</span>
-          {bonus > 0 && (
-            <span className="streak-bonus">Bonus +{bonus}</span>
-          )}
+          {bonus > 0 && <span className="streak-bonus">Bonus +{bonus}</span>}
         </div>
       );
     }
 
-    // ── Shop catalogue ───────────────────────────────────────────────────────
+    // ── Shop catalogue ────────────────────────────────────────────────────────
     const FISH_SKINS = [
       { id: 'fish_tropical', emoji: '🐠', name: 'Tropical Fish', cost: 25,
         labels: { idle: 'Blub blub!', happy: 'Splashy win!', sad: 'Glub...' } },
@@ -1078,7 +1247,6 @@
         labels: { idle: 'Eee-eee!', happy: "Flippin' awesome!", sad: '*sad clicks*' } },
     ];
 
-    // ── Shop upgrade catalogue ────────────────────────────────────────────────
     const SHOP_SECTIONS = [
       { label: '⚡ Spin Speed', items: [
         { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 50,   desc: 'Spin time: 4.5s → 3s' },
@@ -1111,34 +1279,35 @@
         { id: 'trail_3',     emoji: '🌈', name: 'Rainbow Trail',cost: 2000, desc: 'Rainbow hue trail',      requires: 'trail_2' },
       ]},
       { label: '🖱️ Click Power', items: [
-        { id: 'double_click',emoji: '👆', name: 'Double Click', cost: 100,  desc: 'Fish clicks count x2' },
-        { id: 'clickfrenzy_1',emoji:'🖱️', name: 'Frenzy I',    cost: 150,  desc: '+1 click per 5s auto' },
-        { id: 'clickfrenzy_2',emoji:'🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 clicks per 5s',       requires: 'clickfrenzy_1' },
-        { id: 'clickfrenzy_3',emoji:'🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 clicks per 5s',      requires: 'clickfrenzy_2' },
+        { id: 'double_click',  emoji: '👆', name: 'Double Click', cost: 100,  desc: 'Fish clicks count x2' },
+        { id: 'clickfrenzy_1', emoji: '🖱️', name: 'Frenzy I',    cost: 150,  desc: '+1 click per 5s auto' },
+        { id: 'clickfrenzy_2', emoji: '🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 clicks per 5s',       requires: 'clickfrenzy_1' },
+        { id: 'clickfrenzy_3', emoji: '🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 clicks per 5s',      requires: 'clickfrenzy_2' },
       ]},
       { label: '🛡️ Streak Shield', items: [
-        { id: 'shield_1',    emoji: '🛡️', name: 'Shield',       cost: 150,  desc: 'Protect streak once/session' },
-        { id: 'iron_shield', emoji: '⚔️', name: 'Iron Shield',  cost: 600,  desc: 'Always protect win streaks', requires: 'shield_1' },
+        { id: 'shield_1',    emoji: '🛡️', name: 'Shield',           cost: 150, desc: 'Protect streak once/session' },
+        { id: 'iron_shield', emoji: '⚔️', name: 'Reinforced Shield', cost: 600, desc: '3 charges per session',     requires: 'shield_1' },
       ]},
       { label: '🎡 Wheel Theme', items: [
-        { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',   cost: 250,  desc: 'Infernal wheel colors' },
-        { id: 'theme_ice',   emoji: '❄️', name: 'Ice Theme',    cost: 1000, desc: 'Glacial wheel colors',   requires: 'theme_fire' },
-        { id: 'theme_neon',  emoji: '🟣', name: 'Neon Theme',   cost: 4000, desc: 'Cyberpunk wheel colors', requires: 'theme_ice' },
-        { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel', cost: 300,  desc: 'Radiant glow ring' },
+        { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,  desc: 'Infernal wheel colors' },
+        { id: 'theme_ice',   emoji: '❄️', name: 'Ice Theme',     cost: 1000, desc: 'Glacial wheel colors',    requires: 'theme_fire' },
+        { id: 'theme_neon',  emoji: '🟣', name: 'Neon Theme',    cost: 4000, desc: 'Cyberpunk wheel colors',  requires: 'theme_ice' },
+        { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel',  cost: 300,  desc: 'Radiant glow ring' },
       ]},
       { label: '🎨 Atmosphere', items: [
-        { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',   cost: 150,  desc: 'Confetti every spin' },
-        { id: 'confetti_1',  emoji: '🎊', name: 'Confetti+',    cost: 75,   desc: '2x confetti pieces' },
-        { id: 'confetti_2',  emoji: '🎊', name: 'Confetti++',   cost: 300,  desc: '5x confetti pieces',     requires: 'confetti_1' },
-        { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX', cost: 1200, desc: '15x confetti pieces',    requires: 'confetti_2' },
-        { id: 'bg_ocean',    emoji: '🌊', name: 'Ocean Casino', cost: 100,  desc: 'Deep blue atmosphere' },
-        { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino', cost: 400,  desc: 'Purple atmosphere',      requires: 'bg_ocean' },
-        { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',cost:1600, desc: 'Blood red atmosphere',   requires: 'bg_royal' },
+        { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',    cost: 150,  desc: 'Confetti every spin' },
+        { id: 'confetti_1',  emoji: '🎊', name: 'Confetti+',     cost: 75,   desc: '2x confetti pieces' },
+        { id: 'confetti_2',  emoji: '🎊', name: 'Confetti++',    cost: 300,  desc: '5x confetti pieces',      requires: 'confetti_1' },
+        { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX',  cost: 1200, desc: '15x confetti pieces',     requires: 'confetti_2' },
+        { id: 'bg_ocean',    emoji: '🌊', name: 'Ocean Casino',  cost: 100,  desc: 'Deep blue atmosphere' },
+        { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino',  cost: 400,  desc: 'Purple atmosphere',       requires: 'bg_ocean' },
+        { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',cost: 1600, desc: 'Blood red atmosphere',    requires: 'bg_royal' },
+      ]},
+      { label: '🌌 Legendary', items: [
+        { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1000000000,
+          desc: 'Transcend reality itself. Every spin is a win.' },
       ]},
     ];
-
-    // Flat list for requires-lookup
-    const ALL_UPGRADES = SHOP_SECTIONS.flatMap(s => s.items);
 
     const DEFAULT_FISH = { emoji: '🐟', labels: { idle: 'Click me!', happy: '🎉 Nice!', sad: '💀 Ouch!' } };
 
@@ -1147,7 +1316,7 @@
     }
 
     // ── Shop components ───────────────────────────────────────────────────────
-    function ShopItem({ item, owned, equipped, canAfford, onBuy, onEquip, isSkin, locked }) {
+    function ShopItem({ item, owned, equipped, canAfford, onBuy, onEquip, isSkin, isSingularity }) {
       let actionEl;
       if (owned && isSkin) {
         actionEl = equipped
@@ -1158,18 +1327,19 @@
       } else {
         actionEl = (
           <button
-            className={`shop-buy-btn ${canAfford && !locked ? 'can-afford' : 'cant-afford'}`}
-            onClick={() => !locked && canAfford && onBuy(item.id, item.cost)}
+            className={`shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`}
+            onClick={() => canAfford && onBuy(item.id, item.cost)}
           >Buy</button>
         );
       }
+      const extraClass = isSingularity && !owned ? 'singularity-item' : '';
       return (
-        <div className={`shop-item ${owned ? (equipped ? 'equipped' : 'owned') : ''} ${locked ? 'locked' : ''}`}>
+        <div className={`shop-item ${owned ? (equipped ? 'equipped' : 'owned') : ''} ${extraClass}`}>
           <span className="shop-item-emoji">{item.emoji}</span>
           <div className="shop-item-info">
             <div className="shop-item-name">{item.name}</div>
             {item.desc && <div className="shop-item-desc">{item.desc}</div>}
-            {!owned && <div className="shop-item-cost">🐟 {item.cost}</div>}
+            {!owned && <div className="shop-item-cost">🐟 {item.cost.toLocaleString()}</div>}
           </div>
           <div className="shop-item-action">{actionEl}</div>
         </div>
@@ -1182,7 +1352,7 @@
         <div className="shop-panel">
           <div className="shop-header">
             <div className="shop-title">🛒 Shop</div>
-            <div className="shop-balance">Balance: <span>🐟 {fishClicks}</span></div>
+            <div className="shop-balance">Balance: <span>🐟 {fishClicks.toLocaleString()}</span></div>
           </div>
           <div className="shop-items">
             <div className="shop-section-label">── Fish Skins ──</div>
@@ -1194,94 +1364,141 @@
                 onBuy={onBuy} onEquip={onEquip}
               />
             ))}
-            {SHOP_SECTIONS.map(section => (
-              <React.Fragment key={section.label}>
-                <div className="shop-section-label">── {section.label} ──</div>
-                {section.items.map(item => {
-                  const locked = item.requires && !ownedItems.includes(item.requires);
-                  const displayItem = locked
-                    ? { ...item, desc: `Requires ${ALL_UPGRADES.find(u => u.id === item.requires)?.name}` }
-                    : item;
-                  return (
-                    <ShopItem key={item.id} item={displayItem}
-                      isSkin={false} locked={locked}
+            {SHOP_SECTIONS.map(section => {
+              // Filter items: only show those whose prerequisite is met (or have no prerequisite)
+              const visibleItems = section.items.filter(item =>
+                !item.requires || ownedItems.includes(item.requires)
+              );
+              if (visibleItems.length === 0) return null;
+              return (
+                <React.Fragment key={section.label}>
+                  <div className="shop-section-label">── {section.label} ──</div>
+                  {visibleItems.map(item => (
+                    <ShopItem key={item.id} item={item}
+                      isSkin={false}
+                      isSingularity={item.id === 'singularity'}
                       owned={ownedItems.includes(item.id)}
                       equipped={false}
                       canAfford={fishClicks >= item.cost}
                       onBuy={onBuy} onEquip={onEquip}
                     />
-                  );
-                })}
-              </React.Fragment>
-            ))}
+                  ))}
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
       );
     }
 
-    // ── Main App ──────────────────────────────────────────────────────────────
-    function App() {
-      const canvasRef    = useRef(null);
+    // ── Auth Page ─────────────────────────────────────────────────────────────
+    function AuthPage({ onAuth }) {
+      const [mode, setMode] = useState('login'); // 'login' | 'register'
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        const { ok, data } = await apiFetch(`/api/${mode}`, {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        setLoading(false);
+        if (ok) {
+          onAuth(data.username);
+        } else {
+          setError(data.error || 'Something went wrong');
+        }
+      };
+
+      return (
+        <div className="auth-overlay">
+          <form className="auth-card" onSubmit={submit}>
+            <div className="auth-title">Lucky Wheel</div>
+            <div className="auth-subtitle">{mode === 'login' ? 'Sign in to play' : 'Create account'}</div>
+            {error && <div className="auth-error">{error}</div>}
+            <input
+              className="auth-input"
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              autoComplete="username"
+              required
+            />
+            <input
+              className="auth-input"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              required
+            />
+            <button className="auth-submit-btn" type="submit" disabled={loading}>
+              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            </button>
+            <div className="auth-toggle">
+              {mode === 'login'
+                ? <>No account? <a onClick={() => { setMode('register'); setError(''); }}>Register</a></>
+                : <>Have an account? <a onClick={() => { setMode('login'); setError(''); }}>Sign in</a></>
+              }
+            </div>
+          </form>
+        </div>
+      );
+    }
+
+    // ── Game App ──────────────────────────────────────────────────────────────
+    function GameApp({ username, gameState, onLogout }) {
+      const canvasRef = useRef(null);
       const [rotation, setRotation]       = useState(0);
       const [spinning, setSpinning]       = useState(false);
-      const [result, setResult]           = useState(null);   // 'win'|'lose'|null
+      const [result, setResult]           = useState(null);
       const [showResult, setShowResult]   = useState(false);
       const [hideResult, setHideResult]   = useState(false);
       const [confetti, setConfetti]       = useState(false);
-      const [wins, setWins]               = useState(() => Number(localStorage.getItem('wheel_wins'))   || 0);
-      const [losses, setLosses]           = useState(() => Number(localStorage.getItem('wheel_losses')) || 0);
-      const [streak, setStreak]           = useState(0); // +N = win streak, -N = lose streak (not persisted)
+      const [wins, setWins]               = useState(gameState.wins);
+      const [losses, setLosses]           = useState(gameState.losses);
+      const [streak, setStreak]           = useState(gameState.streak);
       const [fishMood, setFishMood]       = useState('idle');
-      const [fishClicks, setFishClicks]   = useState(() => Number(localStorage.getItem('wheel_fishclicks')) || 0);
+      const [fishClicks, setFishClicks]   = useState(gameState.fish_clicks);
       const [bonusEarned, setBonusEarned] = useState(0);
-      const [shieldCharges, setShieldCharges] = useState(() => {
-        const owned = JSON.parse(localStorage.getItem('wheel_owned') || '[]');
-        if (owned.includes('iron_shield')) return Infinity;
-        return owned.includes('shield_1') ? 1 : 0;
-      });
+      const [shieldCharges, setShieldCharges] = useState(gameState.shield_charges);
       const [autoSpin, setAutoSpin]       = useState(false);
       const [shopOpen, setShopOpen]       = useState(false);
-      const [ownedItems, setOwnedItems]   = useState(() => JSON.parse(localStorage.getItem('wheel_owned') || '[]'));
-      const [equippedFish, setEquippedFish] = useState(() => localStorage.getItem('wheel_fish') || 'default');
+      const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
+      const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
+
       const spinSpeed = ownedItems.includes('turbo_spin') ? 1.5 : ownedItems.includes('speed_boost') ? 3 : 4.5;
       const autoSpinDelay = ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500;
-      const winMult   = ownedItems.includes('winmult_4') ? 16 : ownedItems.includes('winmult_3') ? 8 : ownedItems.includes('winmult_2') ? 4 : ownedItems.includes('winmult_1') ? 2 : 1;
-      const bonusMult = ownedItems.includes('bonusmult_3') ? 10 : ownedItems.includes('bonusmult_2') ? 5 : ownedItems.includes('bonusmult_1') ? 2 : 1;
       const fishSizeRem = ownedItems.includes('fishsize_3') ? 40 : ownedItems.includes('fishsize_2') ? 28 : ownedItems.includes('fishsize_1') ? 20 : 15;
       const clickFrenzyRate = ownedItems.includes('clickfrenzy_3') ? 20 : ownedItems.includes('clickfrenzy_2') ? 5 : ownedItems.includes('clickfrenzy_1') ? 1 : 0;
       const confettiCount = 80 * (ownedItems.includes('confetti_3') ? 15 : ownedItems.includes('confetti_2') ? 5 : ownedItems.includes('confetti_1') ? 2 : 1);
       const wheelTheme = ownedItems.includes('theme_neon') ? 'neon' : ownedItems.includes('theme_ice') ? 'ice' : ownedItems.includes('theme_fire') ? 'fire' : 'default';
       const bgClass = ownedItems.includes('bg_inferno') ? 'bg-inferno' : ownedItems.includes('bg_royal') ? 'bg-royal' : ownedItems.includes('bg_ocean') ? 'bg-ocean' : '';
       const trailClass = ownedItems.includes('trail_3') ? 'trail-rainbow' : ownedItems.includes('trail_2') ? 'trail-fire' : ownedItems.includes('trail_1') ? 'trail-sparkle' : '';
-      const currentRotationRef            = useRef(0);
-      const fishTimerRef                  = useRef(null);
-      const autoSpinRef                   = useRef(false);
-      const spinSpeedRef                  = useRef(4.5);
-      const autoSpinDelayRef  = useRef(1500);
-      const shieldChargesRef  = useRef(0);
 
-      // Keep refs in sync so setTimeout callbacks always see latest values
-      useEffect(() => {
-        autoSpinRef.current = autoSpin;
-        if (autoSpin && !spinning) spin();
-      }, [autoSpin]);
+      const currentRotationRef = useRef(0);
+      const fishTimerRef       = useRef(null);
+      const autoSpinRef        = useRef(false);
+      const spinSpeedRef       = useRef(4.5);
+      const autoSpinDelayRef   = useRef(1500);
+
+      useEffect(() => { autoSpinRef.current = autoSpin; }, [autoSpin]);
       useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
-
       useEffect(() => { autoSpinDelayRef.current = autoSpinDelay; }, [autoSpinDelay]);
 
-      // Sync shield charges when iron_shield is purchased mid-session
-      useEffect(() => {
-        if (ownedItems.includes('iron_shield')) {
-          setShieldCharges(Infinity);
-        }
-      }, [ownedItems]);
-      useEffect(() => { shieldChargesRef.current = shieldCharges; }, [shieldCharges]);
-
-      // Click frenzy: passive fish clicks
+      // Click frenzy: passive fish clicks via server
       useEffect(() => {
         if (clickFrenzyRate === 0) return;
-        const id = setInterval(() => {
-          setFishClicks(c => c + clickFrenzyRate);
+        const id = setInterval(async () => {
+          const { ok, data } = await apiFetch('/api/click-frenzy', { method: 'POST', body: '{}' });
+          if (ok) setFishClicks(data.fish_clicks);
         }, 5000);
         return () => clearInterval(id);
       }, [clickFrenzyRate]);
@@ -1298,28 +1515,35 @@
         if (canvas) drawWheel(canvas, wheelTheme);
       }, [wheelTheme]);
 
-      // Persist wins/losses to localStorage
-      useEffect(() => { localStorage.setItem('wheel_wins',       wins);       }, [wins]);
-      useEffect(() => { localStorage.setItem('wheel_losses',     losses);     }, [losses]);
-      useEffect(() => { localStorage.setItem('wheel_fishclicks', fishClicks); }, [fishClicks]);
-      useEffect(() => { localStorage.setItem('wheel_owned',      JSON.stringify(ownedItems)); }, [ownedItems]);
-      useEffect(() => { localStorage.setItem('wheel_fish',       equippedFish); }, [equippedFish]);
-
-      const handleBuy = useCallback((id, cost) => {
-        setFishClicks(c => {
-          if (c < cost) return c;
-          setOwnedItems(prev => prev.includes(id) ? prev : [...prev, id]);
-          return c - cost;
+      const handleBuy = useCallback(async (id) => {
+        const { ok, data } = await apiFetch('/api/buy', {
+          method: 'POST',
+          body: JSON.stringify({ item_id: id }),
         });
+        if (ok) {
+          setFishClicks(data.fish_clicks);
+          setOwnedItems(data.owned_items);
+          setShieldCharges(data.shield_charges);
+        }
       }, []);
 
-      const handleEquip = useCallback((id) => {
-        setEquippedFish(id);
+      const handleEquip = useCallback(async (id) => {
+        const { ok, data } = await apiFetch('/api/equip', {
+          method: 'POST',
+          body: JSON.stringify({ fish_id: id }),
+        });
+        if (ok) setEquippedFish(data.equipped_fish);
       }, []);
+
+      const handleFishClick = useCallback(async () => {
+        // Optimistic update for responsiveness
+        setFishClicks(c => c + (ownedItems.includes('double_click') ? 2 : 1));
+        const { ok, data } = await apiFetch('/api/fish-click', { method: 'POST', body: '{}' });
+        if (ok) setFishClicks(data.fish_clicks);
+      }, [ownedItems]);
 
       const spin = useCallback(async () => {
-        if (spinning || autoSpin) return;
-        // Dismiss any current result first
+        if (spinning) return;
         if (showResult) {
           setHideResult(true);
           await new Promise(r => setTimeout(r, 350));
@@ -1334,59 +1558,36 @@
 
         let data;
         try {
-          const res = await fetch('/api/spin', { method: 'POST' });
-          data = await res.json();
+          const res = await apiFetch('/api/spin', { method: 'POST', body: '{}' });
+          if (!res.ok) { setSpinning(false); return; }
+          data = res.data;
         } catch (e) {
           setSpinning(false);
           return;
         }
 
-        // Calculate the next CSS rotation that lands on the correct segment.
-        // data.angle % 360 is the intended landing angle (what should be under the pointer).
-        // We find the next occurrence of that angle that is at least 5 full spins ahead.
         const base = currentRotationRef.current;
         const segmentAngle = data.angle % 360;
         const minTarget = base + 5 * 360;
         const newRotation = Math.ceil((minTarget - segmentAngle) / 360) * 360 + segmentAngle;
-
         currentRotationRef.current = newRotation;
         setRotation(newRotation);
 
-        // Wait for animation to finish (matches spinSpeed transition)
         setTimeout(() => {
           setResult(data.result);
+          setWins(data.wins);
+          setLosses(data.losses);
+          setStreak(data.streak);
+          setShieldCharges(data.shield_charges);
+          setBonusEarned(data.bonus_earned);
           setShowResult(true);
 
-          // Update streak and calculate bonus
-          setStreak(prev => {
-            const isLoss = data.result === 'lose';
-            // Streak shield: protect positive streak on loss
-            if (isLoss && prev > 0 && shieldChargesRef.current > 0) {
-              if (shieldChargesRef.current !== Infinity) {
-                setShieldCharges(c => c - 1);
-              }
-              // streak preserved — no score change for this loss
-              setBonusEarned(0);
-              return prev;
-            }
-            const newStreak = data.result === 'win'
-              ? (prev >= 0 ? prev + 1 : 1)
-              : (prev <= 0 ? prev - 1 : -1);
-            const count = Math.abs(newStreak);
-            const rawBonus = count >= 3 ? Math.pow(2, count - 3) : 0;
-            const bonus = rawBonus * bonusMult;
-            setBonusEarned(bonus);
-            if (data.result === 'win') {
-              setWins(w => w + winMult + bonus);
-              setConfetti(true);
-            } else {
-              setLosses(l => l + 1 + bonus);
-              setOwnedItems(owned => { if (owned.includes('party_mode')) setConfetti(true); return owned; });
-            }
-            return newStreak;
-          });
+          if (data.result === 'win') {
+            setConfetti(true);
+          } else if (ownedItems.includes('party_mode')) {
+            setConfetti(true);
+          }
 
-          // Fish reaction
           const mood = data.result === 'win' ? 'happy' : 'sad';
           setFishMood(mood);
           if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
@@ -1394,7 +1595,6 @@
 
           setSpinning(false);
 
-          // Auto-spin: wait autoSpinDelay so user sees result, then spin again
           if (autoSpinRef.current) {
             setTimeout(() => {
               if (autoSpinRef.current) {
@@ -1410,7 +1610,7 @@
             }, autoSpinDelayRef.current);
           }
         }, spinSpeedRef.current * 1000 + 200);
-      }, [spinning, showResult]);
+      }, [spinning, showResult, ownedItems]);
 
       const handleSpinAgain = useCallback(() => {
         setHideResult(true);
@@ -1423,97 +1623,168 @@
         }, 320);
       }, [spin]);
 
+      const handleLogout = async () => {
+        await apiFetch('/api/logout', { method: 'POST', body: '{}' });
+        onLogout();
+      };
+
       return (
         <div>
-        <button className={`shop-btn ${shopOpen ? 'open' : ''}`} onClick={() => setShopOpen(o => !o)}>
-          {shopOpen ? '✕ Close' : '🛒 Shop'}
-        </button>
-        <ShopPanel
-          open={shopOpen}
-          fishClicks={fishClicks}
-          ownedItems={ownedItems}
-          equippedFish={equippedFish}
-          onBuy={handleBuy}
-          onEquip={handleEquip}
-        />
-        <Fish
-          mood={fishMood}
-          net={wins - losses}
-          fishClicks={fishClicks}
-          fishData={getFishData(equippedFish)}
-          sizeRem={fishSizeRem}
-          trailClass={trailClass}
-          onFishClick={() => setFishClicks(c => c + (ownedItems.includes('double_click') ? 2 : 1))}
-        />
-        <StreakPanel streak={streak} />
-        <div className="casino-container">
-          {/* Decorative bulbs top */}
-          <div className="bulbs">
-            {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+          {/* User bar */}
+          <div className="user-bar">
+            <span className="user-bar-name">👤 {username}</span>
+            <button className="logout-btn" onClick={handleLogout}>Logout</button>
           </div>
 
-          <div>
-            <div className="casino-title">Lucky Wheel</div>
-            <div className="subtitle">Try Your Fortune</div>
-          </div>
+          {/* Shop */}
+          <button className={`shop-btn ${shopOpen ? 'open' : ''}`} onClick={() => setShopOpen(o => !o)}>
+            {shopOpen ? '✕ Close' : '🛒 Shop'}
+          </button>
+          <ShopPanel
+            open={shopOpen}
+            fishClicks={fishClicks}
+            ownedItems={ownedItems}
+            equippedFish={equippedFish}
+            onBuy={handleBuy}
+            onEquip={handleEquip}
+          />
 
-          <div className={`wheel-wrapper ${ownedItems.includes('golden_wheel') ? 'golden' : ''}`} onClick={!spinning && !autoSpin ? spin : undefined} title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}>
-            <div className={`pointer ${spinning ? 'spinning' : ''}`} />
-            <canvas
-              ref={canvasRef}
-              width={380}
-              height={380}
-              className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
-              style={{ transform: `rotate(${rotation}deg)`, transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
-            />
-            <div className="center-hub">★</div>
-          </div>
+          {/* Fish */}
+          <Fish
+            mood={fishMood}
+            net={wins - losses}
+            fishClicks={fishClicks}
+            fishData={getFishData(equippedFish)}
+            sizeRem={fishSizeRem}
+            trailClass={trailClass}
+            onFishClick={handleFishClick}
+          />
 
-          <div className={`spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`} onClick={spin}>
-            {spinning || autoSpin ? '' : '▶ Click to Spin ◀'}
-          </div>
-
-          <label className="autospin-row">
-            <input
-              type="checkbox"
-              checked={autoSpin}
-              onChange={e => setAutoSpin(e.target.checked)}
-            />
-            <span className="autospin-label">Auto Spin</span>
-          </label>
-
-          <Scoreboard wins={wins} losses={losses} lastResult={result} />
-
-          {/* Decorative bulbs bottom */}
-          <div className="bulbs">
-            {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
-          </div>
-
-          {/* Confetti */}
-          <Confetti active={confetti} count={confettiCount} />
-
-          {/* Overlay while result showing */}
-          <div className={`overlay ${showResult ? 'active' : ''}`} />
-
-          {/* Result banner */}
-          {showResult && (
-            <div className={`result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`}>
-              <div className={`result-text ${result}`}>
-                {result === 'win' ? '🎰 YOU WIN! 🎰' : '💀 YOU LOSE 💀'}
-              </div>
-              {bonusEarned > 0 && (
-                <div className={`bonus-line ${result === 'lose' ? 'lose-bonus' : ''}`}>
-                  🔥 Streak Bonus +{bonusEarned}!
-                </div>
-              )}
-              <button className="spin-again-btn" onClick={handleSpinAgain}>
-                Spin Again
-              </button>
-            </div>
+          {/* Shield indicator */}
+          {shieldCharges > 0 && (
+            <div className="shield-indicator">🛡️ {shieldCharges} charge{shieldCharges !== 1 ? 's' : ''}</div>
           )}
-        </div>
+
+          <StreakPanel streak={streak} />
+
+          <div className="casino-container">
+            <div className="bulbs">
+              {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+            </div>
+
+            <div>
+              <div className="casino-title">Lucky Wheel</div>
+              <div className="subtitle">Try Your Fortune</div>
+            </div>
+
+            <div
+              className={`wheel-wrapper ${ownedItems.includes('golden_wheel') ? 'golden' : ''}`}
+              onClick={!spinning && !autoSpin ? spin : undefined}
+              title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}
+            >
+              <div className={`pointer ${spinning ? 'spinning' : ''}`} />
+              <canvas
+                ref={canvasRef}
+                width={380}
+                height={380}
+                className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
+                style={{ transform: `rotate(${rotation}deg)`, transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
+              />
+              <div className="center-hub">★</div>
+            </div>
+
+            <div className={`spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`} onClick={spin}>
+              {spinning || autoSpin ? '' : '▶ Click to Spin ◀'}
+            </div>
+
+            <label className="autospin-row">
+              <input
+                type="checkbox"
+                checked={autoSpin}
+                onChange={e => setAutoSpin(e.target.checked)}
+              />
+              <span className="autospin-label">Auto Spin</span>
+            </label>
+
+            <Scoreboard wins={wins} losses={losses} lastResult={result} />
+
+            <div className="bulbs">
+              {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+            </div>
+
+            <Confetti active={confetti} count={confettiCount} />
+            <div className={`overlay ${showResult ? 'active' : ''}`} />
+
+            {showResult && (
+              <div className={`result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`}>
+                <div className={`result-text ${result}`}>
+                  {result === 'win' ? '🎰 YOU WIN! 🎰' : '💀 YOU LOSE 💀'}
+                </div>
+                {bonusEarned > 0 && (
+                  <div className={`bonus-line ${result === 'lose' ? 'lose-bonus' : ''}`}>
+                    🔥 Streak Bonus +{bonusEarned}!
+                  </div>
+                )}
+                <button className="spin-again-btn" onClick={handleSpinAgain}>Spin Again</button>
+              </div>
+            )}
+          </div>
         </div>
       );
+    }
+
+    // ── Root App ──────────────────────────────────────────────────────────────
+    function App() {
+      const [user, setUser]           = useState(undefined); // undefined = loading
+      const [gameState, setGameState] = useState(null);
+
+      // Wipe any legacy localStorage data
+      useEffect(() => { localStorage.clear(); }, []);
+
+      useEffect(() => {
+        (async () => {
+          const { ok, data } = await apiFetch('/api/me');
+          if (ok && data.username) {
+            const gs = await apiFetch('/api/state');
+            if (gs.ok) {
+              setGameState(gs.data);
+              setUser(data.username);
+            } else {
+              setUser(null);
+            }
+          } else {
+            setUser(null);
+          }
+        })();
+      }, []);
+
+      const handleAuth = async (username) => {
+        const gs = await apiFetch('/api/state');
+        if (gs.ok) {
+          setGameState(gs.data);
+          setUser(username);
+        }
+      };
+
+      const handleLogout = () => {
+        setUser(null);
+        setGameState(null);
+      };
+
+      if (user === undefined) {
+        // Loading
+        return (
+          <div style={{ color: '#FFD700', fontSize: '1.5rem', letterSpacing: '4px', textTransform: 'uppercase', textAlign: 'center' }}>
+            Loading…
+          </div>
+        );
+      }
+
+      if (!user) {
+        return <AuthPage onAuth={handleAuth} />;
+      }
+
+      return <GameApp username={user} gameState={gameState} onLogout={handleLogout} />;
     }
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
