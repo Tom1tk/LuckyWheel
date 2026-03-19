@@ -465,36 +465,40 @@ def spin():
                       5  if 'bonusmult_2' in owned else
                       2  if 'bonusmult_1' in owned else 1)
 
-        shield_used  = False
-        shield_broke = False
-        new_wins     = gs['wins']
-        new_losses   = gs['losses']
-        bonus_earned = 0
-        new_owned    = owned
+        shield_used      = False
+        shield_broke     = False
+        shield_used_type = None   # 'shield_1' | 'iron_shield' | 'regen_shield'
+        new_wins         = gs['wins']
+        new_losses       = gs['losses']
+        bonus_earned     = 0
+        new_owned        = owned
 
         # Shields only activate when a win streak is about to be broken
         if outcome == 'lose' and streak > 0:
             if 'shield_1' in owned:
                 # ── Priority 1: Shield 1 (1 charge, then breaks) ────────────
-                shield_used = True
-                shield_broke = True
-                new_owned = [x for x in owned if x != 'shield_1']
-                new_streak = streak
+                shield_used      = True
+                shield_used_type = 'shield_1'
+                shield_broke     = True
+                new_owned        = [x for x in owned if x != 'shield_1']
+                new_streak       = streak
 
             elif 'iron_shield' in owned:
                 # ── Priority 2: Iron Shield (3 charges, then breaks) ─────────
-                shield_used = True
-                shield_charges -= 1
+                shield_used      = True
+                shield_used_type = 'iron_shield'
+                shield_charges  -= 1
                 if shield_charges == 0:
-                    new_owned = [x for x in owned if x != 'iron_shield']
+                    new_owned    = [x for x in owned if x != 'iron_shield']
                     shield_broke = True
                 new_streak = streak
 
             elif 'regen_shield' in owned and regen_recharge_wins == 0:
                 # ── Priority 3: Regenerating Shield (recharges, never breaks) ─
-                shield_used = True
+                shield_used         = True
+                shield_used_type    = 'regen_shield'
                 regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
-                new_streak = streak
+                new_streak          = streak
 
             else:
                 # No shield available — take the loss normally
@@ -554,6 +558,7 @@ def spin():
             'shield_charges': shield_charges,
             'regen_recharge_wins': regen_recharge_wins,
             'shield_used': shield_used,
+            'shield_used_type': shield_used_type,
             'shield_broke': shield_broke,
             'bonus_earned': bonus_earned,
         })
