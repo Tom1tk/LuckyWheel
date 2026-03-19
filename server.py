@@ -483,12 +483,13 @@ def spin():
                 new_owned        = [x for x in owned if x != 'shield_1']
                 new_streak       = streak
 
-            elif 'iron_shield' in owned:
+            elif 'iron_shield' in owned and shield_charges > 0:
                 # ── Priority 2: Iron Shield (3 charges, then breaks) ─────────
                 shield_used      = True
                 shield_used_type = 'iron_shield'
                 shield_charges  -= 1
-                if shield_charges == 0:
+                if shield_charges <= 0:
+                    shield_charges = 0
                     new_owned    = [x for x in owned if x != 'iron_shield']
                     shield_broke = True
                 new_streak = streak

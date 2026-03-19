@@ -1719,6 +1719,7 @@
       const [spinning, setSpinning]       = useState(false);
       const [result, setResult]           = useState(null);
       const [showResult, setShowResult]   = useState(false);
+      const setShowResultSync = (v) => { showResultRef.current = v; setShowResult(v); };
       const [shieldFeedback, setShieldFeedback] = useState(null); // {type, broke, chargesLeft, rechargeWins}
       const [hideResult, setHideResult]   = useState(false);
       const [confetti, setConfetti]       = useState(false);
@@ -1750,6 +1751,7 @@
       const spinSpeedRef       = useRef(4.5);
       const autoSpinDelayRef   = useRef(1500);
       const spinningRef        = useRef(false); // ref-safe spinning flag, avoids stale closure bugs
+      const showResultRef      = useRef(false); // mirrors showResult state, avoids spin() recreating every cycle
 
       useEffect(() => {
         autoSpinRef.current = autoSpin;
@@ -1816,10 +1818,10 @@
 
       const spin = useCallback(async () => {
         if (spinningRef.current) return;
-        if (showResult) {
+        if (showResultRef.current) {
           setHideResult(true);
           await new Promise(r => setTimeout(r, 350));
-          setShowResult(false);
+          setShowResultSync(false);
           setHideResult(false);
           setResult(null);
           setConfetti(false);
@@ -1832,10 +1834,18 @@
         let data;
         try {
           const res = await apiGame('/api/spin', { method: 'POST', body: '{}' });
-          if (!res.ok) { spinningRef.current = false; setSpinning(false); return; }
+          if (!res.ok) {
+            spinningRef.current = false;
+            setSpinning(false);
+            // Recover auto-spin loop after a failed request
+            if (autoSpinRef.current) setTimeout(() => { if (autoSpinRef.current) spin(); }, 1000);
+            return;
+          }
           data = res.data;
         } catch (e) {
-          spinningRef.current = false; setSpinning(false);
+          spinningRef.current = false;
+          setSpinning(false);
+          if (autoSpinRef.current) setTimeout(() => { if (autoSpinRef.current) spin(); }, 1000);
           return;
         }
 
@@ -1861,11 +1871,13 @@
             chargesLeft: data.shield_charges,
             rechargeWins: data.regen_recharge_wins ?? 0,
           } : null);
-          setShowResult(true);
+          setShowResultSync(true);
 
           if (data.result === 'win') {
             setConfetti(true);
-          } else if (ownedItems.includes('party_mode')) {
+          } else if (data.owned_items
+            ? data.owned_items.includes('party_mode')
+            : ownedItems.includes('party_mode')) {
             setConfetti(true);
           }
 
@@ -1886,7 +1898,7 @@
               if (autoSpinRef.current) {
                 setHideResult(true);
                 setTimeout(() => {
-                  setShowResult(false);
+                  setShowResultSync(false);
                   setHideResult(false);
                   setResult(null);
                   setShieldFeedback(null);
@@ -1897,12 +1909,12 @@
             }, delay);
           }
         }, spinSpeedRef.current * 1000 + 200);
-      }, [showResult, ownedItems]);
+      }, [ownedItems]);
 
       const handleSpinAgain = useCallback(() => {
         setHideResult(true);
         setTimeout(() => {
-          setShowResult(false);
+          setShowResultSync(false);
           setHideResult(false);
           setResult(null);
           setShieldFeedback(null);
