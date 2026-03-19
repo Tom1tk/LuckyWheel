@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     username      VARCHAR(32) UNIQUE NOT NULL,
     password_hash VARCHAR(128) NOT NULL,
     ip_address    INET NOT NULL,
+    session_token VARCHAR(64),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -1017,6 +1017,89 @@
       text-transform: uppercase;
       text-shadow: 0 0 8px #4488FF;
     }
+
+    /* Session-booted banner */
+    .session-banner {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 500;
+      background: rgba(200,0,0,0.92);
+      color: #fff;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align: center;
+      padding: 10px;
+    }
+
+    /* ── Mobile ────────────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      body { overflow: auto; align-items: flex-start; padding: 0; }
+
+      .casino-container { gap: 14px; padding: 8px 0 160px; }
+
+      .casino-title { font-size: clamp(1.6rem, 9vw, 3.5rem); letter-spacing: 2px; }
+      .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
+
+      /* Wheel: scale to fit viewport with room for fish panel on sides */
+      .wheel-wrapper {
+        width: min(290px, calc(100vw - 100px));
+        height: min(290px, calc(100vw - 100px));
+      }
+      .wheel-canvas { width: 100% !important; height: 100% !important; }
+
+      /* Fish: bottom-centre, horizontal layout, smaller */
+      .fish-panel {
+        left: 50%;
+        top: auto;
+        bottom: 72px;
+        transform: translateX(-50%);
+        flex-direction: row;
+        gap: 10px;
+        align-items: center;
+      }
+
+      /* Fish counter: centre-bottom */
+      .fish-counter {
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        align-items: center;
+      }
+
+      /* Streak: hugged to right edge */
+      .streak-panel { right: 4px; gap: 4px; }
+      .streak-count { font-size: 2rem; }
+      .streak-fire  { font-size: 1.3rem; }
+      .streak-label { font-size: 0.5rem; letter-spacing: 2px; }
+      .streak-bonus { font-size: 0.6rem; padding: 2px 6px; margin-top: 2px; }
+
+      /* Shop: full-width */
+      .shop-panel { width: calc(100vw - 40px); left: 20px; right: 20px; }
+
+      /* Scoreboard */
+      .scoreboard { gap: 12px; }
+      .score-box   { padding: 8px 16px; }
+      .score-value { font-size: 2rem; }
+
+      /* Bulbs: tighter */
+      .bulbs { gap: 8px; }
+      .bulb  { width: 10px; height: 10px; }
+
+      /* Result */
+      .result-text    { font-size: clamp(2rem, 10vw, 5rem); padding: 12px 24px; letter-spacing: 3px; }
+      .spin-again-btn { font-size: 1rem; padding: 10px 28px; }
+      .bonus-line     { font-size: 1.1rem; }
+
+      /* Auth card */
+      .auth-card { width: calc(100vw - 40px); padding: 28px 24px; }
+
+      /* Shield */
+      .shield-indicator { bottom: 72px; right: 6px; font-size: 0.55rem; }
+
+      /* User bar: hide name text, keep button */
+      .user-bar-name { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -1033,6 +1116,16 @@
       });
       const json = await res.json().catch(() => ({}));
       return { ok: res.ok, status: res.status, data: json };
+    }
+
+    // Called by GameApp to bubble up 401s (session booted by newer login)
+    let _onSessionExpired = null;
+    function setSessionExpiredHandler(fn) { _onSessionExpired = fn; }
+    function apiGame(path, opts = {}) {
+      return apiFetch(path, opts).then(r => {
+        if (r.status === 401 && _onSessionExpired) _onSessionExpired();
+        return r;
+      });
     }
 
     // ── Draw wheel ────────────────────────────────────────────────────────────
@@ -1454,7 +1547,7 @@
     }
 
     // ── Game App ──────────────────────────────────────────────────────────────
-    function GameApp({ username, gameState, onLogout }) {
+    function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       const canvasRef = useRef(null);
       const [rotation, setRotation]       = useState(0);
       const [spinning, setSpinning]       = useState(false);
@@ -1493,11 +1586,17 @@
       useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
       useEffect(() => { autoSpinDelayRef.current = autoSpinDelay; }, [autoSpinDelay]);
 
+      // Register 401 handler: if session is booted by a new login elsewhere, surface it
+      useEffect(() => {
+        setSessionExpiredHandler(onSessionExpired);
+        return () => setSessionExpiredHandler(null);
+      }, [onSessionExpired]);
+
       // Click frenzy: passive fish clicks via server
       useEffect(() => {
         if (clickFrenzyRate === 0) return;
         const id = setInterval(async () => {
-          const { ok, data } = await apiFetch('/api/click-frenzy', { method: 'POST', body: '{}' });
+          const { ok, data } = await apiGame('/api/click-frenzy', { method: 'POST', body: '{}' });
           if (ok) setFishClicks(data.fish_clicks);
         }, 5000);
         return () => clearInterval(id);
@@ -1516,7 +1615,7 @@
       }, [wheelTheme]);
 
       const handleBuy = useCallback(async (id) => {
-        const { ok, data } = await apiFetch('/api/buy', {
+        const { ok, data } = await apiGame('/api/buy', {
           method: 'POST',
           body: JSON.stringify({ item_id: id }),
         });
@@ -1528,7 +1627,7 @@
       }, []);
 
       const handleEquip = useCallback(async (id) => {
-        const { ok, data } = await apiFetch('/api/equip', {
+        const { ok, data } = await apiGame('/api/equip', {
           method: 'POST',
           body: JSON.stringify({ fish_id: id }),
         });
@@ -1538,7 +1637,7 @@
       const handleFishClick = useCallback(async () => {
         // Optimistic update for responsiveness
         setFishClicks(c => c + (ownedItems.includes('double_click') ? 2 : 1));
-        const { ok, data } = await apiFetch('/api/fish-click', { method: 'POST', body: '{}' });
+        const { ok, data } = await apiGame('/api/fish-click', { method: 'POST', body: '{}' });
         if (ok) setFishClicks(data.fish_clicks);
       }, [ownedItems]);
 
@@ -1558,7 +1657,7 @@
 
         let data;
         try {
-          const res = await apiFetch('/api/spin', { method: 'POST', body: '{}' });
+          const res = await apiGame('/api/spin', { method: 'POST', body: '{}' });
           if (!res.ok) { setSpinning(false); return; }
           data = res.data;
         } catch (e) {
@@ -1735,8 +1834,9 @@
 
     // ── Root App ──────────────────────────────────────────────────────────────
     function App() {
-      const [user, setUser]           = useState(undefined); // undefined = loading
-      const [gameState, setGameState] = useState(null);
+      const [user, setUser]             = useState(undefined); // undefined = loading
+      const [gameState, setGameState]   = useState(null);
+      const [sessionMsg, setSessionMsg] = useState('');
 
       // Wipe any legacy localStorage data
       useEffect(() => { localStorage.clear(); }, []);
@@ -1763,16 +1863,24 @@
         if (gs.ok) {
           setGameState(gs.data);
           setUser(username);
+          setSessionMsg('');
         }
       };
 
       const handleLogout = () => {
         setUser(null);
         setGameState(null);
+        setSessionMsg('');
       };
 
+      // Called when a game API returns 401 — another login has taken over this session
+      const handleSessionExpired = useCallback(() => {
+        setUser(null);
+        setGameState(null);
+        setSessionMsg('Your session was taken over by a new login. Please sign in again.');
+      }, []);
+
       if (user === undefined) {
-        // Loading
         return (
           <div style={{ color: '#FFD700', fontSize: '1.5rem', letterSpacing: '4px', textTransform: 'uppercase', textAlign: 'center' }}>
             Loading…
@@ -1781,10 +1889,15 @@
       }
 
       if (!user) {
-        return <AuthPage onAuth={handleAuth} />;
+        return (
+          <>
+            {sessionMsg && <div className="session-banner">{sessionMsg}</div>}
+            <AuthPage onAuth={handleAuth} />
+          </>
+        );
       }
 
-      return <GameApp username={user} gameState={gameState} onLogout={handleLogout} />;
+      return <GameApp username={user} gameState={gameState} onLogout={handleLogout} onSessionExpired={handleSessionExpired} />;
     }
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);

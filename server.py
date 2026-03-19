@@ -1,6 +1,7 @@
 import os
 import random
 import math
+import secrets
 from datetime import timedelta, datetime, timezone
 
 import bcrypt
@@ -63,14 +64,23 @@ def load_user(user_id):
     try:
         conn = get_db()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT id, username FROM users WHERE id = %s', (user_id,))
+            cur.execute('SELECT id, username, session_token FROM users WHERE id = %s', (user_id,))
             row = cur.fetchone()
         conn.close()
-        if row:
+        if row and row['session_token'] == session.get('session_token'):
             return User(row['id'], row['username'])
     except Exception:
         pass
     return None
+
+
+def issue_session_token(conn, user_id):
+    """Generate a new session token, write it to DB, and store in Flask session.
+    Any previous session for this user will fail load_user and be treated as logged out."""
+    token = secrets.token_hex(32)
+    with conn.cursor() as cur:
+        cur.execute('UPDATE users SET session_token = %s WHERE id = %s', (token, user_id))
+    session['session_token'] = token
 
 
 # ── Shop catalogue (server-side mirror for validation) ────────────────────────
@@ -247,6 +257,7 @@ def register():
             # Create game state row
             cur.execute('INSERT INTO game_state (user_id) VALUES (%s)', (user_id,))
 
+        issue_session_token(conn, user_id)
         conn.commit()
 
         user_obj = User(user_id, username)
@@ -297,9 +308,10 @@ def login():
             conn.commit()
             return jsonify({'error': 'Invalid username or password'}), 401
 
-        # Success
+        # Success — issue new token, booting any existing session for this user
         clear_attempts(conn, f'ip:{ip}')
         clear_attempts(conn, f'user:{username}')
+        issue_session_token(conn, row['id'])
         conn.commit()
 
         user_obj = User(row['id'], row['username'])
@@ -317,6 +329,14 @@ def login():
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
+    if current_user.is_authenticated:
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute('UPDATE users SET session_token = NULL WHERE id = %s', (current_user.id,))
+            conn.commit()
+        finally:
+            conn.close()
     logout_user()
     return jsonify({'ok': True}), 200
 
