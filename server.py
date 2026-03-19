@@ -413,15 +413,17 @@ def get_state():
             gs = cur.fetchone()
 
         owned = list(gs['owned_items'])
-        # Recalculate shield charges on each login/state fetch
-        charges = calc_shield_charges(owned)
-
-        with conn.cursor() as cur:
-            cur.execute(
-                'UPDATE game_state SET shield_charges = %s WHERE user_id = %s',
-                (charges, current_user.id),
-            )
-        conn.commit()
+        max_charges = calc_shield_charges(owned)
+        # Use the stored charge count; only cap if it somehow exceeds the max.
+        # Never increase charges here — refreshing must not restore used charges.
+        actual_charges = min(gs['shield_charges'], max_charges)
+        if actual_charges != gs['shield_charges']:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE game_state SET shield_charges = %s WHERE user_id = %s',
+                    (actual_charges, current_user.id),
+                )
+            conn.commit()
 
         return jsonify({
             'wins': gs['wins'],
@@ -430,7 +432,7 @@ def get_state():
             'streak': gs['streak'],
             'owned_items': owned,
             'equipped_fish': gs['equipped_fish'],
-            'shield_charges': charges,
+            'shield_charges': actual_charges,
         })
     except Exception:
         conn.rollback()

@@ -1402,7 +1402,7 @@
       useEffect(() => {
         const load = () => apiFetch('/api/leaderboard').then(r => { if (r.ok) setRows(r.data); });
         load();
-        const id = setInterval(load, 30000);
+        const id = setInterval(load, 60000);
         return () => clearInterval(id);
       }, []);
 
