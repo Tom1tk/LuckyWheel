@@ -423,7 +423,6 @@
     }
 
     .fish-body {
-      font-size: 15rem;
       line-height: 1;
       display: block;
       filter: drop-shadow(0 0 8px rgba(255,215,0,0.3));
@@ -817,6 +816,39 @@
         0 0 100px 40px rgba(255,140,0,0.5),
         inset 0 0 30px rgba(255,215,0,0.2);
     }
+
+    /* ── Background themes ─────────────────────────────────────────────────── */
+    body.bg-ocean   { background: radial-gradient(ellipse at center, #00152e 0%, #000a1a 70%); }
+    body.bg-royal   { background: radial-gradient(ellipse at center, #1a0033 0%, #0a0018 70%); }
+    body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #150000 70%); }
+
+    /* ── Fish trail effects ────────────────────────────────────────────────── */
+    .trail-sparkle .fish-body {
+      animation: fishBob 2.4s ease-in-out infinite, sparkleAura 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes sparkleAura {
+      from { filter: drop-shadow(0 0 6px rgba(255,215,0,0.4)); }
+      to   { filter: drop-shadow(0 0 22px #FFD700) drop-shadow(0 0 40px #FFF8); }
+    }
+    .trail-fire .fish-body {
+      animation: fishBob 2.4s ease-in-out infinite, fireAura 0.5s ease-in-out infinite alternate;
+    }
+    @keyframes fireAura {
+      from { filter: drop-shadow(0 0 12px #FF4500) drop-shadow(0 0 24px #FF8C00); }
+      to   { filter: drop-shadow(0 0 30px #FF6600) drop-shadow(0 0 60px #FF2200); }
+    }
+    .trail-rainbow .fish-body {
+      animation: fishBob 2.4s ease-in-out infinite, rainbowAura 2s linear infinite;
+    }
+    @keyframes rainbowAura {
+      0%   { filter: drop-shadow(0 0 16px #FF0000); }
+      16%  { filter: drop-shadow(0 0 16px #FF8C00); }
+      33%  { filter: drop-shadow(0 0 16px #FFD700); }
+      50%  { filter: drop-shadow(0 0 16px #00FF88); }
+      66%  { filter: drop-shadow(0 0 16px #00AAFF); }
+      83%  { filter: drop-shadow(0 0 16px #CC00FF); }
+      100% { filter: drop-shadow(0 0 16px #FF0000); }
+    }
   </style>
 </head>
 <body>
@@ -826,24 +858,37 @@
     const { useState, useRef, useEffect, useCallback } = React;
 
     // ── Draw wheel ────────────────────────────────────────────────────────────
-    function drawWheel(canvas) {
+    function drawWheel(canvas, theme = 'default') {
       const ctx = canvas.getContext('2d');
       const size = canvas.width;
       const cx = size / 2, cy = size / 2, r = size / 2 - 4;
 
       ctx.clearRect(0, 0, size, size);
 
-      const segments = [
-        { label: 'WIN',  color: '#B8860B', bright: '#FFD700', start: -Math.PI/2,       end: Math.PI/2       },
-        { label: 'LOSE', color: '#8B0000', bright: '#FF3333', start: Math.PI/2,         end: Math.PI * 1.5   },
-      ];
+      const THEMES = {
+        default: [
+          { label: 'WIN',  color: '#B8860B', bright: '#FFD700', start: -Math.PI/2, end: Math.PI/2 },
+          { label: 'LOSE', color: '#8B0000', bright: '#FF3333', start: Math.PI/2,  end: Math.PI*1.5 },
+        ],
+        fire: [
+          { label: 'WIN',  color: '#993300', bright: '#FF6600', start: -Math.PI/2, end: Math.PI/2 },
+          { label: 'LOSE', color: '#440000', bright: '#CC2200', start: Math.PI/2,  end: Math.PI*1.5 },
+        ],
+        ice: [
+          { label: 'WIN',  color: '#005577', bright: '#00CCFF', start: -Math.PI/2, end: Math.PI/2 },
+          { label: 'LOSE', color: '#002244', bright: '#0066CC', start: Math.PI/2,  end: Math.PI*1.5 },
+        ],
+        neon: [
+          { label: 'WIN',  color: '#440088', bright: '#CC00FF', start: -Math.PI/2, end: Math.PI/2 },
+          { label: 'LOSE', color: '#003300', bright: '#00FF66', start: Math.PI/2,  end: Math.PI*1.5 },
+        ],
+      };
+      const segments = THEMES[theme] || THEMES.default;
 
       segments.forEach(seg => {
-        // Main fill
         const grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
         grad.addColorStop(0, seg.bright);
         grad.addColorStop(1, seg.color);
-
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.arc(cx, cy, r, seg.start, seg.end);
@@ -851,7 +896,6 @@
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // Segment border
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.arc(cx, cy, r, seg.start, seg.end);
@@ -860,7 +904,6 @@
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Divider line
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         const mx = cx + r * Math.cos(seg.start);
@@ -870,7 +913,6 @@
         ctx.lineWidth = 4;
         ctx.stroke();
 
-        // Label
         const midAngle = (seg.start + seg.end) / 2;
         ctx.save();
         ctx.translate(cx, cy);
@@ -884,7 +926,6 @@
         ctx.fillText(seg.label, r * 0.55, 0);
         ctx.restore();
 
-        // Decorative dots along arc
         const dotCount = 8;
         for (let i = 0; i <= dotCount; i++) {
           const a = seg.start + (seg.end - seg.start) * (i / dotCount);
@@ -898,14 +939,12 @@
         }
       });
 
-      // Outer ring
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 6;
       ctx.stroke();
 
-      // Inner ring
       ctx.beginPath();
       ctx.arc(cx, cy, r * 0.12, 0, Math.PI * 2);
       ctx.fillStyle = '#111';
@@ -929,8 +968,8 @@
     }
 
     // ── Confetti ──────────────────────────────────────────────────────────────
-    function Confetti({ active }) {
-      const pieces = active ? Array.from({ length: 80 }, (_, i) => i) : [];
+    function Confetti({ active, count = 80 }) {
+      const pieces = active ? Array.from({ length: count }, (_, i) => i) : [];
       const colors = ['#FFD700','#FF6600','#FF3333','#00FF88','#00AAFF','#FF00FF','#FFFFFF'];
 
       return (
@@ -960,7 +999,7 @@
     }
 
     // ── Fish ─────────────────────────────────────────────────────────────────
-    function Fish({ mood, net, fishClicks, onFishClick, fishData }) {
+    function Fish({ mood, net, fishClicks, onFishClick, fishData, sizeRem, trailClass }) {
       const [spinKey, setSpinKey] = React.useState(0);
       const [fishSpinning, setFishSpinning] = React.useState(false);
       const timerRef = React.useRef(null);
@@ -994,9 +1033,9 @@
       const animClass = fishSpinning ? 'spinning-fish' : mood;
       return (
         <>
-          <div className="fish-panel" onClick={handleClick} title="Wheeee!">
+          <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} title="Wheeee!">
             {auraStyle && <div className="fish-aura" style={auraStyle} />}
-            <span className={`fish-body ${animClass}`} key={spinKey || mood}>{emoji}</span>
+            <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
             <span className={`fish-label ${mood}`}>{labels[mood]}</span>
           </div>
           <div className="fish-counter">
@@ -1039,13 +1078,67 @@
         labels: { idle: 'Eee-eee!', happy: "Flippin' awesome!", sad: '*sad clicks*' } },
     ];
 
-    const UPGRADES = [
-      { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 50,  desc: 'Spin time: 4.5s → 3s' },
-      { id: 'turbo_spin',  emoji: '🚀', name: 'Turbo Spin',   cost: 200, desc: 'Spin time: 3s → 1.5s', requires: 'speed_boost' },
-      { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel', cost: 300, desc: 'Radiant wheel glow' },
-      { id: 'double_click',emoji: '👆', name: 'Double Click', cost: 100, desc: 'Fish clicks count x2' },
-      { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',   cost: 150, desc: 'Confetti every spin' },
+    // ── Shop upgrade catalogue ────────────────────────────────────────────────
+    const SHOP_SECTIONS = [
+      { label: '⚡ Spin Speed', items: [
+        { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 50,   desc: 'Spin time: 4.5s → 3s' },
+        { id: 'turbo_spin',  emoji: '🚀', name: 'Turbo Spin',   cost: 200,  desc: 'Spin time: 3s → 1.5s',  requires: 'speed_boost' },
+      ]},
+      { label: '⏩ Auto Speed', items: [
+        { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 75,   desc: 'Auto delay: 1.5s → 1s' },
+        { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 300,  desc: 'Auto delay: 1s → 0.5s',  requires: 'autospeed_1' },
+        { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1200, desc: 'Auto delay: 0.5s → 0',   requires: 'autospeed_2' },
+      ]},
+      { label: '💰 Win Power', items: [
+        { id: 'winmult_1',   emoji: '💰', name: 'Win x2',       cost: 200,  desc: 'Each win scores double' },
+        { id: 'winmult_2',   emoji: '💰', name: 'Win x4',       cost: 800,  desc: 'Each win scores x4',     requires: 'winmult_1' },
+        { id: 'winmult_3',   emoji: '💰', name: 'Win x8',       cost: 3200, desc: 'Each win scores x8',     requires: 'winmult_2' },
+        { id: 'winmult_4',   emoji: '💎', name: 'Win x16',      cost: 12800,desc: 'Each win scores x16',    requires: 'winmult_3' },
+      ]},
+      { label: '⭐ Bonus Power', items: [
+        { id: 'bonusmult_1', emoji: '⭐', name: 'Bonus Boost',  cost: 300,  desc: 'Streak bonuses x2' },
+        { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Mega',   cost: 1200, desc: 'Streak bonuses x5',      requires: 'bonusmult_1' },
+        { id: 'bonusmult_3', emoji: '💫', name: 'Bonus ULTRA',  cost: 4800, desc: 'Streak bonuses x10',     requires: 'bonusmult_2' },
+      ]},
+      { label: '🐟 Fish Size', items: [
+        { id: 'fishsize_1',  emoji: '🔎', name: 'Big Fish',     cost: 50,   desc: 'Fish size: XL (20rem)' },
+        { id: 'fishsize_2',  emoji: '🔎', name: 'Giant Fish',   cost: 200,  desc: 'Fish size: XXL (28rem)', requires: 'fishsize_1' },
+        { id: 'fishsize_3',  emoji: '🔎', name: 'Colossal',     cost: 800,  desc: 'Fish size: MEGA (40rem)',requires: 'fishsize_2' },
+      ]},
+      { label: '✨ Fish Trail', items: [
+        { id: 'trail_1',     emoji: '✨', name: 'Sparkle Trail',cost: 125,  desc: 'Gold shimmer trail' },
+        { id: 'trail_2',     emoji: '🔥', name: 'Fire Trail',   cost: 500,  desc: 'Flame glow trail',       requires: 'trail_1' },
+        { id: 'trail_3',     emoji: '🌈', name: 'Rainbow Trail',cost: 2000, desc: 'Rainbow hue trail',      requires: 'trail_2' },
+      ]},
+      { label: '🖱️ Click Power', items: [
+        { id: 'double_click',emoji: '👆', name: 'Double Click', cost: 100,  desc: 'Fish clicks count x2' },
+        { id: 'clickfrenzy_1',emoji:'🖱️', name: 'Frenzy I',    cost: 150,  desc: '+1 click per 5s auto' },
+        { id: 'clickfrenzy_2',emoji:'🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 clicks per 5s',       requires: 'clickfrenzy_1' },
+        { id: 'clickfrenzy_3',emoji:'🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 clicks per 5s',      requires: 'clickfrenzy_2' },
+      ]},
+      { label: '🛡️ Streak Shield', items: [
+        { id: 'shield_1',    emoji: '🛡️', name: 'Shield',       cost: 150,  desc: 'Protect streak once/session' },
+        { id: 'iron_shield', emoji: '⚔️', name: 'Iron Shield',  cost: 600,  desc: 'Always protect win streaks', requires: 'shield_1' },
+      ]},
+      { label: '🎡 Wheel Theme', items: [
+        { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',   cost: 250,  desc: 'Infernal wheel colors' },
+        { id: 'theme_ice',   emoji: '❄️', name: 'Ice Theme',    cost: 1000, desc: 'Glacial wheel colors',   requires: 'theme_fire' },
+        { id: 'theme_neon',  emoji: '🟣', name: 'Neon Theme',   cost: 4000, desc: 'Cyberpunk wheel colors', requires: 'theme_ice' },
+        { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel', cost: 300,  desc: 'Radiant glow ring' },
+      ]},
+      { label: '🎨 Atmosphere', items: [
+        { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',   cost: 150,  desc: 'Confetti every spin' },
+        { id: 'confetti_1',  emoji: '🎊', name: 'Confetti+',    cost: 75,   desc: '2x confetti pieces' },
+        { id: 'confetti_2',  emoji: '🎊', name: 'Confetti++',   cost: 300,  desc: '5x confetti pieces',     requires: 'confetti_1' },
+        { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX', cost: 1200, desc: '15x confetti pieces',    requires: 'confetti_2' },
+        { id: 'bg_ocean',    emoji: '🌊', name: 'Ocean Casino', cost: 100,  desc: 'Deep blue atmosphere' },
+        { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino', cost: 400,  desc: 'Purple atmosphere',      requires: 'bg_ocean' },
+        { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',cost:1600, desc: 'Blood red atmosphere',   requires: 'bg_royal' },
+      ]},
     ];
+
+    // Flat list for requires-lookup
+    const ALL_UPGRADES = SHOP_SECTIONS.flatMap(s => s.items);
 
     const DEFAULT_FISH = { emoji: '🐟', labels: { idle: 'Click me!', happy: '🎉 Nice!', sad: '💀 Ouch!' } };
 
@@ -1101,19 +1194,26 @@
                 onBuy={onBuy} onEquip={onEquip}
               />
             ))}
-            <div className="shop-section-label">── Upgrades ──</div>
-            {UPGRADES.map(item => {
-              const locked = item.requires && !ownedItems.includes(item.requires);
-              return (
-                <ShopItem key={item.id} item={{...item, desc: locked ? `Requires ${UPGRADES.find(u=>u.id===item.requires)?.name}` : item.desc}}
-                  isSkin={false} locked={locked}
-                  owned={ownedItems.includes(item.id)}
-                  equipped={false}
-                  canAfford={fishClicks >= item.cost}
-                  onBuy={onBuy} onEquip={onEquip}
-                />
-              );
-            })}
+            {SHOP_SECTIONS.map(section => (
+              <React.Fragment key={section.label}>
+                <div className="shop-section-label">── {section.label} ──</div>
+                {section.items.map(item => {
+                  const locked = item.requires && !ownedItems.includes(item.requires);
+                  const displayItem = locked
+                    ? { ...item, desc: `Requires ${ALL_UPGRADES.find(u => u.id === item.requires)?.name}` }
+                    : item;
+                  return (
+                    <ShopItem key={item.id} item={displayItem}
+                      isSkin={false} locked={locked}
+                      owned={ownedItems.includes(item.id)}
+                      equipped={false}
+                      canAfford={fishClicks >= item.cost}
+                      onBuy={onBuy} onEquip={onEquip}
+                    />
+                  );
+                })}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       );
@@ -1134,15 +1234,31 @@
       const [fishMood, setFishMood]       = useState('idle');
       const [fishClicks, setFishClicks]   = useState(() => Number(localStorage.getItem('wheel_fishclicks')) || 0);
       const [bonusEarned, setBonusEarned] = useState(0);
+      const [shieldCharges, setShieldCharges] = useState(() => {
+        const owned = JSON.parse(localStorage.getItem('wheel_owned') || '[]');
+        if (owned.includes('iron_shield')) return Infinity;
+        return owned.includes('shield_1') ? 1 : 0;
+      });
       const [autoSpin, setAutoSpin]       = useState(false);
       const [shopOpen, setShopOpen]       = useState(false);
       const [ownedItems, setOwnedItems]   = useState(() => JSON.parse(localStorage.getItem('wheel_owned') || '[]'));
       const [equippedFish, setEquippedFish] = useState(() => localStorage.getItem('wheel_fish') || 'default');
       const spinSpeed = ownedItems.includes('turbo_spin') ? 1.5 : ownedItems.includes('speed_boost') ? 3 : 4.5;
+      const autoSpinDelay = ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500;
+      const winMult   = ownedItems.includes('winmult_4') ? 16 : ownedItems.includes('winmult_3') ? 8 : ownedItems.includes('winmult_2') ? 4 : ownedItems.includes('winmult_1') ? 2 : 1;
+      const bonusMult = ownedItems.includes('bonusmult_3') ? 10 : ownedItems.includes('bonusmult_2') ? 5 : ownedItems.includes('bonusmult_1') ? 2 : 1;
+      const fishSizeRem = ownedItems.includes('fishsize_3') ? 40 : ownedItems.includes('fishsize_2') ? 28 : ownedItems.includes('fishsize_1') ? 20 : 15;
+      const clickFrenzyRate = ownedItems.includes('clickfrenzy_3') ? 20 : ownedItems.includes('clickfrenzy_2') ? 5 : ownedItems.includes('clickfrenzy_1') ? 1 : 0;
+      const confettiCount = 80 * (ownedItems.includes('confetti_3') ? 15 : ownedItems.includes('confetti_2') ? 5 : ownedItems.includes('confetti_1') ? 2 : 1);
+      const wheelTheme = ownedItems.includes('theme_neon') ? 'neon' : ownedItems.includes('theme_ice') ? 'ice' : ownedItems.includes('theme_fire') ? 'fire' : 'default';
+      const bgClass = ownedItems.includes('bg_inferno') ? 'bg-inferno' : ownedItems.includes('bg_royal') ? 'bg-royal' : ownedItems.includes('bg_ocean') ? 'bg-ocean' : '';
+      const trailClass = ownedItems.includes('trail_3') ? 'trail-rainbow' : ownedItems.includes('trail_2') ? 'trail-fire' : ownedItems.includes('trail_1') ? 'trail-sparkle' : '';
       const currentRotationRef            = useRef(0);
       const fishTimerRef                  = useRef(null);
       const autoSpinRef                   = useRef(false);
       const spinSpeedRef                  = useRef(4.5);
+      const autoSpinDelayRef  = useRef(1500);
+      const shieldChargesRef  = useRef(0);
 
       // Keep refs in sync so setTimeout callbacks always see latest values
       useEffect(() => {
@@ -1150,6 +1266,37 @@
         if (autoSpin && !spinning) spin();
       }, [autoSpin]);
       useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
+
+      useEffect(() => { autoSpinDelayRef.current = autoSpinDelay; }, [autoSpinDelay]);
+
+      // Sync shield charges when iron_shield is purchased mid-session
+      useEffect(() => {
+        if (ownedItems.includes('iron_shield')) {
+          setShieldCharges(Infinity);
+        }
+      }, [ownedItems]);
+      useEffect(() => { shieldChargesRef.current = shieldCharges; }, [shieldCharges]);
+
+      // Click frenzy: passive fish clicks
+      useEffect(() => {
+        if (clickFrenzyRate === 0) return;
+        const id = setInterval(() => {
+          setFishClicks(c => c + clickFrenzyRate);
+        }, 5000);
+        return () => clearInterval(id);
+      }, [clickFrenzyRate]);
+
+      // Apply background theme to body
+      useEffect(() => {
+        document.body.className = bgClass;
+        return () => { document.body.className = ''; };
+      }, [bgClass]);
+
+      // Redraw wheel when theme changes
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (canvas) drawWheel(canvas, wheelTheme);
+      }, [wheelTheme]);
 
       // Persist wins/losses to localStorage
       useEffect(() => { localStorage.setItem('wheel_wins',       wins);       }, [wins]);
@@ -1168,11 +1315,6 @@
 
       const handleEquip = useCallback((id) => {
         setEquippedFish(id);
-      }, []);
-
-      useEffect(() => {
-        const canvas = canvasRef.current;
-        if (canvas) drawWheel(canvas);
       }, []);
 
       const spin = useCallback(async () => {
@@ -1217,18 +1359,28 @@
 
           // Update streak and calculate bonus
           setStreak(prev => {
+            const isLoss = data.result === 'lose';
+            // Streak shield: protect positive streak on loss
+            if (isLoss && prev > 0 && shieldChargesRef.current > 0) {
+              if (shieldChargesRef.current !== Infinity) {
+                setShieldCharges(c => c - 1);
+              }
+              // streak preserved — no score change for this loss
+              setBonusEarned(0);
+              return prev;
+            }
             const newStreak = data.result === 'win'
               ? (prev >= 0 ? prev + 1 : 1)
               : (prev <= 0 ? prev - 1 : -1);
             const count = Math.abs(newStreak);
-            const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
+            const rawBonus = count >= 3 ? Math.pow(2, count - 3) : 0;
+            const bonus = rawBonus * bonusMult;
             setBonusEarned(bonus);
             if (data.result === 'win') {
-              setWins(w => w + 1 + bonus);
+              setWins(w => w + winMult + bonus);
               setConfetti(true);
             } else {
               setLosses(l => l + 1 + bonus);
-              // Party mode: confetti even on loss
               setOwnedItems(owned => { if (owned.includes('party_mode')) setConfetti(true); return owned; });
             }
             return newStreak;
@@ -1242,7 +1394,7 @@
 
           setSpinning(false);
 
-          // Auto-spin: wait 1.5s so user sees result, then spin again
+          // Auto-spin: wait autoSpinDelay so user sees result, then spin again
           if (autoSpinRef.current) {
             setTimeout(() => {
               if (autoSpinRef.current) {
@@ -1255,7 +1407,7 @@
                   spin();
                 }, 320);
               }
-            }, 1500);
+            }, autoSpinDelayRef.current);
           }
         }, spinSpeedRef.current * 1000 + 200);
       }, [spinning, showResult]);
@@ -1289,6 +1441,8 @@
           net={wins - losses}
           fishClicks={fishClicks}
           fishData={getFishData(equippedFish)}
+          sizeRem={fishSizeRem}
+          trailClass={trailClass}
           onFishClick={() => setFishClicks(c => c + (ownedItems.includes('double_click') ? 2 : 1))}
         />
         <StreakPanel streak={streak} />
@@ -1336,7 +1490,7 @@
           </div>
 
           {/* Confetti */}
-          <Confetti active={confetti} />
+          <Confetti active={confetti} count={confettiCount} />
 
           {/* Overlay while result showing */}
           <div className={`overlay ${showResult ? 'active' : ''}`} />
