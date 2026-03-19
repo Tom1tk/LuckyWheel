@@ -4,7 +4,7 @@ A casino-style spinning wheel game with a fish mascot, streaks, and a full upgra
 
 ## Overview
 
-Lucky Wheel is a browser-based gambling wheel built with a Python/Flask backend and a React frontend loaded entirely from CDN (no build step required). Spin the wheel, rack up wins, collect fish clicks, and spend them in the shop on cosmetic upgrades and gameplay boosts.
+Lucky Wheel is a browser-based gambling wheel built with a Python/Flask backend and a React frontend. Spin the wheel, rack up wins, collect fish clicks, and spend them in the shop on cosmetic upgrades and gameplay boosts.
 
 All game state is stored server-side in PostgreSQL — progress persists across devices and sessions, and client-side cheating is prevented.
 
@@ -14,8 +14,9 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - **Spinning wheel** — WIN or LOSE, styled as a neon casino wheel with smooth CSS rotation
 - **Win/loss counter** — persisted in PostgreSQL across sessions and devices
 - **Win-streak multiplier** — 3+ consecutive wins or losses triggers an exponentially scaling bonus (2× per additional streak step)
-- **Streak panel** — appears on the right side only when a streak is active (fire emoji for wins, skull for losses)
+- **Streak panel** — appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Streak persistence** — streak is saved server-side (refresh-to-reset exploit patched)
+- **Stats popup** — 📊 button shows total spins, wins, losses, win rate, and fish clicks
 
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
@@ -28,19 +29,21 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 ### Fish Mascot
 - A fish lives on the left side of the screen, centred vertically
 - Reacts to spin results (happy on win, sad on loss, idle otherwise)
-- Shows a fire aura when wins are ahead, a gloom aura when losses are ahead — aura size scales with the gap
+- Shows a fire aura when wins are ahead, a gloom aura when losses are ahead — aura size and intensity scale with the net gap (tight drop-shadow glow on the fish + large ambient blur halo behind it)
+- Trail effects (sparkle/fire/rainbow) and the aura glow coexist independently
 - Clickable — spins on click, each click earns fish-click currency (server-side)
 - **Fish clicks are your shop currency** — accumulates and persists across sessions
 
 ### Auto-Spin
 - Checkbox to enable automatic spinning on a configurable delay
 - While active, manual spinning is locked out to prevent stacking
+- The wheel can begin spinning while the previous result banner is still fading out
 
 ---
 
 ## Shop System
 
-Fish clicks are spent in the shop (🛒 button, top-right). All purchases persist server-side. **Locked tiers are hidden until the prerequisite is owned** — shop items unlock progressively.
+The shop is always visible as a two-column panel on the right side of the screen (cosmetics on the left, functional upgrades on the right). **Locked tiers are hidden until the prerequisite is owned** — items unlock progressively. All purchases persist server-side.
 
 ### Fish Skins
 | Skin | Cost | Emoji |
@@ -91,27 +94,39 @@ Multiplies streak bonus payouts.
 | Colossal | 800 | 40rem |
 
 ### Fish Trail
-Visual trail effect on the fish.
+Visual trail effect on the fish. Trail and streak aura effects coexist independently.
 | Tier | Cost | Effect |
 |------|------|--------|
 | Sparkle Trail | 125 | ✨ Sparkle |
 | Fire Trail | 500 | 🔥 Fire |
 | Rainbow Trail | 2000 | 🌈 Rainbow |
 
-### Click Power & Click Frenzy
+### Click Power
+Each fish click counts as more clicks server-side.
 | Upgrade | Cost | Effect |
 |---------|------|--------|
-| Double Click | 100 | Each fish click counts as 2 |
-| Frenzy I | 150 | +1 click per 5s (passive) |
+| Double Click | 100 | ×2 clicks |
+| Double Click II | 400 | ×3 clicks |
+| Double Click III | 900 | ×4 clicks |
+| Double Click IV | 2000 | ×5 clicks |
+| Double Click V | 4500 | ×6 clicks |
+
+### Click Frenzy
+Passive income — server ticks fish clicks automatically.
+| Tier | Cost | Effect |
+|------|------|--------|
+| Frenzy I | 150 | +1 click per 5s |
 | Frenzy II | 600 | +5 clicks per 5s |
 | Frenzy III | 2400 | +20 clicks per 5s |
+| Frenzy IV | 9600 | +80 clicks per 5s |
+| Frenzy V | 38400 | +320 clicks per 5s |
 
 ### Streak Shield
 Shields protect your win streak by absorbing a loss. All three can be owned simultaneously and are consumed in priority order: **Shield → Reinforced → Regenerating**.
 
 | Item | Cost | Behaviour |
 |------|------|-----------|
-| 🛡️ Shield | 150 | Blocks 1 loss, then breaks. Must be repurchased. |
+| 🛡️ Shield | 250 | Blocks 1 loss, then breaks. Must be repurchased. |
 | ⚔️ Reinforced Shield | 600 | Blocks 3 losses, then breaks. Must be repurchased. |
 | 🔄 Regenerating Shield | 800 | Blocks 1 loss, recharges after 3 wins, loops forever. Never permanently breaks. |
 
@@ -156,6 +171,7 @@ Changes the canvas colour palette of the wheel.
 ### Requirements
 - Python 3.8+
 - PostgreSQL 14+
+- Node.js (for the one-time JSX build step)
 
 ### 1. Install Python dependencies
 
@@ -174,19 +190,34 @@ sudo -u postgres psql -c "CREATE DATABASE wheeldb OWNER wheelapp;"
 PGPASSWORD='<your-password>' psql -U wheelapp -d wheeldb -h localhost -f schema.sql
 ```
 
-### 3. Configure environment (optional)
+### 3. Configure environment
+
+Both variables are **required** — the server will refuse to start without them.
 
 ```bash
 export DATABASE_URL="postgresql://wheelapp:<your-password>@localhost/wheeldb"
-export WHEEL_SECRET_KEY="<random-hex-string>"
+export WHEEL_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 ```
 
-If not set, the app uses hardcoded defaults from `server.py`.
+For convenience, copy `.env.example` to `.env` — `python-dotenv` will load it automatically.
 
-### 4. Start the server
+### 4. Build the frontend
+
+The JSX source must be transpiled once (and again after any `app.jsx` changes):
 
 ```bash
-cd wheel-app
+npx babel static/app.jsx --presets @babel/preset-react -o static/app.js
+```
+
+### 5. Start the server
+
+**Production (recommended):**
+```bash
+gunicorn -c gunicorn.conf.py server:app
+```
+
+**Development:**
+```bash
 python server.py
 ```
 
@@ -198,11 +229,25 @@ Open [http://localhost:5000](http://localhost:5000) in your browser. You'll be p
 
 ```
 wheel-app/
-├── server.py          # Flask backend — auth, game logic, all API endpoints
+├── server.py          # Thin entry point: create_app() → gunicorn target
+├── app.py             # Flask app factory: config, extensions, blueprints, error handlers
+├── auth.py            # Blueprint: /api/me, /api/register, /api/login, /api/logout
+├── game.py            # Blueprint: /api/state, /api/spin, /api/buy, /api/equip,
+│                      #            /api/equip-cosmetic, /api/fish-click,
+│                      #            /api/click-frenzy, /api/stats, /api/leaderboard, /api/health
+├── db.py              # psycopg2 ThreadedConnectionPool + db_connection() context manager
+├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, constants
+├── security.py        # check_lockout(), record_attempt(), clear_attempts(), require_json()
+├── extensions.py      # Flask-Limiter and Flask-Login instances
+├── gunicorn.conf.py   # Gunicorn config: 4 gthread workers × 4 threads, port 5000
 ├── schema.sql         # PostgreSQL schema (users, game_state, login_attempts)
 ├── requirements.txt   # Python dependencies
+├── .env.example       # Required environment variable template
 └── static/
-    └── index.html     # Entire frontend (React via CDN, Babel standalone)
+    ├── index.html     # Slim HTML shell
+    ├── app.jsx        # React source (edit this)
+    ├── app.js         # Compiled output (generated by Babel — do not edit directly)
+    └── styles.css     # All CSS
 ```
 
 ---
@@ -222,12 +267,15 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 ### Game
 | Endpoint | Method | Rate Limit | Description |
 |----------|--------|------------|-------------|
+| `/api/health` | GET | — | DB connectivity check → `{"status":"ok"}` or 503 |
 | `/api/state` | GET | — | Full game state |
 | `/api/spin` | POST | 10/sec | Server determines outcome, updates DB |
 | `/api/buy` | POST | — | Purchase shop item |
 | `/api/equip` | POST | — | Equip a fish skin |
+| `/api/equip-cosmetic` | POST | — | Toggle a cosmetic item on/off |
 | `/api/fish-click` | POST | 30/sec | Increment fish clicks |
 | `/api/click-frenzy` | POST | — | Passive click income tick |
+| `/api/stats` | GET | — | Personal stats (spins, wins, losses, win rate, fish clicks) |
 | `/api/leaderboard` | GET | — | Public — top 5 players by wins |
 
 `/api/spin` response:
@@ -254,25 +302,27 @@ All game endpoints require authentication (session cookie). POST endpoints requi
   ...
 ]
 ```
-Returns top 5 players by win count. Auto-refreshed client-side every 60 seconds.
+Returns top 5 players by win count. Auto-refreshed client-side every 60 seconds as a scrolling ticker.
 
 ---
 
 ## Frontend Architecture
 
-The entire frontend lives in `static/index.html` as a single-file React app. Key components:
+The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babel build step to update `static/app.js`. Key components:
 
 | Component | Purpose |
 |-----------|---------|
 | `App` | Root: checks `/api/me`, renders `AuthPage` or `GameApp` |
 | `AuthPage` | Login/register form with error handling |
-| `GameApp` | Main game: wheel, fish, scoreboard, shop, all API calls |
-| `Fish` | Left-side mascot with aura, mood, and click animation |
-| `StreakPanel` | Right-side streak display (only shown at streak ≥ 2) |
-| `ShopPanel` | Full shop — locked tiers hidden until prerequisite owned |
+| `GameApp` | Main game: wheel, fish, shop, all API calls |
+| `Fish` | Left-side mascot — aura, mood, trail effects, click animation |
+| `StreakPanel` | Sidebar streak display (only shown at streak ≥ 2) |
+| `ShopPanel` | Always-visible two-column shop (cosmetics left, functional right) |
 | `ShopItem` | Individual item card (buy / equip / active states) |
+| `Scoreboard` | Win/loss counter below the wheel |
+| `StatsPanel` | Modal overlay showing personal stats (📊 button) |
 | `Confetti` | Win confetti overlay |
-| `Leaderboard` | Fixed bottom-right panel — top 5 players by wins, auto-refreshes every 60s |
+| `Leaderboard` | Horizontal scrolling ticker at the bottom of the right panel |
 | `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon) |
 
 **No localStorage** — all state lives in PostgreSQL. Legacy `localStorage` keys are cleared on mount.
@@ -282,6 +332,7 @@ The entire frontend lives in `static/index.html` as a single-file React app. Key
 ## Tech Stack
 
 - **Backend**: Python, Flask, flask-login, flask-limiter, bcrypt
-- **Database**: PostgreSQL (psycopg2)
-- **Frontend**: React 18 (CDN), Babel Standalone, vanilla CSS
+- **Database**: PostgreSQL (psycopg2 with `ThreadedConnectionPool`)
+- **WSGI**: Gunicorn (gthread workers)
+- **Frontend**: React 18 (CDN UMD), pre-compiled JSX via Babel CLI, vanilla CSS
 - **Auth**: Server-side sessions via signed HTTP-only cookies (SameSite=Lax)
