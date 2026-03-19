@@ -127,7 +127,7 @@ SHOP_ITEMS = {
     'clickfrenzy_2':  {'cost': 600,    'requires': 'clickfrenzy_1'},
     'clickfrenzy_3':  {'cost': 2400,   'requires': 'clickfrenzy_2'},
     'shield_1':       {'cost': 150,    'requires': None},
-    'iron_shield':    {'cost': 600,    'requires': 'shield_1'},
+    'iron_shield':    {'cost': 600,    'requires': None},
     'theme_fire':     {'cost': 250,    'requires': None},
     'theme_ice':      {'cost': 1000,   'requires': 'theme_fire'},
     'theme_neon':     {'cost': 4000,   'requires': 'theme_ice'},
@@ -192,14 +192,10 @@ def clear_attempts(conn, identifier):
         cur.execute('DELETE FROM login_attempts WHERE identifier = %s', (identifier,))
 
 
-# ── Shield charge calculation ─────────────────────────────────────────────────
+# ── Shield constants ──────────────────────────────────────────────────────────
 
-def calc_shield_charges(owned_items):
-    if 'iron_shield' in owned_items:
-        return 3
-    if 'shield_1' in owned_items:
-        return 1
-    return 0
+# Wins iron_shield must witness (while broken/recharging) before phase 2 activates
+IRON_SHIELD_RECHARGE_WINS = 3
 
 
 # ── Helper: require JSON Content-Type on POST ─────────────────────────────────
@@ -413,17 +409,6 @@ def get_state():
             gs = cur.fetchone()
 
         owned = list(gs['owned_items'])
-        max_charges = calc_shield_charges(owned)
-        # Use the stored charge count; only cap if it somehow exceeds the max.
-        # Never increase charges here — refreshing must not restore used charges.
-        actual_charges = min(gs['shield_charges'], max_charges)
-        if actual_charges != gs['shield_charges']:
-            with conn.cursor() as cur:
-                cur.execute(
-                    'UPDATE game_state SET shield_charges = %s WHERE user_id = %s',
-                    (actual_charges, current_user.id),
-                )
-            conn.commit()
 
         return jsonify({
             'wins': gs['wins'],
@@ -432,7 +417,8 @@ def get_state():
             'streak': gs['streak'],
             'owned_items': owned,
             'equipped_fish': gs['equipped_fish'],
-            'shield_charges': actual_charges,
+            'shield_charges': gs['shield_charges'],
+            'shield_recharge_wins': gs['shield_recharge_wins'],
         })
     except Exception:
         conn.rollback()
@@ -460,7 +446,9 @@ def spin():
 
         owned = list(gs['owned_items'])
         streak = gs['streak']
-        shield_charges = gs['shield_charges']
+        shield_charges      = gs['shield_charges']
+        shield_recharge_wins = gs['shield_recharge_wins']
+        iron_recharged      = gs['iron_shield_recharged']
 
         # Determine outcome
         if 'singularity' in owned:
@@ -477,19 +465,49 @@ def spin():
                       5  if 'bonusmult_2' in owned else
                       2  if 'bonusmult_1' in owned else 1)
 
-        shield_used = False
-        new_wins   = gs['wins']
-        new_losses = gs['losses']
+        shield_used  = False
+        shield_broke = False
+        new_wins     = gs['wins']
+        new_losses   = gs['losses']
         bonus_earned = 0
+        new_owned    = owned
 
-        if outcome == 'lose' and streak > 0 and shield_charges > 0:
-            # Shield absorbs the loss — preserve streak
-            shield_charges -= 1
+        # Shield can only absorb a loss when it has charges AND is not recharging
+        shield_active = shield_charges > 0 and shield_recharge_wins == 0
+
+        if outcome == 'lose' and streak > 0 and shield_active:
+            # ── Shield absorbs the loss ──────────────────────────────────────
             shield_used = True
-            new_streak = streak
+            shield_charges -= 1
+            new_streak = streak  # win streak preserved
+
+            if shield_charges == 0:
+                if 'shield_1' in owned:
+                    # shield_1 always breaks after its single charge
+                    new_owned = [x for x in owned if x != 'shield_1']
+                    shield_broke = True
+                elif 'iron_shield' in owned:
+                    if iron_recharged:
+                        # Phase 2 exhausted → iron_shield breaks
+                        new_owned = [x for x in owned if x != 'iron_shield']
+                        iron_recharged = False
+                        shield_broke = True
+                    else:
+                        # Phase 1 exhausted → begin recharge countdown
+                        shield_recharge_wins = IRON_SHIELD_RECHARGE_WINS
+
         else:
+            # ── Normal spin outcome ──────────────────────────────────────────
             if outcome == 'win':
                 new_streak = streak + 1 if streak >= 0 else 1
+
+                # Advance iron_shield recharge countdown on wins
+                if shield_recharge_wins > 0:
+                    shield_recharge_wins -= 1
+                    if shield_recharge_wins == 0:
+                        # Phase 2 now active: grant 2 charges
+                        shield_charges = 2
+                        iron_recharged = True
             else:
                 new_streak = streak - 1 if streak <= 0 else -1
 
@@ -499,8 +517,6 @@ def spin():
 
             if outcome == 'win':
                 new_wins += win_mult + bonus_earned
-                if 'party_mode' in owned:
-                    pass  # confetti handled client-side
             else:
                 new_losses += 1 + bonus_earned
 
@@ -515,9 +531,13 @@ def spin():
         with conn.cursor() as cur:
             cur.execute(
                 '''UPDATE game_state
-                   SET wins = %s, losses = %s, streak = %s, shield_charges = %s
+                   SET wins = %s, losses = %s, streak = %s,
+                       shield_charges = %s, shield_recharge_wins = %s,
+                       iron_shield_recharged = %s, owned_items = %s
                    WHERE user_id = %s''',
-                (new_wins, new_losses, new_streak, shield_charges, current_user.id),
+                (new_wins, new_losses, new_streak,
+                 shield_charges, shield_recharge_wins,
+                 iron_recharged, new_owned, current_user.id),
             )
         conn.commit()
 
@@ -527,8 +547,11 @@ def spin():
             'wins': new_wins,
             'losses': new_losses,
             'streak': new_streak,
+            'owned_items': new_owned,
             'shield_charges': shield_charges,
+            'shield_recharge_wins': shield_recharge_wins,
             'shield_used': shield_used,
+            'shield_broke': shield_broke,
             'bonus_earned': bonus_earned,
         })
     except Exception:
@@ -559,7 +582,9 @@ def buy():
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                'SELECT fish_clicks, owned_items FROM game_state WHERE user_id = %s FOR UPDATE',
+                '''SELECT fish_clicks, owned_items, shield_charges,
+                          shield_recharge_wins, iron_shield_recharged
+                   FROM game_state WHERE user_id = %s FOR UPDATE''',
                 (current_user.id,),
             )
             gs = cur.fetchone()
@@ -577,15 +602,26 @@ def buy():
         new_clicks = fish_clicks - cost
         new_owned = owned + [item_id]
 
-        # Recalculate shield charges if a shield was purchased
-        new_charges = calc_shield_charges(new_owned)
+        # Shields start with 1 charge and a fresh recharge state when purchased
+        if item_id in ('shield_1', 'iron_shield'):
+            new_charges       = 1
+            new_recharge_wins = 0
+            new_recharged     = False
+        else:
+            new_charges       = gs['shield_charges']
+            new_recharge_wins = gs['shield_recharge_wins']
+            new_recharged     = gs['iron_shield_recharged']
 
         with conn.cursor() as cur:
             cur.execute(
                 '''UPDATE game_state
-                   SET fish_clicks = %s, owned_items = %s, shield_charges = %s
+                   SET fish_clicks = %s, owned_items = %s,
+                       shield_charges = %s, shield_recharge_wins = %s,
+                       iron_shield_recharged = %s
                    WHERE user_id = %s''',
-                (new_clicks, new_owned, new_charges, current_user.id),
+                (new_clicks, new_owned,
+                 new_charges, new_recharge_wins, new_recharged,
+                 current_user.id),
             )
         conn.commit()
 
@@ -593,6 +629,7 @@ def buy():
             'fish_clicks': new_clicks,
             'owned_items': new_owned,
             'shield_charges': new_charges,
+            'shield_recharge_wins': new_recharge_wins,
         })
     except Exception:
         conn.rollback()

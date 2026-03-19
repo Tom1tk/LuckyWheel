@@ -20,9 +20,11 @@ CREATE TABLE IF NOT EXISTS game_state (
     losses         INTEGER NOT NULL DEFAULT 0,
     fish_clicks    BIGINT NOT NULL DEFAULT 0,
     streak         INTEGER NOT NULL DEFAULT 0,
-    owned_items    TEXT[] NOT NULL DEFAULT '{}',
-    equipped_fish  VARCHAR(32) NOT NULL DEFAULT 'default',
-    shield_charges INTEGER NOT NULL DEFAULT 0
+    owned_items           TEXT[] NOT NULL DEFAULT '{}',
+    equipped_fish         VARCHAR(32) NOT NULL DEFAULT 'default',
+    shield_charges        INTEGER NOT NULL DEFAULT 0,
+    shield_recharge_wins  INTEGER NOT NULL DEFAULT 0,   -- iron_shield: wins until phase 2 activates
+    iron_shield_recharged BOOLEAN NOT NULL DEFAULT FALSE -- true once iron_shield has completed its recharge
 );
 
 CREATE TABLE IF NOT EXISTS login_attempts (
