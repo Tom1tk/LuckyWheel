@@ -126,7 +126,7 @@ SHOP_ITEMS = {
     'clickfrenzy_1':  {'cost': 150,    'requires': None},
     'clickfrenzy_2':  {'cost': 600,    'requires': 'clickfrenzy_1'},
     'clickfrenzy_3':  {'cost': 2400,   'requires': 'clickfrenzy_2'},
-    'shield_1':       {'cost': 150,    'requires': None},
+    'shield_1':       {'cost': 250,    'requires': None},
     'iron_shield':    {'cost': 600,    'requires': None},
     'regen_shield':   {'cost': 800,    'requires': None},
     'theme_fire':     {'cost': 250,    'requires': None},
@@ -519,14 +519,15 @@ def spin():
             else:
                 new_streak = streak - 1 if streak <= 0 else -1
 
-            count = abs(new_streak)
-            raw_bonus = math.pow(2, count - 3) if count >= 3 else 0
-            bonus_earned = int(raw_bonus * bonus_mult)
-
             if outcome == 'win':
+                count = abs(new_streak)
+                raw_bonus = math.pow(2, count - 3) if count >= 3 else 0
+                bonus_earned = int(raw_bonus * bonus_mult)
                 new_wins += win_mult + bonus_earned
             else:
-                new_losses += 1 + bonus_earned
+                # No exponential bonus on loss streaks — always add exactly 1 loss
+                bonus_earned = 0
+                new_losses += 1
 
         # Calculate wheel rotation angle
         extra_spins = random.randint(5, 8) * 360
