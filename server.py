@@ -224,7 +224,7 @@ def register():
         return err
 
     data = request.get_json(silent=True) or {}
-    username = (data.get('username') or '').strip()
+    username = (data.get('username') or '').strip().lower()
     password = data.get('password') or ''
 
     if not username or not username.isalnum() or not (3 <= len(username) <= 32):
@@ -261,7 +261,7 @@ def register():
         conn.commit()
 
         user_obj = User(user_id, username)
-        login_user(user_obj, remember=True)
+        login_user(user_obj, remember=False)
         session.permanent = True
 
         return jsonify({'username': username}), 201
@@ -284,38 +284,33 @@ def login():
         return err
 
     data = request.get_json(silent=True) or {}
-    username = (data.get('username') or '').strip()
+    username = (data.get('username') or '').strip().lower()
     password = data.get('password') or ''
-
-    ip = get_remote_address()
 
     conn = get_db()
     try:
-        # Check lockout by IP and username
-        ip_wait = check_lockout(conn, f'ip:{ip}')
+        # Check lockout by username only — IP lockout is handled by Flask-Limiter
+        # to avoid blocking multiple users behind the same NAT/shared IP
         user_wait = check_lockout(conn, f'user:{username}')
-        wait = max(ip_wait, user_wait)
-        if wait > 0:
-            return jsonify({'error': f'Too many failed attempts. Try again in {wait}s'}), 429
+        if user_wait > 0:
+            return jsonify({'error': f'Too many failed attempts. Try again in {user_wait}s'}), 429
 
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute('SELECT id, username, password_hash FROM users WHERE username = %s', (username,))
             row = cur.fetchone()
 
         if not row or not bcrypt.checkpw(password.encode(), row['password_hash'].encode()):
-            record_attempt(conn, f'ip:{ip}', False)
             record_attempt(conn, f'user:{username}', False)
             conn.commit()
             return jsonify({'error': 'Invalid username or password'}), 401
 
         # Success — issue new token, booting any existing session for this user
-        clear_attempts(conn, f'ip:{ip}')
         clear_attempts(conn, f'user:{username}')
         issue_session_token(conn, row['id'])
         conn.commit()
 
         user_obj = User(row['id'], row['username'])
-        login_user(user_obj, remember=True)
+        login_user(user_obj, remember=False)
         session.permanent = True
 
         return jsonify({'username': row['username']}), 200
