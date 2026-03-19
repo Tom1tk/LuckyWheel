@@ -630,6 +630,193 @@
       z-index: 45;
     }
     .overlay.active { display: block; }
+
+    /* ── Shop ──────────────────────────────────────────────────────────────── */
+    .shop-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 200;
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      padding: 8px 18px;
+      background: linear-gradient(135deg, #B8860B, #FFD700);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 14px rgba(255,215,0,0.5);
+      transition: transform 0.1s, box-shadow 0.15s;
+    }
+    .shop-btn:hover { transform: scale(1.05); box-shadow: 0 0 28px rgba(255,215,0,0.8); }
+    .shop-btn.open  { background: linear-gradient(135deg, #333, #555); color: #FFD700; box-shadow: none; }
+
+    .shop-panel {
+      position: fixed;
+      top: 62px;
+      right: 20px;
+      bottom: 20px;
+      width: 270px;
+      z-index: 199;
+      background: rgba(10,5,0,0.96);
+      border: 2px solid #FFD700;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(255,215,0,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: shopSlide 0.25s cubic-bezier(0.34,1.2,0.64,1);
+    }
+    @keyframes shopSlide {
+      from { opacity: 0; transform: translateX(30px) scale(0.97); }
+      to   { opacity: 1; transform: translateX(0)    scale(1);    }
+    }
+
+    .shop-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid rgba(255,215,0,0.2);
+      flex-shrink: 0;
+    }
+    .shop-title {
+      font-size: 1.2rem;
+      letter-spacing: 4px;
+      color: #FFD700;
+      text-shadow: 0 0 10px #FFD700;
+      text-transform: uppercase;
+    }
+    .shop-balance {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: #aaa;
+      letter-spacing: 2px;
+    }
+    .shop-balance span { color: #FFD700; font-size: 1rem; }
+
+    .shop-section-label {
+      font-size: 0.6rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #666;
+      padding: 10px 16px 4px;
+      flex-shrink: 0;
+    }
+
+    .shop-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 10px 12px;
+      scrollbar-width: thin;
+      scrollbar-color: #FFD700 #111;
+    }
+
+    .shop-item {
+      background: rgba(255,215,0,0.04);
+      border: 1px solid rgba(255,215,0,0.15);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .shop-item.owned   { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.07); }
+    .shop-item.equipped { border-color: #FFD700; background: rgba(255,215,0,0.12); box-shadow: 0 0 8px rgba(255,215,0,0.2); }
+    .shop-item.locked  { opacity: 0.4; }
+
+    .shop-item-emoji { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
+
+    .shop-item-info { flex: 1; min-width: 0; }
+    .shop-item-name {
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      color: #EEE;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .shop-item-desc {
+      font-size: 0.6rem;
+      color: #777;
+      letter-spacing: 1px;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .shop-item-cost {
+      font-size: 0.7rem;
+      color: #FFD700;
+      letter-spacing: 1px;
+      margin-top: 3px;
+    }
+
+    .shop-item-action { flex-shrink: 0; }
+
+    .shop-buy-btn {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: transform 0.1s;
+    }
+    .shop-buy-btn.can-afford {
+      background: linear-gradient(135deg, #B8860B, #FFD700);
+      color: #000;
+      box-shadow: 0 0 8px rgba(255,215,0,0.4);
+    }
+    .shop-buy-btn.can-afford:hover { transform: scale(1.08); }
+    .shop-buy-btn.cant-afford { background: #222; color: #555; cursor: not-allowed; }
+
+    .shop-equip-btn {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      padding: 5px 10px;
+      border: 1px solid #FFD700;
+      border-radius: 3px;
+      cursor: pointer;
+      text-transform: uppercase;
+      background: transparent;
+      color: #FFD700;
+      transition: background 0.15s;
+    }
+    .shop-equip-btn:hover { background: rgba(255,215,0,0.15); }
+
+    .shop-equipped-badge {
+      font-size: 0.6rem;
+      letter-spacing: 1px;
+      color: #FFD700;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border: 1px solid #FFD700;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+    .shop-active-badge {
+      font-size: 0.6rem;
+      letter-spacing: 1px;
+      color: #00FF88;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border: 1px solid #00FF88;
+      border-radius: 3px;
+    }
+
+    /* Golden wheel upgrade effect */
+    .wheel-wrapper.golden::before {
+      box-shadow:
+        0 0 50px 20px rgba(255,215,0,0.7),
+        0 0 100px 40px rgba(255,140,0,0.5),
+        inset 0 0 30px rgba(255,215,0,0.2);
+    }
   </style>
 </head>
 <body>
@@ -773,11 +960,11 @@
     }
 
     // ── Fish ─────────────────────────────────────────────────────────────────
-    function Fish({ mood, net, fishClicks, onFishClick }) {
+    function Fish({ mood, net, fishClicks, onFishClick, fishData }) {
       const [spinKey, setSpinKey] = React.useState(0);
       const [fishSpinning, setFishSpinning] = React.useState(false);
       const timerRef = React.useRef(null);
-      const labels = { happy: '🎉 Nice!', sad: '💀 Ouch!', idle: 'Click me!' };
+      const { emoji, labels } = fishData || DEFAULT_FISH;
 
       const handleClick = () => {
         if (timerRef.current) clearTimeout(timerRef.current);
@@ -809,12 +996,12 @@
         <>
           <div className="fish-panel" onClick={handleClick} title="Wheeee!">
             {auraStyle && <div className="fish-aura" style={auraStyle} />}
-            <span className={`fish-body ${animClass}`} key={spinKey || mood}>🐟</span>
+            <span className={`fish-body ${animClass}`} key={spinKey || mood}>{emoji}</span>
             <span className={`fish-label ${mood}`}>{labels[mood]}</span>
           </div>
           <div className="fish-counter">
             <span className="fish-counter-label">Fish clicks</span>
-            <span className="fish-counter-value">🐟 × {fishClicks}</span>
+            <span className="fish-counter-value">{emoji} × {fishClicks}</span>
           </div>
         </>
       );
@@ -838,6 +1025,100 @@
       );
     }
 
+    // ── Shop catalogue ───────────────────────────────────────────────────────
+    const FISH_SKINS = [
+      { id: 'fish_tropical', emoji: '🐠', name: 'Tropical Fish', cost: 25,
+        labels: { idle: 'Blub blub!', happy: 'Splashy win!', sad: 'Glub...' } },
+      { id: 'fish_puffer',   emoji: '🐡', name: 'Pufferfish',    cost: 50,
+        labels: { idle: '*puffs up*', happy: 'PUFF YEAH!', sad: '*deflates*' } },
+      { id: 'fish_octopus',  emoji: '🐙', name: 'Octopus',       cost: 75,
+        labels: { idle: '8 arms ready!', happy: 'Ink-redible!', sad: '*squirts ink*' } },
+      { id: 'fish_shark',    emoji: '🦈', name: 'Shark',         cost: 100,
+        labels: { idle: 'Chomp chomp', happy: 'Feeding frenzy!', sad: 'Jaw dropped...' } },
+      { id: 'fish_dolphin',  emoji: '🐬', name: 'Dolphin',       cost: 150,
+        labels: { idle: 'Eee-eee!', happy: "Flippin' awesome!", sad: '*sad clicks*' } },
+    ];
+
+    const UPGRADES = [
+      { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 50,  desc: 'Spin time: 4.5s → 3s' },
+      { id: 'turbo_spin',  emoji: '🚀', name: 'Turbo Spin',   cost: 200, desc: 'Spin time: 3s → 1.5s', requires: 'speed_boost' },
+      { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel', cost: 300, desc: 'Radiant wheel glow' },
+      { id: 'double_click',emoji: '👆', name: 'Double Click', cost: 100, desc: 'Fish clicks count x2' },
+      { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',   cost: 150, desc: 'Confetti every spin' },
+    ];
+
+    const DEFAULT_FISH = { emoji: '🐟', labels: { idle: 'Click me!', happy: '🎉 Nice!', sad: '💀 Ouch!' } };
+
+    function getFishData(equippedFish) {
+      return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
+    }
+
+    // ── Shop components ───────────────────────────────────────────────────────
+    function ShopItem({ item, owned, equipped, canAfford, onBuy, onEquip, isSkin, locked }) {
+      let actionEl;
+      if (owned && isSkin) {
+        actionEl = equipped
+          ? <span className="shop-equipped-badge">✓ On</span>
+          : <button className="shop-equip-btn" onClick={() => onEquip(item.id)}>Equip</button>;
+      } else if (owned) {
+        actionEl = <span className="shop-active-badge">Active</span>;
+      } else {
+        actionEl = (
+          <button
+            className={`shop-buy-btn ${canAfford && !locked ? 'can-afford' : 'cant-afford'}`}
+            onClick={() => !locked && canAfford && onBuy(item.id, item.cost)}
+          >Buy</button>
+        );
+      }
+      return (
+        <div className={`shop-item ${owned ? (equipped ? 'equipped' : 'owned') : ''} ${locked ? 'locked' : ''}`}>
+          <span className="shop-item-emoji">{item.emoji}</span>
+          <div className="shop-item-info">
+            <div className="shop-item-name">{item.name}</div>
+            {item.desc && <div className="shop-item-desc">{item.desc}</div>}
+            {!owned && <div className="shop-item-cost">🐟 {item.cost}</div>}
+          </div>
+          <div className="shop-item-action">{actionEl}</div>
+        </div>
+      );
+    }
+
+    function ShopPanel({ open, fishClicks, ownedItems, equippedFish, onBuy, onEquip }) {
+      if (!open) return null;
+      return (
+        <div className="shop-panel">
+          <div className="shop-header">
+            <div className="shop-title">🛒 Shop</div>
+            <div className="shop-balance">Balance: <span>🐟 {fishClicks}</span></div>
+          </div>
+          <div className="shop-items">
+            <div className="shop-section-label">── Fish Skins ──</div>
+            {FISH_SKINS.map(item => (
+              <ShopItem key={item.id} item={item} isSkin
+                owned={ownedItems.includes(item.id)}
+                equipped={equippedFish === item.id}
+                canAfford={fishClicks >= item.cost}
+                onBuy={onBuy} onEquip={onEquip}
+              />
+            ))}
+            <div className="shop-section-label">── Upgrades ──</div>
+            {UPGRADES.map(item => {
+              const locked = item.requires && !ownedItems.includes(item.requires);
+              return (
+                <ShopItem key={item.id} item={{...item, desc: locked ? `Requires ${UPGRADES.find(u=>u.id===item.requires)?.name}` : item.desc}}
+                  isSkin={false} locked={locked}
+                  owned={ownedItems.includes(item.id)}
+                  equipped={false}
+                  canAfford={fishClicks >= item.cost}
+                  onBuy={onBuy} onEquip={onEquip}
+                />
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     // ── Main App ──────────────────────────────────────────────────────────────
     function App() {
       const canvasRef    = useRef(null);
@@ -854,20 +1135,40 @@
       const [fishClicks, setFishClicks]   = useState(() => Number(localStorage.getItem('wheel_fishclicks')) || 0);
       const [bonusEarned, setBonusEarned] = useState(0);
       const [autoSpin, setAutoSpin]       = useState(false);
+      const [shopOpen, setShopOpen]       = useState(false);
+      const [ownedItems, setOwnedItems]   = useState(() => JSON.parse(localStorage.getItem('wheel_owned') || '[]'));
+      const [equippedFish, setEquippedFish] = useState(() => localStorage.getItem('wheel_fish') || 'default');
+      const spinSpeed = ownedItems.includes('turbo_spin') ? 1.5 : ownedItems.includes('speed_boost') ? 3 : 4.5;
       const currentRotationRef            = useRef(0);
       const fishTimerRef                  = useRef(null);
       const autoSpinRef                   = useRef(false);
+      const spinSpeedRef                  = useRef(4.5);
 
-      // Keep ref in sync so the setTimeout callback always sees the latest value
+      // Keep refs in sync so setTimeout callbacks always see latest values
       useEffect(() => {
         autoSpinRef.current = autoSpin;
         if (autoSpin && !spinning) spin();
       }, [autoSpin]);
+      useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
 
       // Persist wins/losses to localStorage
       useEffect(() => { localStorage.setItem('wheel_wins',       wins);       }, [wins]);
       useEffect(() => { localStorage.setItem('wheel_losses',     losses);     }, [losses]);
       useEffect(() => { localStorage.setItem('wheel_fishclicks', fishClicks); }, [fishClicks]);
+      useEffect(() => { localStorage.setItem('wheel_owned',      JSON.stringify(ownedItems)); }, [ownedItems]);
+      useEffect(() => { localStorage.setItem('wheel_fish',       equippedFish); }, [equippedFish]);
+
+      const handleBuy = useCallback((id, cost) => {
+        setFishClicks(c => {
+          if (c < cost) return c;
+          setOwnedItems(prev => prev.includes(id) ? prev : [...prev, id]);
+          return c - cost;
+        });
+      }, []);
+
+      const handleEquip = useCallback((id) => {
+        setEquippedFish(id);
+      }, []);
 
       useEffect(() => {
         const canvas = canvasRef.current;
@@ -909,7 +1210,7 @@
         currentRotationRef.current = newRotation;
         setRotation(newRotation);
 
-        // Wait for animation to finish (4.5s transition)
+        // Wait for animation to finish (matches spinSpeed transition)
         setTimeout(() => {
           setResult(data.result);
           setShowResult(true);
@@ -927,6 +1228,8 @@
               setConfetti(true);
             } else {
               setLosses(l => l + 1 + bonus);
+              // Party mode: confetti even on loss
+              setOwnedItems(owned => { if (owned.includes('party_mode')) setConfetti(true); return owned; });
             }
             return newStreak;
           });
@@ -954,7 +1257,7 @@
               }
             }, 1500);
           }
-        }, 4700);
+        }, spinSpeedRef.current * 1000 + 200);
       }, [spinning, showResult]);
 
       const handleSpinAgain = useCallback(() => {
@@ -970,11 +1273,23 @@
 
       return (
         <div>
+        <button className={`shop-btn ${shopOpen ? 'open' : ''}`} onClick={() => setShopOpen(o => !o)}>
+          {shopOpen ? '✕ Close' : '🛒 Shop'}
+        </button>
+        <ShopPanel
+          open={shopOpen}
+          fishClicks={fishClicks}
+          ownedItems={ownedItems}
+          equippedFish={equippedFish}
+          onBuy={handleBuy}
+          onEquip={handleEquip}
+        />
         <Fish
           mood={fishMood}
           net={wins - losses}
           fishClicks={fishClicks}
-          onFishClick={() => setFishClicks(c => c + 1)}
+          fishData={getFishData(equippedFish)}
+          onFishClick={() => setFishClicks(c => c + (ownedItems.includes('double_click') ? 2 : 1))}
         />
         <StreakPanel streak={streak} />
         <div className="casino-container">
@@ -988,14 +1303,14 @@
             <div className="subtitle">Try Your Fortune</div>
           </div>
 
-          <div className="wheel-wrapper" onClick={!spinning && !autoSpin ? spin : undefined} title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}>
+          <div className={`wheel-wrapper ${ownedItems.includes('golden_wheel') ? 'golden' : ''}`} onClick={!spinning && !autoSpin ? spin : undefined} title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}>
             <div className={`pointer ${spinning ? 'spinning' : ''}`} />
             <canvas
               ref={canvasRef}
               width={380}
               height={380}
               className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
-              style={{ transform: `rotate(${rotation}deg)` }}
+              style={{ transform: `rotate(${rotation}deg)`, transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
             />
             <div className="center-hub">★</div>
           </div>
