@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import math
@@ -14,6 +15,15 @@ from flask_login import (
     LoginManager, UserMixin, login_user, logout_user,
     login_required, current_user,
 )
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s  %(levelname)-8s  %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
+log = logging.getLogger('wheel')
 
 # ── App setup ────────────────────────────────────────────────────────────────
 
@@ -235,17 +245,23 @@ def register():
     if err:
         return err
 
+    ip = get_remote_address()
     data = request.get_json(silent=True) or {}
-    username = (data.get('username') or '').strip().lower()
+    raw_username = data.get('username') or ''
+    username = raw_username.strip().lower()
     password = data.get('password') or ''
+    device_id = request.cookies.get(DEVICE_COOKIE)
+    ua = request.headers.get('User-Agent', 'unknown')
+
+    log.info('REGISTER_ATTEMPT  ip=%s  raw_username=%r  normalised=%r  device_id=%s  ua=%s',
+             ip, raw_username, username, device_id or 'none', ua)
 
     if not username or not username.isalnum() or not (3 <= len(username) <= 32):
+        log.warning('REGISTER_REJECT  reason=bad_username  raw=%r  ip=%s', raw_username, ip)
         return jsonify({'error': 'Username must be 3–32 alphanumeric characters'}), 400
     if len(password) < 6:
+        log.warning('REGISTER_REJECT  reason=short_password  username=%s  ip=%s', username, ip)
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
-
-    ip = get_remote_address()
-    device_id = request.cookies.get(DEVICE_COOKIE)
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     conn = get_db()
@@ -253,13 +269,17 @@ def register():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # One account per device (cookie-based)
             if device_id:
-                cur.execute('SELECT id FROM users WHERE device_id = %s', (device_id,))
-                if cur.fetchone():
+                cur.execute('SELECT id, username FROM users WHERE device_id = %s', (device_id,))
+                existing = cur.fetchone()
+                if existing:
+                    log.warning('REGISTER_REJECT  reason=device_taken  device_id=%s  existing_user=%s  new_attempt=%s  ip=%s',
+                                device_id, existing['username'], username, ip)
                     return jsonify({'error': 'An account already exists on this device'}), 409
 
             # Username uniqueness
             cur.execute('SELECT id FROM users WHERE username = %s', (username,))
             if cur.fetchone():
+                log.warning('REGISTER_REJECT  reason=username_taken  username=%s  ip=%s', username, ip)
                 return jsonify({'error': 'Username already taken'}), 409
 
             cur.execute(
@@ -278,13 +298,17 @@ def register():
         login_user(user_obj, remember=False)
         session.permanent = True
 
+        log.info('REGISTER_SUCCESS  username=%s  user_id=%d  device_id=%s  ip=%s',
+                 username, user_id, device_id or 'none', ip)
         return jsonify({'username': username}), 201
 
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
+        log.warning('REGISTER_REJECT  reason=unique_violation  username=%s  ip=%s', username, ip)
         return jsonify({'error': 'Username already taken'}), 409
-    except Exception as e:
+    except Exception:
         conn.rollback()
+        log.exception('REGISTER_ERROR  username=%s  ip=%s', username, ip)
         return jsonify({'error': 'Registration failed'}), 500
     finally:
         conn.close()
@@ -297,28 +321,53 @@ def login():
     if err:
         return err
 
+    ip = get_remote_address()
     data = request.get_json(silent=True) or {}
-    username = (data.get('username') or '').strip().lower()
+    raw_username = data.get('username') or ''
+    username = raw_username.strip().lower()
     password = data.get('password') or ''
+    ua = request.headers.get('User-Agent', 'unknown')
+
+    log.info('LOGIN_ATTEMPT  ip=%s  raw_username=%r  normalised=%r  ua=%s',
+             ip, raw_username, username, ua)
+
+    if not username:
+        log.warning('LOGIN_REJECT  reason=empty_username  ip=%s', ip)
+        return jsonify({'error': 'Invalid username or password'}), 401
 
     conn = get_db()
     try:
-        # Check lockout by username only — IP lockout is handled by Flask-Limiter
-        # to avoid blocking multiple users behind the same NAT/shared IP
         user_wait = check_lockout(conn, f'user:{username}')
         if user_wait > 0:
+            log.warning('LOGIN_REJECT  reason=lockout  username=%s  wait_secs=%d  ip=%s',
+                        username, user_wait, ip)
             return jsonify({'error': f'Too many failed attempts. Try again in {user_wait}s'}), 429
 
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute('SELECT id, username, password_hash FROM users WHERE username = %s', (username,))
             row = cur.fetchone()
 
-        if not row or not bcrypt.checkpw(password.encode(), row['password_hash'].encode()):
+        if not row:
+            log.warning('LOGIN_REJECT  reason=username_not_found  username=%r  ip=%s', username, ip)
             record_attempt(conn, f'user:{username}', False)
             conn.commit()
             return jsonify({'error': 'Invalid username or password'}), 401
 
-        # Success — issue new token, booting any existing session for this user
+        pw_ok = bcrypt.checkpw(password.encode(), row['password_hash'].encode())
+        if not pw_ok:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'SELECT COUNT(*) FROM login_attempts WHERE identifier = %s AND success = FALSE AND attempted_at > NOW() - INTERVAL \'1 hour\'',
+                    (f'user:{username}',),
+                )
+                fail_count = cur.fetchone()[0] + 1  # +1 for this attempt
+            log.warning('LOGIN_REJECT  reason=wrong_password  username=%s  fail_count=%d  ip=%s',
+                        username, fail_count, ip)
+            record_attempt(conn, f'user:{username}', False)
+            conn.commit()
+            return jsonify({'error': 'Invalid username or password'}), 401
+
+        # Success
         clear_attempts(conn, f'user:{username}')
         issue_session_token(conn, row['id'])
         conn.commit()
@@ -327,10 +376,12 @@ def login():
         login_user(user_obj, remember=False)
         session.permanent = True
 
+        log.info('LOGIN_SUCCESS  username=%s  user_id=%d  ip=%s', row['username'], row['id'], ip)
         return jsonify({'username': row['username']}), 200
 
     except Exception:
         conn.rollback()
+        log.exception('LOGIN_ERROR  username=%s  ip=%s', username, ip)
         return jsonify({'error': 'Login failed'}), 500
     finally:
         conn.close()
