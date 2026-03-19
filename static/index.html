@@ -1342,17 +1342,26 @@
       ctx.fill();
     }
 
+    // ── Number formatter ─────────────────────────────────────────────────────
+    function fmt(n) {
+      if (n >= 1e12) return (n / 1e12).toFixed(n >= 10e12 ? 1 : 2).replace(/\.?0+$/, '') + 'T';
+      if (n >= 1e9)  return (n / 1e9) .toFixed(n >= 10e9  ? 1 : 2).replace(/\.?0+$/, '') + 'B';
+      if (n >= 1e6)  return (n / 1e6) .toFixed(n >= 10e6  ? 1 : 2).replace(/\.?0+$/, '') + 'M';
+      if (n >= 1e3)  return (n / 1e3) .toFixed(n >= 10e3  ? 1 : 2).replace(/\.?0+$/, '') + 'K';
+      return String(n);
+    }
+
     // ── Scoreboard ───────────────────────────────────────────────────────────
     function Scoreboard({ wins, losses, lastResult }) {
       return (
         <div className="scoreboard">
           <div className="score-box wins-box">
             <span className="score-label">Wins</span>
-            <span className={`score-value ${lastResult === 'win' ? 'score-bump' : ''}`} key={wins}>{wins}</span>
+            <span className={`score-value ${lastResult === 'win' ? 'score-bump' : ''}`} key={wins}>{fmt(wins)}</span>
           </div>
           <div className="score-box losses-box">
             <span className="score-label">Losses</span>
-            <span className={`score-value ${lastResult === 'lose' ? 'score-bump' : ''}`} key={losses}>{losses}</span>
+            <span className={`score-value ${lastResult === 'lose' ? 'score-bump' : ''}`} key={losses}>{fmt(losses)}</span>
           </div>
         </div>
       );
@@ -1424,7 +1433,7 @@
           </div>
           <div className="fish-counter">
             <span className="fish-counter-label">Fish clicks</span>
-            <span className="fish-counter-value">{emoji} × {fishClicks}</span>
+            <span className="fish-counter-value">{emoji} × {fmt(fishClicks)}</span>
           </div>
         </>
       );
@@ -1468,8 +1477,8 @@
             <div key={r.username} className="leaderboard-row">
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
-              <span className="lb-wins">{r.wins}W</span>
-              <span className="lb-ratio">{r.wins}W:{r.losses}L</span>
+              <span className="lb-wins">{fmt(r.wins)}W</span>
+              <span className="lb-ratio">{fmt(r.wins)}W:{fmt(r.losses)}L</span>
             </div>
           ))}
         </div>
@@ -1596,7 +1605,7 @@
         <div className="shop-panel">
           <div className="shop-header">
             <div className="shop-title">🛒 Shop</div>
-            <div className="shop-balance">Balance: <span>🐟 {fishClicks.toLocaleString()}</span></div>
+            <div className="shop-balance">Balance: <span>🐟 {fmt(fishClicks)}</span></div>
           </div>
           <div className="shop-items">
             <div className="shop-section-label">── Fish Skins ──</div>
@@ -1740,6 +1749,7 @@
       const autoSpinRef        = useRef(false);
       const spinSpeedRef       = useRef(4.5);
       const autoSpinDelayRef   = useRef(1500);
+      const spinningRef        = useRef(false); // ref-safe spinning flag, avoids stale closure bugs
 
       useEffect(() => {
         autoSpinRef.current = autoSpin;
@@ -1805,7 +1815,7 @@
       }, [ownedItems]);
 
       const spin = useCallback(async () => {
-        if (spinning) return;
+        if (spinningRef.current) return;
         if (showResult) {
           setHideResult(true);
           await new Promise(r => setTimeout(r, 350));
@@ -1816,15 +1826,16 @@
         }
 
         setBonusEarned(0);
+        spinningRef.current = true;
         setSpinning(true);
 
         let data;
         try {
           const res = await apiGame('/api/spin', { method: 'POST', body: '{}' });
-          if (!res.ok) { setSpinning(false); return; }
+          if (!res.ok) { spinningRef.current = false; setSpinning(false); return; }
           data = res.data;
         } catch (e) {
-          setSpinning(false);
+          spinningRef.current = false; setSpinning(false);
           return;
         }
 
@@ -1863,9 +1874,14 @@
           if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
           fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
 
+          spinningRef.current = false;
           setSpinning(false);
 
           if (autoSpinRef.current) {
+            // If a shield fired, guarantee at least 2 s so the animation plays fully
+            const delay = data.shield_used
+              ? Math.max(2000, autoSpinDelayRef.current)
+              : autoSpinDelayRef.current;
             setTimeout(() => {
               if (autoSpinRef.current) {
                 setHideResult(true);
@@ -1873,14 +1889,15 @@
                   setShowResult(false);
                   setHideResult(false);
                   setResult(null);
+                  setShieldFeedback(null);
                   setConfetti(false);
                   spin();
                 }, 320);
               }
-            }, autoSpinDelayRef.current);
+            }, delay);
           }
         }, spinSpeedRef.current * 1000 + 200);
-      }, [spinning, showResult, ownedItems]);
+      }, [showResult, ownedItems]);
 
       const handleSpinAgain = useCallback(() => {
         setHideResult(true);
@@ -2002,7 +2019,7 @@
                 </div>
                 {bonusEarned > 0 && (
                   <div className={`bonus-line ${result === 'lose' ? 'lose-bonus' : ''}`}>
-                    🔥 Streak Bonus +{bonusEarned}!
+                    🔥 Streak Bonus +{fmt(bonusEarned)}!
                   </div>
                 )}
                 {shieldFeedback && (() => {
