@@ -1582,7 +1582,10 @@
       const spinSpeedRef       = useRef(4.5);
       const autoSpinDelayRef   = useRef(1500);
 
-      useEffect(() => { autoSpinRef.current = autoSpin; }, [autoSpin]);
+      useEffect(() => {
+        autoSpinRef.current = autoSpin;
+        if (autoSpin && !spinning) spin();
+      }, [autoSpin]); // eslint-disable-line
       useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
       useEffect(() => { autoSpinDelayRef.current = autoSpinDelay; }, [autoSpinDelay]);
 
