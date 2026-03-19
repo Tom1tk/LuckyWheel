@@ -19,7 +19,7 @@
       align-items: center;
       justify-content: center;
       font-family: 'Oswald', 'Arial Black', sans-serif;
-      overflow: hidden;
+      overflow: auto;
     }
 
     /* Ambient light border */
@@ -37,19 +37,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 32px;
+      gap: clamp(10px, 2.5vh, 32px);
       position: relative;
       z-index: 101;
+      padding: clamp(8px, 2vh, 24px) 0;
     }
 
     .casino-title {
-      font-size: 3.5rem;
+      font-size: clamp(1.8rem, 5vw, 3.5rem);
       color: #FFD700;
       text-shadow:
         0 0 10px #FFD700,
         0 0 30px #FF8C00,
         0 0 60px #FF4500;
-      letter-spacing: 6px;
+      letter-spacing: clamp(2px, 1vw, 6px);
       text-transform: uppercase;
       animation: titleFlicker 3s infinite;
     }
@@ -74,8 +75,8 @@
     /* Wheel wrapper */
     .wheel-wrapper {
       position: relative;
-      width: 380px;
-      height: 380px;
+      width: min(380px, calc(100vw - 120px), calc(100vh - 440px));
+      height: min(380px, calc(100vw - 120px), calc(100vh - 440px));
     }
 
     /* Glow ring behind wheel */
@@ -92,8 +93,8 @@
     }
 
     .wheel-canvas {
-      width: 380px;
-      height: 380px;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       cursor: pointer;
       transition: transform 4.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
@@ -251,10 +252,11 @@
     }
 
     .result-text {
-      font-size: 5rem;
-      letter-spacing: 8px;
+      font-size: clamp(2rem, 7vw, 5rem);
+      letter-spacing: clamp(2px, 1vw, 8px);
       text-transform: uppercase;
-      padding: 20px 60px;
+      white-space: nowrap;
+      padding: clamp(10px, 2vh, 20px) clamp(20px, 5vw, 60px);
       border-radius: 8px;
       animation: textShake 0.3s ease-in-out 0.5s;
     }
@@ -357,7 +359,7 @@
     /* Win/Loss Counter */
     .scoreboard {
       display: flex;
-      gap: 40px;
+      gap: clamp(12px, 4vw, 40px);
     }
 
     .score-box {
@@ -365,7 +367,7 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
-      padding: 12px 36px;
+      padding: clamp(8px, 1.5vh, 12px) clamp(16px, 4vw, 36px);
       border-radius: 6px;
       border: 2px solid;
     }
@@ -392,7 +394,7 @@
     .score-box.losses-box .score-label { color: #FF4444; }
 
     .score-value {
-      font-size: 2.8rem;
+      font-size: clamp(1.6rem, 4vw, 2.8rem);
       line-height: 1;
     }
 
@@ -1034,21 +1036,19 @@
 
     /* ── Mobile ────────────────────────────────────────────────────────────── */
     @media (max-width: 600px) {
-      body { overflow: auto; align-items: flex-start; padding: 0; }
+      body { align-items: flex-start; }
 
-      .casino-container { gap: 14px; padding: 8px 0 160px; }
+      .casino-container { padding: 8px 0 160px; }
 
-      .casino-title { font-size: clamp(1.6rem, 9vw, 3.5rem); letter-spacing: 2px; }
       .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
 
-      /* Wheel: scale to fit viewport with room for fish panel on sides */
+      /* Wheel: already fluid via clamp in base, extra constraint for very narrow */
       .wheel-wrapper {
         width: min(290px, calc(100vw - 100px));
         height: min(290px, calc(100vw - 100px));
       }
-      .wheel-canvas { width: 100% !important; height: 100% !important; }
 
-      /* Fish: bottom-centre, horizontal layout, smaller */
+      /* Fish: bottom-centre, horizontal layout */
       .fish-panel {
         left: 50%;
         top: auto;
@@ -1077,17 +1077,11 @@
       /* Shop: full-width */
       .shop-panel { width: calc(100vw - 40px); left: 20px; right: 20px; }
 
-      /* Scoreboard */
-      .scoreboard { gap: 12px; }
-      .score-box   { padding: 8px 16px; }
-      .score-value { font-size: 2rem; }
-
       /* Bulbs: tighter */
       .bulbs { gap: 8px; }
       .bulb  { width: 10px; height: 10px; }
 
       /* Result */
-      .result-text    { font-size: clamp(2rem, 10vw, 5rem); padding: 12px 24px; letter-spacing: 3px; }
       .spin-again-btn { font-size: 1rem; padding: 10px 28px; }
       .bonus-line     { font-size: 1.1rem; }
 
@@ -1521,6 +1515,9 @@
               value={username}
               onChange={e => setUsername(e.target.value)}
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
             />
             <input
@@ -1530,6 +1527,9 @@
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
             />
             <button className="auth-submit-btn" type="submit" disabled={loading}>
