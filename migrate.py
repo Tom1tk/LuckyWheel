@@ -116,7 +116,13 @@ def cmd_apply(cur, dry_run=False):
             continue
 
         print(f"Applying {label} ...", end=" ", flush=True)
-        cur.execute(sql)
+        # Strip single-line comments and blank lines; skip if nothing executable remains
+        executable = "\n".join(
+            line for line in sql.splitlines()
+            if line.strip() and not line.strip().startswith("--")
+        ).strip()
+        if executable:
+            cur.execute(sql)
         cur.execute(
             "INSERT INTO schema_migrations (version, name) VALUES (%s, %s)",
             (version, name),
