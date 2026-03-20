@@ -1467,3 +1467,154 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   border-radius: 4px;
   padding: 1px 5px;
 }
+
+/* ── New background themes ──────────────────────────────────────────────── */
+body.bg-forest { background: radial-gradient(ellipse at center, #0a1f0a 0%, #041004 70%); }
+body.bg-abyss  { background: radial-gradient(ellipse at center, #050508 0%, #010102 70%); }
+body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040010 70%); }
+
+/* ── New trail effects ──────────────────────────────────────────────────── */
+.trail-frost .fish-body {
+  animation: fishBob 2.4s ease-in-out infinite, frostAura 1s ease-in-out infinite alternate;
+}
+@keyframes frostAura {
+  from { filter: drop-shadow(0 0 10px #88DDFF) drop-shadow(0 0 20px #0088CC); }
+  to   { filter: drop-shadow(0 0 28px #AAEEFF) drop-shadow(0 0 55px #00AAFF); }
+}
+
+.trail-thunder .fish-body {
+  animation: fishBob 2.4s ease-in-out infinite, thunderAura 0.3s ease-in-out infinite alternate;
+}
+@keyframes thunderAura {
+  from { filter: drop-shadow(0 0 14px #FFEE00) drop-shadow(0 0 30px #FF9900); }
+  to   { filter: drop-shadow(0 0 35px #FFFFFF) drop-shadow(0 0 70px #FFDD00); }
+}
+
+.trail-galaxy .fish-body {
+  animation: fishBob 2.4s ease-in-out infinite, galaxyAura 3s linear infinite;
+}
+@keyframes galaxyAura {
+  0%   { filter: drop-shadow(0 0 18px #8800FF); }
+  25%  { filter: drop-shadow(0 0 18px #0044FF); }
+  50%  { filter: drop-shadow(0 0 18px #00FFCC); }
+  75%  { filter: drop-shadow(0 0 18px #FF0088); }
+  100% { filter: drop-shadow(0 0 18px #8800FF); }
+}
+
+/* Override interactions for new trails */
+[class*="trail-"] .fish-body.spinning-fish { animation: fishSpin 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; cursor: wait; }
+[class*="trail-"] .fish-body.happy { animation: fishHappy 0.7s ease-out forwards; }
+[class*="trail-"] .fish-body.sad   { animation: fishSad 1.2s ease-out forwards; }
+
+/* ── Guard overlay ──────────────────────────────────────────────────────── */
+.guard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  animation: guardOverlayIn 0.25s ease-out;
+}
+
+@keyframes guardOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.guard-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: rgba(8, 4, 20, 0.97);
+  border: 2px solid #4488FF;
+  border-radius: 14px;
+  padding: 28px 36px;
+  box-shadow: 0 0 50px rgba(68, 136, 255, 0.4);
+  animation: guardCardIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes guardCardIn {
+  from { transform: scale(0.7) rotate(-6deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
+}
+
+.guard-title {
+  font-size: 1rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #88AAFF;
+  text-shadow: 0 0 10px #4488FF;
+}
+
+.guard-wheel-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+
+.guard-pointer-arrow {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 28px solid #FFD700;
+  filter: drop-shadow(0 0 6px #FFD700);
+  z-index: 10;
+}
+
+.guard-canvas {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  display: block;
+}
+
+.guard-result {
+  font-size: 1.4rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  padding: 10px 28px;
+  border-radius: 6px;
+  animation: guardResultPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes guardResultPop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.guard-result.blocked {
+  color: #88FF88;
+  border: 2px solid #44AA44;
+  background: rgba(0, 80, 0, 0.4);
+  text-shadow: 0 0 16px #00FF44;
+  box-shadow: 0 0 20px rgba(0, 255, 68, 0.3);
+}
+
+.guard-result.failed {
+  color: #FF6666;
+  border: 2px solid #AA2222;
+  background: rgba(80, 0, 0, 0.4);
+  text-shadow: 0 0 12px #FF2222;
+}
+
+/* ── Special bonus line variants ────────────────────────────────────────── */
+.bonus-line.jackpot-line {
+  color: #FFD700;
+  font-size: 1.8rem;
+  text-shadow: 0 0 20px #FFD700, 0 0 40px #FF8C00;
+  animation: bonusPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s both;
+}
+
+.bonus-line.echo-line {
+  color: #00FFCC;
+  text-shadow: 0 0 12px #00FFCC;
+  animation: bonusPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both;
+}

@@ -21,8 +21,6 @@ async function apiFetch(path, opts = {}) {
     data: json
   };
 }
-
-// Called by GameApp to bubble up 401s (session booted by newer login)
 let _onSessionExpired = null;
 function setSessionExpiredHandler(fn) {
   _onSessionExpired = fn;
@@ -34,7 +32,7 @@ function apiGame(path, opts = {}) {
   });
 }
 
-// ── Draw wheel ────────────────────────────────────────────────────────────
+// ── Draw main wheel ────────────────────────────────────────────────────────
 function drawWheel(canvas, theme = 'default') {
   const ctx = canvas.getContext('2d');
   const size = canvas.width;
@@ -92,6 +90,32 @@ function drawWheel(canvas, theme = 'default') {
       label: 'LOSE',
       color: '#003300',
       bright: '#00FF66',
+      start: Math.PI / 2,
+      end: Math.PI * 1.5
+    }],
+    void: [{
+      label: 'WIN',
+      color: '#0a0a1a',
+      bright: '#6633FF',
+      start: -Math.PI / 2,
+      end: Math.PI / 2
+    }, {
+      label: 'LOSE',
+      color: '#0d0010',
+      bright: '#330066',
+      start: Math.PI / 2,
+      end: Math.PI * 1.5
+    }],
+    gold: [{
+      label: 'WIN',
+      color: '#7a5c00',
+      bright: '#FFE566',
+      start: -Math.PI / 2,
+      end: Math.PI / 2
+    }, {
+      label: 'LOSE',
+      color: '#3d2000',
+      bright: '#CC8800',
       start: Math.PI / 2,
       end: Math.PI * 1.5
     }]
@@ -157,7 +181,68 @@ function drawWheel(canvas, theme = 'default') {
   ctx.fill();
 }
 
-// ── Number formatter ─────────────────────────────────────────────────────
+// ── Draw guard mini-wheel ──────────────────────────────────────────────────
+function drawGuardWheel(canvas) {
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  const cx = size / 2,
+    cy = size / 2,
+    r = size / 2 - 4;
+  ctx.clearRect(0, 0, size, size);
+
+  // WIN (15%): canvas angles centered at 0° (right side = 3 o'clock)
+  // At CSS rotation 270° the right side is at 12 o'clock (pointer)
+  const winHalf = Math.PI * 0.15; // ±27°
+  const winStart = -winHalf;
+  const winEnd = winHalf;
+
+  // FAIL segment (large)
+  const gFail = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  gFail.addColorStop(0, '#FF5555');
+  gFail.addColorStop(1, '#770000');
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, winEnd, winStart + 2 * Math.PI);
+  ctx.closePath();
+  ctx.fillStyle = gFail;
+  ctx.fill();
+
+  // WIN segment (green, small)
+  const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  gWin.addColorStop(0, '#88FF88');
+  gWin.addColorStop(1, '#006600');
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, winStart, winEnd);
+  ctx.closePath();
+  ctx.fillStyle = gWin;
+  ctx.fill();
+
+  // Divider lines
+  [winStart, winEnd].forEach(a => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  });
+
+  // Border
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Center hub
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.12, 0, 2 * Math.PI);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+}
+
+// ── Number formatter ──────────────────────────────────────────────────────
 function fmt(n) {
   if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
   if (n >= 1e12) return (n / 1e12).toFixed(n >= 10e12 ? 1 : 2).replace(/\.?0+$/, '') + 'T';
@@ -167,7 +252,7 @@ function fmt(n) {
   return String(n);
 }
 
-// ── Scoreboard ───────────────────────────────────────────────────────────
+// ── Scoreboard ────────────────────────────────────────────────────────────
 const Scoreboard = React.memo(function Scoreboard({
   wins,
   losses,
@@ -198,7 +283,6 @@ function Confetti({
   active,
   count = 80
 }) {
-  // Stabilise random values so React re-renders don't reset CSS animations mid-flight
   const pieces = useMemo(() => {
     if (!active) return [];
     return Array.from({
@@ -231,7 +315,57 @@ function Confetti({
   })));
 }
 
-// ── Fish ─────────────────────────────────────────────────────────────────
+// ── Guard Mini-Wheel ──────────────────────────────────────────────────────
+function GuardWheel({
+  blocked,
+  onComplete
+}) {
+  const canvasRef = useRef(null);
+  const [guardRotation, setGuardRotation] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) drawGuardWheel(canvas);
+
+    // WIN segment centered at canvas angle 0° (right side).
+    // CSS rotation 270° brings right side to 12 o'clock (pointer).
+    // FAIL centered at canvas 180°; CSS rotation 90° brings it to pointer.
+    const baseSpins = 4 * 360;
+    const targetAngle = blocked ? 270 : 90;
+    setGuardRotation(baseSpins + targetAngle);
+    const revealTimer = setTimeout(() => setRevealed(true), 2000);
+    const completeTimer = setTimeout(() => onComplete(), 3400);
+    return () => {
+      clearTimeout(revealTimer);
+      clearTimeout(completeTimer);
+    };
+  }, []); // eslint-disable-line
+
+  return /*#__PURE__*/React.createElement("div", {
+    className: "guard-overlay"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "guard-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "guard-title"
+  }, "\uD83D\uDEE1\uFE0F Guard Activating\u2026"), /*#__PURE__*/React.createElement("div", {
+    className: "guard-wheel-wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "guard-pointer-arrow"
+  }), /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    width: 180,
+    height: 180,
+    className: "guard-canvas",
+    style: {
+      transform: `rotate(${guardRotation}deg)`,
+      transition: `transform 1.8s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
+    }
+  })), revealed && /*#__PURE__*/React.createElement("div", {
+    className: `guard-result ${blocked ? 'blocked' : 'failed'}`
+  }, blocked ? '🛡️ BLOCKED!' : '💔 Guard Failed')));
+}
+
+// ── Fish ──────────────────────────────────────────────────────────────────
 const Fish = React.memo(function Fish({
   mood,
   net,
@@ -291,12 +425,12 @@ const Fish = React.memo(function Fish({
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"
-  }, "Fish clicks"), /*#__PURE__*/React.createElement("span", {
+  }, "Balance"), /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-value"
   }, emoji, " \xD7 ", fmt(fishClicks))));
 });
 
-// ── Streak Panel ─────────────────────────────────────────────────────────
+// ── Streak Panel ──────────────────────────────────────────────────────────
 const StreakPanel = React.memo(function StreakPanel({
   streak
 }) {
@@ -315,7 +449,7 @@ const StreakPanel = React.memo(function StreakPanel({
     className: "streak-label"
   }, isWin ? 'Win Streak' : 'Lose Streak'), bonus > 0 && /*#__PURE__*/React.createElement("span", {
     className: "streak-bonus"
-  }, "Bonus +", bonus));
+  }, isWin ? `Bonus +${fmt(bonus)}` : `Penalty +${fmt(bonus)}`));
 });
 
 // ── Season Winners ────────────────────────────────────────────────────────
@@ -342,7 +476,7 @@ function SeasonWinners({
   }, fmt(w.wins), "W"))));
 }
 
-// ── Season Info (user-bar widget) ─────────────────────────────────────────
+// ── Season Info ───────────────────────────────────────────────────────────
 function SeasonInfo({
   seasonNumber,
   endsAt
@@ -386,7 +520,7 @@ function Leaderboard({
         signal: ctrl.signal
       }).then(r => {
         if (r.ok) setRows(r.data);
-      }).catch(() => {}); // silently ignore AbortError and network errors
+      }).catch(() => {});
     };
     load();
     const id = setInterval(load, 60000);
@@ -471,6 +605,56 @@ const FISH_SKINS = [{
     happy: "Flippin' awesome!",
     sad: '*sad clicks*'
   }
+}, {
+  id: 'fish_squid',
+  emoji: '🦑',
+  name: 'Squid',
+  cost: 200,
+  labels: {
+    idle: 'Ink at the ready',
+    happy: 'Jet-propelled win!',
+    sad: '*squirts ink cloud*'
+  }
+}, {
+  id: 'fish_turtle',
+  emoji: '🐢',
+  name: 'Turtle',
+  cost: 350,
+  labels: {
+    idle: 'Slow and steady',
+    happy: 'Shell yeah!',
+    sad: 'Into my shell...'
+  }
+}, {
+  id: 'fish_crab',
+  emoji: '🦀',
+  name: 'Crab',
+  cost: 600,
+  labels: {
+    idle: '*snaps claws*',
+    happy: 'CRABULOUS!',
+    sad: 'Crabby mood...'
+  }
+}, {
+  id: 'fish_lobster',
+  emoji: '🦞',
+  name: 'Lobster',
+  cost: 1000,
+  labels: {
+    idle: 'Feeling boujee',
+    happy: 'CLAWSOME WIN!',
+    sad: 'Shellshocked...'
+  }
+}, {
+  id: 'fish_whale',
+  emoji: '🐋',
+  name: 'Whale',
+  cost: 2000,
+  labels: {
+    idle: 'Making waves',
+    happy: 'WHALE of a win!',
+    sad: 'Beached...'
+  }
 }];
 const SHOP_SECTIONS = [{
   label: '⚡ Spin Speed',
@@ -487,6 +671,27 @@ const SHOP_SECTIONS = [{
     cost: 200,
     desc: 'Spin time: 3s → 1.5s',
     requires: 'speed_boost'
+  }, {
+    id: 'hyperspin',
+    emoji: '💨',
+    name: 'Hyper Spin',
+    cost: 600,
+    desc: 'Spin time: 1.5s → 1s',
+    requires: 'turbo_spin'
+  }, {
+    id: 'ultraspin',
+    emoji: '🌀',
+    name: 'Ultra Spin',
+    cost: 2000,
+    desc: 'Spin time: 1s → 0.75s',
+    requires: 'hyperspin'
+  }, {
+    id: 'maxspin',
+    emoji: '⚡',
+    name: 'Max Spin',
+    cost: 6000,
+    desc: 'Spin time: 0.75s → 0.5s',
+    requires: 'ultraspin'
   }]
 }, {
   label: '⏩ Auto Speed',
@@ -540,6 +745,27 @@ const SHOP_SECTIONS = [{
     cost: 12800,
     desc: 'Each win scores x16',
     requires: 'winmult_3'
+  }, {
+    id: 'winmult_5',
+    emoji: '💎',
+    name: 'Win x32',
+    cost: 51200,
+    desc: 'Each win scores x32',
+    requires: 'winmult_4'
+  }, {
+    id: 'winmult_6',
+    emoji: '👑',
+    name: 'Win x64',
+    cost: 204800,
+    desc: 'Each win scores x64',
+    requires: 'winmult_5'
+  }, {
+    id: 'winmult_7',
+    emoji: '👑',
+    name: 'Win x128',
+    cost: 819200,
+    desc: 'Each win scores x128',
+    requires: 'winmult_6'
   }]
 }, {
   label: '⭐ Bonus Power',
@@ -548,21 +774,42 @@ const SHOP_SECTIONS = [{
     emoji: '⭐',
     name: 'Bonus Boost',
     cost: 300,
-    desc: 'Streak bonuses x2'
+    desc: 'Streak bonuses x2 — ⚠️ also amplifies loss streaks'
   }, {
     id: 'bonusmult_2',
     emoji: '⭐',
     name: 'Bonus Mega',
     cost: 1200,
-    desc: 'Streak bonuses x5',
+    desc: 'Streak bonuses x5 — ⚠️ also amplifies loss streaks',
     requires: 'bonusmult_1'
   }, {
     id: 'bonusmult_3',
     emoji: '💫',
     name: 'Bonus ULTRA',
     cost: 4800,
-    desc: 'Streak bonuses x10',
+    desc: 'Streak bonuses x10 — ⚠️ also amplifies loss streaks',
     requires: 'bonusmult_2'
+  }, {
+    id: 'bonusmult_4',
+    emoji: '💫',
+    name: 'Bonus x20',
+    cost: 20000,
+    desc: 'Streak bonuses x20 — ⚠️ also amplifies loss streaks',
+    requires: 'bonusmult_3'
+  }, {
+    id: 'bonusmult_5',
+    emoji: '🌟',
+    name: 'Bonus x50',
+    cost: 80000,
+    desc: 'Streak bonuses x50 — ⚠️ also amplifies loss streaks',
+    requires: 'bonusmult_4'
+  }, {
+    id: 'bonusmult_6',
+    emoji: '🌟',
+    name: 'Bonus x100',
+    cost: 300000,
+    desc: 'Streak bonuses x100 — ⚠️ also amplifies loss streaks',
+    requires: 'bonusmult_5'
   }]
 }, {
   label: '🐟 Fish Size',
@@ -609,6 +856,27 @@ const SHOP_SECTIONS = [{
     cost: 2000,
     desc: 'Rainbow hue trail',
     requires: 'trail_2'
+  }, {
+    id: 'trail_4',
+    emoji: '❄️',
+    name: 'Frost Trail',
+    cost: 7000,
+    desc: 'Ice crystal aura',
+    requires: 'trail_3'
+  }, {
+    id: 'trail_5',
+    emoji: '⚡',
+    name: 'Thunder Trail',
+    cost: 22000,
+    desc: 'Electric storm aura',
+    requires: 'trail_4'
+  }, {
+    id: 'trail_6',
+    emoji: '🌌',
+    name: 'Galaxy Trail',
+    cost: 70000,
+    desc: 'Cosmic void aura',
+    requires: 'trail_5'
   }]
 }, {
   label: '🖱️ Click Power',
@@ -682,25 +950,19 @@ const SHOP_SECTIONS = [{
     requires: 'clickfrenzy_4'
   }]
 }, {
-  label: '🛡️ Streak Shield',
+  label: '🛡️ Protection',
   items: [{
-    id: 'shield_1',
+    id: 'guard',
     emoji: '🛡️',
-    name: 'Shield',
-    cost: 250,
-    desc: 'Blocks 1 loss, then breaks'
-  }, {
-    id: 'iron_shield',
-    emoji: '⚔️',
-    name: 'Reinforced Shield',
-    cost: 600,
-    desc: 'Blocks 3 losses, then breaks'
+    name: 'Guard',
+    cost: 300,
+    desc: '15% chance to block any loss. Breaks on success, survives on failure.'
   }, {
     id: 'regen_shield',
     emoji: '🔄',
     name: 'Regenerating Shield',
     cost: 800,
-    desc: 'Blocks 1 loss, recharges after 3 wins, never breaks. Stacks with other shields (consumed last)'
+    desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.'
   }]
 }, {
   label: '🎡 Wheel Theme',
@@ -725,6 +987,20 @@ const SHOP_SECTIONS = [{
     desc: 'Cyberpunk wheel colors',
     requires: 'theme_ice'
   }, {
+    id: 'theme_void',
+    emoji: '🌑',
+    name: 'Void Theme',
+    cost: 12000,
+    desc: 'Dark matter wheel',
+    requires: 'theme_neon'
+  }, {
+    id: 'theme_gold',
+    emoji: '🟡',
+    name: 'Gold Theme',
+    cost: 40000,
+    desc: 'Pure gold wheel',
+    requires: 'theme_void'
+  }, {
     id: 'golden_wheel',
     emoji: '✨',
     name: 'Golden Wheel',
@@ -732,7 +1008,7 @@ const SHOP_SECTIONS = [{
     desc: 'Radiant glow ring'
   }]
 }, {
-  label: '🎨 Atmosphere',
+  label: '🎊 Confetti',
   items: [{
     id: 'party_mode',
     emoji: '🎉',
@@ -759,7 +1035,10 @@ const SHOP_SECTIONS = [{
     cost: 1200,
     desc: '15x confetti pieces',
     requires: 'confetti_2'
-  }, {
+  }]
+}, {
+  label: '🎨 Atmosphere',
+  items: [{
     id: 'bg_ocean',
     emoji: '🌊',
     name: 'Ocean Casino',
@@ -779,6 +1058,60 @@ const SHOP_SECTIONS = [{
     cost: 1600,
     desc: 'Blood red atmosphere',
     requires: 'bg_royal'
+  }, {
+    id: 'bg_forest',
+    emoji: '🌿',
+    name: 'Enchanted Forest',
+    cost: 5000,
+    desc: 'Mystical green depths',
+    requires: 'bg_inferno'
+  }, {
+    id: 'bg_abyss',
+    emoji: '🌑',
+    name: 'The Abyss',
+    cost: 15000,
+    desc: 'Void of darkness',
+    requires: 'bg_forest'
+  }, {
+    id: 'bg_cosmic',
+    emoji: '🌌',
+    name: 'Cosmic Casino',
+    cost: 50000,
+    desc: 'Deep space nebula',
+    requires: 'bg_abyss'
+  }]
+}, {
+  label: '🎲 Special Upgrades',
+  items: [{
+    id: 'fortune_charm',
+    emoji: '🍀',
+    name: 'Fortune Charm',
+    cost: 500,
+    desc: '+25% to all streak bonus payouts'
+  }, {
+    id: 'lucky_seven',
+    emoji: '7️⃣',
+    name: 'Lucky Seven',
+    cost: 1000,
+    desc: 'Every 7th spin is guaranteed a win'
+  }, {
+    id: 'win_echo',
+    emoji: '🔊',
+    name: 'Win Echo',
+    cost: 750,
+    desc: '20% chance to double wins earned on any win'
+  }, {
+    id: 'resilience',
+    emoji: '💪',
+    name: 'Resilience',
+    cost: 400,
+    desc: 'On win streak, a loss only drops streak by 1 instead of resetting'
+  }, {
+    id: 'jackpot',
+    emoji: '🎰',
+    name: 'Jackpot',
+    cost: 3000,
+    desc: '2% chance each win to multiply gains by 50x'
   }]
 }, {
   label: '🌌 Legendary',
@@ -801,9 +1134,9 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'theme_fire', 'theme_ice', 'theme_neon', 'golden_wheel']);
+const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel']);
 
-// ── Shop components ───────────────────────────────────────────────────────
+// ── Shop components ────────────────────────────────────────────────────────
 const ShopItem = React.memo(function ShopItem({
   item,
   owned,
@@ -860,7 +1193,7 @@ const ShopItem = React.memo(function ShopItem({
     className: "shop-item-action"
   }, actionEl));
 });
-const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎨 Atmosphere']);
+const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere']);
 function ShopPanel({
   fishClicks,
   ownedItems,
@@ -947,7 +1280,7 @@ function ShopPanel({
   }, functionalSections.map(renderSection)))));
 }
 
-// ── Stats Panel ───────────────────────────────────────────────────────────
+// ── Stats Panel ────────────────────────────────────────────────────────────
 function StatsPanel({
   open,
   onClose
@@ -980,7 +1313,7 @@ function StatsPanel({
     className: "stats-row"
   }, /*#__PURE__*/React.createElement("span", null, "Win Rate"), /*#__PURE__*/React.createElement("span", null, stats.spin_count > 0 ? (stats.win_count / stats.spin_count * 100).toFixed(1) + '%' : 'N/A')), /*#__PURE__*/React.createElement("div", {
     className: "stats-row"
-  }, /*#__PURE__*/React.createElement("span", null, "Fish Clicks"), /*#__PURE__*/React.createElement("span", null, fmt(stats.fish_clicks)))) : /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "Lifetime Taps"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))) : /*#__PURE__*/React.createElement("div", {
     className: "stats-loading"
   }, "Loading\u2026"), /*#__PURE__*/React.createElement("button", {
     className: "stats-close-btn",
@@ -988,11 +1321,11 @@ function StatsPanel({
   }, "\u2715")));
 }
 
-// ── Auth Page ─────────────────────────────────────────────────────────────
+// ── Auth Page ──────────────────────────────────────────────────────────────
 function AuthPage({
   onAuth
 }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -1070,7 +1403,7 @@ function AuthPage({
   }, "Sign in")))));
 }
 
-// ── Game App ──────────────────────────────────────────────────────────────
+// ── Game App ───────────────────────────────────────────────────────────────
 function GameApp({
   username,
   gameState,
@@ -1087,6 +1420,8 @@ function GameApp({
     setShowResult(v);
   };
   const [shieldFeedback, setShieldFeedback] = useState(null);
+  const [guardState, setGuardState] = useState(null); // { blocked, broke } | null
+  const guardCompleteRef = useRef(null);
   const [hideResult, setHideResult] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [wins, setWins] = useState(gameState.wins);
@@ -1095,6 +1430,8 @@ function GameApp({
   const [fishMood, setFishMood] = useState('idle');
   const [fishClicks, setFishClicks] = useState(gameState.fish_clicks);
   const [bonusEarned, setBonusEarned] = useState(0);
+  const [echoTriggered, setEchoTriggered] = useState(false);
+  const [jackpotHit, setJackpotHit] = useState(false);
   const [shieldCharges, setShieldCharges] = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
   const [autoSpin, setAutoSpin] = useState(false);
@@ -1104,10 +1441,14 @@ function GameApp({
   const [showStats, setShowStats] = useState(false);
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
-
-  // Memoised derived values
-  // Functional items read from ownedItems
-  const spinSpeed = useMemo(() => ownedItems.includes('turbo_spin') ? 1.5 : ownedItems.includes('speed_boost') ? 3 : 4.5, [ownedItems]);
+  const spinSpeed = useMemo(() => {
+    if (ownedItems.includes('maxspin')) return 0.5;
+    if (ownedItems.includes('ultraspin')) return 0.75;
+    if (ownedItems.includes('hyperspin')) return 1.0;
+    if (ownedItems.includes('turbo_spin')) return 1.5;
+    if (ownedItems.includes('speed_boost')) return 3.0;
+    return 4.5;
+  }, [ownedItems]);
   const autoSpinDelay = useMemo(() => ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500, [ownedItems]);
   const clickAmount = useMemo(() => {
     if (ownedItems.includes('double_click_5')) return 6;
@@ -1125,12 +1466,34 @@ function GameApp({
     if (ownedItems.includes('clickfrenzy_1')) return 1;
     return 0;
   }, [ownedItems]);
-  // Cosmetic items read from activeCosmetics
   const fishSizeRem = useMemo(() => activeCosmetics.includes('fishsize_3') ? 40 : activeCosmetics.includes('fishsize_2') ? 28 : activeCosmetics.includes('fishsize_1') ? 20 : 15, [activeCosmetics]);
   const confettiCount = useMemo(() => Math.min(200, 80 * (activeCosmetics.includes('confetti_3') ? 15 : activeCosmetics.includes('confetti_2') ? 5 : activeCosmetics.includes('confetti_1') ? 2 : 1)), [activeCosmetics]);
-  const wheelTheme = useMemo(() => activeCosmetics.includes('theme_neon') ? 'neon' : activeCosmetics.includes('theme_ice') ? 'ice' : activeCosmetics.includes('theme_fire') ? 'fire' : 'default', [activeCosmetics]);
-  const bgClass = useMemo(() => activeCosmetics.includes('bg_inferno') ? 'bg-inferno' : activeCosmetics.includes('bg_royal') ? 'bg-royal' : activeCosmetics.includes('bg_ocean') ? 'bg-ocean' : '', [activeCosmetics]);
-  const trailClass = useMemo(() => activeCosmetics.includes('trail_3') ? 'trail-rainbow' : activeCosmetics.includes('trail_2') ? 'trail-fire' : activeCosmetics.includes('trail_1') ? 'trail-sparkle' : '', [activeCosmetics]);
+  const wheelTheme = useMemo(() => {
+    if (activeCosmetics.includes('theme_gold')) return 'gold';
+    if (activeCosmetics.includes('theme_void')) return 'void';
+    if (activeCosmetics.includes('theme_neon')) return 'neon';
+    if (activeCosmetics.includes('theme_ice')) return 'ice';
+    if (activeCosmetics.includes('theme_fire')) return 'fire';
+    return 'default';
+  }, [activeCosmetics]);
+  const bgClass = useMemo(() => {
+    if (activeCosmetics.includes('bg_cosmic')) return 'bg-cosmic';
+    if (activeCosmetics.includes('bg_abyss')) return 'bg-abyss';
+    if (activeCosmetics.includes('bg_forest')) return 'bg-forest';
+    if (activeCosmetics.includes('bg_inferno')) return 'bg-inferno';
+    if (activeCosmetics.includes('bg_royal')) return 'bg-royal';
+    if (activeCosmetics.includes('bg_ocean')) return 'bg-ocean';
+    return '';
+  }, [activeCosmetics]);
+  const trailClass = useMemo(() => {
+    if (activeCosmetics.includes('trail_6')) return 'trail-galaxy';
+    if (activeCosmetics.includes('trail_5')) return 'trail-thunder';
+    if (activeCosmetics.includes('trail_4')) return 'trail-frost';
+    if (activeCosmetics.includes('trail_3')) return 'trail-rainbow';
+    if (activeCosmetics.includes('trail_2')) return 'trail-fire';
+    if (activeCosmetics.includes('trail_1')) return 'trail-sparkle';
+    return '';
+  }, [activeCosmetics]);
   const currentRotationRef = useRef(0);
   const fishTimerRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -1140,6 +1503,10 @@ function GameApp({
   const spinningRef = useRef(false);
   const showResultRef = useRef(false);
   const clickBufferRef = useRef(0);
+  const activeCosmeticsRef = useRef(activeCosmetics);
+  useEffect(() => {
+    activeCosmeticsRef.current = activeCosmetics;
+  }, [activeCosmetics]);
   useEffect(() => {
     autoSpinRef.current = autoSpin;
     if (autoSpin && !spinning) spin();
@@ -1150,14 +1517,10 @@ function GameApp({
   useEffect(() => {
     autoSpinDelayRef.current = autoSpinDelay;
   }, [autoSpinDelay]);
-
-  // Register 401 handler
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);
     return () => setSessionExpiredHandler(null);
   }, [onSessionExpired]);
-
-  // Click frenzy: passive fish clicks via server
   useEffect(() => {
     if (clickFrenzyRate === 0) return;
     const id = setInterval(async () => {
@@ -1172,15 +1535,12 @@ function GameApp({
     }, 5000);
     return () => clearInterval(id);
   }, [clickFrenzyRate]);
-
-  // Season polling: detect rollover, reload full state
   useEffect(() => {
     const currentNumber = season ? season.season_number : null;
     const id = setInterval(async () => {
       const r = await apiFetch('/api/season');
       if (!r.ok) return;
       if (currentNumber !== null && r.data.season_number !== currentNumber) {
-        // Season has changed — reload full state
         showToast(`Season ${currentNumber} has ended! Season ${r.data.season_number} begins!`);
         const gs = await apiGame('/api/state');
         if (gs.ok) {
@@ -1202,28 +1562,21 @@ function GameApp({
     return () => clearInterval(id);
   }, [season ? season.season_number : null]); // eslint-disable-line
 
-  // Apply background theme to body
   useEffect(() => {
     document.body.className = bgClass;
     return () => {
       document.body.className = '';
     };
   }, [bgClass]);
-
-  // Redraw wheel when theme changes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) drawWheel(canvas, wheelTheme);
   }, [wheelTheme]);
-
-  // Toast helper
   const showToast = useCallback(msg => {
     setToast(msg);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
-
-  // Fish-click batching: flush buffered clicks to server every 500ms
   const flushClicks = useCallback(async () => {
     const count = clickBufferRef.current;
     if (count === 0) return;
@@ -1243,7 +1596,6 @@ function GameApp({
     const id = setInterval(flushClicks, 500);
     return () => {
       clearInterval(id);
-      // Flush any remaining buffered clicks on unmount
       const count = clickBufferRef.current;
       if (count > 0) {
         clickBufferRef.current = 0;
@@ -1286,11 +1638,7 @@ function GameApp({
         fish_id: id
       })
     });
-    if (ok) {
-      setEquippedFish(data.equipped_fish);
-    } else {
-      showToast(data.error || 'Equip failed');
-    }
+    if (ok) setEquippedFish(data.equipped_fish);else showToast(data.error || 'Equip failed');
   }, [showToast]);
   const handleEquipCosmetic = useCallback(async id => {
     const {
@@ -1302,19 +1650,46 @@ function GameApp({
         item_id: id
       })
     });
-    if (ok) {
-      setActiveCosmetics(data.active_cosmetics);
-    } else {
-      showToast(data.error || 'Equip failed');
-    }
+    if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
   }, [showToast]);
   const handleFishClick = useCallback(() => {
-    // Optimistic update for responsiveness
     setFishClicks(c => c + clickAmount);
     clickBufferRef.current += 1;
-    // Eager flush when buffer reaches 10
     if (clickBufferRef.current >= 10) flushClicks();
   }, [clickAmount, flushClicks]);
+
+  // Shared post-spin state update (used both directly and via guard callback)
+  const applySpinResult = useCallback(data => {
+    setResult(data.result);
+    setWins(data.wins);
+    setLosses(data.losses);
+    setStreak(data.streak);
+    setShieldCharges(data.shield_charges);
+    setRegenRechargeWins(data.regen_recharge_wins ?? 0);
+    if (data.owned_items) setOwnedItems(data.owned_items);
+    setBonusEarned(data.bonus_earned);
+    setEchoTriggered(!!data.echo_triggered);
+    setJackpotHit(!!data.jackpot_hit);
+    setShieldFeedback(data.shield_used ? {
+      type: data.shield_used_type,
+      broke: data.shield_broke,
+      chargesLeft: data.shield_charges,
+      rechargeWins: data.regen_recharge_wins ?? 0
+    } : null);
+    setShowResultSync(true);
+    const cosm = activeCosmeticsRef.current;
+    if (data.result === 'win' || data.guard_triggered && data.guard_blocked) {
+      setConfetti(true);
+    } else if (cosm.includes('party_mode')) {
+      setConfetti(true);
+    }
+    const mood = data.result === 'win' || data.guard_triggered && data.guard_blocked ? 'happy' : 'sad';
+    setFishMood(mood);
+    if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
+    fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
+    spinningRef.current = false;
+    setSpinning(false);
+  }, []);
   const spin = useCallback(async () => {
     if (spinningRef.current) return;
     if (showResultRef.current) {
@@ -1324,9 +1699,12 @@ function GameApp({
       setTimeout(() => {
         setHideResult(false);
         setResult(null);
+        setShieldFeedback(null);
       }, 350);
     }
     setBonusEarned(0);
+    setEchoTriggered(false);
+    setJackpotHit(false);
     spinningRef.current = true;
     setSpinning(true);
     let data;
@@ -1359,50 +1737,52 @@ function GameApp({
     currentRotationRef.current = newRotation;
     setRotation(newRotation);
     setTimeout(() => {
-      setResult(data.result);
-      setWins(data.wins);
-      setLosses(data.losses);
-      setStreak(data.streak);
-      setShieldCharges(data.shield_charges);
-      setRegenRechargeWins(data.regen_recharge_wins ?? 0);
-      if (data.owned_items) setOwnedItems(data.owned_items);
-      setBonusEarned(data.bonus_earned);
-      setShieldFeedback(data.shield_used ? {
-        type: data.shield_used_type,
-        broke: data.shield_broke,
-        chargesLeft: data.shield_charges,
-        rechargeWins: data.regen_recharge_wins ?? 0
-      } : null);
-      setShowResultSync(true);
-      if (data.result === 'win') {
-        setConfetti(true);
-      } else if (activeCosmetics.includes('party_mode')) {
-        setConfetti(true);
-      }
-      const mood = data.result === 'win' ? 'happy' : 'sad';
-      setFishMood(mood);
-      if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
-      fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
-      spinningRef.current = false;
-      setSpinning(false);
-      if (autoSpinRef.current) {
-        const delay = data.shield_used ? Math.max(2000, autoSpinDelayRef.current) : Math.max(1500, autoSpinDelayRef.current);
-        setTimeout(() => {
+      if (data.guard_triggered) {
+        // Show guard wheel; defer result display until guard resolves
+        setGuardState({
+          blocked: data.guard_blocked
+        });
+        guardCompleteRef.current = () => {
+          setGuardState(null);
+          applySpinResult(data);
           if (autoSpinRef.current) {
-            setHideResult(true);
+            const delay = Math.max(2000, autoSpinDelayRef.current);
             setTimeout(() => {
-              setShowResultSync(false);
-              setHideResult(false);
-              setResult(null);
-              setShieldFeedback(null);
-              spin();
-              setTimeout(() => setConfetti(false), 3000);
-            }, 320);
+              if (autoSpinRef.current) {
+                setHideResult(true);
+                setTimeout(() => {
+                  setShowResultSync(false);
+                  setHideResult(false);
+                  setResult(null);
+                  setShieldFeedback(null);
+                  setConfetti(false);
+                  spin();
+                }, 320);
+              }
+            }, delay);
           }
-        }, delay);
+        };
+      } else {
+        applySpinResult(data);
+        if (autoSpinRef.current) {
+          const delay = data.shield_used ? Math.max(2000, autoSpinDelayRef.current) : Math.max(1500, autoSpinDelayRef.current);
+          setTimeout(() => {
+            if (autoSpinRef.current) {
+              setHideResult(true);
+              setTimeout(() => {
+                setShowResultSync(false);
+                setHideResult(false);
+                setResult(null);
+                setShieldFeedback(null);
+                spin();
+                setTimeout(() => setConfetti(false), 3000);
+              }, 320);
+            }
+          }, delay);
+        }
       }
     }, spinSpeedRef.current * 1000 + 200);
-  }, [activeCosmetics]);
+  }, [applySpinResult]);
   const handleSpinAgain = useCallback(() => {
     setHideResult(true);
     setTimeout(() => {
@@ -1421,6 +1801,8 @@ function GameApp({
     });
     onLogout();
   };
+  const hasGuard = ownedItems.includes('guard');
+  const hasRegen = ownedItems.includes('regen_shield');
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(StatsPanel, {
     open: showStats,
     onClose: () => setShowStats(false)
@@ -1431,6 +1813,9 @@ function GameApp({
     count: confettiCount
   }), /*#__PURE__*/React.createElement("div", {
     className: `overlay ${showResult ? 'active' : ''}`
+  }), guardState && /*#__PURE__*/React.createElement(GuardWheel, {
+    blocked: guardState.blocked,
+    onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
   }), season && season.latest_winners && /*#__PURE__*/React.createElement(SeasonWinners, {
     winners: season.latest_winners,
     seasonNumber: season.season_number - 1
@@ -1457,26 +1842,30 @@ function GameApp({
     onFishClick: handleFishClick
   }), showResult && /*#__PURE__*/React.createElement("div", {
     className: `result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `result-text ${result}`
-  }, result === 'win' ? '🎰 YOU WIN! 🎰' : '💀 YOU LOSE 💀'), bonusEarned > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `bonus-line ${result === 'lose' ? 'lose-bonus' : ''}`
-  }, "\uD83D\uDD25 Streak Bonus +", fmt(bonusEarned), "!"), shieldFeedback && (() => {
+  }, result === 'win' || result === 'lose' && shieldFeedback ? /*#__PURE__*/React.createElement("div", {
+    className: `result-text ${result === 'win' ? 'win' : 'win'}`
+  }, result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️') : /*#__PURE__*/React.createElement("div", {
+    className: "result-text lose"
+  }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), jackpotHit && /*#__PURE__*/React.createElement("div", {
+    className: "bonus-line jackpot-line"
+  }, "\uD83C\uDFB0 JACKPOT! 50x MULTIPLIER! \uD83C\uDFB0"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
+    className: "bonus-line echo-line"
+  }, "\uD83D\uDD0A WIN ECHO! Double wins!"), bonusEarned > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "bonus-line"
+  }, "\uD83D\uDD25 Streak Bonus +", fmt(bonusEarned), "!"), bonusEarned < 0 && /*#__PURE__*/React.createElement("div", {
+    className: "bonus-line lose-bonus"
+  }, "\uD83D\uDC80 Loss Streak +", fmt(Math.abs(bonusEarned)), " extra losses!"), shieldFeedback && (() => {
     const names = {
-      shield_1: 'Shield',
-      iron_shield: 'Reinforced Shield',
       regen_shield: 'Regenerating Shield'
     };
     const emojis = {
-      shield_1: '🛡️',
-      iron_shield: '⚔️',
       regen_shield: '🔄'
     };
-    const name = names[shieldFeedback.type];
-    const emoji = emojis[shieldFeedback.type];
-    const sub = shieldFeedback.broke ? `${name} broke!` : shieldFeedback.type === 'iron_shield' ? `${shieldFeedback.chargesLeft} charge${shieldFeedback.chargesLeft !== 1 ? 's' : ''} remaining` : shieldFeedback.type === 'regen_shield' ? `Recharging… ${shieldFeedback.rechargeWins} win${shieldFeedback.rechargeWins !== 1 ? 's' : ''}` : null;
+    const name = names[shieldFeedback.type] || shieldFeedback.type;
+    const emoji = emojis[shieldFeedback.type] || '🛡️';
+    const sub = shieldFeedback.type === 'regen_shield' ? `Recharging… ${shieldFeedback.rechargeWins} win${shieldFeedback.rechargeWins !== 1 ? 's' : ''}` : null;
     return /*#__PURE__*/React.createElement("div", {
-      className: `shield-feedback${shieldFeedback.broke ? ' broke' : ''}`
+      className: "shield-feedback"
     }, /*#__PURE__*/React.createElement("div", {
       className: "shield-feedback-icon"
     }, emoji), /*#__PURE__*/React.createElement("div", {
@@ -1549,9 +1938,9 @@ function GameApp({
     className: "game-right-sidebar"
   }, /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
-  }), (ownedItems.includes('shield_1') || shieldCharges > 0 || ownedItems.includes('regen_shield')) && /*#__PURE__*/React.createElement("div", {
+  }), (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {
     className: "shield-indicator"
-  }, ownedItems.includes('shield_1') && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F 1 charge"), shieldCharges > 0 && /*#__PURE__*/React.createElement("div", null, "\u2694\uFE0F ", shieldCharges, " charge", shieldCharges !== 1 ? 's' : ''), ownedItems.includes('regen_shield') && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'))), /*#__PURE__*/React.createElement(ShopPanel, {
+  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'))), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     ownedItems: ownedItems,
     equippedFish: equippedFish,
@@ -1564,13 +1953,11 @@ function GameApp({
   })));
 }
 
-// ── Root App ──────────────────────────────────────────────────────────────
+// ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  const [user, setUser] = useState(undefined); // undefined = loading
+  const [user, setUser] = useState(undefined);
   const [gameState, setGameState] = useState(null);
   const [sessionMsg, setSessionMsg] = useState('');
-
-  // Wipe any legacy localStorage data
   useEffect(() => {
     localStorage.clear();
   }, []);
