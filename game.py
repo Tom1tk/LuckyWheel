@@ -52,7 +52,7 @@ def get_state():
                 )
                 gs = cur.fetchone()
         return jsonify({
-            'wins':               gs['wins'],
+            'wins':               int(gs['wins']),
             'losses':             gs['losses'],
             'fish_clicks':        gs['fish_clicks'],
             'streak':             gs['streak'],
@@ -111,7 +111,7 @@ def spin():
             shield_used      = False
             shield_broke     = False
             shield_used_type = None
-            new_wins         = gs['wins']
+            new_wins         = int(gs['wins'])
             new_losses       = gs['losses']
             bonus_earned     = 0
             new_owned        = owned
@@ -156,9 +156,9 @@ def spin():
 
                 if outcome == 'win':
                     count        = abs(new_streak)
-                    # Integer bitshift avoids float precision loss; cap prevents
-                    # BIGINT overflow at extreme streaks (2^60 > INT8 max).
-                    raw_bonus    = min(1 << (count - 3), 10_000_000_000) if count >= 3 else 0
+                    # Integer bitshift avoids float precision loss.
+                    # wins is NUMERIC (arbitrary precision) — no overflow cap needed.
+                    raw_bonus    = (1 << (count - 3)) if count >= 3 else 0
                     bonus_earned = raw_bonus * bonus_mult
                     new_wins    += win_mult + bonus_earned
                 else:
@@ -502,7 +502,7 @@ def leaderboard():
                 )
                 rows = cur.fetchall()
         return jsonify([
-            {'username': r['username'], 'wins': r['wins'], 'losses': r['losses']}
+            {'username': r['username'], 'wins': int(r['wins']), 'losses': r['losses']}
             for r in rows
         ])
     except Exception:

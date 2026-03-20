@@ -16,7 +16,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_device ON users(device_id) WHERE dev
 
 CREATE TABLE IF NOT EXISTS game_state (
     user_id        INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    wins           BIGINT NOT NULL DEFAULT 0,
+    wins           NUMERIC NOT NULL DEFAULT 0,
     losses         BIGINT NOT NULL DEFAULT 0,
     fish_clicks    BIGINT NOT NULL DEFAULT 0,
     streak         INTEGER NOT NULL DEFAULT 0,
