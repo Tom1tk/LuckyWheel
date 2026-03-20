@@ -159,6 +159,7 @@ function drawWheel(canvas, theme = 'default') {
 
 // ── Number formatter ─────────────────────────────────────────────────────
 function fmt(n) {
+  if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
   if (n >= 1e12) return (n / 1e12).toFixed(n >= 10e12 ? 1 : 2).replace(/\.?0+$/, '') + 'T';
   if (n >= 1e9) return (n / 1e9).toFixed(n >= 10e9 ? 1 : 2).replace(/\.?0+$/, '') + 'B';
   if (n >= 1e6) return (n / 1e6).toFixed(n >= 10e6 ? 1 : 2).replace(/\.?0+$/, '') + 'M';
@@ -316,6 +317,60 @@ const StreakPanel = React.memo(function StreakPanel({
     className: "streak-bonus"
   }, "Bonus +", bonus));
 });
+
+// ── Season Winners ────────────────────────────────────────────────────────
+function SeasonWinners({
+  winners,
+  seasonNumber
+}) {
+  if (!winners || winners.length === 0) return null;
+  const medals = ['🥇', '🥈', '🥉'];
+  const rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season-winners"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "season-winners-title"
+  }, "Season ", seasonNumber, " Winners"), winners.map(w => /*#__PURE__*/React.createElement("div", {
+    key: w.position,
+    className: `season-winner-row ${rankClasses[w.position - 1] || ''}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "sw-medal"
+  }, medals[w.position - 1] || w.position), /*#__PURE__*/React.createElement("span", {
+    className: "sw-name"
+  }, w.username), /*#__PURE__*/React.createElement("span", {
+    className: "sw-wins"
+  }, fmt(w.wins), "W"))));
+}
+
+// ── Season Info (user-bar widget) ─────────────────────────────────────────
+function SeasonInfo({
+  seasonNumber,
+  endsAt
+}) {
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    if (!endsAt) return;
+    const update = () => {
+      const diff = new Date(endsAt) - new Date();
+      if (diff <= 0) {
+        setTimeLeft('Ending...');
+        return;
+      }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor(diff % 86400000 / 3600000);
+      const m = Math.floor(diff % 3600000 / 60000);
+      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [endsAt]);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season-info"
+  }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonNumber, " ends:"), timeLeft && /*#__PURE__*/React.createElement("span", {
+    className: "season-countdown"
+  }, timeLeft));
+}
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
 function Leaderboard({
@@ -1048,6 +1103,7 @@ function GameApp({
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
   const [showStats, setShowStats] = useState(false);
   const [toast, setToast] = useState(null);
+  const [season, setSeason] = useState(gameState.season || null);
 
   // Memoised derived values
   // Functional items read from ownedItems
@@ -1116,6 +1172,35 @@ function GameApp({
     }, 5000);
     return () => clearInterval(id);
   }, [clickFrenzyRate]);
+
+  // Season polling: detect rollover, reload full state
+  useEffect(() => {
+    const currentNumber = season ? season.season_number : null;
+    const id = setInterval(async () => {
+      const r = await apiFetch('/api/season');
+      if (!r.ok) return;
+      if (currentNumber !== null && r.data.season_number !== currentNumber) {
+        // Season has changed — reload full state
+        showToast(`Season ${currentNumber} has ended! Season ${r.data.season_number} begins!`);
+        const gs = await apiGame('/api/state');
+        if (gs.ok) {
+          setSeason(gs.data.season);
+          setWins(gs.data.wins);
+          setLosses(gs.data.losses);
+          setStreak(gs.data.streak);
+          setFishClicks(gs.data.fish_clicks);
+          setOwnedItems(gs.data.owned_items);
+          setEquippedFish(gs.data.equipped_fish);
+          setShieldCharges(gs.data.shield_charges);
+          setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
+          setActiveCosmetics(gs.data.active_cosmetics || []);
+        }
+      } else {
+        setSeason(r.data);
+      }
+    }, 60000);
+    return () => clearInterval(id);
+  }, [season ? season.season_number : null]); // eslint-disable-line
 
   // Apply background theme to body
   useEffect(() => {
@@ -1346,11 +1431,17 @@ function GameApp({
     count: confettiCount
   }), /*#__PURE__*/React.createElement("div", {
     className: `overlay ${showResult ? 'active' : ''}`
+  }), season && season.latest_winners && /*#__PURE__*/React.createElement(SeasonWinners, {
+    winners: season.latest_winners,
+    seasonNumber: season.season_number - 1
   }), /*#__PURE__*/React.createElement("div", {
     className: "user-bar"
   }, /*#__PURE__*/React.createElement("span", {
     className: "user-bar-name"
-  }, "\uD83D\uDC64 ", username), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDC64 ", username), season && /*#__PURE__*/React.createElement(SeasonInfo, {
+    seasonNumber: season.season_number,
+    endsAt: season.ends_at
+  }), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
     onClick: () => setShowStats(true)
   }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("button", {

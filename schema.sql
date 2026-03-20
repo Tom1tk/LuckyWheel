@@ -40,3 +40,42 @@ CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(identifier, atte
 
 -- Leaderboard ORDER BY wins DESC without a full table scan
 CREATE INDEX IF NOT EXISTS idx_game_state_wins ON game_state(wins DESC);
+
+-- ── Seasons ───────────────────────────────────────────────────────────────
+
+-- Single-row table tracking the current season
+CREATE TABLE IF NOT EXISTS seasons (
+    id              SERIAL PRIMARY KEY,
+    season_number   INTEGER NOT NULL DEFAULT 1,
+    started_at      TIMESTAMPTZ NOT NULL,
+    ends_at         TIMESTAMPTZ NOT NULL
+);
+
+-- Top-5 leaderboard snapshot frozen at the end of each season
+CREATE TABLE IF NOT EXISTS season_snapshots (
+    id              SERIAL PRIMARY KEY,
+    season_number   INTEGER NOT NULL,
+    position        INTEGER NOT NULL,   -- 1–5
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    username        VARCHAR(32) NOT NULL,
+    wins            NUMERIC NOT NULL,
+    losses          BIGINT NOT NULL,
+    snapshot_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(season_number, position)
+);
+CREATE INDEX IF NOT EXISTS idx_season_snapshots_season ON season_snapshots(season_number);
+
+-- Every user's finishing stats per season
+CREATE TABLE IF NOT EXISTS user_season_history (
+    user_id              INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    season_number        INTEGER NOT NULL,
+    finishing_position   INTEGER,        -- NULL if not top-5
+    final_wins           NUMERIC NOT NULL,
+    final_losses         BIGINT NOT NULL,
+    PRIMARY KEY (user_id, season_number)
+);
+
+-- Seed Season 1 (only if the table is empty)
+INSERT INTO seasons (season_number, started_at, ends_at)
+SELECT 1, '2026-03-16 00:00:00+00', '2026-03-20 23:59:00+00'
+WHERE NOT EXISTS (SELECT 1 FROM seasons);

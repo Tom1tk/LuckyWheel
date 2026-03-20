@@ -1388,3 +1388,82 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .user-bar-name { display: none; }
 }
 
+/* ── Season Winners Panel ───────────────────────────────────────────────── */
+.season-winners {
+  position: fixed;
+  top: 56px;
+  left: 12px;
+  width: 210px;
+  background: rgba(10, 8, 2, 0.92);
+  border: 1px solid #B8860B;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.18), 0 2px 12px rgba(0,0,0,0.7);
+  z-index: 200;
+  pointer-events: none;
+}
+
+.season-winners-title {
+  color: #FFD700;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+
+.season-winner-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 0.78rem;
+}
+
+.sw-medal {
+  font-size: 0.9rem;
+  min-width: 20px;
+  text-align: center;
+}
+
+.sw-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sw-wins {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  font-family: 'Courier New', monospace;
+}
+
+.sw-gold   { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.6); }
+.sw-silver { color: #C0C0C0; text-shadow: 0 0 4px rgba(192,192,192,0.4); }
+.sw-bronze { color: #CD7F32; text-shadow: 0 0 4px rgba(205,127,50,0.4); }
+.sw-4th    { color: #aaa; font-size: 0.73rem; }
+.sw-5th    { color: #888; font-size: 0.73rem; }
+
+/* ── Season Info (in user-bar) ───────────────────────────────────────────── */
+.season-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #FFD700;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.season-countdown {
+  font-family: 'Courier New', monospace;
+  font-size: 0.72rem;
+  color: #FFA500;
+  background: rgba(255,165,0,0.1);
+  border: 1px solid rgba(255,165,0,0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

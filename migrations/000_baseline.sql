@@ -1,0 +1,7 @@
+-- Baseline marker: schema captured in schema.sql
+-- This migration is NOT re-run. It marks the starting point for incremental migrations.
+-- The schema was applied directly to both wheeldb and wheeldb_staging via schema.sql.
+--
+-- Tables at baseline (2026-03-20):
+--   users, game_state, login_attempts,
+--   seasons, season_snapshots, user_season_history

@@ -9,6 +9,7 @@ from flask_login import current_user, login_required
 from db import db_connection
 from extensions import limiter
 from models import ALL_ITEMS, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS
+from seasons import ensure_current_season, get_season_info
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
@@ -42,6 +43,8 @@ def health():
 def get_state():
     try:
         with db_connection() as conn:
+            season_info = ensure_current_season(conn)
+            full_info   = get_season_info(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
@@ -63,6 +66,7 @@ def get_state():
             'active_cosmetics':   list(gs['active_cosmetics']),
             'spin_count':         gs['spin_count'],
             'win_count':          gs['win_count'],
+            'season':             full_info,
         })
     except Exception:
         log.exception('GET_STATE_ERROR  user_id=%s', current_user.id)
@@ -79,6 +83,7 @@ def spin():
 
     try:
         with db_connection() as conn:
+            ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, streak, owned_items, shield_charges, regen_recharge_wins,
@@ -492,6 +497,7 @@ def stats():
 def leaderboard():
     try:
         with db_connection() as conn:
+            ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT u.username, gs.wins, gs.losses
@@ -508,3 +514,16 @@ def leaderboard():
     except Exception:
         log.exception('LEADERBOARD_ERROR')
         return jsonify([])
+
+
+@game_bp.route('/api/season')
+def get_season():
+    """Public endpoint for season info. Used by cron safety net and frontend polling."""
+    try:
+        with db_connection() as conn:
+            ensure_current_season(conn)
+            info = get_season_info(conn)
+        return jsonify(info)
+    except Exception:
+        log.exception('GET_SEASON_ERROR')
+        return jsonify({'error': 'Failed to load season'}), 500
