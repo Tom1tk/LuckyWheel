@@ -38,7 +38,7 @@ echo "==> Merging staging → master..."
 git merge staging --no-edit
 
 echo "==> Migration dry-run (production DB)..."
-python migrate.py --dry-run
+python3 migrate.py --dry-run
 
 echo ""
 if [[ "${AUTO_YES}" != true ]]; then
@@ -50,7 +50,7 @@ if [[ "${AUTO_YES}" != true ]]; then
 fi
 
 echo "==> Applying migrations to production..."
-python migrate.py
+python3 migrate.py
 
 if [[ "$SKIP_BUILD" == false ]]; then
   echo "==> Rebuilding JSX..."
