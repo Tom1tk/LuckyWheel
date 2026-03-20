@@ -16,7 +16,7 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - **Win-streak multiplier** — 3+ consecutive wins or losses triggers an exponentially scaling bonus (2× per additional streak step)
 - **Streak panel** — appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Streak persistence** — streak is saved server-side (refresh-to-reset exploit patched)
-- **Stats popup** — 📊 button shows total spins, wins, losses, win rate, and fish clicks
+- **Stats popup** — 📊 button shows total spins, wins, losses, win rate, lifetime fish taps, and spendable balance
 
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
@@ -30,9 +30,8 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - A fish lives on the left side of the screen, centred vertically
 - Reacts to spin results (happy on win, sad on loss, idle otherwise)
 - Shows a fire aura when wins are ahead, a gloom aura when losses are ahead — aura size and intensity scale with the net gap (tight drop-shadow glow on the fish + large ambient blur halo behind it)
-- Trail effects (sparkle/fire/rainbow) and the aura glow coexist independently
-- Clickable — spins on click, each click earns fish-click currency (server-side)
-- **Fish clicks are your shop currency** — accumulates and persists across sessions
+- Trail effects (sparkle/fire/rainbow/frost/thunder/galaxy) and the aura glow coexist independently
+- Clickable — each click earns fish-click currency (server-side), tracked as both a spendable **Balance** and a permanent **Lifetime Taps** counter (never decremented)
 
 ### Auto-Spin
 - Checkbox to enable automatic spinning on a configurable delay
@@ -43,7 +42,7 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 
 ## Shop System
 
-The shop is always visible as a two-column panel on the right side of the screen (cosmetics on the left, functional upgrades on the right). **Locked tiers are hidden until the prerequisite is owned** — items unlock progressively. All purchases persist server-side.
+The shop is always visible as a two-column panel on the right side of the screen (cosmetics on the left, functional upgrades on the right). **Locked tiers are hidden until the prerequisite is owned** — items unlock progressively. All purchases persist server-side. Hover over any item description to see the full tooltip.
 
 ### Fish Skins
 | Skin | Cost | Emoji |
@@ -53,21 +52,29 @@ The shop is always visible as a two-column panel on the right side of the screen
 | Octopus | 75 | 🐙 |
 | Shark | 100 | 🦈 |
 | Dolphin | 150 | 🐬 |
+| Squid | 200 | 🦑 |
+| Turtle | 350 | 🐢 |
+| Crab | 600 | 🦀 |
+| Lobster | 1,000 | 🦞 |
+| Whale | 2,000 | 🐳 |
 
 Each skin has custom idle/win/loss speech. Buy and equip to change the fish.
 
-### Spinner Speed
+### Spin Speed
 | Upgrade | Cost | Spin Duration |
 |---------|------|---------------|
 | Speed Boost | 50 | 4.5s → 3s |
 | Turbo Spin | 200 | 3s → 1.5s |
+| Hyper Spin | 600 | 1.5s → 1s |
+| Ultra Spin | 2,000 | 1s → 0.75s |
+| Max Spin | 6,000 | 0.75s → 0.5s |
 
 ### Auto Speed
 | Upgrade | Cost | Auto-Spin Delay |
 |---------|------|-----------------|
 | Quick Auto | 75 | 1500ms → 1000ms |
 | Rapid Auto | 300 | 1000ms → 500ms |
-| Instant Auto | 1200 | 500ms → 0ms |
+| Instant Auto | 1,200 | 500ms → 0ms |
 
 ### Win Multiplier
 Multiplies each win's score contribution.
@@ -75,16 +82,22 @@ Multiplies each win's score contribution.
 |------|------|-----------|
 | Win ×2 | 200 | ×2 |
 | Win ×4 | 800 | ×4 |
-| Win ×8 | 3200 | ×8 |
-| Win ×16 | 12800 | ×16 |
+| Win ×8 | 3,200 | ×8 |
+| Win ×16 | 12,800 | ×16 |
+| Win ×32 | 51,200 | ×32 |
+| Win ×64 | 204,800 | ×64 |
+| Win ×128 | 819,200 | ×128 |
 
 ### Bonus Multiplier
-Multiplies streak bonus payouts.
+Multiplies streak bonus payouts — for both win streaks **and** loss streaks. ⚠️ Higher tiers also amplify loss streak penalties.
 | Tier | Cost | Multiplier |
 |------|------|-----------|
 | Bonus Boost | 300 | ×2 |
-| Bonus Mega | 1200 | ×5 |
-| Bonus ULTRA | 4800 | ×10 |
+| Bonus Mega | 1,200 | ×5 |
+| Bonus ULTRA | 4,800 | ×10 |
+| Bonus ×20 | 20,000 | ×20 |
+| Bonus ×50 | 80,000 | ×50 |
+| Bonus ×100 | 300,000 | ×100 |
 
 ### Fish Size
 | Tier | Cost | Fish Size |
@@ -97,9 +110,12 @@ Multiplies streak bonus payouts.
 Visual trail effect on the fish. Trail and streak aura effects coexist independently.
 | Tier | Cost | Effect |
 |------|------|--------|
-| Sparkle Trail | 125 | ✨ Sparkle |
-| Fire Trail | 500 | 🔥 Fire |
-| Rainbow Trail | 2000 | 🌈 Rainbow |
+| Sparkle Trail | 125 | ✨ Gold shimmer |
+| Fire Trail | 500 | 🔥 Flame glow |
+| Rainbow Trail | 2,000 | 🌈 Rainbow hue |
+| Frost Trail | 7,000 | ❄️ Ice crystal aura |
+| Thunder Trail | 22,000 | ⚡ Electric sparks |
+| Galaxy Trail | 70,000 | 🌌 Cosmic swirl |
 
 ### Click Power
 Each fish click counts as more clicks server-side.
@@ -108,8 +124,8 @@ Each fish click counts as more clicks server-side.
 | Double Click | 100 | ×2 clicks |
 | Double Click II | 400 | ×3 clicks |
 | Double Click III | 900 | ×4 clicks |
-| Double Click IV | 2000 | ×5 clicks |
-| Double Click V | 4500 | ×6 clicks |
+| Double Click IV | 2,000 | ×5 clicks |
+| Double Click V | 4,500 | ×6 clicks |
 
 ### Click Frenzy
 Passive income — server ticks fish clicks automatically.
@@ -117,47 +133,58 @@ Passive income — server ticks fish clicks automatically.
 |------|------|--------|
 | Frenzy I | 150 | +1 click per 5s |
 | Frenzy II | 600 | +5 clicks per 5s |
-| Frenzy III | 2400 | +20 clicks per 5s |
-| Frenzy IV | 9600 | +80 clicks per 5s |
-| Frenzy V | 38400 | +320 clicks per 5s |
+| Frenzy III | 2,400 | +20 clicks per 5s |
+| Frenzy IV | 9,600 | +80 clicks per 5s |
+| Frenzy V | 38,400 | +320 clicks per 5s |
 
-### Streak Shield
-Shields protect your win streak by absorbing a loss. All three can be owned simultaneously and are consumed in priority order: **Shield → Reinforced → Regenerating**.
-
+### Protection
 | Item | Cost | Behaviour |
 |------|------|-----------|
-| 🛡️ Shield | 250 | Blocks 1 loss, then breaks. Must be repurchased. |
-| ⚔️ Reinforced Shield | 600 | Blocks 3 losses, then breaks. Must be repurchased. |
-| 🔄 Regenerating Shield | 800 | Blocks 1 loss, recharges after 3 wins, loops forever. Never permanently breaks. |
+| 🛡️ Guard | 300 | 50% chance to block any loss. Breaks on success, survives on failure. |
+| 🔄 Regenerating Shield | 800 | Blocks any loss when charged. Recharges after 5 wins. Never breaks. |
 
-- Shields only activate while you are on a **win streak** — they prevent it from being broken.
-- No prerequisite between shields — all three are independently purchasable at any time.
-- Refreshing the page does **not** restore charges (exploit patched).
+- **Guard** — activates on any loss. A mini-wheel spins (50/50). If it lands on the win segment, the loss is fully blocked and the guard is consumed. If it fails, the guard survives and you take the loss as normal.
+- **Regenerating Shield** — blocks the next loss with 100% certainty while charged. After triggering, it recharges automatically after 5 consecutive wins.
 
 ### Wheel Theme
 Changes the canvas colour palette of the wheel.
 | Theme | Cost | Look |
 |-------|------|------|
 | Fire Theme | 250 | 🔥 Red/orange |
-| Ice Theme | 1000 | ❄️ Blue/cyan |
-| Neon Theme | 4000 | 💜 Purple/neon |
-| Golden Wheel | 300 | ✨ Radiant glow ring |
+| Ice Theme | 1,000 | ❄️ Blue/cyan |
+| Neon Theme | 4,000 | 💜 Purple/neon |
+| Void Theme | 12,000 | 🌑 Deep void |
+| Gold Theme | 40,000 | ✨ Pure gold |
+| Golden Wheel | 300 | ✨ Radiant glow ring (independent of theme) |
 
 ### Atmosphere
-#### Confetti
-| Tier | Cost | Count |
-|------|------|-------|
-| Confetti+ | 75 | ×2 |
-| Confetti++ | 300 | ×5 |
-| Confetti MAX | 1200 | ×15 |
-| Party Mode | 150 | Confetti on every result |
 
 #### Background Theme
 | Theme | Cost | Look |
 |-------|------|------|
 | Ocean Casino | 100 | Deep sea blue |
 | Royal Casino | 400 | Rich purple |
-| Inferno Casino | 1600 | Blazing red |
+| Inferno Casino | 1,600 | Blazing red |
+| Forest | 5,000 | 🌲 Lush green |
+| Abyss | 15,000 | 🌊 Deep dark ocean |
+| Cosmic | 50,000 | 🌌 Space nebula |
+
+#### Confetti
+| Tier | Cost | Count |
+|------|------|-------|
+| Confetti+ | 75 | ×2 |
+| Confetti++ | 300 | ×5 |
+| Confetti MAX | 1,200 | ×15 |
+| Party Mode | 150 | Confetti on every result |
+
+### 🎲 Special Upgrades
+| Item | Cost | Effect |
+|------|------|--------|
+| 🍀 Fortune Charm | 500 | All streak bonuses are increased by 25% |
+| 7️⃣ Lucky Seven | 1,000 | Every 7th spin is guaranteed to win |
+| 🔊 Win Echo | 750 | 20% chance each win is doubled |
+| 💪 Resilience | 400 | When on a win streak, losses reduce streak by 1 instead of resetting it |
+| 🎰 Jackpot | 3,000 | 2% chance each spin multiplies all gains by 50× |
 
 ### 🌌 Legendary
 | Item | Cost | Effect |
@@ -185,9 +212,13 @@ pip install -r requirements.txt
 # Create DB user and database
 sudo -u postgres psql -c "CREATE USER wheelapp WITH PASSWORD '<your-password>';"
 sudo -u postgres psql -c "CREATE DATABASE wheeldb OWNER wheelapp;"
+```
 
-# Apply schema
+Then apply the baseline schema and run migrations:
+
+```bash
 PGPASSWORD='<your-password>' psql -U wheelapp -d wheeldb -h localhost -f schema.sql
+DATABASE_URL="postgresql://wheelapp:<your-password>@localhost/wheeldb" python migrate.py
 ```
 
 ### 3. Configure environment
@@ -197,6 +228,7 @@ Both variables are **required** — the server will refuse to start without them
 ```bash
 export DATABASE_URL="postgresql://wheelapp:<your-password>@localhost/wheeldb"
 export WHEEL_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+export PORT=5000   # optional, defaults to 5000
 ```
 
 For convenience, copy `.env.example` to `.env` — `python-dotenv` will load it automatically.
@@ -206,7 +238,7 @@ For convenience, copy `.env.example` to `.env` — `python-dotenv` will load it 
 The JSX source must be transpiled once (and again after any `app.jsx` changes):
 
 ```bash
-npx babel static/app.jsx --presets @babel/preset-react -o static/app.js
+npx babel static/app.jsx --presets @babel/preset-react,@babel/preset-env -o static/app.js
 ```
 
 ### 5. Start the server
@@ -225,6 +257,43 @@ Open [http://localhost:5000](http://localhost:5000) in your browser. You'll be p
 
 ---
 
+## Staging Environment
+
+A separate staging environment runs on port 5001 against a `wheeldb_staging` database, using a git worktree on the `staging` branch.
+
+```
+/home/user/wheel-app/           ← master (production, port 5000, wheeldb)
+/home/user/wheel-app-staging/   ← staging (port 5001, wheeldb_staging)
+```
+
+**Start staging dev server:**
+```bash
+cd /home/user/wheel-app-staging && PORT=5001 python server.py
+```
+
+**Promote to production:**
+```bash
+cd /home/user/wheel-app && ./deploy.sh
+```
+
+`deploy.sh` merges staging → master, applies pending migrations, rebuilds the frontend, and reloads gunicorn.
+
+---
+
+## Database Migrations
+
+Schema changes are managed with numbered SQL files and a lightweight migration runner.
+
+```bash
+python migrate.py              # apply pending migrations
+python migrate.py --status     # show applied / pending migrations
+python migrate.py --dry-run    # preview without executing
+```
+
+Migration files live in `migrations/NNN_description.sql`. Applied versions are tracked in the `schema_migrations` table in each database.
+
+---
+
 ## Project Structure
 
 ```
@@ -239,8 +308,11 @@ wheel-app/
 ├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, constants
 ├── security.py        # check_lockout(), record_attempt(), clear_attempts(), require_json()
 ├── extensions.py      # Flask-Limiter and Flask-Login instances
-├── gunicorn.conf.py   # Gunicorn config: 4 gthread workers × 4 threads, port 5000
-├── schema.sql         # PostgreSQL schema (users, game_state, login_attempts)
+├── migrate.py         # SQL migration runner (apply / status / dry-run)
+├── deploy.sh          # Production deploy: merge staging → migrate → build → reload
+├── gunicorn.conf.py   # Gunicorn config: 4 gthread workers × 4 threads, PORT from env
+├── schema.sql         # PostgreSQL baseline schema
+├── migrations/        # Numbered SQL migration files (NNN_description.sql)
 ├── requirements.txt   # Python dependencies
 ├── .env.example       # Required environment variable template
 └── static/
@@ -275,7 +347,7 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/equip-cosmetic` | POST | — | Toggle a cosmetic item on/off |
 | `/api/fish-click` | POST | 30/sec | Increment fish clicks |
 | `/api/click-frenzy` | POST | — | Passive click income tick |
-| `/api/stats` | GET | — | Personal stats (spins, wins, losses, win rate, fish clicks) |
+| `/api/stats` | GET | — | Personal stats (spins, wins, losses, win rate, fish clicks, lifetime taps) |
 | `/api/leaderboard` | GET | — | Public — top 5 players by wins |
 
 `/api/spin` response:
@@ -286,12 +358,16 @@ All game endpoints require authentication (session cookie). POST endpoints requi
   "wins": 10,
   "losses": 3,
   "streak": 4,
-  "owned_items": ["shield_1"],
-  "shield_charges": 2,
+  "owned_items": ["regen_shield"],
+  "shield_charges": 0,
   "regen_recharge_wins": 0,
   "shield_used": false,
   "shield_broke": false,
-  "bonus_earned": 4
+  "guard_triggered": false,
+  "guard_blocked": false,
+  "bonus_earned": 4,
+  "echo_triggered": false,
+  "jackpot_hit": false
 }
 ```
 
@@ -316,14 +392,16 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `AuthPage` | Login/register form with error handling |
 | `GameApp` | Main game: wheel, fish, shop, all API calls |
 | `Fish` | Left-side mascot — aura, mood, trail effects, click animation |
+| `GuardWheel` | Mini canvas wheel overlay for guard activation (50/50 animation) |
 | `StreakPanel` | Sidebar streak display (only shown at streak ≥ 2) |
 | `ShopPanel` | Always-visible two-column shop (cosmetics left, functional right) |
-| `ShopItem` | Individual item card (buy / equip / active states) |
+| `ShopItem` | Individual item card (buy / equip / active states; full desc on hover) |
 | `Scoreboard` | Win/loss counter below the wheel |
 | `StatsPanel` | Modal overlay showing personal stats (📊 button) |
 | `Confetti` | Win confetti overlay |
 | `Leaderboard` | Horizontal scrolling ticker at the bottom of the right panel |
-| `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon) |
+| `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon / void / gold) |
+| `drawGuardWheel` | Canvas rendering for the guard mini-wheel (50% green / 50% red) |
 
 **No localStorage** — all state lives in PostgreSQL. Legacy `localStorage` keys are cleared on mount.
 
