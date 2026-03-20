@@ -91,7 +91,7 @@ def spin():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, streak, owned_items, shield_charges, regen_recharge_wins,
-                              spin_count, win_count
+                              spin_count, win_count, loss_count
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -110,6 +110,7 @@ def spin():
                 outcome = 'win'
             elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
                 outcome = 'win'
+                lucky_seven_triggered = True
             else:
                 outcome = secrets.choice(['win', 'lose'])
 
@@ -137,9 +138,11 @@ def spin():
             new_losses       = gs['losses']
             bonus_earned     = 0
             new_owned        = owned
-            echo_triggered       = False
-            jackpot_hit          = False
-            resilience_triggered = False
+            echo_triggered        = False
+            jackpot_hit           = False
+            resilience_triggered  = False
+            lucky_seven_triggered = False
+            fortune_charm_triggered = False
 
             if outcome == 'lose':
                 # Regen shield: protects any loss when charged
@@ -191,12 +194,13 @@ def spin():
                 raw_bonus = (1 << (count - 3)) if count >= 3 else 0
                 base_bonus = raw_bonus * bonus_mult
                 # Fortune charm: +25% to all streak bonuses
-                if 'fortune_charm' in owned and base_bonus > 0:
+                if 'fortune_charm' in owned and base_bonus > 0 and random.random() < 0.25:
                     base_bonus = int(base_bonus * 1.25)
+                    fortune_charm_triggered = True
                 bonus_earned = base_bonus
 
                 # Jackpot: 2% chance to multiply wins by 50
-                if 'jackpot' in owned and random.random() < 0.02:
+                if 'jackpot' in owned and random.random() < 0.01:
                     jackpot_hit = True
                     new_wins += (win_mult + bonus_earned) * 50
                     bonus_earned = (win_mult + bonus_earned) * 50 - win_mult  # show inflated bonus
@@ -210,7 +214,8 @@ def spin():
                         new_wins += win_mult + bonus_earned
 
             # Stats tracking
-            new_win_count  = gs['win_count'] + (1 if outcome == 'win' else 0)
+            new_win_count  = gs['win_count']  + (1 if outcome == 'win'  else 0)
+            new_loss_count = gs['loss_count'] + (1 if outcome == 'lose' else 0)
 
             # Wheel rotation angle
             extra_spins = random.randint(5, 8) * 360
@@ -225,11 +230,11 @@ def spin():
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, streak = %s,
                            shield_charges = %s, regen_recharge_wins = %s,
-                           owned_items = %s, spin_count = %s, win_count = %s
+                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak,
                      shield_charges, regen_recharge_wins,
-                     new_owned, new_spin_count, new_win_count, current_user.id),
+                     new_owned, new_spin_count, new_win_count, new_loss_count, current_user.id),
                 )
             conn.commit()
 
@@ -248,9 +253,11 @@ def spin():
             'guard_triggered':    guard_triggered,
             'guard_blocked':      guard_blocked,
             'bonus_earned':       bonus_earned,
-            'echo_triggered':        echo_triggered,
-            'jackpot_hit':           jackpot_hit,
-            'resilience_triggered':  resilience_triggered,
+            'echo_triggered':          echo_triggered,
+            'jackpot_hit':             jackpot_hit,
+            'resilience_triggered':    resilience_triggered,
+            'lucky_seven_triggered':   lucky_seven_triggered,
+            'fortune_charm_triggered': fortune_charm_triggered,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -530,14 +537,14 @@ def stats():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT spin_count, win_count, losses, fish_clicks, total_fish_clicks FROM game_state WHERE user_id = %s',
+                    'SELECT spin_count, win_count, loss_count, fish_clicks, total_fish_clicks FROM game_state WHERE user_id = %s',
                     (current_user.id,)
                 )
                 row = cur.fetchone()
         return jsonify({
             'spin_count':         row['spin_count'],
             'win_count':          row['win_count'],
-            'loss_count':         row['losses'],
+            'loss_count':         row['loss_count'],
             'fish_clicks':        row['fish_clicks'],
             'total_fish_clicks':  row['total_fish_clicks'],
         })

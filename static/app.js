@@ -1186,7 +1186,7 @@ var SHOP_SECTIONS = [{
     emoji: '🍀',
     name: 'Fortune Charm',
     cost: 500,
-    desc: '+25% to all streak bonus payouts'
+    desc: '25% chance: +25% to streak bonus payout'
   }, {
     id: 'lucky_seven',
     emoji: '7️⃣',
@@ -1210,7 +1210,7 @@ var SHOP_SECTIONS = [{
     emoji: '🎰',
     name: 'Jackpot',
     cost: 3000,
-    desc: '2% chance each win to multiply gains by 50x'
+    desc: '1% chance each win to multiply gains by 50x'
   }]
 }, {
   label: '🌌 Legendary',
@@ -1319,8 +1319,17 @@ function ShopPanel(_ref1) {
       var cosmetic = [],
         functional = [];
       SHOP_SECTIONS.forEach(function (section) {
+        var isCosmeticSection = COSMETIC_SECTION_LABELS.has(section.label);
         var visibleItems = section.items.filter(function (item) {
-          return !item.requires || ownedItems.includes(item.requires);
+          var requiresMet = !item.requires || ownedItems.includes(item.requires);
+          if (isCosmeticSection) return requiresMet;
+          var isOwned = ownedItems.includes(item.id);
+          if (!isOwned) return requiresMet; // next tier to buy
+          // Owned: show only if this is the latest owned in its chain
+          var nextInChain = section.items.find(function (other) {
+            return other.requires === item.id;
+          });
+          return !nextInChain || !ownedItems.includes(nextInChain.id);
         });
         if (visibleItems.length === 0) return;
         (COSMETIC_SECTION_LABELS.has(section.label) ? cosmetic : functional).push(_objectSpread(_objectSpread({}, section), {}, {
@@ -1637,42 +1646,50 @@ function GameApp(_ref13) {
     _useState58 = _slicedToArray(_useState57, 2),
     resilienceTriggered = _useState58[0],
     setResilienceTriggered = _useState58[1];
-  var _useState59 = useState(gameState.shield_charges),
+  var _useState59 = useState(false),
     _useState60 = _slicedToArray(_useState59, 2),
-    shieldCharges = _useState60[0],
-    setShieldCharges = _useState60[1];
-  var _useState61 = useState(gameState.regen_recharge_wins || 0),
+    luckySevenTriggered = _useState60[0],
+    setLuckySevenTriggered = _useState60[1];
+  var _useState61 = useState(false),
     _useState62 = _slicedToArray(_useState61, 2),
-    regenRechargeWins = _useState62[0],
-    setRegenRechargeWins = _useState62[1];
-  var _useState63 = useState(false),
+    fortuneCharmTriggered = _useState62[0],
+    setFortuneCharmTriggered = _useState62[1];
+  var _useState63 = useState(gameState.shield_charges),
     _useState64 = _slicedToArray(_useState63, 2),
-    autoSpin = _useState64[0],
-    setAutoSpin = _useState64[1];
-  var _useState65 = useState(gameState.owned_items),
+    shieldCharges = _useState64[0],
+    setShieldCharges = _useState64[1];
+  var _useState65 = useState(gameState.regen_recharge_wins || 0),
     _useState66 = _slicedToArray(_useState65, 2),
-    ownedItems = _useState66[0],
-    setOwnedItems = _useState66[1];
-  var _useState67 = useState(gameState.equipped_fish),
+    regenRechargeWins = _useState66[0],
+    setRegenRechargeWins = _useState66[1];
+  var _useState67 = useState(false),
     _useState68 = _slicedToArray(_useState67, 2),
-    equippedFish = _useState68[0],
-    setEquippedFish = _useState68[1];
-  var _useState69 = useState(gameState.active_cosmetics || []),
+    autoSpin = _useState68[0],
+    setAutoSpin = _useState68[1];
+  var _useState69 = useState(gameState.owned_items),
     _useState70 = _slicedToArray(_useState69, 2),
-    activeCosmetics = _useState70[0],
-    setActiveCosmetics = _useState70[1];
-  var _useState71 = useState(false),
+    ownedItems = _useState70[0],
+    setOwnedItems = _useState70[1];
+  var _useState71 = useState(gameState.equipped_fish),
     _useState72 = _slicedToArray(_useState71, 2),
-    showStats = _useState72[0],
-    setShowStats = _useState72[1];
-  var _useState73 = useState(null),
+    equippedFish = _useState72[0],
+    setEquippedFish = _useState72[1];
+  var _useState73 = useState(gameState.active_cosmetics || []),
     _useState74 = _slicedToArray(_useState73, 2),
-    toast = _useState74[0],
-    setToast = _useState74[1];
-  var _useState75 = useState(gameState.season || null),
+    activeCosmetics = _useState74[0],
+    setActiveCosmetics = _useState74[1];
+  var _useState75 = useState(false),
     _useState76 = _slicedToArray(_useState75, 2),
-    season = _useState76[0],
-    setSeason = _useState76[1];
+    showStats = _useState76[0],
+    setShowStats = _useState76[1];
+  var _useState77 = useState(null),
+    _useState78 = _slicedToArray(_useState77, 2),
+    toast = _useState78[0],
+    setToast = _useState78[1];
+  var _useState79 = useState(gameState.season || null),
+    _useState80 = _slicedToArray(_useState79, 2),
+    season = _useState80[0],
+    setSeason = _useState80[1];
   var spinSpeed = useMemo(function () {
     if (ownedItems.includes('maxspin')) return 0.5;
     if (ownedItems.includes('ultraspin')) return 0.75;
@@ -2023,6 +2040,8 @@ function GameApp(_ref13) {
     setEchoTriggered(!!data.echo_triggered);
     setJackpotHit(!!data.jackpot_hit);
     setResilienceTriggered(!!data.resilience_triggered);
+    setLuckySevenTriggered(!!data.lucky_seven_triggered);
+    setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -2073,18 +2092,20 @@ function GameApp(_ref13) {
           setEchoTriggered(false);
           setJackpotHit(false);
           setResilienceTriggered(false);
+          setLuckySevenTriggered(false);
+          setFortuneCharmTriggered(false);
           spinningRef.current = true;
           setSpinning(true);
-          _context8.prev = 9;
-          _context8.next = 12;
+          _context8.prev = 11;
+          _context8.next = 14;
           return apiGame('/api/spin', {
             method: 'POST',
             body: '{}'
           });
-        case 12:
+        case 14:
           res = _context8.sent;
           if (res.ok) {
-            _context8.next = 18;
+            _context8.next = 20;
             break;
           }
           spinningRef.current = false;
@@ -2093,20 +2114,20 @@ function GameApp(_ref13) {
             if (autoSpinRef.current) spin();
           }, 1000);
           return _context8.abrupt("return");
-        case 18:
+        case 20:
           data = res.data;
-          _context8.next = 27;
+          _context8.next = 29;
           break;
-        case 21:
-          _context8.prev = 21;
-          _context8.t0 = _context8["catch"](9);
+        case 23:
+          _context8.prev = 23;
+          _context8.t0 = _context8["catch"](11);
           spinningRef.current = false;
           setSpinning(false);
           if (autoSpinRef.current) setTimeout(function () {
             if (autoSpinRef.current) spin();
           }, 1000);
           return _context8.abrupt("return");
-        case 27:
+        case 29:
           base = currentRotationRef.current;
           segmentAngle = data.angle % 360;
           minTarget = base + 5 * 360;
@@ -2161,11 +2182,11 @@ function GameApp(_ref13) {
               }
             }
           }, spinSpeedRef.current * 1000 + 200);
-        case 34:
+        case 36:
         case "end":
           return _context8.stop();
       }
-    }, _callee8, null, [[9, 21]]);
+    }, _callee8, null, [[11, 23]]);
   })), [applySpinResult]);
   var handleSpinAgain = useCallback(function () {
     setHideResult(true);
@@ -2253,9 +2274,13 @@ function GameApp(_ref13) {
     className: "result-text lose"
   }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line jackpot-line"
-  }, "\uD83C\uDFB0 JACKPOT! 50x MULTIPLIER! \uD83C\uDFB0"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDFB0 JACKPOT! 50x multiplier applied!"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line echo-line"
-  }, "\uD83D\uDD0A WIN ECHO! Double wins!"), resilienceTriggered && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD0A WIN ECHO! Wins doubled!"), luckySevenTriggered && /*#__PURE__*/React.createElement("div", {
+    className: "bonus-line lucky-seven-line"
+  }, "7\uFE0F\u20E3 LUCKY SEVEN! Guaranteed win triggered!"), fortuneCharmTriggered && /*#__PURE__*/React.createElement("div", {
+    className: "bonus-line fortune-charm-line"
+  }, "\uD83C\uDF40 FORTUNE CHARM! +25% streak bonus applied!"), resilienceTriggered && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line resilience-line"
   }, "\uD83D\uDCAA RESILIENCE! Streak -1 (not reset)"), bonusEarned > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line"
@@ -2372,18 +2397,18 @@ function GameApp(_ref13) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState77 = useState(undefined),
-    _useState78 = _slicedToArray(_useState77, 2),
-    user = _useState78[0],
-    setUser = _useState78[1];
-  var _useState79 = useState(null),
-    _useState80 = _slicedToArray(_useState79, 2),
-    gameState = _useState80[0],
-    setGameState = _useState80[1];
-  var _useState81 = useState(''),
+  var _useState81 = useState(undefined),
     _useState82 = _slicedToArray(_useState81, 2),
-    sessionMsg = _useState82[0],
-    setSessionMsg = _useState82[1];
+    user = _useState82[0],
+    setUser = _useState82[1];
+  var _useState83 = useState(null),
+    _useState84 = _slicedToArray(_useState83, 2),
+    gameState = _useState84[0],
+    setGameState = _useState84[1];
+  var _useState85 = useState(''),
+    _useState86 = _slicedToArray(_useState85, 2),
+    sessionMsg = _useState86[0],
+    setSessionMsg = _useState86[1];
   useEffect(function () {
     localStorage.clear();
   }, []);

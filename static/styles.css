@@ -21,7 +21,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #3a0000 0%, #1a
   top: 56px;
   right: 0;
   bottom: 0;
-  width: 320px;
+  width: 500px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1381,13 +1381,13 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 
 /* ── Mobile / narrow screens ───────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .game-right { width: 280px; }
+  .game-right { width: 560px; }
   .game-right-sidebar { width: 120px; }
 }
 
 @media (max-width: 900px) {
   .game-left { width: 80px; min-width: 70px; padding: 10px 4px; }
-  .game-right { width: 360px; min-width: 300px; }
+  .game-right { width: 480px; min-width: 400px; }
   .game-right-sidebar { width: 120px; }
   .fish-counter-value { font-size: 1rem; }
 }
@@ -1656,6 +1656,18 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
   color: #FF8C00;
   text-shadow: 0 0 12px #FF6600;
   animation: bonusPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s both;
+}
+
+.bonus-line.lucky-seven-line {
+  color: #FFFF00;
+  text-shadow: 0 0 12px #FFDD00, 0 0 24px #FF8800;
+  animation: bonusPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s both;
+}
+
+.bonus-line.fortune-charm-line {
+  color: #00FF88;
+  text-shadow: 0 0 12px #00DD66;
+  animation: bonusPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both;
 }
 
 /* ── Season 1 (gold/orange) page theme overrides ─────────────────────── */

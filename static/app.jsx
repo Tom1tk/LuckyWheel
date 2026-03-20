@@ -553,11 +553,11 @@ const SHOP_SECTIONS = [
     { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme. Season 2 (green/red) is default.' },
   ]},
   { label: '🎲 Special Upgrades', items: [
-    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 500,  desc: '+25% to all streak bonus payouts' },
+    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 500,  desc: '25% chance: +25% to streak bonus payout' },
     { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 1000, desc: 'Every 7th spin is guaranteed a win' },
     { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 750,  desc: '20% chance to double wins earned on any win' },
     { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 500000, desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting' },
-    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000, desc: '2% chance each win to multiply gains by 50x' },
+    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000, desc: '1% chance each win to multiply gains by 50x' },
   ]},
   { label: '🌌 Legendary', items: [
     { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1000000000,
@@ -625,7 +625,16 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBu
   const { cosmeticSections, functionalSections } = useMemo(() => {
     const cosmetic = [], functional = [];
     SHOP_SECTIONS.forEach(section => {
-      const visibleItems = section.items.filter(item => !item.requires || ownedItems.includes(item.requires));
+      const isCosmeticSection = COSMETIC_SECTION_LABELS.has(section.label);
+      const visibleItems = section.items.filter(item => {
+        const requiresMet = !item.requires || ownedItems.includes(item.requires);
+        if (isCosmeticSection) return requiresMet;
+        const isOwned = ownedItems.includes(item.id);
+        if (!isOwned) return requiresMet; // next tier to buy
+        // Owned: show only if this is the latest owned in its chain
+        const nextInChain = section.items.find(other => other.requires === item.id);
+        return !nextInChain || !ownedItems.includes(nextInChain.id);
+      });
       if (visibleItems.length === 0) return;
       (COSMETIC_SECTION_LABELS.has(section.label) ? cosmetic : functional).push({ ...section, visibleItems });
     });
@@ -782,9 +791,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishMood, setFishMood]       = useState('idle');
   const [fishClicks, setFishClicks]   = useState(gameState.fish_clicks);
   const [bonusEarned, setBonusEarned] = useState(0);
-  const [echoTriggered, setEchoTriggered]           = useState(false);
-  const [jackpotHit, setJackpotHit]                 = useState(false);
-  const [resilienceTriggered, setResilienceTriggered] = useState(false);
+  const [echoTriggered, setEchoTriggered]               = useState(false);
+  const [jackpotHit, setJackpotHit]                     = useState(false);
+  const [resilienceTriggered, setResilienceTriggered]   = useState(false);
+  const [luckySevenTriggered, setLuckySevenTriggered]   = useState(false);
+  const [fortuneCharmTriggered, setFortuneCharmTriggered] = useState(false);
   const [shieldCharges, setShieldCharges]         = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
   const [autoSpin, setAutoSpin]       = useState(false);
@@ -1020,6 +1031,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setEchoTriggered(!!data.echo_triggered);
     setJackpotHit(!!data.jackpot_hit);
     setResilienceTriggered(!!data.resilience_triggered);
+    setLuckySevenTriggered(!!data.lucky_seven_triggered);
+    setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -1060,6 +1073,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setEchoTriggered(false);
     setJackpotHit(false);
     setResilienceTriggered(false);
+    setLuckySevenTriggered(false);
+    setFortuneCharmTriggered(false);
     spinningRef.current = true;
     setSpinning(true);
 
@@ -1202,10 +1217,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="result-text lose">💀 YOU LOSE 💀</div>
           )}
           {jackpotHit && (
-            <div className="bonus-line jackpot-line">🎰 JACKPOT! 50x MULTIPLIER! 🎰</div>
+            <div className="bonus-line jackpot-line">🎰 JACKPOT! 50x multiplier applied!</div>
           )}
           {echoTriggered && !jackpotHit && (
-            <div className="bonus-line echo-line">🔊 WIN ECHO! Double wins!</div>
+            <div className="bonus-line echo-line">🔊 WIN ECHO! Wins doubled!</div>
+          )}
+          {luckySevenTriggered && (
+            <div className="bonus-line lucky-seven-line">7️⃣ LUCKY SEVEN! Guaranteed win triggered!</div>
+          )}
+          {fortuneCharmTriggered && (
+            <div className="bonus-line fortune-charm-line">🍀 FORTUNE CHARM! +25% streak bonus applied!</div>
           )}
           {resilienceTriggered && (
             <div className="bonus-line resilience-line">💪 RESILIENCE! Streak -1 (not reset)</div>
