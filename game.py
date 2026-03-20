@@ -22,6 +22,7 @@ COSMETIC_SLOTS = {
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
     'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
+    'page_season1': 'page_theme',
 }
 from security import require_json
 
@@ -136,8 +137,9 @@ def spin():
             new_losses       = gs['losses']
             bonus_earned     = 0
             new_owned        = owned
-            echo_triggered   = False
-            jackpot_hit      = False
+            echo_triggered       = False
+            jackpot_hit          = False
+            resilience_triggered = False
 
             if outcome == 'lose':
                 # Regen shield: protects any loss when charged
@@ -147,16 +149,17 @@ def spin():
                     regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
                     new_streak          = streak
 
-                # Guard: 15% chance to block any loss
+                # Guard: 50% chance to block any loss
                 elif 'guard' in owned:
                     guard_triggered = True
-                    if random.random() < 0.15:
+                    if random.random() < 0.50:
                         guard_blocked = True
                         new_owned     = [x for x in new_owned if x != 'guard']
                         new_streak    = streak  # loss blocked, keep streak
                     else:
                         # Guard failed: take the loss
-                        if 'resilience' in owned and streak > 0:
+                        if 'resilience' in owned and streak > 0 and random.random() < 0.50:
+                            resilience_triggered = True
                             new_streak = max(0, streak - 1)
                         else:
                             new_streak = streak - 1 if streak <= 0 else -1
@@ -168,7 +171,8 @@ def spin():
 
                 else:
                     # No protection
-                    if 'resilience' in owned and streak > 0:
+                    if 'resilience' in owned and streak > 0 and random.random() < 0.50:
+                        resilience_triggered = True
                         new_streak = max(0, streak - 1)
                     else:
                         new_streak = streak - 1 if streak <= 0 else -1
@@ -244,8 +248,9 @@ def spin():
             'guard_triggered':    guard_triggered,
             'guard_blocked':      guard_blocked,
             'bonus_earned':       bonus_earned,
-            'echo_triggered':     echo_triggered,
-            'jackpot_hit':        jackpot_hit,
+            'echo_triggered':        echo_triggered,
+            'jackpot_hit':           jackpot_hit,
+            'resilience_triggered':  resilience_triggered,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)

@@ -29,7 +29,7 @@ function drawWheel(canvas, theme = 'default') {
 
   const THEMES = {
     default: [
-      { label: 'WIN',  color: '#B8860B', bright: '#FFD700', start: -Math.PI/2, end: Math.PI/2 },
+      { label: 'WIN',  color: '#006622', bright: '#00CC44', start: -Math.PI/2, end: Math.PI/2 },
       { label: 'LOSE', color: '#8B0000', bright: '#FF3333', start: Math.PI/2,  end: Math.PI*1.5 },
     ],
     fire: [
@@ -129,9 +129,9 @@ function drawGuardWheel(canvas) {
 
   ctx.clearRect(0, 0, size, size);
 
-  // WIN (15%): canvas angles centered at 0° (right side = 3 o'clock)
+  // WIN (50%): canvas angles centered at 0° (right side = 3 o'clock)
   // At CSS rotation 270° the right side is at 12 o'clock (pointer)
-  const winHalf = Math.PI * 0.15; // ±27°
+  const winHalf = Math.PI * 0.50; // ±90°
   const winStart = -winHalf;
   const winEnd   = winHalf;
 
@@ -251,11 +251,11 @@ function GuardWheel({ blocked, onComplete }) {
     // FAIL centered at canvas 180°; CSS rotation 90° brings it to pointer.
     const baseSpins = 4 * 360;
     const targetAngle = blocked ? 270 : 90;
-    setGuardRotation(baseSpins + targetAngle);
-
+    // Delay so browser paints rotation=0 before transitioning (otherwise no animation)
+    const spinTimer     = setTimeout(() => setGuardRotation(baseSpins + targetAngle), 50);
     const revealTimer   = setTimeout(() => setRevealed(true), 2000);
     const completeTimer = setTimeout(() => onComplete(), 3400);
-    return () => { clearTimeout(revealTimer); clearTimeout(completeTimer); };
+    return () => { clearTimeout(spinTimer); clearTimeout(revealTimer); clearTimeout(completeTimer); };
   }, []); // eslint-disable-line
 
   return (
@@ -524,7 +524,7 @@ const SHOP_SECTIONS = [
     { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',    cost: 38400, desc: '+100 clicks per 5s',    requires: 'clickfrenzy_4' },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300, desc: '15% chance to block any loss. Breaks on success, survives on failure.' },
+    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300, desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
     { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 800, desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
   ]},
   { label: '🎡 Wheel Theme', items: [
@@ -549,11 +549,14 @@ const SHOP_SECTIONS = [
     { id: 'bg_abyss',    emoji: '🌑', name: 'The Abyss',       cost: 15000, desc: 'Void of darkness',        requires: 'bg_forest' },
     { id: 'bg_cosmic',   emoji: '🌌', name: 'Cosmic Casino',   cost: 50000, desc: 'Deep space nebula',       requires: 'bg_abyss' },
   ]},
+  { label: '🖼️ Page Theme', items: [
+    { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme. Season 2 (green/red) is default.' },
+  ]},
   { label: '🎲 Special Upgrades', items: [
     { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 500,  desc: '+25% to all streak bonus payouts' },
     { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 1000, desc: 'Every 7th spin is guaranteed a win' },
     { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 750,  desc: '20% chance to double wins earned on any win' },
-    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 400,  desc: 'On win streak, a loss only drops streak by 1 instead of resetting' },
+    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 500000, desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting' },
     { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000, desc: '2% chance each win to multiply gains by 50x' },
   ]},
   { label: '🌌 Legendary', items: [
@@ -576,6 +579,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
+  'page_season1',
 ]);
 
 // ── Shop components ────────────────────────────────────────────────────────
@@ -605,7 +609,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
       <span className="shop-item-emoji">{item.emoji}</span>
       <div className="shop-item-info">
         <div className="shop-item-name">{item.name}</div>
-        {item.desc && <div className="shop-item-desc">{item.desc}</div>}
+        {item.desc && <div className="shop-item-desc" data-tooltip={item.desc}>{item.desc}</div>}
         {!owned && <div className="shop-item-cost">🐟 {item.cost.toLocaleString()}</div>}
       </div>
       <div className="shop-item-action">{actionEl}</div>
@@ -613,9 +617,11 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
   );
 });
 
-const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere']);
+const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
 function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBuy, onEquip, onEquipCosmetic }) {
+  const [activeTab, setActiveTab] = useState('cosmetic');
+
   const { cosmeticSections, functionalSections } = useMemo(() => {
     const cosmetic = [], functional = [];
     SHOP_SECTIONS.forEach(section => {
@@ -653,10 +659,13 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBu
         <div className="shop-title">🛒 Shop</div>
         <div className="shop-balance">Balance: <span>🐟 {fmt(fishClicks)}</span></div>
       </div>
-      <div className="shop-columns">
-        <div className="shop-col">
-          <div className="shop-col-header">🎨 Cosmetic</div>
-          <div className="shop-col-items">
+      <div className="shop-tabs">
+        <button className={`shop-tab ${activeTab === 'cosmetic' ? 'active' : ''}`} onClick={() => setActiveTab('cosmetic')}>🎨 Cosmetic</button>
+        <button className={`shop-tab ${activeTab === 'functional' ? 'active' : ''}`} onClick={() => setActiveTab('functional')}>⚡ Functional</button>
+      </div>
+      <div className="shop-tab-content">
+        {activeTab === 'cosmetic' ? (
+          <>
             <div className="shop-section-label">── Fish Skins ──</div>
             {FISH_SKINS.map(item => (
               <ShopItem key={item.id} item={item} isSkin
@@ -667,14 +676,10 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBu
               />
             ))}
             {cosmeticSections.map(renderSection)}
-          </div>
-        </div>
-        <div className="shop-col">
-          <div className="shop-col-header">⚡ Functional</div>
-          <div className="shop-col-items">
-            {functionalSections.map(renderSection)}
-          </div>
-        </div>
+          </>
+        ) : (
+          functionalSections.map(renderSection)
+        )}
       </div>
     </div>
   );
@@ -777,8 +782,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishMood, setFishMood]       = useState('idle');
   const [fishClicks, setFishClicks]   = useState(gameState.fish_clicks);
   const [bonusEarned, setBonusEarned] = useState(0);
-  const [echoTriggered, setEchoTriggered] = useState(false);
-  const [jackpotHit, setJackpotHit]   = useState(false);
+  const [echoTriggered, setEchoTriggered]           = useState(false);
+  const [jackpotHit, setJackpotHit]                 = useState(false);
+  const [resilienceTriggered, setResilienceTriggered] = useState(false);
   const [shieldCharges, setShieldCharges]         = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
   const [autoSpin, setAutoSpin]       = useState(false);
@@ -857,6 +863,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return '';
   }, [activeCosmetics]);
 
+  const pageThemeClass = useMemo(() => {
+    return activeCosmetics.includes('page_season1') ? 'page-season1' : '';
+  }, [activeCosmetics]);
+
   const currentRotationRef = useRef(0);
   const fishTimerRef       = useRef(null);
   const toastTimerRef      = useRef(null);
@@ -918,9 +928,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [season ? season.season_number : null]); // eslint-disable-line
 
   useEffect(() => {
-    document.body.className = bgClass;
+    const classes = [bgClass, pageThemeClass].filter(Boolean).join(' ');
+    document.body.className = classes;
     return () => { document.body.className = ''; };
-  }, [bgClass]);
+  }, [bgClass, pageThemeClass]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1008,11 +1019,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setBonusEarned(data.bonus_earned);
     setEchoTriggered(!!data.echo_triggered);
     setJackpotHit(!!data.jackpot_hit);
+    setResilienceTriggered(!!data.resilience_triggered);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
       chargesLeft: data.shield_charges,
       rechargeWins: data.regen_recharge_wins ?? 0,
+    } : (data.guard_triggered && data.guard_blocked) ? {
+      type: 'guard',
+      broke: true,
     } : null);
     setShowResultSync(true);
 
@@ -1044,6 +1059,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setBonusEarned(0);
     setEchoTriggered(false);
     setJackpotHit(false);
+    setResilienceTriggered(false);
     spinningRef.current = true;
     setSpinning(true);
 
@@ -1161,9 +1177,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
-        {season && <SeasonInfo seasonNumber={season.season_number} endsAt={season.ends_at} />}
         <button className="stats-btn" onClick={() => setShowStats(true)}>📊</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        {season && <SeasonInfo seasonNumber={season.season_number} endsAt={season.ends_at} />}
       </div>
 
       <Fish
@@ -1191,6 +1207,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {echoTriggered && !jackpotHit && (
             <div className="bonus-line echo-line">🔊 WIN ECHO! Double wins!</div>
           )}
+          {resilienceTriggered && (
+            <div className="bonus-line resilience-line">💪 RESILIENCE! Streak -1 (not reset)</div>
+          )}
           {bonusEarned > 0 && (
             <div className="bonus-line">🔥 Streak Bonus +{fmt(bonusEarned)}!</div>
           )}
@@ -1198,12 +1217,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="bonus-line lose-bonus">💀 Loss Streak +{fmt(Math.abs(bonusEarned))} extra losses!</div>
           )}
           {shieldFeedback && (() => {
-            const names  = { regen_shield: 'Regenerating Shield' };
-            const emojis = { regen_shield: '🔄' };
+            const names  = { regen_shield: 'Regenerating Shield', guard: 'Guard' };
+            const emojis = { regen_shield: '🔄', guard: '🛡️' };
             const name  = names[shieldFeedback.type]  || shieldFeedback.type;
             const emoji = emojis[shieldFeedback.type] || '🛡️';
             const sub   = shieldFeedback.type === 'regen_shield'
               ? `Recharging… ${shieldFeedback.rechargeWins} win${shieldFeedback.rechargeWins !== 1 ? 's' : ''}`
+              : shieldFeedback.type === 'guard'
+              ? 'Guard consumed'
               : null;
             return (
               <div className="shield-feedback">
@@ -1284,7 +1305,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onEquipCosmetic={handleEquipCosmetic}
           />
         </div>
+      </div>
 
+      <div className="leaderboard-bar">
         <Leaderboard currentUser={username} />
       </div>
     </div>

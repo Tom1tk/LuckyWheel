@@ -79,6 +79,7 @@ SHOP_ITEMS = {
     'theme_gold':     {'cost': 40000,       'requires': 'theme_void'},
     # Misc cosmetics
     'golden_wheel':   {'cost': 300,         'requires': None},
+    'page_season1':   {'cost': 1000,        'requires': None},
     'party_mode':     {'cost': 150,         'requires': None},
     'confetti_1':     {'cost': 75,          'requires': None},
     'confetti_2':     {'cost': 300,         'requires': 'confetti_1'},
@@ -94,7 +95,7 @@ SHOP_ITEMS = {
     'fortune_charm':  {'cost': 500,         'requires': None},
     'lucky_seven':    {'cost': 1000,        'requires': None},
     'win_echo':       {'cost': 750,         'requires': None},
-    'resilience':     {'cost': 400,         'requires': None},
+    'resilience':     {'cost': 500000,      'requires': None},
     'jackpot':        {'cost': 3000,        'requires': None},
     # Legendary
     'singularity':    {'cost': 1000000000,  'requires': None},
