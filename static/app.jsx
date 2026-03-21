@@ -286,7 +286,7 @@ function GuardWheel({ blocked, onComplete }) {
 }
 
 // ── Fish ──────────────────────────────────────────────────────────────────
-const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fishData, sizeRem, trailClass }) {
+const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fishData, sizeRem, trailClass, lowSpec }) {
   const [spinKey, setSpinKey] = useState(0);
   const [fishSpinning, setFishSpinning] = useState(false);
   const timerRef = useRef(null);
@@ -304,15 +304,15 @@ const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fish
   const glowSize  = Math.min(8  + diff * 3, 80);
   const glowSize2 = Math.min(16 + diff * 6, 160);
   const glowOpacity = Math.min(0.5 + diff * 0.015, 1.0);
-  const fishFilter = net > 0
+  const fishFilter = lowSpec ? 'none' : (net > 0
     ? `drop-shadow(0 0 ${glowSize}px rgba(255,140,0,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(255,80,0,${glowOpacity * 0.6}))`
     : net < 0
     ? `drop-shadow(0 0 ${glowSize}px rgba(160,0,255,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(80,0,180,${glowOpacity * 0.6}))`
-    : 'drop-shadow(0 0 8px rgba(255,215,0,0.3))';
-  const auraBlur    = Math.min(80 + diff * 12, 600);
+    : 'drop-shadow(0 0 8px rgba(255,215,0,0.3))');
+  const auraBlur    = Math.min(80 + diff * 12, 120);
   const auraOpacity = Math.min(0.3 + diff * 0.008, 0.88);
   const auraColor   = net > 0 ? 'rgba(255,130,0,0.9)' : 'rgba(150,0,255,0.9)';
-  const auraStyle   = diff > 0 ? {
+  const auraStyle   = (!lowSpec && diff > 0) ? {
     background: auraColor,
     filter: `blur(${auraBlur}px)`,
     opacity: auraOpacity,
@@ -806,6 +806,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showStats, setShowStats]     = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
+  const [lowSpec, setLowSpec]         = useState(() => localStorage.getItem('lowSpecMode') === 'true');
 
   const spinSpeed = useMemo(() => {
     if (ownedItems.includes('maxspin'))   return 0.5;
@@ -883,6 +884,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const currentRotationRef = useRef(0);
   const fishTimerRef       = useRef(null);
   const toastTimerRef      = useRef(null);
+  const confettiTimerRef   = useRef(null);
   const autoSpinRef        = useRef(false);
   const spinSpeedRef       = useRef(4.5);
   const autoSpinDelayRef   = useRef(1500);
@@ -890,14 +892,20 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const showResultRef      = useRef(false);
   const clickBufferRef     = useRef(0);
   const activeCosmeticsRef = useRef(activeCosmetics);
+  const lowSpecRef         = useRef(lowSpec);
 
   useEffect(() => { activeCosmeticsRef.current = activeCosmetics; }, [activeCosmetics]);
+  useEffect(() => { lowSpecRef.current = lowSpec; }, [lowSpec]);
   useEffect(() => {
     autoSpinRef.current = autoSpin;
     if (autoSpin && !spinning) spin();
   }, [autoSpin]); // eslint-disable-line
   useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
   useEffect(() => { autoSpinDelayRef.current = autoSpinDelay; }, [autoSpinDelay]);
+  useEffect(() => {
+    localStorage.setItem('lowSpecMode', lowSpec);
+    document.body.classList.toggle('low-spec', lowSpec);
+  }, [lowSpec]);
 
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);
@@ -1052,10 +1060,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setShowResultSync(true);
 
     const cosm = activeCosmeticsRef.current;
-    if (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) {
-      setConfetti(true);
-    } else if (cosm.includes('party_mode')) {
-      setConfetti(true);
+    if (!lowSpecRef.current) {
+      if (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) {
+        setConfetti(true);
+      } else if (cosm.includes('party_mode')) {
+        setConfetti(true);
+      }
+      if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
+      confettiTimerRef.current = setTimeout(() => setConfetti(false), 3500);
     }
 
     const mood = (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) ? 'happy' : 'sad';
@@ -1180,7 +1192,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const hasRegen = ownedItems.includes('regen_shield');
 
   return (
-    <div>
+    <div className={lowSpec ? 'low-spec' : ''}>
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
       {toast && <div className="toast-notification">{toast}</div>}
       <Confetti active={confetti} count={confettiCount} />
@@ -1200,6 +1212,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
         <button className="stats-btn" onClick={() => setShowStats(true)}>📊</button>
+        <button
+          className="stats-btn"
+          onClick={() => setLowSpec(v => !v)}
+          title={lowSpec ? 'Low Spec Mode ON — click to restore animations' : 'Low Spec Mode OFF — click to reduce GPU usage'}
+          style={{ opacity: lowSpec ? 1 : 0.5 }}
+        >⚡</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         {season && <SeasonInfo seasonNumber={season.season_number} endsAt={season.ends_at} />}
       </div>
@@ -1211,6 +1229,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         fishData={getFishData(equippedFish)}
         sizeRem={fishSizeRem}
         trailClass={trailClass}
+        lowSpec={lowSpec}
         onFishClick={handleFishClick}
       />
 
