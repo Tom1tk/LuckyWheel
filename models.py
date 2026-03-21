@@ -68,6 +68,7 @@ SHOP_ITEMS = {
     'clickfrenzy_3':  {'cost': 2400,        'requires': 'clickfrenzy_2'},
     'clickfrenzy_4':  {'cost': 9600,        'requires': 'clickfrenzy_3'},
     'clickfrenzy_5':  {'cost': 38400,       'requires': 'clickfrenzy_4'},
+    'final_frenzy':   {'cost': 100000,      'requires': 'clickfrenzy_5'},
     # Protection
     'guard':          {'cost': 300,         'requires': None},
     'regen_shield':   {'cost': 800,         'requires': None},

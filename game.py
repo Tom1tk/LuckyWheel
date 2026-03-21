@@ -451,7 +451,9 @@ def click_frenzy():
 
             owned = list(gs['owned_items'])
 
-            if 'clickfrenzy_5' in owned:
+            if 'final_frenzy' in owned:
+                amount = 500
+            elif 'clickfrenzy_5' in owned:
                 amount = 100
             elif 'clickfrenzy_4' in owned:
                 amount = 50

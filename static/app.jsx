@@ -341,7 +341,7 @@ const StreakPanel = React.memo(function StreakPanel({ streak }) {
   const count = Math.abs(streak);
   const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
   return (
-    <div className={`streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`} key={streak}>
+    <div className={`streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`}>
       <span className="streak-fire">{isWin ? '🔥' : '💀'}</span>
       <span className="streak-count">{count}x</span>
       <span className="streak-label">{isWin ? 'Win Streak' : 'Lose Streak'}</span>
@@ -521,7 +521,8 @@ const SHOP_SECTIONS = [
     { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 clicks per 5s',       requires: 'clickfrenzy_1' },
     { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 clicks per 5s',      requires: 'clickfrenzy_2' },
     { id: 'clickfrenzy_4',  emoji: '🌪️', name: 'Frenzy IV',   cost: 9600, desc: '+50 clicks per 5s',      requires: 'clickfrenzy_3' },
-    { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',    cost: 38400, desc: '+100 clicks per 5s',    requires: 'clickfrenzy_4' },
+    { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',      cost: 38400,  desc: '+100 clicks per 5s',                      requires: 'clickfrenzy_4' },
+    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 100000, desc: '500 clicks/5s auto — manual clicking disabled', requires: 'clickfrenzy_5' },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300, desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
@@ -829,6 +830,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [ownedItems]);
 
   const clickFrenzyRate = useMemo(() => {
+    if (ownedItems.includes('final_frenzy'))  return 500;
     if (ownedItems.includes('clickfrenzy_5')) return 100;
     if (ownedItems.includes('clickfrenzy_4')) return 50;
     if (ownedItems.includes('clickfrenzy_3')) return 20;
@@ -1013,10 +1015,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [showToast]);
 
   const handleFishClick = useCallback(() => {
+    if (ownedItems.includes('final_frenzy')) return;
     setFishClicks(c => c + clickAmount);
     clickBufferRef.current += 1;
     if (clickBufferRef.current >= 10) flushClicks();
-  }, [clickAmount, flushClicks]);
+  }, [clickAmount, flushClicks, ownedItems]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
@@ -1026,7 +1029,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setStreak(data.streak);
     setShieldCharges(data.shield_charges);
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
-    if (data.owned_items) setOwnedItems(data.owned_items);
+    if (data.owned_items) {
+      const spinResult = new Set(data.owned_items);
+      // Only let the spin remove items it can consume (guard); preserve mid-spin purchases
+      setOwnedItems(prev => prev.filter(id => id !== 'guard' || spinResult.has('guard')));
+    }
     setBonusEarned(data.bonus_earned);
     setEchoTriggered(!!data.echo_triggered);
     setJackpotHit(!!data.jackpot_hit);
@@ -1304,8 +1311,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <div className="game-right">
         <div className="game-right-body">
           <div className="game-right-sidebar">
-            <StreakPanel streak={streak} />
-
             {(hasGuard || hasRegen) && (
               <div className="shield-indicator">
                 {hasGuard && <div>🛡️ Guard ready</div>}
@@ -1314,6 +1319,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 )}
               </div>
             )}
+            <StreakPanel streak={streak} />
           </div>
 
           <ShopPanel
