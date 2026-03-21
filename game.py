@@ -23,6 +23,7 @@ COSMETIC_SLOTS = {
     'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
     'page_season1': 'page_theme',
+    'final_frenzy': 'frenzy_mode',
 }
 from security import require_json
 
@@ -444,14 +445,15 @@ def click_frenzy():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT fish_clicks, total_fish_clicks, owned_items FROM game_state WHERE user_id = %s FOR UPDATE',
+                    'SELECT fish_clicks, total_fish_clicks, owned_items, active_cosmetics FROM game_state WHERE user_id = %s FOR UPDATE',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
-            owned = list(gs['owned_items'])
+            owned            = list(gs['owned_items'])
+            active_cosmetics = list(gs['active_cosmetics'])
 
-            if 'final_frenzy' in owned:
+            if 'final_frenzy' in active_cosmetics:
                 amount = 500
             elif 'clickfrenzy_5' in owned:
                 amount = 100
