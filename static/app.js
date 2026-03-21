@@ -955,7 +955,7 @@ const SHOP_SECTIONS = [{
     emoji: '🌀',
     name: 'Final Frenzy',
     cost: 100000,
-    desc: '500 clicks/5s auto — manual clicking disabled',
+    desc: '500 clicks/5s auto — manual clicking disabled. Toggle to switch back to Frenzy V.',
     requires: 'clickfrenzy_5'
   }]
 }, {
@@ -1152,7 +1152,7 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1']);
+const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'final_frenzy']);
 
 // ── Shop components ────────────────────────────────────────────────────────
 const ShopItem = React.memo(function ShopItem({
@@ -1488,7 +1488,7 @@ function GameApp({
     return 1;
   }, [ownedItems]);
   const clickFrenzyRate = useMemo(() => {
-    if (ownedItems.includes('final_frenzy')) return 500;
+    if (activeCosmetics.includes('final_frenzy')) return 500;
     if (ownedItems.includes('clickfrenzy_5')) return 100;
     if (ownedItems.includes('clickfrenzy_4')) return 50;
     if (ownedItems.includes('clickfrenzy_3')) return 20;
@@ -1696,11 +1696,11 @@ function GameApp({
     if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
   }, [showToast]);
   const handleFishClick = useCallback(() => {
-    if (ownedItems.includes('final_frenzy')) return;
+    if (activeCosmetics.includes('final_frenzy')) return;
     setFishClicks(c => c + clickAmount);
     clickBufferRef.current += 1;
     if (clickBufferRef.current >= 10) flushClicks();
-  }, [clickAmount, flushClicks, ownedItems]);
+  }, [clickAmount, flushClicks, activeCosmetics]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback(data => {

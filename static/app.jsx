@@ -522,7 +522,7 @@ const SHOP_SECTIONS = [
     { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 clicks per 5s',      requires: 'clickfrenzy_2' },
     { id: 'clickfrenzy_4',  emoji: '🌪️', name: 'Frenzy IV',   cost: 9600, desc: '+50 clicks per 5s',      requires: 'clickfrenzy_3' },
     { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',      cost: 38400,  desc: '+100 clicks per 5s',                      requires: 'clickfrenzy_4' },
-    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 100000, desc: '500 clicks/5s auto — manual clicking disabled', requires: 'clickfrenzy_5' },
+    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 100000, desc: '500 clicks/5s auto — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300, desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
@@ -581,6 +581,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
   'page_season1',
+  'final_frenzy',
 ]);
 
 // ── Shop components ────────────────────────────────────────────────────────
@@ -831,7 +832,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [ownedItems]);
 
   const clickFrenzyRate = useMemo(() => {
-    if (ownedItems.includes('final_frenzy'))  return 500;
+    if (activeCosmetics.includes('final_frenzy'))  return 500;
     if (ownedItems.includes('clickfrenzy_5')) return 100;
     if (ownedItems.includes('clickfrenzy_4')) return 50;
     if (ownedItems.includes('clickfrenzy_3')) return 20;
@@ -1023,11 +1024,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [showToast]);
 
   const handleFishClick = useCallback(() => {
-    if (ownedItems.includes('final_frenzy')) return;
+    if (activeCosmetics.includes('final_frenzy')) return;
     setFishClicks(c => c + clickAmount);
     clickBufferRef.current += 1;
     if (clickBufferRef.current >= 10) flushClicks();
-  }, [clickAmount, flushClicks, ownedItems]);
+  }, [clickAmount, flushClicks, activeCosmetics]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
