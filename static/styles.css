@@ -133,6 +133,7 @@ body::before {
   transition: transform 4.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
   position: relative;
   z-index: 2;
+  will-change: transform;
 }
 
 .wheel-canvas.spinning {
@@ -434,6 +435,7 @@ body::before {
   height: 16px;
   border-radius: 50%;
   animation: bulbFlash 0.8s ease-in-out infinite;
+  will-change: opacity;
 }
 
 .bulb:nth-child(odd)  { background: #00CC44; box-shadow: 0 0 8px #00CC44; animation-delay: 0s; }
@@ -1516,7 +1518,7 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
 }
 
 .trail-thunder .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, thunderAura 0.3s ease-in-out infinite alternate;
+  animation: fishBob 2.4s ease-in-out infinite, thunderAura 0.8s ease-in-out infinite alternate;
 }
 @keyframes thunderAura {
   from { filter: drop-shadow(0 0 14px #FFEE00) drop-shadow(0 0 30px #FF9900); }
@@ -1732,3 +1734,53 @@ body.page-season1 .season-winners-title { color: #FFD700; }
 body.page-season1 .sw-gold { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.6); }
 body.page-season1 .season-info { color: #FFD700; }
 body.page-season1 .season-countdown { color: #FFA500; background: rgba(255,165,0,0.1); border-color: rgba(255,165,0,0.25); }
+
+/* ── Low Spec Mode ───────────────────────────────────────────────────────── */
+/* Kills expensive infinite animations and GPU-heavy effects.                 */
+/* Activated via the ⚡ toggle in the user bar, stored in localStorage.      */
+
+.low-spec .casino-title               { animation: none; }
+.low-spec .pointer                    { animation: none; }
+.low-spec .spin-prompt                { animation: none; opacity: 1; transform: none; }
+.low-spec .bulb                       { animation: none; opacity: 0.55; will-change: auto; }
+.low-spec .fish-body                  { animation: none; }
+.low-spec .streak-fire                { animation: none; }
+.low-spec .leaderboard-track          { animation: none; }
+.low-spec .shop-item.singularity-item { animation: none; box-shadow: 0 0 8px 2px #CC00FF; border-color: #CC00FF; }
+
+/* Kill all trail filter animations */
+.low-spec [class*="trail-"] .fish-body { animation: none; filter: none; }
+
+/* Remove the 600px blur aura */
+.low-spec .fish-aura                  { display: none; }
+
+/* Remove the triple box-shadow glow ring around the wheel */
+.low-spec .wheel-wrapper::before      { box-shadow: none; }
+
+/* Remove the animated ambient border on body */
+body.low-spec::before                 { display: none; }
+
+/* Simplify glow-heavy text shadows */
+.low-spec .casino-title               { text-shadow: none; color: #00CC44; }
+.low-spec .score-box.wins-box .score-value   { text-shadow: none; }
+.low-spec .score-box.losses-box .score-value { text-shadow: none; }
+
+/* Confetti DOM elements won't be created (JS guard), but hide container as safety net */
+.low-spec .confetti-container         { display: none; }
+
+/* Pointer drop-shadow is expensive; replace with simpler border color */
+.low-spec .pointer                    { filter: none; border-top-color: #00CC44; }
+
+/* ── Respect OS-level reduced motion preference ──────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .casino-title, .pointer, .spin-prompt, .bulb, .fish-body,
+  .streak-fire, .leaderboard-track, .shop-item.singularity-item,
+  [class*="trail-"] .fish-body {
+    animation: none !important;
+  }
+  .fish-aura           { display: none; }
+  .wheel-wrapper::before { box-shadow: none; }
+  body::before         { display: none; }
+  .pointer             { filter: none; }
+  .confetti-container  { display: none; }
+}
