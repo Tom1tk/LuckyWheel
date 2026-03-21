@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # deploy.sh — Promote staging → production
 #
-# Usage: ./deploy.sh [--skip-build]
+# Usage: ./deploy.sh [--skip-build] [--yes]
 #
 # What it does:
 #   1. Checks production worktree is clean
@@ -16,9 +16,11 @@ set -euo pipefail
 PROD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STAGING_DIR="/home/user/wheel-app-staging"
 SKIP_BUILD=false
+AUTO_YES=false
 
 for arg in "$@"; do
   [[ "$arg" == "--skip-build" ]] && SKIP_BUILD=true
+  [[ "$arg" == "--yes" ]] && AUTO_YES=true
 done
 
 cd "$PROD_DIR"
@@ -36,17 +38,19 @@ echo "==> Merging staging → master..."
 git merge staging --no-edit
 
 echo "==> Migration dry-run (production DB)..."
-python migrate.py --dry-run
+python3 migrate.py --dry-run
 
 echo ""
-read -rp "Apply these migrations to production? [y/N] " confirm
-if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-  echo "Aborted. No migrations applied, merge is in place."
-  exit 0
+if [[ "${AUTO_YES}" != true ]]; then
+  read -rp "Apply these migrations to production? [y/N] " confirm
+  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "Aborted. No migrations applied, merge is in place."
+    exit 0
+  fi
 fi
 
 echo "==> Applying migrations to production..."
-python migrate.py
+python3 migrate.py
 
 if [[ "$SKIP_BUILD" == false ]]; then
   echo "==> Rebuilding JSX..."

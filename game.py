@@ -13,12 +13,16 @@ from seasons import ensure_current_season, get_season_info
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
+    'bg_forest':  'bg', 'bg_abyss':   'bg', 'bg_cosmic':  'bg',
     'fishsize_1': 'size', 'fishsize_2': 'size', 'fishsize_3': 'size',
     'confetti_1': 'confetti', 'confetti_2': 'confetti', 'confetti_3': 'confetti',
     'party_mode': 'party',
     'trail_1': 'trail', 'trail_2': 'trail', 'trail_3': 'trail',
+    'trail_4': 'trail', 'trail_5': 'trail', 'trail_6': 'trail',
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
+    'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
+    'page_season1': 'page_theme',
 }
 from security import require_json
 
@@ -87,7 +91,7 @@ def spin():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, streak, owned_items, shield_charges, regen_recharge_wins,
-                              spin_count, win_count
+                              spin_count, win_count, loss_count
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -98,81 +102,120 @@ def spin():
             shield_charges      = gs['shield_charges']
             regen_recharge_wins = gs['regen_recharge_wins']
 
+            # New spin count (used by lucky_seven)
+            new_spin_count = gs['spin_count'] + 1
+
             # Determine outcome
             if 'singularity' in owned:
                 outcome = 'win'
+            elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
+                outcome = 'win'
+                lucky_seven_triggered = True
             else:
                 outcome = secrets.choice(['win', 'lose'])
 
             # Multipliers
-            win_mult = (16 if 'winmult_4' in owned else
-                        8  if 'winmult_3' in owned else
-                        4  if 'winmult_2' in owned else
-                        2  if 'winmult_1' in owned else 1)
-            bonus_mult = (10 if 'bonusmult_3' in owned else
-                          5  if 'bonusmult_2' in owned else
-                          2  if 'bonusmult_1' in owned else 1)
+            win_mult = (128 if 'winmult_7' in owned else
+                        64  if 'winmult_6' in owned else
+                        32  if 'winmult_5' in owned else
+                        16  if 'winmult_4' in owned else
+                        8   if 'winmult_3' in owned else
+                        4   if 'winmult_2' in owned else
+                        2   if 'winmult_1' in owned else 1)
+            bonus_mult = (100 if 'bonusmult_6' in owned else
+                          50  if 'bonusmult_5' in owned else
+                          20  if 'bonusmult_4' in owned else
+                          10  if 'bonusmult_3' in owned else
+                          5   if 'bonusmult_2' in owned else
+                          2   if 'bonusmult_1' in owned else 1)
 
             shield_used      = False
             shield_broke     = False
             shield_used_type = None
+            guard_triggered  = False
+            guard_blocked    = False
             new_wins         = int(gs['wins'])
             new_losses       = gs['losses']
             bonus_earned     = 0
             new_owned        = owned
+            echo_triggered        = False
+            jackpot_hit           = False
+            resilience_triggered  = False
+            lucky_seven_triggered = False
+            fortune_charm_triggered = False
 
-            # Shields only activate when a win streak is about to be broken
-            if outcome == 'lose' and streak > 0:
-                if 'shield_1' in owned:
-                    shield_used      = True
-                    shield_used_type = 'shield_1'
-                    shield_broke     = True
-                    new_owned        = [x for x in owned if x != 'shield_1']
-                    new_streak       = streak
-
-                elif 'iron_shield' in owned and shield_charges > 0:
-                    shield_used      = True
-                    shield_used_type = 'iron_shield'
-                    shield_charges  -= 1
-                    if shield_charges <= 0:
-                        shield_charges = 0
-                        new_owned    = [x for x in owned if x != 'iron_shield']
-                        shield_broke = True
-                    new_streak = streak
-
-                elif 'regen_shield' in owned and regen_recharge_wins == 0:
+            if outcome == 'lose':
+                # Regen shield: protects any loss when charged
+                if 'regen_shield' in owned and regen_recharge_wins == 0:
                     shield_used         = True
                     shield_used_type    = 'regen_shield'
                     regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
                     new_streak          = streak
 
-                else:
-                    new_streak   = -1
-                    bonus_earned = 0
-                    new_losses  += 1
+                # Guard: 50% chance to block any loss
+                elif 'guard' in owned:
+                    guard_triggered = True
+                    if random.random() < 0.50:
+                        guard_blocked = True
+                        new_owned     = [x for x in new_owned if x != 'guard']
+                        new_streak    = streak  # loss blocked, keep streak
+                    else:
+                        # Guard failed: take the loss
+                        if 'resilience' in owned and streak > 0 and random.random() < 0.50:
+                            resilience_triggered = True
+                            new_streak = max(0, streak - 1)
+                        else:
+                            new_streak = streak - 1 if streak <= 0 else -1
+                        loss_count   = abs(new_streak) if new_streak < 0 else 0
+                        raw_lb       = (1 << (loss_count - 3)) if loss_count >= 3 else 0
+                        loss_bonus   = raw_lb * bonus_mult
+                        new_losses  += 1 + loss_bonus
+                        bonus_earned = -loss_bonus if loss_bonus > 0 else 0
 
-            else:
-                if outcome == 'win':
-                    new_streak = streak + 1 if streak >= 0 else 1
-                    if regen_recharge_wins > 0:
-                        regen_recharge_wins -= 1
                 else:
-                    new_streak = streak - 1 if streak <= 0 else -1
+                    # No protection
+                    if 'resilience' in owned and streak > 0 and random.random() < 0.50:
+                        resilience_triggered = True
+                        new_streak = max(0, streak - 1)
+                    else:
+                        new_streak = streak - 1 if streak <= 0 else -1
+                    loss_count   = abs(new_streak) if new_streak < 0 else 0
+                    raw_lb       = (1 << (loss_count - 3)) if loss_count >= 3 else 0
+                    loss_bonus   = raw_lb * bonus_mult
+                    new_losses  += 1 + loss_bonus
+                    bonus_earned = -loss_bonus if loss_bonus > 0 else 0
 
-                if outcome == 'win':
-                    count        = abs(new_streak)
-                    # Integer bitshift avoids float precision loss.
-                    # wins is NUMERIC (arbitrary precision) — no overflow cap needed.
-                    raw_bonus    = (1 << (count - 3)) if count >= 3 else 0
-                    bonus_earned = raw_bonus * bonus_mult
-                    new_wins    += win_mult + bonus_earned
+            else:  # outcome == 'win'
+                new_streak = streak + 1 if streak >= 0 else 1
+                if regen_recharge_wins > 0:
+                    regen_recharge_wins -= 1
+
+                count     = abs(new_streak)
+                raw_bonus = (1 << (count - 3)) if count >= 3 else 0
+                base_bonus = raw_bonus * bonus_mult
+                # Fortune charm: +25% to all streak bonuses
+                if 'fortune_charm' in owned and base_bonus > 0 and random.random() < 0.25:
+                    base_bonus = int(base_bonus * 1.25)
+                    fortune_charm_triggered = True
+                bonus_earned = base_bonus
+
+                # Jackpot: 2% chance to multiply wins by 50
+                if 'jackpot' in owned and random.random() < 0.01:
+                    jackpot_hit = True
+                    new_wins += (win_mult + bonus_earned) * 50
+                    bonus_earned = (win_mult + bonus_earned) * 50 - win_mult  # show inflated bonus
                 else:
-                    bonus_earned = 0
-                    new_losses  += 1
+                    # Win echo: 20% chance to double wins earned
+                    if 'win_echo' in owned and random.random() < 0.20:
+                        echo_triggered = True
+                        new_wins += (win_mult + bonus_earned) * 2
+                        bonus_earned = win_mult + bonus_earned  # extra portion shown as bonus
+                    else:
+                        new_wins += win_mult + bonus_earned
 
             # Stats tracking
-            new_spin_count = gs['spin_count'] + 1
-            new_win_count  = gs['win_count'] + (1 if outcome == 'win' else 0)
+            new_win_count  = gs['win_count']  + (1 if outcome == 'win'  else 0)
+            new_loss_count = gs['loss_count'] + (1 if outcome == 'lose' else 0)
 
             # Wheel rotation angle
             extra_spins = random.randint(5, 8) * 360
@@ -187,11 +230,11 @@ def spin():
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, streak = %s,
                            shield_charges = %s, regen_recharge_wins = %s,
-                           owned_items = %s, spin_count = %s, win_count = %s
+                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak,
                      shield_charges, regen_recharge_wins,
-                     new_owned, new_spin_count, new_win_count, current_user.id),
+                     new_owned, new_spin_count, new_win_count, new_loss_count, current_user.id),
                 )
             conn.commit()
 
@@ -207,7 +250,14 @@ def spin():
             'shield_used':        shield_used,
             'shield_used_type':   shield_used_type,
             'shield_broke':       shield_broke,
+            'guard_triggered':    guard_triggered,
+            'guard_blocked':      guard_blocked,
             'bonus_earned':       bonus_earned,
+            'echo_triggered':          echo_triggered,
+            'jackpot_hit':             jackpot_hit,
+            'resilience_triggered':    resilience_triggered,
+            'lucky_seven_triggered':   lucky_seven_triggered,
+            'fortune_charm_triggered': fortune_charm_triggered,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -254,10 +304,7 @@ def buy():
             new_clicks = fish_clicks - cost
             new_owned  = owned + [item_id]
 
-            if item_id == 'iron_shield':
-                new_charges       = 3
-                new_regen_recharge = gs['regen_recharge_wins']
-            elif item_id == 'regen_shield':
+            if item_id == 'regen_shield':
                 new_charges       = gs['shield_charges']
                 new_regen_recharge = 0
             else:
@@ -362,10 +409,21 @@ def fish_click():
                                WHEN 'double_click_2' = ANY(owned_items) THEN 3 * %s
                                WHEN 'double_click' = ANY(owned_items) THEN 2 * %s
                                ELSE %s
+                           END,
+                       total_fish_clicks = total_fish_clicks +
+                           CASE
+                               WHEN 'double_click_5' = ANY(owned_items) THEN 6 * %s
+                               WHEN 'double_click_4' = ANY(owned_items) THEN 5 * %s
+                               WHEN 'double_click_3' = ANY(owned_items) THEN 4 * %s
+                               WHEN 'double_click_2' = ANY(owned_items) THEN 3 * %s
+                               WHEN 'double_click' = ANY(owned_items) THEN 2 * %s
+                               ELSE %s
                            END
                        WHERE user_id = %s
                        RETURNING fish_clicks''',
-                    (count, count, count, count, count, count, current_user.id),
+                    (count, count, count, count, count, count,
+                     count, count, count, count, count, count,
+                     current_user.id),
                 )
                 row = cur.fetchone()
             conn.commit()
@@ -386,7 +444,7 @@ def click_frenzy():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT fish_clicks, owned_items FROM game_state WHERE user_id = %s FOR UPDATE',
+                    'SELECT fish_clicks, total_fish_clicks, owned_items FROM game_state WHERE user_id = %s FOR UPDATE',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
@@ -407,11 +465,12 @@ def click_frenzy():
                 return jsonify({'error': 'No frenzy upgrade owned'}), 403
 
             new_clicks = gs['fish_clicks'] + amount
+            new_total  = gs['total_fish_clicks'] + amount
 
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE game_state SET fish_clicks = %s WHERE user_id = %s',
-                    (new_clicks, current_user.id),
+                    'UPDATE game_state SET fish_clicks = %s, total_fish_clicks = %s WHERE user_id = %s',
+                    (new_clicks, new_total, current_user.id),
                 )
             conn.commit()
 
@@ -478,15 +537,16 @@ def stats():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT spin_count, win_count, losses, fish_clicks FROM game_state WHERE user_id = %s',
+                    'SELECT spin_count, win_count, loss_count, fish_clicks, total_fish_clicks FROM game_state WHERE user_id = %s',
                     (current_user.id,)
                 )
                 row = cur.fetchone()
         return jsonify({
-            'spin_count':  row['spin_count'],
-            'win_count':   row['win_count'],
-            'loss_count':  row['losses'],
-            'fish_clicks': row['fish_clicks'],
+            'spin_count':         row['spin_count'],
+            'win_count':          row['win_count'],
+            'loss_count':         row['loss_count'],
+            'fish_clicks':        row['fish_clicks'],
+            'total_fish_clicks':  row['total_fish_clicks'],
         })
     except Exception:
         log.exception('STATS_ERROR  user_id=%s', current_user.id)
