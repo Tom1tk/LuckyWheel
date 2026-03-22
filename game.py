@@ -468,6 +468,18 @@ def click_frenzy():
             else:
                 return jsonify({'error': 'No frenzy upgrade owned'}), 403
 
+            # Apply double-click multiplier to passive clicks
+            if 'double_click_5' in owned:
+                amount *= 6
+            elif 'double_click_4' in owned:
+                amount *= 5
+            elif 'double_click_3' in owned:
+                amount *= 4
+            elif 'double_click_2' in owned:
+                amount *= 3
+            elif 'double_click' in owned:
+                amount *= 2
+
             new_clicks = gs['fish_clicks'] + amount
             new_total  = gs['total_fish_clicks'] + amount
 

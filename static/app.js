@@ -921,41 +921,41 @@ const SHOP_SECTIONS = [{
     emoji: '🖱️',
     name: 'Frenzy I',
     cost: 150,
-    desc: '+1 click per 5s auto'
+    desc: '+1 passive click/5s (scales with click upgrades)'
   }, {
     id: 'clickfrenzy_2',
     emoji: '🖱️',
     name: 'Frenzy II',
     cost: 600,
-    desc: '+5 clicks per 5s',
+    desc: '+5 passive clicks/5s (scales with click upgrades)',
     requires: 'clickfrenzy_1'
   }, {
     id: 'clickfrenzy_3',
     emoji: '🖱️',
     name: 'Frenzy III',
     cost: 2400,
-    desc: '+20 clicks per 5s',
+    desc: '+20 passive clicks/5s (scales with click upgrades)',
     requires: 'clickfrenzy_2'
   }, {
     id: 'clickfrenzy_4',
     emoji: '🌪️',
     name: 'Frenzy IV',
     cost: 9600,
-    desc: '+50 clicks per 5s',
+    desc: '+50 passive clicks/5s (scales with click upgrades)',
     requires: 'clickfrenzy_3'
   }, {
     id: 'clickfrenzy_5',
     emoji: '⚡',
     name: 'Frenzy V',
     cost: 38400,
-    desc: '+100 clicks per 5s',
+    desc: '+100 passive clicks/5s (scales with click upgrades)',
     requires: 'clickfrenzy_4'
   }, {
     id: 'final_frenzy',
     emoji: '🌀',
     name: 'Final Frenzy',
     cost: 100000,
-    desc: '500 clicks/5s auto — manual clicking disabled. Toggle to switch back to Frenzy V.',
+    desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.',
     requires: 'clickfrenzy_5'
   }]
 }, {
