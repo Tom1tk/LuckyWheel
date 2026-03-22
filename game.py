@@ -393,7 +393,7 @@ def fish_click():
 
     data = request.get_json(silent=True) or {}
     try:
-        count = max(1, min(30, int(data.get('count', 1))))
+        count = max(1, min(10, int(data.get('count', 1))))
     except (TypeError, ValueError):
         count = 1
 
