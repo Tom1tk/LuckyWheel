@@ -56,7 +56,8 @@ def get_state():
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
                               equipped_fish, shield_charges, regen_recharge_wins,
                               active_cosmetics, spin_count, win_count,
-                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
+                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
+                              low_spec_mode
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -77,10 +78,32 @@ def get_state():
             'winmult_inf_level':   gs['winmult_inf_level'],
             'bonusmult_inf_level': gs['bonusmult_inf_level'],
             'clickmult_inf_level': gs['clickmult_inf_level'],
+            'low_spec_mode':       gs['low_spec_mode'],
         })
     except Exception:
         log.exception('GET_STATE_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Failed to load state'}), 500
+
+
+@game_bp.route('/api/settings', methods=['POST'])
+@login_required
+def update_settings():
+    err = require_json()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    try:
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE game_state SET low_spec_mode = %s WHERE user_id = %s',
+                    (bool(data.get('low_spec_mode', False)), current_user.id),
+                )
+            conn.commit()
+        return jsonify({'ok': True})
+    except Exception:
+        log.exception('SETTINGS_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Settings update failed'}), 500
 
 
 @game_bp.route('/api/spin', methods=['POST'])

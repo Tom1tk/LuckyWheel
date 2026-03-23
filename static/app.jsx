@@ -631,7 +631,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
     ? (() => {
         const cur = infMultiplier(item.id, infLevel);
         const nxt = infMultiplier(item.id, infLevel + 1);
-        return `${item.desc} — x${cur} → x${nxt} (Level ${infLevel + 1})`;
+        return `Lv${infLevel} · x${cur} → x${nxt}  ${item.desc}`;
       })()
     : item.desc;
   return (
@@ -845,7 +845,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showStats, setShowStats]     = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
-  const [lowSpec, setLowSpec]         = useState(() => localStorage.getItem('lowSpecMode') === 'true');
+  const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
 
   const spinSpeed = useMemo(() => {
     if (ownedItems.includes('maxspin'))   return 0.5;
@@ -944,6 +944,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
+    apiGame('/api/settings', { method: 'POST', body: JSON.stringify({ low_spec_mode: lowSpec }) });
   }, [lowSpec]);
 
   useEffect(() => {
