@@ -1715,7 +1715,8 @@ function GameApp({
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
-    if (data.fish_clicks != null) setFishClicks(data.fish_clicks);
+    // Use delta (not absolute) to avoid stale spin responses overwriting concurrent frenzy responses
+    if (data.fish_clicks_delta) setFishClicks(prev => prev + data.fish_clicks_delta);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.auto_guard_failed) showToast('Not enough clicks — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
