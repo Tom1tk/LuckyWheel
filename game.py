@@ -1,6 +1,8 @@
+import datetime as dt
 import logging
 import random
 import secrets
+from datetime import timezone
 
 import psycopg2.extras
 from flask import Blueprint, jsonify, request
@@ -473,7 +475,7 @@ def equip():
 
 @game_bp.route('/api/fish-click', methods=['POST'])
 @login_required
-@limiter.limit('10 per second')
+@limiter.limit('5 per second')
 def fish_click():
     err = require_json()
     if err:
@@ -485,26 +487,38 @@ def fish_click():
     except (TypeError, ValueError):
         count = 1
 
+    # Budget: 75 raw clicks per 5-second rolling window.
+    # The CTE atomically computes how many of the requested clicks fit within
+    # the budget and credits only that many (possibly 0).  FOR UPDATE serialises
+    # concurrent workers so no two requests race on the same row.
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT clickmult_inf_level FROM game_state WHERE user_id = %s',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
-
-            click_mult = click_mult_from_level(gs['clickmult_inf_level'])
-            delta = count * click_mult
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    '''UPDATE game_state
-                       SET fish_clicks = fish_clicks + %s,
-                           total_fish_clicks = total_fish_clicks + %s
-                       WHERE user_id = %s
-                       RETURNING fish_clicks''',
-                    (delta, delta, current_user.id),
+                    '''WITH budget AS (
+                           SELECT user_id,
+                                  (NOW() - click_window_start >= INTERVAL '5 seconds') AS window_expired,
+                                  clickmult_inf_level,
+                                  CASE
+                                      WHEN NOW() - click_window_start >= INTERVAL '5 seconds'
+                                      THEN LEAST(%(count)s, 75)
+                                      ELSE GREATEST(0, LEAST(%(count)s, 75 - click_window_count))
+                                  END AS allowed
+                           FROM game_state WHERE user_id = %(uid)s
+                           FOR UPDATE
+                       )
+                       UPDATE game_state gs SET
+                           click_window_start = CASE WHEN b.window_expired THEN NOW()
+                                                     ELSE gs.click_window_start END,
+                           click_window_count = CASE WHEN b.window_expired THEN b.allowed
+                                                     ELSE gs.click_window_count + b.allowed END,
+                           fish_clicks        = gs.fish_clicks
+                                                + b.allowed * (b.clickmult_inf_level + 1),
+                           total_fish_clicks  = gs.total_fish_clicks
+                                                + b.allowed * (b.clickmult_inf_level + 1)
+                       FROM budget b WHERE gs.user_id = b.user_id
+                       RETURNING gs.fish_clicks''',
+                    {'count': count, 'uid': current_user.id},
                 )
                 row = cur.fetchone()
             conn.commit()
@@ -516,6 +530,7 @@ def fish_click():
 
 @game_bp.route('/api/click-frenzy', methods=['POST'])
 @login_required
+@limiter.limit('1 per second')
 def click_frenzy():
     err = require_json()
     if err:
@@ -525,7 +540,9 @@ def click_frenzy():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT fish_clicks, total_fish_clicks, owned_items, active_cosmetics, clickmult_inf_level FROM game_state WHERE user_id = %s FOR UPDATE',
+                    '''SELECT fish_clicks, total_fish_clicks, owned_items, active_cosmetics,
+                              clickmult_inf_level, frenzy_last_tick
+                       FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
@@ -548,6 +565,14 @@ def click_frenzy():
             else:
                 return jsonify({'error': 'No frenzy upgrade owned'}), 403
 
+            # Cooldown: must be ≥4 seconds since last frenzy tick
+            last_tick = gs['frenzy_last_tick']
+            now_utc   = dt.datetime.now(timezone.utc)
+            if last_tick.tzinfo is None:
+                last_tick = last_tick.replace(tzinfo=timezone.utc)
+            if (now_utc - last_tick).total_seconds() < 4:
+                return jsonify({'fish_clicks': gs['fish_clicks']})
+
             # Apply click multiplier to passive clicks
             amount *= click_mult_from_level(gs['clickmult_inf_level'])
 
@@ -556,7 +581,9 @@ def click_frenzy():
 
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE game_state SET fish_clicks = %s, total_fish_clicks = %s WHERE user_id = %s',
+                    '''UPDATE game_state
+                       SET fish_clicks = %s, total_fish_clicks = %s, frenzy_last_tick = NOW()
+                       WHERE user_id = %s''',
                     (new_clicks, new_total, current_user.id),
                 )
             conn.commit()
