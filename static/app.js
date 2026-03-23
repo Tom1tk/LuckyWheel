@@ -768,6 +768,14 @@ const SHOP_SECTIONS = [{
     cost: 819200,
     desc: 'Each win scores x128',
     requires: 'winmult_6'
+  }, {
+    id: 'winmult_inf',
+    emoji: '♾️',
+    name: 'Win Power+',
+    cost: 0,
+    desc: '+16 win multiplier per level',
+    requires: 'winmult_7',
+    infinite: true
   }]
 }, {
   label: '⭐ Bonus Power',
@@ -812,6 +820,14 @@ const SHOP_SECTIONS = [{
     cost: 300000,
     desc: 'Streak bonuses x100 — ⚠️ also amplifies loss streaks',
     requires: 'bonusmult_5'
+  }, {
+    id: 'bonusmult_inf',
+    emoji: '♾️',
+    name: 'Bonus Power+',
+    cost: 0,
+    desc: '+10 bonus multiplier per level — ⚠️ also amplifies loss streaks',
+    requires: 'bonusmult_6',
+    infinite: true
   }]
 }, {
   label: '🐟 Fish Size',
@@ -916,6 +932,14 @@ const SHOP_SECTIONS = [{
     cost: 4500,
     desc: '6 clicks per tap',
     requires: 'double_click_4'
+  }, {
+    id: 'clickmult_inf',
+    emoji: '♾️',
+    name: 'Click Power+',
+    cost: 0,
+    desc: '+1 click multiplier per level',
+    requires: 'double_click_5',
+    infinite: true
   }, {
     id: 'clickfrenzy_1',
     emoji: '🖱️',
@@ -1141,6 +1165,32 @@ const SHOP_SECTIONS = [{
     desc: 'Transcend reality itself. Every spin is a win.'
   }]
 }];
+
+// Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
+const INF_UPGRADE_CFG = {
+  winmult_inf: {
+    baseCost: 1_000_000,
+    scale: 1.4,
+    requires: 'winmult_7'
+  },
+  bonusmult_inf: {
+    baseCost: 500_000,
+    scale: 1.4,
+    requires: 'bonusmult_6'
+  },
+  clickmult_inf: {
+    baseCost: 10_000,
+    scale: 1.5,
+    requires: 'double_click_5'
+  }
+};
+function infCost(id, level) {
+  const {
+    baseCost,
+    scale
+  } = INF_UPGRADE_CFG[id];
+  return Math.floor(baseCost * Math.pow(scale, level));
+}
 const DEFAULT_FISH = {
   emoji: '🐟',
   labels: {
@@ -1166,10 +1216,19 @@ const ShopItem = React.memo(function ShopItem({
   onEquipCosmetic,
   isSkin,
   isSingularity,
-  isCosmetic
+  isCosmetic,
+  infLevel,
+  displayCost
 }) {
+  const isInfinite = !!item.infinite;
+  const cost = isInfinite ? displayCost : item.cost;
   let actionEl;
-  if (owned && isSkin) {
+  if (isInfinite) {
+    actionEl = /*#__PURE__*/React.createElement("button", {
+      className: `shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`,
+      onClick: () => canAfford && onBuy(item.id, cost)
+    }, "Buy");
+  } else if (owned && isSkin) {
     actionEl = equipped ? /*#__PURE__*/React.createElement("span", {
       className: "shop-equipped-badge"
     }, "\u2713 On") : /*#__PURE__*/React.createElement("button", {
@@ -1191,24 +1250,25 @@ const ShopItem = React.memo(function ShopItem({
   } else {
     actionEl = /*#__PURE__*/React.createElement("button", {
       className: `shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`,
-      onClick: () => canAfford && onBuy(item.id, item.cost)
+      onClick: () => canAfford && onBuy(item.id, cost)
     }, "Buy");
   }
   const extraClass = isSingularity && !owned ? 'singularity-item' : '';
+  const infDesc = isInfinite && infLevel != null ? `${item.desc} (Level ${infLevel})` : item.desc;
   return /*#__PURE__*/React.createElement("div", {
-    className: `shop-item ${owned ? equipped || active ? 'equipped' : 'owned' : ''} ${extraClass}`
+    className: `shop-item ${!isInfinite && owned ? equipped || active ? 'equipped' : 'owned' : ''} ${extraClass}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "shop-item-emoji"
   }, item.emoji), /*#__PURE__*/React.createElement("div", {
     className: "shop-item-info"
   }, /*#__PURE__*/React.createElement("div", {
     className: "shop-item-name"
-  }, item.name), item.desc && /*#__PURE__*/React.createElement("div", {
+  }, item.name), infDesc && /*#__PURE__*/React.createElement("div", {
     className: "shop-item-desc",
-    "data-tooltip": item.desc
-  }, item.desc), !owned && /*#__PURE__*/React.createElement("div", {
+    "data-tooltip": infDesc
+  }, infDesc), /*#__PURE__*/React.createElement("div", {
     className: "shop-item-cost"
-  }, "\uD83D\uDC1F ", item.cost.toLocaleString())), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDC1F ", cost.toLocaleString())), /*#__PURE__*/React.createElement("div", {
     className: "shop-item-action"
   }, actionEl));
 });
@@ -1218,6 +1278,7 @@ function ShopPanel({
   ownedItems,
   equippedFish,
   activeCosmetics,
+  infLevels,
   onBuy,
   onEquip,
   onEquipCosmetic
@@ -1234,10 +1295,11 @@ function ShopPanel({
       const visibleItems = section.items.filter(item => {
         const requiresMet = !item.requires || ownedItems.includes(item.requires);
         if (isCosmeticSection) return requiresMet;
+        if (item.infinite) return requiresMet; // infinite items always visible once prereq met
         const isOwned = ownedItems.includes(item.id);
         if (!isOwned) return requiresMet; // next tier to buy
         // Owned: show only if this is the latest owned in its chain
-        const nextInChain = section.items.find(other => other.requires === item.id);
+        const nextInChain = section.items.find(other => other.requires === item.id && !other.infinite);
         return !nextInChain || !ownedItems.includes(nextInChain.id);
       });
       if (visibleItems.length === 0) return;
@@ -1257,16 +1319,20 @@ function ShopPanel({
     className: "shop-section-label"
   }, "\u2500\u2500 ", section.label, " \u2500\u2500"), section.visibleItems.map(item => {
     const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
+    const infLevel = item.infinite ? infLevels[item.id] || 0 : null;
+    const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
     return /*#__PURE__*/React.createElement(ShopItem, {
       key: item.id,
       item: item,
       isSkin: false,
       isSingularity: item.id === 'singularity',
       isCosmetic: isCosmetic,
-      owned: ownedItems.includes(item.id),
+      owned: !item.infinite && ownedItems.includes(item.id),
       equipped: false,
       active: isCosmetic && activeCosmetics.includes(item.id),
-      canAfford: fishClicks >= item.cost,
+      canAfford: fishClicks >= displayCost,
+      infLevel: infLevel,
+      displayCost: displayCost,
       onBuy: onBuy,
       onEquip: onEquip,
       onEquipCosmetic: onEquipCosmetic
@@ -1466,6 +1532,11 @@ function GameApp({
   const [ownedItems, setOwnedItems] = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
+  const [infLevels, setInfLevels] = useState({
+    winmult_inf: gameState.winmult_inf_level || 0,
+    bonusmult_inf: gameState.bonusmult_inf_level || 0,
+    clickmult_inf: gameState.clickmult_inf_level || 0
+  });
   const [showStats, setShowStats] = useState(false);
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
@@ -1596,6 +1667,11 @@ function GameApp({
           setShieldCharges(gs.data.shield_charges);
           setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
           setActiveCosmetics(gs.data.active_cosmetics || []);
+          setInfLevels({
+            winmult_inf: gs.data.winmult_inf_level || 0,
+            bonusmult_inf: gs.data.bonusmult_inf_level || 0,
+            clickmult_inf: gs.data.clickmult_inf_level || 0
+          });
         }
       } else {
         setSeason(r.data);
@@ -1667,6 +1743,13 @@ function GameApp({
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null) {
+        setInfLevels({
+          winmult_inf: data.winmult_inf_level ?? 0,
+          bonusmult_inf: data.bonusmult_inf_level ?? 0,
+          clickmult_inf: data.clickmult_inf_level ?? 0
+        });
+      }
     } else {
       showToast(data.error || 'Purchase failed');
     }
@@ -2024,6 +2107,7 @@ function GameApp({
     ownedItems: ownedItems,
     equippedFish: equippedFish,
     activeCosmetics: activeCosmetics,
+    infLevels: infLevels,
     onBuy: handleBuy,
     onEquip: handleEquip,
     onEquipCosmetic: handleEquipCosmetic

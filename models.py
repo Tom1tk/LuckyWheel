@@ -105,6 +105,34 @@ SHOP_ITEMS = {
 ALL_ITEMS = {**FISH_SKINS, **SHOP_ITEMS}
 VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
 
+# Infinite repeatable upgrades — purchasable unlimited times after prereq tier
+INFINITE_UPGRADES = {
+    'winmult_inf': {
+        'requires':   'winmult_7',
+        'base_cost':  1_000_000,
+        'cost_scale': 1.4,
+        'db_column':  'winmult_inf_level',
+    },
+    'bonusmult_inf': {
+        'requires':   'bonusmult_6',
+        'base_cost':  500_000,
+        'cost_scale': 1.4,
+        'db_column':  'bonusmult_inf_level',
+    },
+    'clickmult_inf': {
+        'requires':   'double_click_5',
+        'base_cost':  10_000,
+        'cost_scale': 1.5,
+        'db_column':  'clickmult_inf_level',
+    },
+}
+
+
+def inf_upgrade_cost(item_id, current_level):
+    """Cost for the next purchase of an infinite upgrade (at current_level → current_level+1)."""
+    cfg = INFINITE_UPGRADES[item_id]
+    return int(cfg['base_cost'] * cfg['cost_scale'] ** current_level)
+
 LOCKOUT_RULES = [
     (20, 3600),  # 20+ fails → 1 hour
     (10, 300),   # 10+ fails → 5 minutes
