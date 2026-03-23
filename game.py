@@ -8,7 +8,8 @@ from flask_login import current_user, login_required
 
 from db import db_connection
 from extensions import limiter
-from models import ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS, inf_upgrade_cost
+from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
+                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level)
 from seasons import ensure_current_season, get_season_info
 
 COSMETIC_SLOTS = {
@@ -120,23 +121,9 @@ def spin():
             else:
                 outcome = secrets.choice(['win', 'lose'])
 
-            # Multipliers
-            win_mult = (128 if 'winmult_7' in owned else
-                        64  if 'winmult_6' in owned else
-                        32  if 'winmult_5' in owned else
-                        16  if 'winmult_4' in owned else
-                        8   if 'winmult_3' in owned else
-                        4   if 'winmult_2' in owned else
-                        2   if 'winmult_1' in owned else 1)
-            win_mult += gs['winmult_inf_level'] * 16
-
-            bonus_mult = (100 if 'bonusmult_6' in owned else
-                          50  if 'bonusmult_5' in owned else
-                          20  if 'bonusmult_4' in owned else
-                          10  if 'bonusmult_3' in owned else
-                          5   if 'bonusmult_2' in owned else
-                          2   if 'bonusmult_1' in owned else 1)
-            bonus_mult += gs['bonusmult_inf_level'] * 10
+            # Multipliers — derived entirely from inf level columns
+            win_mult   = win_mult_from_level(gs['winmult_inf_level'])
+            bonus_mult = bonus_mult_from_level(gs['bonusmult_inf_level'])
 
             shield_used      = False
             shield_broke     = False
@@ -303,8 +290,6 @@ def buy():
                 cur_level   = gs[col]
                 cost        = inf_upgrade_cost(item_id, cur_level)
 
-                if inf['requires'] not in owned:
-                    return jsonify({'error': 'Prerequisite not met'}), 400
                 if fish_clicks < cost:
                     return jsonify({'error': 'Insufficient fish clicks'}), 402
 
@@ -462,18 +447,12 @@ def fish_click():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT owned_items, clickmult_inf_level FROM game_state WHERE user_id = %s',
+                    'SELECT clickmult_inf_level FROM game_state WHERE user_id = %s',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
-            owned = list(gs['owned_items'])
-            click_mult = (6 if 'double_click_5' in owned else
-                          5 if 'double_click_4' in owned else
-                          4 if 'double_click_3' in owned else
-                          3 if 'double_click_2' in owned else
-                          2 if 'double_click'   in owned else 1)
-            click_mult += gs['clickmult_inf_level']
+            click_mult = click_mult_from_level(gs['clickmult_inf_level'])
             delta = count * click_mult
 
             with conn.cursor() as cur:
@@ -527,14 +506,8 @@ def click_frenzy():
             else:
                 return jsonify({'error': 'No frenzy upgrade owned'}), 403
 
-            # Apply double-click multiplier to passive clicks
-            click_mult = (6 if 'double_click_5' in owned else
-                          5 if 'double_click_4' in owned else
-                          4 if 'double_click_3' in owned else
-                          3 if 'double_click_2' in owned else
-                          2 if 'double_click'   in owned else 1)
-            click_mult += gs['clickmult_inf_level']
-            amount *= click_mult
+            # Apply click multiplier to passive clicks
+            amount *= click_mult_from_level(gs['clickmult_inf_level'])
 
             new_clicks = gs['fish_clicks'] + amount
             new_total  = gs['total_fish_clicks'] + amount

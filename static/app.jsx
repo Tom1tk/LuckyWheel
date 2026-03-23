@@ -482,23 +482,10 @@ const SHOP_SECTIONS = [
     { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1200, desc: 'Auto delay: 0.5s → 0',   requires: 'autospeed_2' },
   ]},
   { label: '💰 Win Power', items: [
-    { id: 'winmult_1',   emoji: '💰', name: 'Win x2',       cost: 200,    desc: 'Each win scores double' },
-    { id: 'winmult_2',   emoji: '💰', name: 'Win x4',       cost: 800,    desc: 'Each win scores x4',    requires: 'winmult_1' },
-    { id: 'winmult_3',   emoji: '💰', name: 'Win x8',       cost: 3200,   desc: 'Each win scores x8',    requires: 'winmult_2' },
-    { id: 'winmult_4',   emoji: '💎', name: 'Win x16',      cost: 12800,  desc: 'Each win scores x16',   requires: 'winmult_3' },
-    { id: 'winmult_5',   emoji: '💎', name: 'Win x32',      cost: 51200,  desc: 'Each win scores x32',   requires: 'winmult_4' },
-    { id: 'winmult_6',   emoji: '👑', name: 'Win x64',      cost: 204800, desc: 'Each win scores x64',   requires: 'winmult_5' },
-    { id: 'winmult_7',   emoji: '👑', name: 'Win x128',     cost: 819200, desc: 'Each win scores x128',  requires: 'winmult_6' },
-    { id: 'winmult_inf', emoji: '♾️', name: 'Win Power+',   cost: 0, desc: '+16 win multiplier per level', requires: 'winmult_7', infinite: true },
+    { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
   ]},
   { label: '⭐ Bonus Power', items: [
-    { id: 'bonusmult_1', emoji: '⭐', name: 'Bonus Boost',  cost: 300,    desc: 'Streak bonuses x2 — ⚠️ also amplifies loss streaks' },
-    { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Mega',   cost: 1200,   desc: 'Streak bonuses x5 — ⚠️ also amplifies loss streaks',   requires: 'bonusmult_1' },
-    { id: 'bonusmult_3', emoji: '💫', name: 'Bonus ULTRA',  cost: 4800,   desc: 'Streak bonuses x10 — ⚠️ also amplifies loss streaks',  requires: 'bonusmult_2' },
-    { id: 'bonusmult_4', emoji: '💫', name: 'Bonus x20',    cost: 20000,  desc: 'Streak bonuses x20 — ⚠️ also amplifies loss streaks',  requires: 'bonusmult_3' },
-    { id: 'bonusmult_5',   emoji: '🌟', name: 'Bonus x50',    cost: 80000,  desc: 'Streak bonuses x50 — ⚠️ also amplifies loss streaks',  requires: 'bonusmult_4' },
-    { id: 'bonusmult_6',   emoji: '🌟', name: 'Bonus x100',   cost: 300000, desc: 'Streak bonuses x100 — ⚠️ also amplifies loss streaks', requires: 'bonusmult_5' },
-    { id: 'bonusmult_inf', emoji: '♾️', name: 'Bonus Power+', cost: 0, desc: '+10 bonus multiplier per level — ⚠️ also amplifies loss streaks', requires: 'bonusmult_6', infinite: true },
+    { id: 'bonusmult_inf', emoji: '⭐', name: 'Bonus Power', cost: 0, desc: 'Multiplies streak bonuses — ⚠️ also amplifies loss streaks', infinite: true },
   ]},
   { label: '🐟 Fish Size', items: [
     { id: 'fishsize_1',  emoji: '🔎', name: 'Big Fish',     cost: 50,   desc: 'Fish size: XL (20rem)' },
@@ -514,12 +501,7 @@ const SHOP_SECTIONS = [
     { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 70000, desc: 'Cosmic void aura',       requires: 'trail_5' },
   ]},
   { label: '🖱️ Click Power', items: [
-    { id: 'double_click',   emoji: '👆', name: 'Double Click', cost: 100,  desc: 'Fish clicks count x2' },
-    { id: 'double_click_2', emoji: '✌️', name: 'Triple Click', cost: 400,  desc: '3 clicks per tap',       requires: 'double_click' },
-    { id: 'double_click_3', emoji: '🖖', name: 'Quad Click',   cost: 900,  desc: '4 clicks per tap',       requires: 'double_click_2' },
-    { id: 'double_click_4', emoji: '🤚', name: 'Penta Click',  cost: 2000, desc: '5 clicks per tap',       requires: 'double_click_3' },
-    { id: 'double_click_5',  emoji: '👐', name: 'Hexa Click',    cost: 4500, desc: '6 clicks per tap',       requires: 'double_click_4' },
-    { id: 'clickmult_inf',   emoji: '♾️', name: 'Click Power+', cost: 0, desc: '+1 click multiplier per level', requires: 'double_click_5', infinite: true },
+    { id: 'clickmult_inf', emoji: '👆', name: 'Click Power', cost: 0, desc: 'Multiplies fish clicks per tap (also scales frenzy)', infinite: true },
     { id: 'clickfrenzy_1',  emoji: '🖱️', name: 'Frenzy I',    cost: 150,  desc: '+1 passive click/5s (scales with click upgrades)' },
     { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 passive clicks/5s (scales with click upgrades)',  requires: 'clickfrenzy_1' },
     { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
@@ -571,13 +553,28 @@ const SHOP_SECTIONS = [
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 const INF_UPGRADE_CFG = {
-  winmult_inf:   { baseCost: 1_000_000, scale: 1.4, requires: 'winmult_7' },
-  bonusmult_inf: { baseCost: 500_000,   scale: 1.4, requires: 'bonusmult_6' },
-  clickmult_inf: { baseCost: 10_000,    scale: 1.5, requires: 'double_click_5' },
+  winmult_inf:   { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 1_000_000, infScale: 1.4 },
+  bonusmult_inf: { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 500_000,   infScale: 1.4 },
+  clickmult_inf: { tierCosts: [100, 400, 900, 2000, 4500],                    infBase: 10_000,    infScale: 1.5 },
 };
 function infCost(id, level) {
-  const { baseCost, scale } = INF_UPGRADE_CFG[id];
-  return Math.floor(baseCost * Math.pow(scale, level));
+  const { tierCosts, infBase, infScale } = INF_UPGRADE_CFG[id];
+  if (level < tierCosts.length) return tierCosts[level];
+  return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
+}
+function infMultiplier(id, level) {
+  if (id === 'winmult_inf') {
+    if (level <= 0) return 1;
+    if (level <= 7) return Math.pow(2, level);
+    return 128 + (level - 7) * 16;
+  }
+  if (id === 'bonusmult_inf') {
+    const fixed = [1, 2, 5, 10, 20, 50, 100];
+    if (level <= 6) return fixed[level];
+    return 100 + (level - 6) * 10;
+  }
+  if (id === 'clickmult_inf') return level <= 0 ? 1 : level + 1;
+  return 1;
 }
 
 const DEFAULT_FISH = { emoji: '🐟', labels: { idle: 'Click me!', happy: '🎉 Nice!', sad: '💀 Ouch!' } };
@@ -631,7 +628,11 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
   }
   const extraClass = isSingularity && !owned ? 'singularity-item' : '';
   const infDesc = isInfinite && infLevel != null
-    ? `${item.desc} (Level ${infLevel})`
+    ? (() => {
+        const cur = infMultiplier(item.id, infLevel);
+        const nxt = infMultiplier(item.id, infLevel + 1);
+        return `${item.desc} — x${cur} → x${nxt} (Level ${infLevel + 1})`;
+      })()
     : item.desc;
   return (
     <div className={`shop-item ${!isInfinite && owned ? (equipped || active ? 'equipped' : 'owned') : ''} ${extraClass}`}>
