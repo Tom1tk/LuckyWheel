@@ -4,6 +4,33 @@
 
 ## Latest — 23 Mar 2026
 
+### Bug Fix: Fish Clicks Appearing to Drop After Each Spin
+- Fixed a race condition where frenzy tick responses and spin responses could arrive out of order at the client.
+- With high Click Power (e.g. ×20), each frenzy tick grants +10,000 fish clicks. If the spin response (carrying a stale pre-frenzy balance) arrived after the frenzy response, it would overwrite the display — making it look like ~10k clicks were removed per spin.
+- The spin endpoint now sends a **`fish_clicks_delta`** (0 normally, −500 when Auto-Guard fires) instead of an absolute balance. The client applies it as a delta, so response ordering no longer matters.
+
+---
+
+### Bug Fix: Auto-Guard Guard State Not Reflected in UI
+- After Auto-Guard restored a broken Guard, the "🛡️ Guard ready" indicator and shop state never updated to show Guard as owned — even though the backend had correctly re-added it.
+- Fixed: the spin response now properly syncs Guard ownership in the frontend.
+
+---
+
+### Bug Fix: Auto-Guard Description Clarified
+- Description now reads **"500 fish clicks"** instead of "500 clicks" to make clear the cost is in the in-game currency (flat, not scaled by Click Power).
+
+---
+
+### Anti-Click-Farming: DB-Level Click Budget
+- The `/api/fish-click` endpoint now enforces a **75 raw clicks per 5-second rolling window** per user, tracked atomically in PostgreSQL with `FOR UPDATE`.
+- Previously, the per-worker Flask-Limiter (`memory://` storage) could be bypassed in a 4-worker setup, giving up to 40× the intended click rate via scripted requests.
+- Requests exceeding the budget still return 200 but award 0 clicks — no error shown, no disruption for normal play.
+- Flask-Limiter on fish-click tightened from 10/s to 5/s as a first-pass filter.
+- `/api/click-frenzy` now has a 2-second server-side cooldown (enforced in the DB) and a 1/s Flask-Limiter.
+
+---
+
 ### Bug Fix: Guard No Longer Hidden in Shop
 - Guard now stays visible in the shop permanently, even after purchasing Auto-Guard. Previously it was incorrectly treated as a superseded tier and hidden.
 
