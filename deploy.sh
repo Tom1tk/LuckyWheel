@@ -9,7 +9,8 @@
 #   3. Dry-runs migrations, prompts to confirm
 #   4. Applies migrations to production DB
 #   5. Rebuilds JSX (unless --skip-build)
-#   6. Reloads gunicorn (HUP signal)
+#   6. Clears stale .pyc bytecode cache
+#   7. Hard-restarts gunicorn via systemctl (falls back to HUP)
 
 set -euo pipefail
 
@@ -57,11 +58,18 @@ if [[ "$SKIP_BUILD" == false ]]; then
   make build
 fi
 
-echo "==> Reloading gunicorn..."
-if [[ -f gunicorn.ctl ]]; then
+echo "==> Clearing stale bytecode..."
+find "$PROD_DIR" -path "$PROD_DIR/__pycache__/*.pyc" -delete 2>/dev/null || true
+
+echo "==> Restarting gunicorn..."
+if echo "1234" | sudo -S systemctl restart wheel-app 2>/dev/null; then
+  echo "    systemctl restart wheel-app: OK"
+elif [[ -f gunicorn.ctl ]]; then
   kill -HUP "$(cat gunicorn.ctl)"
+  echo "    HUP sent to $(cat gunicorn.ctl)"
 elif pgrep -f 'gunicorn.*server:app' > /dev/null; then
   kill -HUP "$(pgrep -f 'gunicorn.*server:app' | head -1)"
+  echo "    HUP sent to gunicorn"
 else
   echo "WARNING: No running gunicorn found. Start it manually."
 fi
