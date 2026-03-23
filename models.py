@@ -71,6 +71,7 @@ SHOP_ITEMS = {
     'final_frenzy':   {'cost': 100000,      'requires': 'clickfrenzy_5'},
     # Protection
     'guard':          {'cost': 300,         'requires': None},
+    'auto_guard':     {'cost': 10000,       'requires': 'guard'},
     'regen_shield':   {'cost': 800,         'requires': None},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,         'requires': None},

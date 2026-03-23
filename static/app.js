@@ -865,6 +865,13 @@ const SHOP_SECTIONS = [{
     cost: 300,
     desc: '50% chance to block any loss. Breaks on success, survives on failure.'
   }, {
+    id: 'auto_guard',
+    emoji: '🔁',
+    name: 'Auto-Guard',
+    cost: 10000,
+    desc: 'Automatically re-buys a Guard for 500 clicks when one breaks. Toggle to enable/disable.',
+    requires: 'guard'
+  }, {
     id: 'regen_shield',
     emoji: '🔄',
     name: 'Regenerating Shield',
@@ -1092,7 +1099,7 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'final_frenzy']);
+const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'final_frenzy', 'auto_guard']);
 
 // ── Shop components ────────────────────────────────────────────────────────
 const ShopItem = React.memo(function ShopItem({
@@ -1704,6 +1711,9 @@ function GameApp({
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
+    if (data.fish_clicks != null) setFishClicks(data.fish_clicks);
+    if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+    if (data.auto_guard_failed) showToast('Not enough clicks — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -1730,7 +1740,7 @@ function GameApp({
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
     spinningRef.current = false;
     setSpinning(false);
-  }, []);
+  }, [showToast]);
   const spin = useCallback(async () => {
     if (spinningRef.current) return;
     if (showResultRef.current) {

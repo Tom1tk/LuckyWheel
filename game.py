@@ -25,6 +25,7 @@ COSMETIC_SLOTS = {
     'golden_wheel': 'golden',
     'page_season1': 'page_theme',
     'final_frenzy': 'frenzy_mode',
+    'auto_guard':   'auto_guard',
 }
 from security import require_json
 
@@ -121,7 +122,8 @@ def spin():
                 cur.execute(
                     '''SELECT wins, losses, streak, owned_items, shield_charges, regen_recharge_wins,
                               spin_count, win_count, loss_count,
-                              winmult_inf_level, bonusmult_inf_level
+                              winmult_inf_level, bonusmult_inf_level,
+                              fish_clicks, active_cosmetics
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -131,6 +133,18 @@ def spin():
             streak              = gs['streak']
             shield_charges      = gs['shield_charges']
             regen_recharge_wins = gs['regen_recharge_wins']
+            fish_clicks         = gs['fish_clicks']
+            active_cosmetics    = list(gs['active_cosmetics'])
+
+            # Auto-guard: if enabled and guard is gone, buy one before spinning
+            auto_guard_failed = False
+            if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
+                if fish_clicks >= 500:
+                    owned        = owned + ['guard']
+                    fish_clicks -= 500
+                else:
+                    active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
+                    auto_guard_failed = True
 
             # New spin count (used by lucky_seven)
             new_spin_count = gs['spin_count'] + 1
@@ -249,11 +263,13 @@ def spin():
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, streak = %s,
                            shield_charges = %s, regen_recharge_wins = %s,
-                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s
+                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
+                           fish_clicks = %s, active_cosmetics = %s
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak,
                      shield_charges, regen_recharge_wins,
-                     new_owned, new_spin_count, new_win_count, new_loss_count, current_user.id),
+                     new_owned, new_spin_count, new_win_count, new_loss_count,
+                     fish_clicks, active_cosmetics, current_user.id),
                 )
             conn.commit()
 
@@ -277,6 +293,9 @@ def spin():
             'resilience_triggered':    resilience_triggered,
             'lucky_seven_triggered':   lucky_seven_triggered,
             'fortune_charm_triggered': fortune_charm_triggered,
+            'fish_clicks':            fish_clicks,
+            'active_cosmetics':       active_cosmetics,
+            'auto_guard_failed':      auto_guard_failed,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)

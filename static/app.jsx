@@ -510,8 +510,9 @@ const SHOP_SECTIONS = [
     { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 100000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300, desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
-    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 800, desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300,   desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
+    { id: 'auto_guard',  emoji: '🔁', name: 'Auto-Guard',         cost: 10000, desc: 'Automatically re-buys a Guard for 500 clicks when one breaks. Toggle to enable/disable.', requires: 'guard' },
+    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 800,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -593,6 +594,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'golden_wheel',
   'page_season1',
   'final_frenzy',
+  'auto_guard',
 ]);
 
 // ── Shop components ────────────────────────────────────────────────────────
@@ -1100,6 +1102,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
+    if (data.fish_clicks != null) setFishClicks(data.fish_clicks);
+    if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+    if (data.auto_guard_failed) showToast('Not enough clicks — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -1129,7 +1134,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
     spinningRef.current = false;
     setSpinning(false);
-  }, []);
+  }, [showToast]);
 
   const spin = useCallback(async () => {
     if (spinningRef.current) return;
