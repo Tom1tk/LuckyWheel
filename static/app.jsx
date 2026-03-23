@@ -665,7 +665,7 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
         const isOwned = ownedItems.includes(item.id);
         if (!isOwned) return requiresMet; // next tier to buy
         // Owned: show only if this is the latest owned in its chain
-        const nextInChain = section.items.find(other => other.requires === item.id && !other.infinite);
+        const nextInChain = section.items.find(other => other.requires === item.id && !other.infinite && !COSMETIC_SECTION_IDS.has(other.id));
         return !nextInChain || !ownedItems.includes(nextInChain.id);
       });
       if (visibleItems.length === 0) return;
