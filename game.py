@@ -140,10 +140,12 @@ def spin():
 
             # Auto-guard: if enabled and guard is gone, buy one before spinning
             auto_guard_failed = False
+            fish_clicks_delta = 0
             if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
                 if fish_clicks >= 500:
-                    owned        = owned + ['guard']
-                    fish_clicks -= 500
+                    owned             = owned + ['guard']
+                    fish_clicks      -= 500
+                    fish_clicks_delta = -500
                 else:
                     active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
                     auto_guard_failed = True
@@ -295,7 +297,7 @@ def spin():
             'resilience_triggered':    resilience_triggered,
             'lucky_seven_triggered':   lucky_seven_triggered,
             'fortune_charm_triggered': fortune_charm_triggered,
-            'fish_clicks':            fish_clicks,
+            'fish_clicks_delta':      fish_clicks_delta,
             'active_cosmetics':       active_cosmetics,
             'auto_guard_failed':      auto_guard_failed,
         })
@@ -570,7 +572,7 @@ def click_frenzy():
             now_utc   = dt.datetime.now(timezone.utc)
             if last_tick.tzinfo is None:
                 last_tick = last_tick.replace(tzinfo=timezone.utc)
-            if (now_utc - last_tick).total_seconds() < 4:
+            if (now_utc - last_tick).total_seconds() < 2:
                 return jsonify({'fish_clicks': gs['fish_clicks']})
 
             # Apply click multiplier to passive clicks
