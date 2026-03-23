@@ -869,7 +869,7 @@ const SHOP_SECTIONS = [{
     emoji: '🔁',
     name: 'Auto-Guard',
     cost: 10000,
-    desc: 'Automatically re-buys a Guard for 500 clicks when one breaks. Toggle to enable/disable.',
+    desc: 'Automatically re-buys a Guard for 500 fish clicks when one breaks. Toggle to enable/disable.',
     requires: 'guard'
   }, {
     id: 'regen_shield',
@@ -1702,8 +1702,12 @@ function GameApp({
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
     if (data.owned_items) {
       const spinResult = new Set(data.owned_items);
-      // Only let the spin remove items it can consume (guard); preserve mid-spin purchases
-      setOwnedItems(prev => prev.filter(id => id !== 'guard' || spinResult.has('guard')));
+      // Sync guard from spin result (can be removed by guard block, added by auto-guard).
+      // All other items kept from prev to preserve mid-spin shop purchases.
+      setOwnedItems(prev => {
+        const withoutGuard = prev.filter(id => id !== 'guard');
+        return spinResult.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
+      });
     }
     setBonusEarned(data.bonus_earned);
     setEchoTriggered(!!data.echo_triggered);
