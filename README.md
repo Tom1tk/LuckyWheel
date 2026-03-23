@@ -38,6 +38,20 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - While active, manual spinning is locked out to prevent stacking
 - The wheel can begin spinning while the previous result banner is still fading out
 
+### Seasons
+- Seasons track per-user win/loss history and freeze a top-5 leaderboard snapshot at end-of-season
+- Season info shown in the UI; transitions announced via toast
+
+### Performance
+- **Low-Spec Mode** (⚡ button in the top bar) — disables infinite CSS animations, GPU-heavy drop-shadows, confetti, and fish aura; respects OS `prefers-reduced-motion`
+- Preference is saved per user in the database and synced across devices
+
+### Anti-Cheat
+- All game logic runs server-side; clients cannot submit win/loss outcomes
+- Fish-click API capped at 10 clicks per request
+- **Per-user click budget** enforced in PostgreSQL: 75 raw clicks per 5-second rolling window, enforced atomically with `FOR UPDATE` across all workers (prevents per-worker rate-limit bypass)
+- Rate limiter keys on **user account** rather than IP (prevents shared-network collisions)
+
 ---
 
 ## Shop System
@@ -76,28 +90,23 @@ Each skin has custom idle/win/loss speech. Buy and equip to change the fish.
 | Rapid Auto | 300 | 1000ms → 500ms |
 | Instant Auto | 1,200 | 500ms → 0ms |
 
-### Win Multiplier
-Multiplies each win's score contribution.
-| Tier | Cost | Multiplier |
-|------|------|-----------|
-| Win ×2 | 200 | ×2 |
-| Win ×4 | 800 | ×4 |
-| Win ×8 | 3,200 | ×8 |
-| Win ×16 | 12,800 | ×16 |
-| Win ×32 | 51,200 | ×32 |
-| Win ×64 | 204,800 | ×64 |
-| Win ×128 | 819,200 | ×128 |
+### Win Power
+Multiplies each win's score contribution. Single item purchased repeatedly — no tier cap.
 
-### Bonus Multiplier
-Multiplies streak bonus payouts — for both win streaks **and** loss streaks. ⚠️ Higher tiers also amplify loss streak penalties.
-| Tier | Cost | Multiplier |
-|------|------|-----------|
-| Bonus Boost | 300 | ×2 |
-| Bonus Mega | 1,200 | ×5 |
-| Bonus ULTRA | 4,800 | ×10 |
-| Bonus ×20 | 20,000 | ×20 |
-| Bonus ×50 | 80,000 | ×50 |
-| Bonus ×100 | 300,000 | ×100 |
+| Level range | Cost per level | Multiplier |
+|-------------|----------------|-----------|
+| Lv 1–7 | 200 / 800 / 3,200 / 12,800 / 51,200 / 204,800 / 819,200 | ×2 → ×128 |
+| Lv 8+ | 1,000,000 × 1.4^(level−8) | +16 per level (×144, ×160, …) |
+
+The shop card shows current level and next multiplier: **Lv3 · ×8 → ×16**.
+
+### Bonus Power
+Multiplies streak bonus payouts — for both win streaks **and** loss streaks. ⚠️ Higher levels also amplify loss streak penalties.
+
+| Level range | Cost per level | Multiplier |
+|-------------|----------------|-----------|
+| Lv 1–6 | 300 / 1,200 / 4,800 / 20,000 / 80,000 / 300,000 | ×2 → ×100 |
+| Lv 7+ | 500,000 × 1.4^(level−7) | +10 per level (×110, ×120, …) |
 
 ### Fish Size
 | Tier | Cost | Fish Size |
@@ -118,32 +127,33 @@ Visual trail effect on the fish. Trail and streak aura effects coexist independe
 | Galaxy Trail | 70,000 | 🌌 Cosmic swirl |
 
 ### Click Power
-Each fish click counts as more clicks server-side.
-| Upgrade | Cost | Effect |
-|---------|------|--------|
-| Double Click | 100 | ×2 clicks |
-| Double Click II | 400 | ×3 clicks |
-| Double Click III | 900 | ×4 clicks |
-| Double Click IV | 2,000 | ×5 clicks |
-| Double Click V | 4,500 | ×6 clicks |
+Each fish click counts as more clicks server-side. Also scales all Frenzy passive tick amounts. Single item purchased repeatedly — no tier cap.
+
+| Level range | Cost per level | Multiplier |
+|-------------|----------------|-----------|
+| Lv 1–5 | 100 / 400 / 900 / 2,000 / 4,500 | ×2 → ×6 |
+| Lv 6+ | 10,000 × 1.5^(level−6) | +1 per level (×7, ×8, …) |
 
 ### Click Frenzy
-Passive income — server ticks fish clicks automatically.
-| Tier | Cost | Effect |
-|------|------|--------|
-| Frenzy I | 150 | +1 click per 5s |
-| Frenzy II | 600 | +5 clicks per 5s |
-| Frenzy III | 2,400 | +20 clicks per 5s |
-| Frenzy IV | 9,600 | +80 clicks per 5s |
-| Frenzy V | 38,400 | +320 clicks per 5s |
+Passive income — server ticks fish clicks automatically. All Frenzy amounts are multiplied by your Click Power level.
+| Tier | Cost | Base clicks per 5s |
+|------|------|--------------------|
+| Frenzy I | 150 | +1 |
+| Frenzy II | 600 | +5 |
+| Frenzy III | 2,400 | +20 |
+| Frenzy IV | 9,600 | +50 |
+| Frenzy V | 38,400 | +100 |
+| Final Frenzy | 100,000 | +500 (requires Frenzy V; toggleable; disables manual clicking while active) |
 
 ### Protection
 | Item | Cost | Behaviour |
 |------|------|-----------|
 | 🛡️ Guard | 300 | 50% chance to block any loss. Breaks on success, survives on failure. |
+| 🔁 Auto-Guard | 10,000 | Requires Guard. Toggleable. When enabled and Guard breaks, automatically re-buys Guard for 500 fish clicks before the next spin. Disables itself if you can't afford the 500 fish click cost. |
 | 🔄 Regenerating Shield | 800 | Blocks any loss when charged. Recharges after 5 wins. Never breaks. |
 
 - **Guard** — activates on any loss. A mini-wheel spins (50/50). If it lands on the win segment, the loss is fully blocked and the guard is consumed. If it fails, the guard survives and you take the loss as normal.
+- **Auto-Guard** — toggle on/off via the shop like Final Frenzy. When Guard breaks, the replacement is purchased silently before your next spin for a flat 500 fish clicks (unaffected by Click Power).
 - **Regenerating Shield** — blocks the next loss with 100% certainty while charged. After triggering, it recharges automatically after 5 consecutive wins.
 
 ### Wheel Theme
@@ -183,7 +193,7 @@ Changes the canvas colour palette of the wheel.
 | 🍀 Fortune Charm | 500 | All streak bonuses are increased by 25% |
 | 7️⃣ Lucky Seven | 1,000 | Every 7th spin is guaranteed to win |
 | 🔊 Win Echo | 750 | 20% chance each win is doubled |
-| 💪 Resilience | 400 | When on a win streak, losses reduce streak by 1 instead of resetting it |
+| 💪 Resilience | 500,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% chance) |
 | 🎰 Jackpot | 3,000 | 2% chance each spin multiplies all gains by 50× |
 
 ### 🌌 Legendary
@@ -305,7 +315,7 @@ wheel-app/
 │                      #            /api/equip-cosmetic, /api/fish-click,
 │                      #            /api/click-frenzy, /api/stats, /api/leaderboard, /api/health
 ├── db.py              # psycopg2 ThreadedConnectionPool + db_connection() context manager
-├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, constants
+├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, INFINITE_UPGRADES, helper functions
 ├── security.py        # check_lockout(), record_attempt(), clear_attempts(), require_json()
 ├── extensions.py      # Flask-Limiter and Flask-Login instances
 ├── migrate.py         # SQL migration runner (apply / status / dry-run)
@@ -345,8 +355,9 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/buy` | POST | — | Purchase shop item |
 | `/api/equip` | POST | — | Equip a fish skin |
 | `/api/equip-cosmetic` | POST | — | Toggle a cosmetic item on/off |
-| `/api/fish-click` | POST | 30/sec | Increment fish clicks |
-| `/api/click-frenzy` | POST | — | Passive click income tick |
+| `/api/fish-click` | POST | 5/sec | Increment fish clicks (DB-enforced budget: 75 raw clicks per 5s window) |
+| `/api/click-frenzy` | POST | 1/sec | Passive click income tick (DB-enforced 2s cooldown) |
+| `/api/settings` | POST | — | Persist user preferences (e.g. `low_spec_mode`) |
 | `/api/stats` | GET | — | Personal stats (spins, wins, losses, win rate, fish clicks, lifetime taps) |
 | `/api/leaderboard` | GET | — | Public — top 5 players by wins |
 
@@ -359,17 +370,26 @@ All game endpoints require authentication (session cookie). POST endpoints requi
   "losses": 3,
   "streak": 4,
   "owned_items": ["regen_shield"],
+  "active_cosmetics": ["auto_guard"],
   "shield_charges": 0,
   "regen_recharge_wins": 0,
   "shield_used": false,
+  "shield_used_type": null,
   "shield_broke": false,
   "guard_triggered": false,
   "guard_blocked": false,
   "bonus_earned": 4,
   "echo_triggered": false,
-  "jackpot_hit": false
+  "jackpot_hit": false,
+  "resilience_triggered": false,
+  "lucky_seven_triggered": false,
+  "fortune_charm_triggered": false,
+  "fish_clicks_delta": 0,
+  "auto_guard_failed": false
 }
 ```
+
+`fish_clicks_delta` is `0` normally and `-500` when Auto-Guard purchases a replacement Guard. The client applies it as a delta (not an absolute value) to avoid race conditions with concurrent frenzy responses.
 
 `/api/leaderboard` (public, no auth required):
 ```json
