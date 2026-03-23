@@ -8,7 +8,8 @@ from flask_login import current_user, login_required
 
 from db import db_connection
 from extensions import limiter
-from models import ALL_ITEMS, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS
+from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
+                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level)
 from seasons import ensure_current_season, get_season_info
 
 COSMETIC_SLOTS = {
@@ -24,6 +25,7 @@ COSMETIC_SLOTS = {
     'golden_wheel': 'golden',
     'page_season1': 'page_theme',
     'final_frenzy': 'frenzy_mode',
+    'auto_guard':   'auto_guard',
 }
 from security import require_json
 
@@ -54,7 +56,9 @@ def get_state():
                 cur.execute(
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
                               equipped_fish, shield_charges, regen_recharge_wins,
-                              active_cosmetics, spin_count, win_count
+                              active_cosmetics, spin_count, win_count,
+                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
+                              low_spec_mode
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -72,10 +76,35 @@ def get_state():
             'spin_count':         gs['spin_count'],
             'win_count':          gs['win_count'],
             'season':             full_info,
+            'winmult_inf_level':   gs['winmult_inf_level'],
+            'bonusmult_inf_level': gs['bonusmult_inf_level'],
+            'clickmult_inf_level': gs['clickmult_inf_level'],
+            'low_spec_mode':       gs['low_spec_mode'],
         })
     except Exception:
         log.exception('GET_STATE_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Failed to load state'}), 500
+
+
+@game_bp.route('/api/settings', methods=['POST'])
+@login_required
+def update_settings():
+    err = require_json()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    try:
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE game_state SET low_spec_mode = %s WHERE user_id = %s',
+                    (bool(data.get('low_spec_mode', False)), current_user.id),
+                )
+            conn.commit()
+        return jsonify({'ok': True})
+    except Exception:
+        log.exception('SETTINGS_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Settings update failed'}), 500
 
 
 @game_bp.route('/api/spin', methods=['POST'])
@@ -92,7 +121,9 @@ def spin():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, streak, owned_items, shield_charges, regen_recharge_wins,
-                              spin_count, win_count, loss_count
+                              spin_count, win_count, loss_count,
+                              winmult_inf_level, bonusmult_inf_level,
+                              fish_clicks, active_cosmetics
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -102,6 +133,18 @@ def spin():
             streak              = gs['streak']
             shield_charges      = gs['shield_charges']
             regen_recharge_wins = gs['regen_recharge_wins']
+            fish_clicks         = gs['fish_clicks']
+            active_cosmetics    = list(gs['active_cosmetics'])
+
+            # Auto-guard: if enabled and guard is gone, buy one before spinning
+            auto_guard_failed = False
+            if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
+                if fish_clicks >= 500:
+                    owned        = owned + ['guard']
+                    fish_clicks -= 500
+                else:
+                    active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
+                    auto_guard_failed = True
 
             # New spin count (used by lucky_seven)
             new_spin_count = gs['spin_count'] + 1
@@ -115,20 +158,9 @@ def spin():
             else:
                 outcome = secrets.choice(['win', 'lose'])
 
-            # Multipliers
-            win_mult = (128 if 'winmult_7' in owned else
-                        64  if 'winmult_6' in owned else
-                        32  if 'winmult_5' in owned else
-                        16  if 'winmult_4' in owned else
-                        8   if 'winmult_3' in owned else
-                        4   if 'winmult_2' in owned else
-                        2   if 'winmult_1' in owned else 1)
-            bonus_mult = (100 if 'bonusmult_6' in owned else
-                          50  if 'bonusmult_5' in owned else
-                          20  if 'bonusmult_4' in owned else
-                          10  if 'bonusmult_3' in owned else
-                          5   if 'bonusmult_2' in owned else
-                          2   if 'bonusmult_1' in owned else 1)
+            # Multipliers — derived entirely from inf level columns
+            win_mult   = win_mult_from_level(gs['winmult_inf_level'])
+            bonus_mult = bonus_mult_from_level(gs['bonusmult_inf_level'])
 
             shield_used      = False
             shield_broke     = False
@@ -231,11 +263,13 @@ def spin():
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, streak = %s,
                            shield_charges = %s, regen_recharge_wins = %s,
-                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s
+                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
+                           fish_clicks = %s, active_cosmetics = %s
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak,
                      shield_charges, regen_recharge_wins,
-                     new_owned, new_spin_count, new_win_count, new_loss_count, current_user.id),
+                     new_owned, new_spin_count, new_win_count, new_loss_count,
+                     fish_clicks, active_cosmetics, current_user.id),
                 )
             conn.commit()
 
@@ -259,6 +293,9 @@ def spin():
             'resilience_triggered':    resilience_triggered,
             'lucky_seven_triggered':   lucky_seven_triggered,
             'fortune_charm_triggered': fortune_charm_triggered,
+            'fish_clicks':            fish_clicks,
+            'active_cosmetics':       active_cosmetics,
+            'auto_guard_failed':      auto_guard_failed,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -275,6 +312,53 @@ def buy():
     data = request.get_json(silent=True) or {}
     item_id = data.get('item_id') or ''
 
+    # Infinite repeatable upgrades — handled separately (no "already owned" restriction)
+    if item_id in INFINITE_UPGRADES:
+        inf = INFINITE_UPGRADES[item_id]
+        col = inf['db_column']
+        try:
+            with db_connection() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute(
+                        f'''SELECT fish_clicks, owned_items, shield_charges, regen_recharge_wins,
+                                   active_cosmetics, winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
+                            FROM game_state WHERE user_id = %s FOR UPDATE''',
+                        (current_user.id,),
+                    )
+                    gs = cur.fetchone()
+
+                owned       = list(gs['owned_items'])
+                fish_clicks = gs['fish_clicks']
+                cur_level   = gs[col]
+                cost        = inf_upgrade_cost(item_id, cur_level)
+
+                if fish_clicks < cost:
+                    return jsonify({'error': 'Insufficient fish clicks'}), 402
+
+                new_level  = cur_level + 1
+                new_clicks = fish_clicks - cost
+
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f'UPDATE game_state SET fish_clicks = %s, {col} = %s WHERE user_id = %s',
+                        (new_clicks, new_level, current_user.id),
+                    )
+                conn.commit()
+
+            return jsonify({
+                'fish_clicks':         new_clicks,
+                'owned_items':         owned,
+                'shield_charges':      gs['shield_charges'],
+                'regen_recharge_wins': gs['regen_recharge_wins'],
+                'active_cosmetics':    list(gs['active_cosmetics']),
+                'winmult_inf_level':   new_level if col == 'winmult_inf_level'   else gs['winmult_inf_level'],
+                'bonusmult_inf_level': new_level if col == 'bonusmult_inf_level' else gs['bonusmult_inf_level'],
+                'clickmult_inf_level': new_level if col == 'clickmult_inf_level' else gs['clickmult_inf_level'],
+            })
+        except Exception:
+            log.exception('BUY_INF_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
+            return jsonify({'error': 'Purchase failed'}), 500
+
     if item_id not in ALL_ITEMS:
         return jsonify({'error': 'Unknown item'}), 400
 
@@ -286,7 +370,8 @@ def buy():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT fish_clicks, owned_items, shield_charges, regen_recharge_wins, active_cosmetics
+                    '''SELECT fish_clicks, owned_items, shield_charges, regen_recharge_wins, active_cosmetics,
+                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -333,11 +418,14 @@ def buy():
             conn.commit()
 
         return jsonify({
-            'fish_clicks':        new_clicks,
-            'owned_items':        new_owned,
-            'shield_charges':     new_charges,
+            'fish_clicks':         new_clicks,
+            'owned_items':         new_owned,
+            'shield_charges':      new_charges,
             'regen_recharge_wins': new_regen_recharge,
-            'active_cosmetics':   new_active_cosmetics,
+            'active_cosmetics':    new_active_cosmetics,
+            'winmult_inf_level':   gs['winmult_inf_level'],
+            'bonusmult_inf_level': gs['bonusmult_inf_level'],
+            'clickmult_inf_level': gs['clickmult_inf_level'],
         })
     except Exception:
         log.exception('BUY_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
@@ -399,32 +487,24 @@ def fish_click():
 
     try:
         with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT clickmult_inf_level FROM game_state WHERE user_id = %s',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+
+            click_mult = click_mult_from_level(gs['clickmult_inf_level'])
+            delta = count * click_mult
+
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET fish_clicks = fish_clicks +
-                           CASE
-                               WHEN 'double_click_5' = ANY(owned_items) THEN 6 * %s
-                               WHEN 'double_click_4' = ANY(owned_items) THEN 5 * %s
-                               WHEN 'double_click_3' = ANY(owned_items) THEN 4 * %s
-                               WHEN 'double_click_2' = ANY(owned_items) THEN 3 * %s
-                               WHEN 'double_click' = ANY(owned_items) THEN 2 * %s
-                               ELSE %s
-                           END,
-                       total_fish_clicks = total_fish_clicks +
-                           CASE
-                               WHEN 'double_click_5' = ANY(owned_items) THEN 6 * %s
-                               WHEN 'double_click_4' = ANY(owned_items) THEN 5 * %s
-                               WHEN 'double_click_3' = ANY(owned_items) THEN 4 * %s
-                               WHEN 'double_click_2' = ANY(owned_items) THEN 3 * %s
-                               WHEN 'double_click' = ANY(owned_items) THEN 2 * %s
-                               ELSE %s
-                           END
+                       SET fish_clicks = fish_clicks + %s,
+                           total_fish_clicks = total_fish_clicks + %s
                        WHERE user_id = %s
                        RETURNING fish_clicks''',
-                    (count, count, count, count, count, count,
-                     count, count, count, count, count, count,
-                     current_user.id),
+                    (delta, delta, current_user.id),
                 )
                 row = cur.fetchone()
             conn.commit()
@@ -445,7 +525,7 @@ def click_frenzy():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT fish_clicks, total_fish_clicks, owned_items, active_cosmetics FROM game_state WHERE user_id = %s FOR UPDATE',
+                    'SELECT fish_clicks, total_fish_clicks, owned_items, active_cosmetics, clickmult_inf_level FROM game_state WHERE user_id = %s FOR UPDATE',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
@@ -468,17 +548,8 @@ def click_frenzy():
             else:
                 return jsonify({'error': 'No frenzy upgrade owned'}), 403
 
-            # Apply double-click multiplier to passive clicks
-            if 'double_click_5' in owned:
-                amount *= 6
-            elif 'double_click_4' in owned:
-                amount *= 5
-            elif 'double_click_3' in owned:
-                amount *= 4
-            elif 'double_click_2' in owned:
-                amount *= 3
-            elif 'double_click' in owned:
-                amount *= 2
+            # Apply click multiplier to passive clicks
+            amount *= click_mult_from_level(gs['clickmult_inf_level'])
 
             new_clicks = gs['fish_clicks'] + amount
             new_total  = gs['total_fish_clicks'] + amount

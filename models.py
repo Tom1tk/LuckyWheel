@@ -71,6 +71,7 @@ SHOP_ITEMS = {
     'final_frenzy':   {'cost': 100000,      'requires': 'clickfrenzy_5'},
     # Protection
     'guard':          {'cost': 300,         'requires': None},
+    'auto_guard':     {'cost': 10000,       'requires': 'guard'},
     'regen_shield':   {'cost': 800,         'requires': None},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,         'requires': None},
@@ -104,6 +105,58 @@ SHOP_ITEMS = {
 
 ALL_ITEMS = {**FISH_SKINS, **SHOP_ITEMS}
 VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
+
+# Infinite repeatable upgrades — replace old fixed tier chains.
+# tier_costs[N] = cost to go from level N → N+1 (for the first len(tier_costs) levels).
+# Beyond that, cost = inf_base_cost * inf_scale ** (level - len(tier_costs)).
+INFINITE_UPGRADES = {
+    'winmult_inf': {
+        'db_column':    'winmult_inf_level',
+        'tier_costs':   [200, 800, 3200, 12800, 51200, 204800, 819200],
+        'inf_base_cost': 1_000_000,
+        'inf_scale':     1.4,
+    },
+    'bonusmult_inf': {
+        'db_column':    'bonusmult_inf_level',
+        'tier_costs':   [300, 1200, 4800, 20000, 80000, 300000],
+        'inf_base_cost': 500_000,
+        'inf_scale':     1.4,
+    },
+    'clickmult_inf': {
+        'db_column':    'clickmult_inf_level',
+        'tier_costs':   [100, 400, 900, 2000, 4500],
+        'inf_base_cost': 10_000,
+        'inf_scale':     1.5,
+    },
+}
+
+
+def inf_upgrade_cost(item_id, current_level):
+    """Cost to advance from current_level to current_level+1."""
+    cfg = INFINITE_UPGRADES[item_id]
+    tiers = cfg['tier_costs']
+    if current_level < len(tiers):
+        return tiers[current_level]
+    excess = current_level - len(tiers)
+    return int(cfg['inf_base_cost'] * cfg['inf_scale'] ** excess)
+
+
+# Multiplier values at each level (level 0 = nothing owned)
+def win_mult_from_level(level):
+    if level <= 0: return 1
+    if level <= 7: return 1 << level          # 2, 4, 8, 16, 32, 64, 128
+    return 128 + (level - 7) * 16             # 144, 160, 176, …
+
+
+def bonus_mult_from_level(level):
+    _fixed = [1, 2, 5, 10, 20, 50, 100]
+    if level <= 6: return _fixed[level]
+    return 100 + (level - 6) * 10             # 110, 120, 130, …
+
+
+def click_mult_from_level(level):
+    if level <= 0: return 1
+    return level + 1                           # 2, 3, 4, 5, 6, 7, 8, …
 
 LOCKOUT_RULES = [
     (20, 3600),  # 20+ fails → 1 hour

@@ -482,21 +482,10 @@ const SHOP_SECTIONS = [
     { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1200, desc: 'Auto delay: 0.5s → 0',   requires: 'autospeed_2' },
   ]},
   { label: '💰 Win Power', items: [
-    { id: 'winmult_1',   emoji: '💰', name: 'Win x2',       cost: 200,    desc: 'Each win scores double' },
-    { id: 'winmult_2',   emoji: '💰', name: 'Win x4',       cost: 800,    desc: 'Each win scores x4',    requires: 'winmult_1' },
-    { id: 'winmult_3',   emoji: '💰', name: 'Win x8',       cost: 3200,   desc: 'Each win scores x8',    requires: 'winmult_2' },
-    { id: 'winmult_4',   emoji: '💎', name: 'Win x16',      cost: 12800,  desc: 'Each win scores x16',   requires: 'winmult_3' },
-    { id: 'winmult_5',   emoji: '💎', name: 'Win x32',      cost: 51200,  desc: 'Each win scores x32',   requires: 'winmult_4' },
-    { id: 'winmult_6',   emoji: '👑', name: 'Win x64',      cost: 204800, desc: 'Each win scores x64',   requires: 'winmult_5' },
-    { id: 'winmult_7',   emoji: '👑', name: 'Win x128',     cost: 819200, desc: 'Each win scores x128',  requires: 'winmult_6' },
+    { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
   ]},
   { label: '⭐ Bonus Power', items: [
-    { id: 'bonusmult_1', emoji: '⭐', name: 'Bonus Boost',  cost: 300,    desc: 'Streak bonuses x2 — ⚠️ also amplifies loss streaks' },
-    { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Mega',   cost: 1200,   desc: 'Streak bonuses x5 — ⚠️ also amplifies loss streaks',   requires: 'bonusmult_1' },
-    { id: 'bonusmult_3', emoji: '💫', name: 'Bonus ULTRA',  cost: 4800,   desc: 'Streak bonuses x10 — ⚠️ also amplifies loss streaks',  requires: 'bonusmult_2' },
-    { id: 'bonusmult_4', emoji: '💫', name: 'Bonus x20',    cost: 20000,  desc: 'Streak bonuses x20 — ⚠️ also amplifies loss streaks',  requires: 'bonusmult_3' },
-    { id: 'bonusmult_5', emoji: '🌟', name: 'Bonus x50',    cost: 80000,  desc: 'Streak bonuses x50 — ⚠️ also amplifies loss streaks',  requires: 'bonusmult_4' },
-    { id: 'bonusmult_6', emoji: '🌟', name: 'Bonus x100',   cost: 300000, desc: 'Streak bonuses x100 — ⚠️ also amplifies loss streaks', requires: 'bonusmult_5' },
+    { id: 'bonusmult_inf', emoji: '⭐', name: 'Bonus Power', cost: 0, desc: 'Multiplies streak bonuses — ⚠️ also amplifies loss streaks', infinite: true },
   ]},
   { label: '🐟 Fish Size', items: [
     { id: 'fishsize_1',  emoji: '🔎', name: 'Big Fish',     cost: 50,   desc: 'Fish size: XL (20rem)' },
@@ -512,11 +501,7 @@ const SHOP_SECTIONS = [
     { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 70000, desc: 'Cosmic void aura',       requires: 'trail_5' },
   ]},
   { label: '🖱️ Click Power', items: [
-    { id: 'double_click',   emoji: '👆', name: 'Double Click', cost: 100,  desc: 'Fish clicks count x2' },
-    { id: 'double_click_2', emoji: '✌️', name: 'Triple Click', cost: 400,  desc: '3 clicks per tap',       requires: 'double_click' },
-    { id: 'double_click_3', emoji: '🖖', name: 'Quad Click',   cost: 900,  desc: '4 clicks per tap',       requires: 'double_click_2' },
-    { id: 'double_click_4', emoji: '🤚', name: 'Penta Click',  cost: 2000, desc: '5 clicks per tap',       requires: 'double_click_3' },
-    { id: 'double_click_5', emoji: '👐', name: 'Hexa Click',   cost: 4500, desc: '6 clicks per tap',       requires: 'double_click_4' },
+    { id: 'clickmult_inf', emoji: '👆', name: 'Click Power', cost: 0, desc: 'Multiplies fish clicks per tap (also scales frenzy)', infinite: true },
     { id: 'clickfrenzy_1',  emoji: '🖱️', name: 'Frenzy I',    cost: 150,  desc: '+1 passive click/5s (scales with click upgrades)' },
     { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 passive clicks/5s (scales with click upgrades)',  requires: 'clickfrenzy_1' },
     { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
@@ -525,8 +510,9 @@ const SHOP_SECTIONS = [
     { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 100000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300, desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
-    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 800, desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300,   desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
+    { id: 'auto_guard',  emoji: '🔁', name: 'Auto-Guard',         cost: 10000, desc: 'Automatically re-buys a Guard for 500 clicks when one breaks. Toggle to enable/disable.', requires: 'guard' },
+    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 800,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -566,6 +552,32 @@ const SHOP_SECTIONS = [
   ]},
 ];
 
+// Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
+const INF_UPGRADE_CFG = {
+  winmult_inf:   { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 1_000_000, infScale: 1.4 },
+  bonusmult_inf: { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 500_000,   infScale: 1.4 },
+  clickmult_inf: { tierCosts: [100, 400, 900, 2000, 4500],                    infBase: 10_000,    infScale: 1.5 },
+};
+function infCost(id, level) {
+  const { tierCosts, infBase, infScale } = INF_UPGRADE_CFG[id];
+  if (level < tierCosts.length) return tierCosts[level];
+  return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
+}
+function infMultiplier(id, level) {
+  if (id === 'winmult_inf') {
+    if (level <= 0) return 1;
+    if (level <= 7) return Math.pow(2, level);
+    return 128 + (level - 7) * 16;
+  }
+  if (id === 'bonusmult_inf') {
+    const fixed = [1, 2, 5, 10, 20, 50, 100];
+    if (level <= 6) return fixed[level];
+    return 100 + (level - 6) * 10;
+  }
+  if (id === 'clickmult_inf') return level <= 0 ? 1 : level + 1;
+  return 1;
+}
+
 const DEFAULT_FISH = { emoji: '🐟', labels: { idle: 'Click me!', happy: '🎉 Nice!', sad: '💀 Ouch!' } };
 
 function getFishData(equippedFish) {
@@ -582,12 +594,23 @@ const COSMETIC_SECTION_IDS = new Set([
   'golden_wheel',
   'page_season1',
   'final_frenzy',
+  'auto_guard',
 ]);
 
 // ── Shop components ────────────────────────────────────────────────────────
-const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, isSkin, isSingularity, isCosmetic }) {
+const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, isSkin, isSingularity, isCosmetic, infLevel, displayCost }) {
+  const isInfinite = !!item.infinite;
+  const cost = isInfinite ? displayCost : item.cost;
+
   let actionEl;
-  if (owned && isSkin) {
+  if (isInfinite) {
+    actionEl = (
+      <button
+        className={`shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`}
+        onClick={() => canAfford && onBuy(item.id, cost)}
+      >Buy</button>
+    );
+  } else if (owned && isSkin) {
     actionEl = equipped
       ? <span className="shop-equipped-badge">✓ On</span>
       : <button className="shop-equip-btn" onClick={() => onEquip(item.id)}>Equip</button>;
@@ -601,18 +624,25 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
     actionEl = (
       <button
         className={`shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`}
-        onClick={() => canAfford && onBuy(item.id, item.cost)}
+        onClick={() => canAfford && onBuy(item.id, cost)}
       >Buy</button>
     );
   }
   const extraClass = isSingularity && !owned ? 'singularity-item' : '';
+  const infDesc = isInfinite && infLevel != null
+    ? (() => {
+        const cur = infMultiplier(item.id, infLevel);
+        const nxt = infMultiplier(item.id, infLevel + 1);
+        return `Lv${infLevel} · x${cur} → x${nxt}  ${item.desc}`;
+      })()
+    : item.desc;
   return (
-    <div className={`shop-item ${owned ? (equipped || active ? 'equipped' : 'owned') : ''} ${extraClass}`}>
+    <div className={`shop-item ${!isInfinite && owned ? (equipped || active ? 'equipped' : 'owned') : ''} ${extraClass}`}>
       <span className="shop-item-emoji">{item.emoji}</span>
       <div className="shop-item-info">
         <div className="shop-item-name">{item.name}</div>
-        {item.desc && <div className="shop-item-desc" data-tooltip={item.desc}>{item.desc}</div>}
-        {!owned && <div className="shop-item-cost">🐟 {item.cost.toLocaleString()}</div>}
+        {infDesc && <div className="shop-item-desc" data-tooltip={infDesc}>{infDesc}</div>}
+        <div className="shop-item-cost">🐟 {cost.toLocaleString()}</div>
       </div>
       <div className="shop-item-action">{actionEl}</div>
     </div>
@@ -621,7 +651,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBuy, onEquip, onEquipCosmetic }) {
+function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic }) {
   const [activeTab, setActiveTab] = useState('cosmetic');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -631,10 +661,11 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBu
       const visibleItems = section.items.filter(item => {
         const requiresMet = !item.requires || ownedItems.includes(item.requires);
         if (isCosmeticSection) return requiresMet;
+        if (item.infinite) return requiresMet; // infinite items always visible once prereq met
         const isOwned = ownedItems.includes(item.id);
         if (!isOwned) return requiresMet; // next tier to buy
         // Owned: show only if this is the latest owned in its chain
-        const nextInChain = section.items.find(other => other.requires === item.id);
+        const nextInChain = section.items.find(other => other.requires === item.id && !other.infinite && !COSMETIC_SECTION_IDS.has(other.id));
         return !nextInChain || !ownedItems.includes(nextInChain.id);
       });
       if (visibleItems.length === 0) return;
@@ -648,15 +679,19 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, onBu
       <div className="shop-section-label">── {section.label} ──</div>
       {section.visibleItems.map(item => {
         const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
+        const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
+        const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
         return (
           <ShopItem key={item.id} item={item}
             isSkin={false}
             isSingularity={item.id === 'singularity'}
             isCosmetic={isCosmetic}
-            owned={ownedItems.includes(item.id)}
+            owned={!item.infinite && ownedItems.includes(item.id)}
             equipped={false}
             active={isCosmetic && activeCosmetics.includes(item.id)}
-            canAfford={fishClicks >= item.cost}
+            canAfford={fishClicks >= displayCost}
+            infLevel={infLevel}
+            displayCost={displayCost}
             onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
           />
         );
@@ -804,10 +839,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
+  const [infLevels, setInfLevels]     = useState({
+    winmult_inf:   gameState.winmult_inf_level   || 0,
+    bonusmult_inf: gameState.bonusmult_inf_level || 0,
+    clickmult_inf: gameState.clickmult_inf_level || 0,
+  });
   const [showStats, setShowStats]     = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
-  const [lowSpec, setLowSpec]         = useState(() => localStorage.getItem('lowSpecMode') === 'true');
+  const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
 
   const spinSpeed = useMemo(() => {
     if (ownedItems.includes('maxspin'))   return 0.5;
@@ -906,6 +946,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
+    apiGame('/api/settings', { method: 'POST', body: JSON.stringify({ low_spec_mode: lowSpec }) });
   }, [lowSpec]);
 
   useEffect(() => {
@@ -941,6 +982,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           setShieldCharges(gs.data.shield_charges);
           setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
           setActiveCosmetics(gs.data.active_cosmetics || []);
+          setInfLevels({
+            winmult_inf:   gs.data.winmult_inf_level   || 0,
+            bonusmult_inf: gs.data.bonusmult_inf_level || 0,
+            clickmult_inf: gs.data.clickmult_inf_level || 0,
+          });
         }
       } else {
         setSeason(r.data);
@@ -1000,6 +1046,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null) {
+        setInfLevels({
+          winmult_inf:   data.winmult_inf_level   ?? 0,
+          bonusmult_inf: data.bonusmult_inf_level ?? 0,
+          clickmult_inf: data.clickmult_inf_level ?? 0,
+        });
+      }
     } else {
       showToast(data.error || 'Purchase failed');
     }
@@ -1049,6 +1102,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
+    if (data.fish_clicks != null) setFishClicks(data.fish_clicks);
+    if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+    if (data.auto_guard_failed) showToast('Not enough clicks — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -1078,7 +1134,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
     spinningRef.current = false;
     setSpinning(false);
-  }, []);
+  }, [showToast]);
 
   const spin = useCallback(async () => {
     if (spinningRef.current) return;
@@ -1347,6 +1403,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             ownedItems={ownedItems}
             equippedFish={equippedFish}
             activeCosmetics={activeCosmetics}
+            infLevels={infLevels}
             onBuy={handleBuy}
             onEquip={handleEquip}
             onEquipCosmetic={handleEquipCosmetic}
