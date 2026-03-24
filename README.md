@@ -366,7 +366,7 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/click-frenzy` | POST | 1/sec | Passive click income tick (DB-enforced 2s cooldown) |
 | `/api/settings` | POST | — | Persist user preferences (e.g. `low_spec_mode`) |
 | `/api/stats` | GET | — | Personal stats (spins, wins, losses, win rate, fish clicks, lifetime taps) |
-| `/api/leaderboard` | GET | — | Public — top 5 players by wins |
+| `/api/leaderboard` | GET | — | Public — top 10 players by wins, includes current streak and all-time best streak |
 
 `/api/spin` response:
 ```json
@@ -421,12 +421,12 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `Fish` | Left-side mascot — aura, mood, trail effects, click animation |
 | `GuardWheel` | Mini canvas wheel overlay for guard activation (50/50 animation) |
 | `StreakPanel` | Sidebar streak display (only shown at streak ≥ 2) |
-| `ShopPanel` | Always-visible two-column shop (cosmetics left, functional right) |
+| `ShopPanel` | Two-column shop (cosmetics left, functional right); collapsible via a pinned `›`/`‹` toggle button |
 | `ShopItem` | Individual item card (buy / equip / active states; full desc on hover) |
 | `Scoreboard` | Win/loss counter below the wheel |
 | `StatsPanel` | Modal overlay showing personal stats (📊 button) |
 | `Confetti` | Win confetti overlay |
-| `Leaderboard` | Horizontal scrolling ticker at the bottom of the right panel |
+| `Leaderboard` | Vertical panel (bottom-left) — top 10 players with wins, best streak, and live streak glow effect; refreshes every 5s |
 | `FireEffect` | Full-viewport canvas fire effect behind all UI — ember particles + cellular automaton inferno, scaled by win streak |
 | `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon / void / gold) |
 | `drawGuardWheel` | Canvas rendering for the guard mini-wheel (50% green / 50% red) |
