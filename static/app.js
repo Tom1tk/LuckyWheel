@@ -1531,6 +1531,7 @@ function ShopPanel({
   onEquipCosmetic
 }) {
   const [activeTab, setActiveTab] = useState('cosmetic');
+  const [collapsed, setCollapsed] = useState(false);
   const {
     cosmeticSections,
     functionalSections
@@ -1586,8 +1587,12 @@ function ShopPanel({
     });
   }));
   return /*#__PURE__*/React.createElement("div", {
-    className: "shop-panel"
-  }, /*#__PURE__*/React.createElement("div", {
+    className: `shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "shop-collapse-btn",
+    onClick: () => setCollapsed(c => !c),
+    title: collapsed ? 'Expand shop' : 'Collapse shop'
+  }, collapsed ? '‹' : '›'), /*#__PURE__*/React.createElement("div", {
     className: "shop-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "shop-title"

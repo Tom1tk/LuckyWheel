@@ -731,6 +731,35 @@ body::before {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.shop-panel--collapsed {
+  transform: translateX(calc(100% - 26px));
+}
+
+.shop-collapse-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.shop-collapse-btn:hover { color: #00CC44; border-color: #00CC44; }
+
+.shop-panel--collapsed .shop-collapse-btn {
+  right: auto;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Tab layout */

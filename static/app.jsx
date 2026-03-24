@@ -953,6 +953,7 @@ const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '�
 
 function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic }) {
   const [activeTab, setActiveTab] = useState('cosmetic');
+  const [collapsed, setCollapsed] = useState(false);
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
     const cosmetic = [], functional = [];
@@ -1000,7 +1001,10 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
   );
 
   return (
-    <div className="shop-panel">
+    <div className={`shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`}>
+      <button className="shop-collapse-btn" onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand shop' : 'Collapse shop'}>
+        {collapsed ? '‹' : '›'}
+      </button>
       <div className="shop-header">
         <div className="shop-title">🛒 Shop</div>
         <div className="shop-balance">Balance: <span>🐟 {fmt(fishClicks)}</span></div>
