@@ -2,7 +2,21 @@
 
 ---
 
-## Latest — 23 Mar 2026
+## Latest — 24 Mar 2026
+
+### Rising Fire Effect
+- A full-viewport fire effect now rises behind all game UI, scaling with your win streak.
+- Built with HTML5 Canvas — no external libraries.
+- **Embers** mode: rising particle sparks, visible from streak 3.
+- **Inferno** mode: classic cellular automaton heat buffer with upward propagation, visible from streak 10.
+- **Mix** mode (default): embers and inferno layered together with additive blending for the most dramatic look.
+- Fire height scales linearly with streak — the screen is filled around streak 30, reaching a full inferno at 50+.
+- Intensity lerps smoothly toward the current streak value each frame: wins cause the fire to grow gradually, and a loss causes it to fall gracefully rather than cut out abruptly.
+- Low-Spec Mode and OS `prefers-reduced-motion` suppress the effect entirely.
+
+---
+
+## 23 Mar 2026
 
 ### Bug Fix: Fish Clicks Appearing to Drop After Each Spin
 - Fixed a race condition where frenzy tick responses and spin responses could arrive out of order at the client.
