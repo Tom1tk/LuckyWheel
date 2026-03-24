@@ -1304,7 +1304,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-name-h   { flex: 1; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-transform: uppercase; }
 .lb-wins-h   { width: 28px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
 .lb-best-h   { width: 34px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
-.lb-streak-h { width: 28px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+.lb-streak-h { font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 
 .lb-row {
   display: flex;
@@ -1353,11 +1353,11 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 }
 
 .lb-streak {
-  width: 28px;
   font-size: 0.6rem;
   color: #888;
   flex-shrink: 0;
   text-align: right;
+  white-space: nowrap;
   min-height: 1em;
 }
 
