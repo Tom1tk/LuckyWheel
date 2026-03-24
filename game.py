@@ -122,7 +122,7 @@ def spin():
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT wins, losses, streak, owned_items, shield_charges, regen_recharge_wins,
+                    '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges, regen_recharge_wins,
                               spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level,
                               fish_clicks, active_cosmetics
@@ -133,6 +133,7 @@ def spin():
 
             owned               = list(gs['owned_items'])
             streak              = gs['streak']
+            best_streak         = gs['best_streak']
             shield_charges      = gs['shield_charges']
             regen_recharge_wins = gs['regen_recharge_wins']
             fish_clicks         = gs['fish_clicks']
@@ -250,6 +251,9 @@ def spin():
                     else:
                         new_wins += win_mult + bonus_earned
 
+            # Update best streak
+            new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
+
             # Stats tracking
             new_win_count  = gs['win_count']  + (1 if outcome == 'win'  else 0)
             new_loss_count = gs['loss_count'] + (1 if outcome == 'lose' else 0)
@@ -265,12 +269,12 @@ def spin():
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET wins = %s, losses = %s, streak = %s,
+                       SET wins = %s, losses = %s, streak = %s, best_streak = %s,
                            shield_charges = %s, regen_recharge_wins = %s,
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            fish_clicks = %s, active_cosmetics = %s
                        WHERE user_id = %s''',
-                    (new_wins, new_losses, new_streak,
+                    (new_wins, new_losses, new_streak, new_best_streak,
                      shield_charges, regen_recharge_wins,
                      new_owned, new_spin_count, new_win_count, new_loss_count,
                      fish_clicks, active_cosmetics, current_user.id),
@@ -676,15 +680,21 @@ def leaderboard():
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT u.username, gs.wins, gs.losses
+                    '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
                        ORDER BY gs.wins DESC
-                       LIMIT 5'''
+                       LIMIT 10'''
                 )
                 rows = cur.fetchall()
         return jsonify([
-            {'username': r['username'], 'wins': int(r['wins']), 'losses': r['losses']}
+            {
+                'username':    r['username'],
+                'wins':        int(r['wins']),
+                'losses':      r['losses'],
+                'streak':      r['streak'],
+                'best_streak': r['best_streak'],
+            }
             for r in rows
         ])
     except Exception:

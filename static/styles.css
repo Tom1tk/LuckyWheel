@@ -583,10 +583,6 @@ body::before {
 
 /* Fish click counter */
 .fish-counter {
-  position: fixed;
-  bottom: 24px;
-  left: 32px;
-  z-index: 102;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1242,75 +1238,63 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 }
 
 /* ── Leaderboard ──────────────────────────────────────────────────────── */
-.leaderboard-bar {
+.bottom-left-stack {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 12px;
+  left: 12px;
   z-index: 155;
   display: flex;
-  justify-content: center;
-  padding: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   pointer-events: none;
 }
+.bottom-left-stack > * { pointer-events: auto; }
 
-.leaderboard {
-  background: rgba(0,5,2,0.97);
-  border: 1px solid rgba(0,204,68,0.25);
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  padding: 7px 12px;
-  box-shadow: 0 0 16px rgba(0,204,68,0.08);
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  overflow: hidden;
-  max-width: 700px;
-  width: 100%;
-  pointer-events: auto;
+.leaderboard-panel {
+  width: 230px;
+  background: rgba(0, 8, 2, 0.92);
+  border: 1px solid #007722;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 0 18px rgba(0, 204, 68, 0.18), 0 2px 12px rgba(0,0,0,0.7);
 }
 
-.leaderboard-title {
-  font-size: 0.55rem;
-  letter-spacing: 3px;
-  text-transform: uppercase;
+.leaderboard-panel-title {
   color: #00CC44;
-  text-shadow: 0 0 8px rgba(0,204,68,0.5);
-  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.85;
 }
 
-.leaderboard-scroll {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-}
-
-.leaderboard-track {
-  display: flex;
-  animation: leaderboardScroll 14s linear infinite;
-}
-
-@keyframes leaderboardScroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.leaderboard-row {
+.lb-header {
   display: flex;
   align-items: baseline;
-  gap: 5px;
-  padding: 2px 8px;
-  border-left: 1px solid rgba(255,215,0,0.12);
-  flex-shrink: 0;
+  gap: 4px;
+  padding: 0 0 4px 0;
+  border-bottom: 1px solid rgba(0,204,68,0.12);
+  margin-bottom: 3px;
 }
-.leaderboard-row:first-of-type { border-left: none; }
+.lb-rank-h   { width: 18px; flex-shrink: 0; }
+.lb-name-h   { flex: 1; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+.lb-wins-h   { width: 28px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+.lb-best-h   { width: 34px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+.lb-streak-h { width: 28px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+
+.lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 0;
+}
 
 .lb-rank {
   font-size: 0.6rem;
   color: #555;
-  width: 14px;
+  width: 18px;
   flex-shrink: 0;
 }
 .lb-rank.gold   { color: #00CC44; text-shadow: 0 0 6px #00CC44; }
@@ -1318,7 +1302,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-rank.bronze { color: #CD7F32; }
 
 .lb-name {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #ddd;
   letter-spacing: 1px;
   flex: 1;
@@ -1330,23 +1314,46 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-name.is-you { color: #00CC44; }
 
 .lb-wins {
+  width: 28px;
   font-size: 0.65rem;
   color: #00CC44;
   flex-shrink: 0;
   letter-spacing: 1px;
+  text-align: right;
 }
 
-.lb-ratio {
-  font-size: 0.55rem;
+.lb-best {
+  width: 34px;
+  font-size: 0.6rem;
   color: #666;
   flex-shrink: 0;
-  letter-spacing: 0.5px;
+  text-align: right;
 }
 
+.lb-streak {
+  width: 28px;
+  font-size: 0.6rem;
+  color: #888;
+  flex-shrink: 0;
+  text-align: right;
+  min-height: 1em;
+}
+
+/* Streak inferno glow — escalates with active win streak */
+.streak-inferno-1  { color: #FF8800; }
+.streak-inferno-2  { color: #FF7700; text-shadow: 0 0 4px rgba(255,120,0,0.4); }
+.streak-inferno-3  { color: #FF6600; text-shadow: 0 0 6px rgba(255,100,0,0.5); font-size: 0.65rem; }
+.streak-inferno-4  { color: #FF5500; text-shadow: 0 0 8px rgba(255,80,0,0.6); font-size: 0.68rem; }
+.streak-inferno-5  { color: #FF4400; text-shadow: 0 0 10px rgba(255,60,0,0.7); font-size: 0.72rem; }
+.streak-inferno-6  { color: #FF3300; text-shadow: 0 0 12px rgba(255,40,0,0.8), 0 0 24px rgba(255,60,0,0.3); font-size: 0.76rem; }
+.streak-inferno-7  { color: #FF2200; text-shadow: 0 0 14px rgba(255,30,0,0.85), 0 0 28px rgba(255,50,0,0.4); font-size: 0.80rem; }
+.streak-inferno-8  { color: #FF1100; text-shadow: 0 0 16px rgba(255,20,0,0.9), 0 0 32px rgba(255,40,0,0.5); font-size: 0.84rem; }
+.streak-inferno-9  { color: #FF0500; text-shadow: 0 0 18px rgba(255,10,0,0.95), 0 0 36px rgba(255,30,0,0.6); font-size: 0.88rem; }
+.streak-inferno-10 { color: #FF0000; text-shadow: 0 0 20px rgba(255,0,0,1), 0 0 40px rgba(255,20,0,0.7), 0 0 60px rgba(255,0,0,0.3); font-size: 0.92rem; }
+
 @media (max-width: 600px) {
-  .leaderboard { width: 160px; bottom: 160px; right: 4px; padding: 7px 8px; }
+  .leaderboard-panel { width: 180px; }
   .lb-name { font-size: 0.6rem; }
-  .lb-wins { font-size: 0.6rem; }
 }
 
 /* Session-booted banner */
@@ -1729,8 +1736,8 @@ body.page-season1 .stats-card { background: rgba(10,5,0,0.97); border-color: rgb
 body.page-season1 .stats-title { color: #FFD700; text-shadow: 0 0 10px rgba(255,215,0,0.5); }
 body.page-season1 .stats-row span:last-child { color: #FFD700; }
 body.page-season1 .stats-btn:hover { color: #FFD700; border-color: #FFD700; }
-body.page-season1 .leaderboard { background: rgba(10,5,0,0.95); border-color: rgba(255,215,0,0.25); box-shadow: 0 0 16px rgba(255,215,0,0.08); }
-body.page-season1 .leaderboard-title { color: #FFD700; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+body.page-season1 .leaderboard-panel { background: rgba(10,5,0,0.95); border-color: rgba(255,215,0,0.25); box-shadow: 0 0 16px rgba(255,215,0,0.08); }
+body.page-season1 .leaderboard-panel-title { color: #FFD700; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
 body.page-season1 .lb-rank.gold { color: #FFD700; text-shadow: 0 0 6px #FFD700; }
 body.page-season1 .lb-name.is-you { color: #FFD700; }
 body.page-season1 .lb-wins { color: #FFD700; }
@@ -1750,7 +1757,7 @@ body.page-season1 .season-countdown { color: #FFA500; background: rgba(255,165,0
 .low-spec .bulb                       { animation: none; opacity: 0.55; will-change: auto; }
 .low-spec .fish-body                  { animation: none; }
 .low-spec .streak-fire                { animation: none; }
-.low-spec .leaderboard-track          { animation: none; }
+.low-spec [class*="streak-inferno-"]  { text-shadow: none; font-size: 0.6rem; }
 .low-spec .shop-item.singularity-item { animation: none; box-shadow: 0 0 8px 2px #CC00FF; border-color: #CC00FF; }
 
 /* Kill all trail filter animations */
@@ -1779,7 +1786,7 @@ body.low-spec::before                 { display: none; }
 /* ── Respect OS-level reduced motion preference ──────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .casino-title, .pointer, .spin-prompt, .bulb, .fish-body,
-  .streak-fire, .leaderboard-track, .shop-item.singularity-item,
+  .streak-fire, .shop-item.singularity-item,
   [class*="trail-"] .fish-body {
     animation: none !important;
   }

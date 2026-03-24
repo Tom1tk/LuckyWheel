@@ -748,7 +748,7 @@ const Fish = React.memo(function Fish({
     opacity: auraOpacity
   } : null;
   const animClass = fishSpinning ? 'spinning-fish' : mood;
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("div", {
     className: `fish-panel ${trailClass || ''}`,
     onClick: handleClick,
     style: {
@@ -766,13 +766,7 @@ const Fish = React.memo(function Fish({
     }
   }, emoji), /*#__PURE__*/React.createElement("span", {
     className: `fish-label ${mood}`
-  }, labels[mood])), /*#__PURE__*/React.createElement("div", {
-    className: "fish-counter"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "fish-counter-label"
-  }, "Balance"), /*#__PURE__*/React.createElement("span", {
-    className: "fish-counter-value"
-  }, emoji, " \xD7 ", fmt(fishClicks))));
+  }, labels[mood]));
 });
 
 // ── Streak Panel ──────────────────────────────────────────────────────────
@@ -875,27 +869,37 @@ function Leaderboard({
   }, []);
   if (rows.length === 0) return null;
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-  const renderRow = (r, i, key) => /*#__PURE__*/React.createElement("div", {
-    key: key,
-    className: "leaderboard-row"
+  const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
+  return /*#__PURE__*/React.createElement("div", {
+    className: "leaderboard-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "leaderboard-panel-title"
+  }, "\uD83C\uDFC6 Top Players"), /*#__PURE__*/React.createElement("div", {
+    className: "lb-header"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "lb-rank-h"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "lb-name-h"
+  }, "Player"), /*#__PURE__*/React.createElement("span", {
+    className: "lb-wins-h"
+  }, "W"), /*#__PURE__*/React.createElement("span", {
+    className: "lb-best-h"
+  }, "Best"), /*#__PURE__*/React.createElement("span", {
+    className: "lb-streak-h"
+  }, "Now")), rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: r.username,
+    className: "lb-row"
   }, /*#__PURE__*/React.createElement("span", {
     className: `lb-rank ${rankClass(i)}`
   }, i + 1, "."), /*#__PURE__*/React.createElement("span", {
     className: `lb-name ${r.username === currentUser ? 'is-you' : ''}`
   }, r.username), /*#__PURE__*/React.createElement("span", {
     className: "lb-wins"
-  }, fmt(r.wins), "W"), /*#__PURE__*/React.createElement("span", {
-    className: "lb-ratio"
-  }, fmt(r.wins), "W:", fmt(r.losses), "L"));
-  return /*#__PURE__*/React.createElement("div", {
-    className: "leaderboard"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "leaderboard-title"
-  }, "\uD83C\uDFC6 Top Players"), /*#__PURE__*/React.createElement("div", {
-    className: "leaderboard-scroll"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "leaderboard-track"
-  }, rows.map((r, i) => renderRow(r, i, r.username)), rows.map((r, i) => renderRow(r, i, `${r.username}-2`)))));
+  }, fmt(r.wins)), /*#__PURE__*/React.createElement("span", {
+    className: "lb-best"
+  }, r.best_streak > 0 ? `${r.best_streak}🔥` : '—'), /*#__PURE__*/React.createElement("span", {
+    className: `lb-streak ${infernoClass(r.streak)}`
+  }, r.streak > 0 ? `${r.streak}🔥` : ''))));
 }
 
 // ── Shop catalogue ────────────────────────────────────────────────────────
@@ -2375,8 +2379,14 @@ function GameApp({
     onEquip: handleEquip,
     onEquipCosmetic: handleEquipCosmetic
   }))), /*#__PURE__*/React.createElement("div", {
-    className: "leaderboard-bar"
-  }, /*#__PURE__*/React.createElement(Leaderboard, {
+    className: "bottom-left-stack"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fish-counter"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "fish-counter-label"
+  }, "Balance"), /*#__PURE__*/React.createElement("span", {
+    className: "fish-counter-value"
+  }, getFishData(equippedFish).emoji, " \xD7 ", fmt(fishClicks))), /*#__PURE__*/React.createElement(Leaderboard, {
     currentUser: username
   })));
 }

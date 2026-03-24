@@ -622,17 +622,11 @@ const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fish
   const animClass = fishSpinning ? 'spinning-fish' : mood;
 
   return (
-    <>
-      <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
-        {auraStyle && <div className="fish-aura" style={auraStyle} />}
-        <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
-        <span className={`fish-label ${mood}`}>{labels[mood]}</span>
-      </div>
-      <div className="fish-counter">
-        <span className="fish-counter-label">Balance</span>
-        <span className="fish-counter-value">{emoji} × {fmt(fishClicks)}</span>
-      </div>
-    </>
+    <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
+      {auraStyle && <div className="fish-aura" style={auraStyle} />}
+      <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
+      <span className={`fish-label ${mood}`}>{labels[mood]}</span>
+    </div>
   );
 });
 
@@ -723,25 +717,29 @@ function Leaderboard({ currentUser }) {
   if (rows.length === 0) return null;
 
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-
-  const renderRow = (r, i, key) => (
-    <div key={key} className="leaderboard-row">
-      <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
-      <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
-      <span className="lb-wins">{fmt(r.wins)}W</span>
-      <span className="lb-ratio">{fmt(r.wins)}W:{fmt(r.losses)}L</span>
-    </div>
-  );
+  const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
 
   return (
-    <div className="leaderboard">
-      <div className="leaderboard-title">🏆 Top Players</div>
-      <div className="leaderboard-scroll">
-        <div className="leaderboard-track">
-          {rows.map((r, i) => renderRow(r, i, r.username))}
-          {rows.map((r, i) => renderRow(r, i, `${r.username}-2`))}
-        </div>
+    <div className="leaderboard-panel">
+      <div className="leaderboard-panel-title">🏆 Top Players</div>
+      <div className="lb-header">
+        <span className="lb-rank-h"></span>
+        <span className="lb-name-h">Player</span>
+        <span className="lb-wins-h">W</span>
+        <span className="lb-best-h">Best</span>
+        <span className="lb-streak-h">Now</span>
       </div>
+      {rows.map((r, i) => (
+        <div key={r.username} className="lb-row">
+          <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
+          <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
+          <span className="lb-wins">{fmt(r.wins)}</span>
+          <span className="lb-best">{r.best_streak > 0 ? `${r.best_streak}🔥` : '—'}</span>
+          <span className={`lb-streak ${infernoClass(r.streak)}`}>
+            {r.streak > 0 ? `${r.streak}🔥` : ''}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1725,7 +1723,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       </div>
 
-      <div className="leaderboard-bar">
+      <div className="bottom-left-stack">
+        <div className="fish-counter">
+          <span className="fish-counter-label">Balance</span>
+          <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>
+        </div>
         <Leaderboard currentUser={username} />
       </div>
 
