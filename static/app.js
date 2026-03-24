@@ -1528,10 +1528,10 @@ function ShopPanel({
   infLevels,
   onBuy,
   onEquip,
-  onEquipCosmetic
+  onEquipCosmetic,
+  collapsed
 }) {
   const [activeTab, setActiveTab] = useState('cosmetic');
-  const [collapsed, setCollapsed] = useState(false);
   const {
     cosmeticSections,
     functionalSections
@@ -1588,11 +1588,7 @@ function ShopPanel({
   }));
   return /*#__PURE__*/React.createElement("div", {
     className: `shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "shop-collapse-btn",
-    onClick: () => setCollapsed(c => !c),
-    title: collapsed ? 'Expand shop' : 'Collapse shop'
-  }, collapsed ? '‹' : '›'), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     className: "shop-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "shop-title"
@@ -1793,6 +1789,7 @@ function GameApp({
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
   const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
+  const [shopCollapsed, setShopCollapsed] = useState(false);
   const fireMode = 2; // Mix mode
 
   const spinSpeed = useMemo(() => {
@@ -2374,7 +2371,11 @@ function GameApp({
     className: "shield-indicator"
   }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
-  })), /*#__PURE__*/React.createElement(ShopPanel, {
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "shop-collapse-btn",
+    onClick: () => setShopCollapsed(c => !c),
+    title: shopCollapsed ? 'Expand shop' : 'Collapse shop'
+  }, shopCollapsed ? '‹' : '›'), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     ownedItems: ownedItems,
     equippedFish: equippedFish,
@@ -2382,7 +2383,8 @@ function GameApp({
     infLevels: infLevels,
     onBuy: handleBuy,
     onEquip: handleEquip,
-    onEquipCosmetic: handleEquipCosmetic
+    onEquipCosmetic: handleEquipCosmetic,
+    collapsed: shopCollapsed
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
   }, /*#__PURE__*/React.createElement("div", {

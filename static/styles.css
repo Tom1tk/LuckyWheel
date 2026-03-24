@@ -735,14 +735,13 @@ body::before {
 }
 
 .shop-panel--collapsed {
-  transform: translateX(calc(100% - 26px));
+  transform: translateX(calc(100% + 8px));
 }
 
 .shop-collapse-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 8px;
   background: rgba(0,0,0,0.4);
   border: 1px solid #333;
   border-radius: 4px;
@@ -754,13 +753,6 @@ body::before {
   transition: color 0.15s, border-color 0.15s;
 }
 .shop-collapse-btn:hover { color: #00CC44; border-color: #00CC44; }
-
-.shop-panel--collapsed .shop-collapse-btn {
-  right: auto;
-  left: 3px;
-  top: 50%;
-  transform: translateY(-50%);
-}
 
 /* Tab layout */
 .shop-tabs {

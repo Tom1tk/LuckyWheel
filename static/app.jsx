@@ -951,9 +951,8 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic }) {
+function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed }) {
   const [activeTab, setActiveTab] = useState('cosmetic');
-  const [collapsed, setCollapsed] = useState(false);
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
     const cosmetic = [], functional = [];
@@ -1002,9 +1001,6 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
 
   return (
     <div className={`shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`}>
-      <button className="shop-collapse-btn" onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand shop' : 'Collapse shop'}>
-        {collapsed ? '‹' : '›'}
-      </button>
       <div className="shop-header">
         <div className="shop-title">🛒 Shop</div>
         <div className="shop-balance">Balance: <span>🐟 {fmt(fishClicks)}</span></div>
@@ -1152,6 +1148,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
+  const [shopCollapsed, setShopCollapsed] = useState(false);
   const fireMode = 2; // Mix mode
 
   const spinSpeed = useMemo(() => {
@@ -1714,6 +1711,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <StreakPanel streak={streak} />
           </div>
 
+          <button
+            className="shop-collapse-btn"
+            onClick={() => setShopCollapsed(c => !c)}
+            title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
+          >{shopCollapsed ? '‹' : '›'}</button>
+
           <ShopPanel
             fishClicks={fishClicks}
             ownedItems={ownedItems}
@@ -1723,6 +1726,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onBuy={handleBuy}
             onEquip={handleEquip}
             onEquipCosmetic={handleEquipCosmetic}
+            collapsed={shopCollapsed}
           />
         </div>
       </div>
