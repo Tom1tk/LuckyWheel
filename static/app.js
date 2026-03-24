@@ -2368,7 +2368,7 @@ function GameApp({
     onClick: () => setShopCollapsed(c => !c),
     title: shopCollapsed ? 'Expand shop' : 'Collapse shop'
   }, shopCollapsed ? '‹' : '›'), /*#__PURE__*/React.createElement("div", {
-    className: "game-right-body"
+    className: `game-right-body${shopCollapsed ? ' shop-collapsed' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "game-right-sidebar"
   }, (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {

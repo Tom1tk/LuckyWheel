@@ -1703,7 +1703,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onClick={() => setShopCollapsed(c => !c)}
           title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
         >{shopCollapsed ? '‹' : '›'}</button>
-        <div className="game-right-body">
+        <div className={`game-right-body${shopCollapsed ? ' shop-collapsed' : ''}`}>
           <div className="game-right-sidebar">
             {(hasGuard || hasRegen) && (
               <div className="shield-indicator">
