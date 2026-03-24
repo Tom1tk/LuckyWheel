@@ -899,7 +899,7 @@ function Leaderboard({
     className: "lb-best"
   }, r.best_streak > 0 ? `${r.best_streak}🔥` : '—'), /*#__PURE__*/React.createElement("span", {
     className: `lb-streak ${infernoClass(r.streak)}`
-  }, r.streak > 0 ? `${r.streak}🔥` : ''))));
+  }, r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'))));
 }
 
 // ── Shop catalogue ────────────────────────────────────────────────────────

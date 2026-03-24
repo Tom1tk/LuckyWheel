@@ -736,7 +736,7 @@ function Leaderboard({ currentUser }) {
           <span className="lb-wins">{fmt(r.wins)}</span>
           <span className="lb-best">{r.best_streak > 0 ? `${r.best_streak}🔥` : '—'}</span>
           <span className={`lb-streak ${infernoClass(r.streak)}`}>
-            {r.streak > 0 ? `${r.streak}🔥` : ''}
+            {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
           </span>
         </div>
       ))}
