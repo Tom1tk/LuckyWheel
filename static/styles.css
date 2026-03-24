@@ -43,6 +43,13 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #3a0000 0%, #1a
   flex-direction: row;
   gap: 6px;
   overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+/* Slide whole body right when shop collapses — sidebar travels with it,
+   stopping with ~48px clearance from the right edge for the toggle button */
+.game-right-body.shop-collapsed {
+  transform: translateX(calc(100% - 160px - 48px));
 }
 
 /* Left sidebar: streak + shield */
