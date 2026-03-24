@@ -42,8 +42,15 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - Seasons track per-user win/loss history and freeze a top-5 leaderboard snapshot at end-of-season
 - Season info shown in the UI; transitions announced via toast
 
+### Rising Fire Effect
+- A full-viewport canvas fire effect rises behind all game UI, scaling with win streak intensity
+- **Mix** mode (default) — embers and a cellular automaton inferno layered with additive blending
+- Embers appear from streak 3; inferno ignites from streak 10; screen fills around streak 30
+- Intensity lerps smoothly — wins cause the fire to grow, a loss makes it fall gradually rather than cutting out
+- Suppressed automatically in Low-Spec Mode and when OS `prefers-reduced-motion` is set
+
 ### Performance
-- **Low-Spec Mode** (⚡ button in the top bar) — disables infinite CSS animations, GPU-heavy drop-shadows, confetti, and fish aura; respects OS `prefers-reduced-motion`
+- **Low-Spec Mode** (⚡ button in the top bar) — disables infinite CSS animations, GPU-heavy drop-shadows, confetti, fish aura, and fire effect; respects OS `prefers-reduced-motion`
 - Preference is saved per user in the database and synced across devices
 
 ### Anti-Cheat
@@ -420,6 +427,7 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `StatsPanel` | Modal overlay showing personal stats (📊 button) |
 | `Confetti` | Win confetti overlay |
 | `Leaderboard` | Horizontal scrolling ticker at the bottom of the right panel |
+| `FireEffect` | Full-viewport canvas fire effect behind all UI — ember particles + cellular automaton inferno, scaled by win streak |
 | `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon / void / gold) |
 | `drawGuardWheel` | Canvas rendering for the guard mini-wheel (50% green / 50% red) |
 
