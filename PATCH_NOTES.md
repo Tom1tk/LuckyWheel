@@ -4,6 +4,19 @@
 
 ## Latest — 24 Mar 2026
 
+### Community Leaderboard Panel
+- Leaderboard redesigned from a horizontal scrolling ticker to a vertical panel at the bottom-left, styled to match the Season Winners box.
+- Expanded from top 5 to top 10 players.
+- Now tracks and displays each player's **all-time highest win streak** (persisted in the database).
+- Current active win streak shown per player — hidden if none.
+- Active win streaks glow with an escalating fire effect: colour shifts from warm orange at streak 1 through to bright red with a multi-layer glow at streak 10+.
+- Fish click balance counter moved above the leaderboard in the same bottom-left stack.
+- Leaderboard refreshes every 5 seconds.
+
+### Shop Collapse Toggle
+- A `›` button in the top-right of the shop panel slides the shop fully off-screen.
+- The button stays pinned in place — clicking `‹` brings the shop back. Smooth 0.3s transition.
+
 ### Rising Fire Effect
 - A full-viewport fire effect now rises behind all game UI, scaling with your win streak.
 - Built with HTML5 Canvas — no external libraries.
