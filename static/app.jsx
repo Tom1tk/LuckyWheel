@@ -19,6 +19,308 @@ function apiGame(path, opts = {}) {
   });
 }
 
+// ── Fire Effect ────────────────────────────────────────────────────────────
+function makeParticle(w, h, maxHeight, intensity, scattered) {
+  // scattered=true: spawn within visible fire zone for immediate appearance
+  const y = scattered
+    ? h - Math.random() * maxHeight
+    : h - Math.random() * 8;
+  const lifeUsed = scattered ? Math.random() * 60 : 0;
+  return {
+    x: Math.random() * w,
+    y,
+    vx: (Math.random() - 0.5) * 1.2,
+    vy: -(1.5 + Math.random() * 4.0 * intensity + 0.5),
+    size: 1.5 + Math.random() * 4.0 * intensity,
+    life: lifeUsed,
+    maxLife: 60 + Math.random() * 80,
+    hue: 10 + Math.random() * 35,
+    seed: Math.random() * 100,
+  };
+}
+
+function initMode3(state, w, h, infInt = 0) {
+  const bw = Math.max(1, Math.ceil(w / 4));
+  const bh = Math.max(1, Math.ceil(h / 4));
+  state.buf = new Uint8Array(bw * bh);
+  state.bw  = bw;
+  state.bh  = bh;
+  const off = document.createElement('canvas');
+  off.width  = bw;
+  off.height = bh;
+  state.offCanvas = off;
+  state.offCtx    = off.getContext('2d');
+  // only pre-warm if inferno has actually started
+  if (infInt <= 0) return;
+  const seedHeat = 60 + infInt * 195;
+  const warmupSteps = Math.floor(30 + infInt * 60);
+  for (let warmup = 0; warmup < warmupSteps; warmup++) {
+    for (let i = 0; i < bw; i++) {
+      const row = bh - 1 - Math.floor(Math.random() * 3);
+      state.buf[row * bw + i] = Math.min(255, seedHeat * (0.7 + Math.random() * 0.6));
+    }
+    for (let y = 0; y < bh - 1; y++) {
+      for (let x = 0; x < bw; x++) {
+        const below = state.buf[(y + 1) * bw + x];
+        const bl = x > 0      ? state.buf[(y + 1) * bw + (x - 1)] : below;
+        const br = x < bw - 1 ? state.buf[(y + 1) * bw + (x + 1)] : below;
+        const wl = 0.8 + Math.random() * 0.6;
+        const wr = 0.8 + Math.random() * 0.6;
+        const avg = (below * 1.2 + bl * wl + br * wr) / (1.2 + wl + wr);
+        const warmCool = infInt > 0 ? Math.max(0.05, 255 / (bh * infInt) - 0.6) : 50;
+        state.buf[y * bw + x] = Math.max(0, avg - (warmCool + Math.random() * 1.2));
+      }
+    }
+  }
+}
+
+function FireEffect({ streak, mode, lowSpec }) {
+  const animRef   = useRef(null);
+  const stateRef  = useRef({});
+  const targetRef = useRef({ intensity: 0, inferno: 0 });
+
+  const intensity        = Math.min(Math.max(streak - 3, 0) / 47, 1);
+  const infernoIntensity = Math.min(Math.max(streak - 10, 0) / 40, 1);
+  const activeMode       = lowSpec ? 1 : mode;
+
+  // Keep targets updated every render without restarting the effect
+  targetRef.current.intensity = intensity;
+  targetRef.current.inferno   = infernoIntensity;
+
+  useEffect(() => {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = [
+      'position:fixed', 'inset:0', 'width:100vw', 'height:100vh',
+      'z-index:1', 'pointer-events:none',
+    ].join(';');
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    function setSize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (activeMode === 2 || activeMode === 3)
+        initMode3(stateRef.current, canvas.width, canvas.height, targetRef.current.inferno);
+    }
+    setSize();
+    window.addEventListener('resize', setSize);
+
+    // Seed particles at current intensity so there's no startup flash
+    const w = canvas.width, h = canvas.height;
+    const initInt = targetRef.current.intensity;
+    if (initInt > 0 && (activeMode === 1 || activeMode === 2)) {
+      const maxH = h * (0.05 + initInt * 0.82);
+      const count = lowSpec ? Math.floor(25 + initInt * 150) : Math.floor(50 + initInt * 350);
+      stateRef.current.particles = Array.from({ length: count }, (_, i) =>
+        makeParticle(w, h, maxH, initInt, i < count * 0.8)
+      );
+    }
+
+    // Lerped display values — these change every frame, never trigger re-mounts
+    let dispInt    = targetRef.current.intensity;
+    let dispInfern = targetRef.current.inferno;
+
+    let last = 0;
+    const FRAME_MS = lowSpec ? 1000 / 24 : 1000 / 40;
+
+    function tick(ts) {
+      if (ts - last < FRAME_MS) { animRef.current = requestAnimationFrame(tick); return; }
+      last = ts;
+
+      // Lerp towards targets — faster falling (loss) than rising (win)
+      const tgt = targetRef.current;
+      const intSpeed    = dispInt    > tgt.intensity ? 0.10 : 0.06;
+      const infSpeed    = dispInfern > tgt.inferno   ? 0.10 : 0.06;
+      dispInt    += (tgt.intensity - dispInt)    * intSpeed;
+      dispInfern += (tgt.inferno   - dispInfern) * infSpeed;
+      if (Math.abs(dispInt    - tgt.intensity) < 0.001) dispInt    = tgt.intensity;
+      if (Math.abs(dispInfern - tgt.inferno)   < 0.001) dispInfern = tgt.inferno;
+
+      const cw = canvas.width, ch = canvas.height;
+      ctx.clearRect(0, 0, cw, ch);
+      if (dispInt > 0) {
+        if (activeMode === 1) renderEmbers(ctx, cw, ch, dispInt, ts / 1000, stateRef.current);
+        else if (activeMode === 2) renderMix(ctx, cw, ch, dispInt, dispInfern, ts / 1000, stateRef.current);
+        else if (activeMode === 3) renderInferno(ctx, cw, ch, dispInfern, stateRef.current);
+      }
+      animRef.current = requestAnimationFrame(tick);
+    }
+    animRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener('resize', setSize);
+      document.body.removeChild(canvas);
+    };
+  }, [activeMode, lowSpec]); // intensity deliberately excluded — lerped inside tick
+
+  return null;
+}
+
+// Mode 1: rising ember particles — spawn distributed immediately
+function renderEmbers(ctx, w, h, intensity, t, state) {
+  const maxHeight = h * (0.05 + intensity * 0.82);
+  const count = Math.floor(50 + intensity * 350);
+  const parts = state.particles;
+  if (!parts) return;
+
+  while (parts.length < count) parts.push(makeParticle(w, h, maxHeight, intensity, false));
+  if (parts.length > count) parts.splice(count);
+
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    p.life++;
+    p.x += p.vx + Math.sin(t * 2.2 + p.seed) * 0.6;
+    p.y += p.vy;
+
+    if (p.y < h - maxHeight || p.life > p.maxLife) {
+      parts[i] = makeParticle(w, h, maxHeight, intensity, false);
+      continue;
+    }
+
+    const age = p.life / p.maxLife;
+    // glow: brightest and largest at the base, fading as it rises
+    const riseFrac = Math.max(0, (h - p.y) / maxHeight); // 0=bottom, 1=top
+    const size  = p.size * (1 - riseFrac * 0.5) * (1 - age * 0.4);
+    const light = 50 + riseFrac * 30 + intensity * 15;
+    const alpha = (1 - age * 0.7) * (0.75 + intensity * 0.25) * (1 - riseFrac * 0.5);
+
+    ctx.globalAlpha = Math.min(alpha, 1);
+    ctx.fillStyle = `hsl(${p.hue}, 100%, ${light}%)`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.5, size), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Mode 2: inferno base + ember overlay (combined)
+function renderMix(ctx, w, h, intensity, infernoIntensity, t, state) {
+  // --- inferno layer at reduced opacity ---
+  if (state.buf && state.offCtx && infernoIntensity > 0) {
+    stepInferno(state, infernoIntensity);
+    const { bw, bh, buf, offCtx, offCanvas } = state;
+    const imgData = offCtx.createImageData(bw, bh);
+    const pix = imgData.data;
+    for (let i = 0; i < bw * bh; i++) {
+      const v = buf[i];
+      if (v === 0) continue;
+      let r, g, b, a;
+      if      (v < 64)  { r = v * 4; g = 0;              b = 0;         a = v * 2; }
+      else if (v < 128) { r = 255;   g = (v - 64) * 4;   b = 0;         a = 120 + (v - 64); }
+      else if (v < 192) { r = 255;   g = 128+(v-128)*2;  b = 0;         a = 175; }
+      else              { r = 255;   g = 200+(v-192);    b = (v-192)*3; a = 200; }
+      pix[i*4] = r; pix[i*4+1] = g; pix[i*4+2] = b; pix[i*4+3] = a;
+    }
+    offCtx.putImageData(imgData, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = 0.65;
+    ctx.drawImage(offCanvas, 0, 0, bw, bh, 0, 0, w, h);
+    ctx.restore();
+  }
+
+  // --- ember particles on top with additive blend ---
+  ctx.globalCompositeOperation = 'lighter';
+  const maxHeight = h * (0.05 + intensity * 0.82);
+  const count = Math.floor(50 + intensity * 350);
+  const parts = state.particles;
+  if (parts) {
+    while (parts.length < count) parts.push(makeParticle(w, h, maxHeight, intensity, false));
+    if (parts.length > count) parts.splice(count);
+
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      p.life++;
+      p.x += p.vx + Math.sin(t * 2.2 + p.seed) * 0.6;
+      p.y += p.vy;
+      if (p.y < h - maxHeight || p.life > p.maxLife) {
+        parts[i] = makeParticle(w, h, maxHeight, intensity, false);
+        continue;
+      }
+      const age      = p.life / p.maxLife;
+      const riseFrac = Math.max(0, (h - p.y) / maxHeight);
+      const size     = p.size * (1 - riseFrac * 0.4) * (1 - age * 0.4);
+      const light    = 55 + riseFrac * 30 + intensity * 10;
+      const alpha    = (1 - age * 0.65) * (0.7 + intensity * 0.3) * (1 - riseFrac * 0.4);
+      ctx.globalAlpha = Math.min(alpha, 1);
+      ctx.fillStyle = `hsl(${p.hue}, 100%, ${light}%)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.5, size), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// Shared inferno propagation step (used by both mode 2 and mode 3)
+function stepInferno(state, infernoIntensity) {
+  const { bw, bh, buf } = state;
+
+  // Always keep the very bottom row at max heat — anchors fire to ground level
+  for (let x = 0; x < bw; x++) {
+    buf[(bh - 1) * bw + x] = 200 + Math.floor(Math.random() * 55);
+  }
+
+  // Additional heat sources scale from 0 for intensity-driven height
+  const baseCount = Math.floor(bw * infernoIntensity);
+  const sources   = Math.max(0, baseCount + Math.floor((Math.random() - 0.5) * baseCount * 0.8));
+  const baseStr   = 60 + infernoIntensity * 195;
+  for (let i = 0; i < sources; i++) {
+    const x = Math.floor(Math.random() * bw);
+    const row = bh - 1 - Math.floor(Math.random() * 3);
+    const str = baseStr * (0.5 + Math.random() * 0.8);
+    buf[row * bw + x] = Math.min(255, buf[row * bw + x] + str);
+  }
+
+  // Derive cooling so fire height is LINEAR in infernoIntensity:
+  //   height_cells ≈ 255 / baseCool  →  baseCool = 255 / (bh * infernoIntensity)
+  // Subtract noise average (0.6) so actual mean cooling lands on the target.
+  const baseCool = infernoIntensity > 0
+    ? Math.max(0.05, 255 / (2 * bh * infernoIntensity) - 0.6)
+    : 50;
+  for (let y = 0; y < bh - 1; y++) {
+    for (let x = 0; x < bw; x++) {
+      const below = buf[(y + 1) * bw + x];
+      const bl    = x > 0      ? buf[(y + 1) * bw + (x - 1)] : below;
+      const br    = x < bw - 1 ? buf[(y + 1) * bw + (x + 1)] : below;
+      const wl = 0.8 + Math.random() * 0.6;
+      const wr = 0.8 + Math.random() * 0.6;
+      const avg = (below * 1.2 + bl * wl + br * wr) / (1.2 + wl + wr);
+      const cooling = baseCool + Math.random() * 1.2;
+      buf[y * bw + x] = Math.max(0, avg - cooling);
+    }
+  }
+}
+
+// Mode 3: cellular automaton fire (solo, full opacity)
+function renderInferno(ctx, w, h, intensity, state) {
+  if (!state.buf || !state.offCtx) return;
+  const { bw, bh, buf, offCtx, offCanvas } = state;
+
+  stepInferno(state, intensity);
+
+  const imgData = offCtx.createImageData(bw, bh);
+  const pix = imgData.data;
+  for (let i = 0; i < bw * bh; i++) {
+    const v = buf[i];
+    if (v === 0) continue;
+    let r, g, b, a;
+    if      (v < 64)  { r = v * 4; g = 0;              b = 0;         a = v * 3; }
+    else if (v < 128) { r = 255;   g = (v - 64) * 4;   b = 0;         a = 160 + (v - 64); }
+    else if (v < 192) { r = 255;   g = 128+(v-128)*2;  b = 0;         a = 210; }
+    else              { r = 255;   g = 200+(v-192);    b = (v-192)*4; a = 235; }
+    pix[i*4] = r; pix[i*4+1] = g; pix[i*4+2] = b; pix[i*4+3] = a;
+  }
+  offCtx.putImageData(imgData, 0, 0);
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(offCanvas, 0, 0, bw, bh, 0, 0, w, h);
+  ctx.restore();
+}
+
 // ── Draw main wheel ────────────────────────────────────────────────────────
 function drawWheel(canvas, theme = 'default') {
   const ctx = canvas.getContext('2d');
@@ -848,6 +1150,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
+  const fireMode = 2; // Mix mode
 
   const spinSpeed = useMemo(() => {
     if (ownedItems.includes('maxspin'))   return 0.5;
@@ -1271,6 +1574,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <SeasonWinners winners={season.latest_winners} seasonNumber={season.season_number - 1} />
       )}
 
+      <FireEffect
+        streak={streak}
+        mode={fireMode}
+        lowSpec={lowSpec}
+      />
+
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
         <button className="stats-btn" onClick={() => setShowStats(true)}>📊</button>
@@ -1419,6 +1728,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <div className="leaderboard-bar">
         <Leaderboard currentUser={username} />
       </div>
+
     </div>
   );
 }

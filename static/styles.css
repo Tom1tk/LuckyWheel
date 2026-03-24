@@ -1,5 +1,10 @@
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
+/* Fire canvas (appended to body) sits at z-index:1.
+   #root at z-index:2 forms its own stacking context, so all game UI
+   paints above the fire regardless of individual element z-indexes. */
+#root { position: relative; z-index: 2; }
+
 body {
   background: radial-gradient(ellipse at center, #001408 0%, #020802 70%);
   min-height: 100vh;
@@ -1783,4 +1788,18 @@ body.low-spec::before                 { display: none; }
   body::before         { display: none; }
   .pointer             { filter: none; }
   .confetti-container  { display: none; }
+  .fire-canvas         { display: none; }
 }
+
+/* ── Fire Effect ─────────────────────────────────────────────────────────── */
+.fire-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9990;
+  pointer-events: none;
+}
+
+.low-spec .fire-canvas { display: none; }
+
