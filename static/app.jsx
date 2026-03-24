@@ -622,17 +622,11 @@ const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fish
   const animClass = fishSpinning ? 'spinning-fish' : mood;
 
   return (
-    <>
-      <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
-        {auraStyle && <div className="fish-aura" style={auraStyle} />}
-        <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
-        <span className={`fish-label ${mood}`}>{labels[mood]}</span>
-      </div>
-      <div className="fish-counter">
-        <span className="fish-counter-label">Balance</span>
-        <span className="fish-counter-value">{emoji} × {fmt(fishClicks)}</span>
-      </div>
-    </>
+    <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
+      {auraStyle && <div className="fish-aura" style={auraStyle} />}
+      <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
+      <span className={`fish-label ${mood}`}>{labels[mood]}</span>
+    </div>
   );
 });
 
@@ -716,32 +710,36 @@ function Leaderboard({ currentUser }) {
         .catch(() => {});
     };
     load();
-    const id = setInterval(load, 60000);
+    const id = setInterval(load, 5000);
     return () => { clearInterval(id); ctrl.abort(); };
   }, []);
 
   if (rows.length === 0) return null;
 
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-
-  const renderRow = (r, i, key) => (
-    <div key={key} className="leaderboard-row">
-      <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
-      <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
-      <span className="lb-wins">{fmt(r.wins)}W</span>
-      <span className="lb-ratio">{fmt(r.wins)}W:{fmt(r.losses)}L</span>
-    </div>
-  );
+  const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
 
   return (
-    <div className="leaderboard">
-      <div className="leaderboard-title">🏆 Top Players</div>
-      <div className="leaderboard-scroll">
-        <div className="leaderboard-track">
-          {rows.map((r, i) => renderRow(r, i, r.username))}
-          {rows.map((r, i) => renderRow(r, i, `${r.username}-2`))}
-        </div>
+    <div className="leaderboard-panel">
+      <div className="leaderboard-panel-title">🏆 Top Players</div>
+      <div className="lb-header">
+        <span className="lb-rank-h"></span>
+        <span className="lb-name-h">Player</span>
+        <span className="lb-wins-h">W</span>
+        <span className="lb-best-h">Best</span>
+        <span className="lb-streak-h">Now</span>
       </div>
+      {rows.map((r, i) => (
+        <div key={r.username} className="lb-row">
+          <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
+          <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
+          <span className="lb-wins">{fmt(r.wins)}</span>
+          <span className="lb-best">{r.best_streak > 0 ? `${r.best_streak}🔥` : '—'}</span>
+          <span className={`lb-streak ${infernoClass(r.streak)}`}>
+            {r.streak > 0 ? `${r.streak}🔥` : ''}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -953,7 +951,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic }) {
+function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed }) {
   const [activeTab, setActiveTab] = useState('cosmetic');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -1002,7 +1000,7 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
   );
 
   return (
-    <div className="shop-panel">
+    <div className={`shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`}>
       <div className="shop-header">
         <div className="shop-title">🛒 Shop</div>
         <div className="shop-balance">Balance: <span>🐟 {fmt(fishClicks)}</span></div>
@@ -1150,6 +1148,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
+  const [shopCollapsed, setShopCollapsed] = useState(false);
   const fireMode = 2; // Mix mode
 
   const spinSpeed = useMemo(() => {
@@ -1699,6 +1698,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <div className="game-right">
+        <button
+          className="shop-collapse-btn"
+          onClick={() => setShopCollapsed(c => !c)}
+          title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
+        >{shopCollapsed ? '‹' : '›'}</button>
         <div className="game-right-body">
           <div className="game-right-sidebar">
             {(hasGuard || hasRegen) && (
@@ -1721,11 +1725,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onBuy={handleBuy}
             onEquip={handleEquip}
             onEquipCosmetic={handleEquipCosmetic}
+            collapsed={shopCollapsed}
           />
         </div>
       </div>
 
-      <div className="leaderboard-bar">
+      <div className="bottom-left-stack">
+        <div className="fish-counter">
+          <span className="fish-counter-label">Balance</span>
+          <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>
+        </div>
         <Leaderboard currentUser={username} />
       </div>
 
