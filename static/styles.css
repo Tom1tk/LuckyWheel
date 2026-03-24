@@ -739,9 +739,10 @@ body::before {
 }
 
 .shop-collapse-btn {
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 8px;
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 160;
   background: rgba(0,0,0,0.4);
   border: 1px solid #333;
   border-radius: 4px;

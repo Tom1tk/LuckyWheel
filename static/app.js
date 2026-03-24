@@ -2363,7 +2363,11 @@ function GameApp({
     className: "bulb"
   })))), /*#__PURE__*/React.createElement("div", {
     className: "game-right"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "shop-collapse-btn",
+    onClick: () => setShopCollapsed(c => !c),
+    title: shopCollapsed ? 'Expand shop' : 'Collapse shop'
+  }, shopCollapsed ? '‹' : '›'), /*#__PURE__*/React.createElement("div", {
     className: "game-right-body"
   }, /*#__PURE__*/React.createElement("div", {
     className: "game-right-sidebar"
@@ -2371,11 +2375,7 @@ function GameApp({
     className: "shield-indicator"
   }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
-  })), /*#__PURE__*/React.createElement("button", {
-    className: "shop-collapse-btn",
-    onClick: () => setShopCollapsed(c => !c),
-    title: shopCollapsed ? 'Expand shop' : 'Collapse shop'
-  }, shopCollapsed ? '‹' : '›'), /*#__PURE__*/React.createElement(ShopPanel, {
+  })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     ownedItems: ownedItems,
     equippedFish: equippedFish,

@@ -1698,6 +1698,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <div className="game-right">
+        <button
+          className="shop-collapse-btn"
+          onClick={() => setShopCollapsed(c => !c)}
+          title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
+        >{shopCollapsed ? '‹' : '›'}</button>
         <div className="game-right-body">
           <div className="game-right-sidebar">
             {(hasGuard || hasRegen) && (
@@ -1710,12 +1715,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             )}
             <StreakPanel streak={streak} />
           </div>
-
-          <button
-            className="shop-collapse-btn"
-            onClick={() => setShopCollapsed(c => !c)}
-            title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
-          >{shopCollapsed ? '‹' : '›'}</button>
 
           <ShopPanel
             fishClicks={fishClicks}
