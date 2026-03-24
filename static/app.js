@@ -861,7 +861,7 @@ function Leaderboard({
       }).catch(() => {});
     };
     load();
-    const id = setInterval(load, 60000);
+    const id = setInterval(load, 5000);
     return () => {
       clearInterval(id);
       ctrl.abort();
