@@ -385,14 +385,14 @@ function drawWheel(canvas, theme = 'default') {
   const THEMES = {
     default: [{
       label: 'WIN',
-      color: '#006622',
-      bright: '#00CC44',
+      color: '#005588',
+      bright: '#00AAFF',
       start: -Math.PI / 2,
       end: Math.PI / 2
     }, {
       label: 'LOSE',
-      color: '#8B0000',
-      bright: '#FF3333',
+      color: '#7a3300',
+      bright: '#FF6600',
       start: Math.PI / 2,
       end: Math.PI * 1.5
     }],
@@ -551,8 +551,8 @@ function drawGuardWheel(canvas) {
 
   // WIN segment (green, small)
   const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#88FF88');
-  gWin.addColorStop(1, '#006600');
+  gWin.addColorStop(0, '#88DDFF');
+  gWin.addColorStop(1, '#005588');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -1347,7 +1347,13 @@ const SHOP_SECTIONS = [{
     emoji: '🌟',
     name: 'Season 1 Theme',
     cost: 1000,
-    desc: 'Classic gold & orange casino theme. Season 2 (green/red) is default.'
+    desc: 'Classic gold & orange casino theme (S1).'
+  }, {
+    id: 'page_season2',
+    emoji: '🟢',
+    name: 'Season 2 Theme',
+    cost: 1000,
+    desc: 'Green & red casino theme (S2).'
   }]
 }, {
   label: '🎲 Special Upgrades',
@@ -1445,7 +1451,12 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'final_frenzy', 'auto_guard']);
+
+// Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
+const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
 // ── Shop components ────────────────────────────────────────────────────────
 const ShopItem = React.memo(function ShopItem({
@@ -1514,14 +1525,16 @@ const ShopItem = React.memo(function ShopItem({
     className: "shop-item-desc",
     "data-tooltip": infDesc
   }, infDesc), /*#__PURE__*/React.createElement("div", {
-    className: "shop-item-cost"
-  }, "\uD83D\uDC1F ", cost.toLocaleString())), /*#__PURE__*/React.createElement("div", {
+    className: `shop-item-cost cost-${getItemCurrency(item.id)}`
+  }, currencyIcon(getItemCurrency(item.id)), " ", cost.toLocaleString())), /*#__PURE__*/React.createElement("div", {
     className: "shop-item-action"
   }, actionEl));
 });
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 function ShopPanel({
   fishClicks,
+  wins,
+  losses,
   ownedItems,
   equippedFish,
   activeCosmetics,
@@ -1531,7 +1544,7 @@ function ShopPanel({
   onEquipCosmetic,
   collapsed
 }) {
-  const [activeTab, setActiveTab] = useState('cosmetic');
+  const [activeTab, setActiveTab] = useState('functional');
   const {
     cosmeticSections,
     functionalSections
@@ -1569,6 +1582,8 @@ function ShopPanel({
     const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
     const infLevel = item.infinite ? infLevels[item.id] || 0 : null;
     const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
+    const currency = getItemCurrency(item.id);
+    const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
     return /*#__PURE__*/React.createElement(ShopItem, {
       key: item.id,
       item: item,
@@ -1578,7 +1593,7 @@ function ShopPanel({
       owned: !item.infinite && ownedItems.includes(item.id),
       equipped: false,
       active: isCosmetic && activeCosmetics.includes(item.id),
-      canAfford: fishClicks >= displayCost,
+      canAfford: balance >= displayCost,
       infLevel: infLevel,
       displayCost: displayCost,
       onBuy: onBuy,
@@ -1594,16 +1609,22 @@ function ShopPanel({
     className: "shop-title"
   }, "\uD83D\uDED2 Shop"), /*#__PURE__*/React.createElement("div", {
     className: "shop-balance"
-  }, "Balance: ", /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC1F ", fmt(fishClicks)))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "balance-wins"
+  }, "\uD83C\uDFC6 ", fmt(wins)), /*#__PURE__*/React.createElement("span", {
+    className: "balance-losses"
+  }, "\uD83D\uDC80 ", fmt(losses)), /*#__PURE__*/React.createElement("span", {
+    className: "balance-clicks"
+  }, "\uD83D\uDC1F ", fmt(fishClicks)))), /*#__PURE__*/React.createElement("div", {
     className: "shop-tabs"
   }, /*#__PURE__*/React.createElement("button", {
-    className: `shop-tab ${activeTab === 'cosmetic' ? 'active' : ''}`,
-    onClick: () => setActiveTab('cosmetic')
-  }, "\uD83C\uDFA8 Cosmetic"), /*#__PURE__*/React.createElement("button", {
     className: `shop-tab ${activeTab === 'functional' ? 'active' : ''}`,
     onClick: () => setActiveTab('functional')
-  }, "\u26A1 Functional")), /*#__PURE__*/React.createElement("div", {
-    className: "shop-tab-content"
+  }, "\u26A1 Functional"), /*#__PURE__*/React.createElement("button", {
+    className: `shop-tab shop-tab--cosmetic ${activeTab === 'cosmetic' ? 'active' : ''}`,
+    onClick: () => setActiveTab('cosmetic')
+  }, "\uD83C\uDFA8 Cosmetic")), /*#__PURE__*/React.createElement("div", {
+    className: `shop-tab-content${activeTab === 'cosmetic' ? ' shop-tab-content--cosmetic' : ''}`
   }, activeTab === 'cosmetic' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "shop-section-label"
   }, "\u2500\u2500 Fish Skins \u2500\u2500"), FISH_SKINS.map(item => /*#__PURE__*/React.createElement(ShopItem, {
@@ -1612,7 +1633,7 @@ function ShopPanel({
     isSkin: true,
     owned: ownedItems.includes(item.id),
     equipped: equippedFish === item.id,
-    canAfford: fishClicks >= item.cost,
+    canAfford: losses >= item.cost,
     onBuy: onBuy,
     onEquip: onEquip,
     onEquipCosmetic: onEquipCosmetic
@@ -1620,6 +1641,7 @@ function ShopPanel({
 }
 
 // ── Stats Panel ────────────────────────────────────────────────────────────
+const PLACE_LABEL = pos => pos === 1 ? '🥇 1st' : pos === 2 ? '🥈 2nd' : pos === 3 ? '🥉 3rd' : null;
 function StatsPanel({
   open,
   onClose
@@ -1632,6 +1654,7 @@ function StatsPanel({
     });
   }, [open]);
   if (!open) return null;
+  const history = stats?.season_history || [];
   return /*#__PURE__*/React.createElement("div", {
     className: "stats-overlay",
     onClick: onClose
@@ -1640,7 +1663,7 @@ function StatsPanel({
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-title"
-  }, "\uD83D\uDCCA Your Stats"), stats ? /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCCA Your Stats"), stats ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "stats-list"
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-row"
@@ -1652,7 +1675,20 @@ function StatsPanel({
     className: "stats-row"
   }, /*#__PURE__*/React.createElement("span", null, "Win Rate"), /*#__PURE__*/React.createElement("span", null, stats.spin_count > 0 ? (stats.win_count / stats.spin_count * 100).toFixed(1) + '%' : 'N/A')), /*#__PURE__*/React.createElement("div", {
     className: "stats-row"
-  }, /*#__PURE__*/React.createElement("span", null, "Lifetime Taps"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))) : /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "Lifetime Taps"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "stats-season-history"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stats-section-title"
+  }, "Season History"), history.map(s => {
+    const place = PLACE_LABEL(s.finishing_position);
+    const participated = s.final_wins != null;
+    return /*#__PURE__*/React.createElement("div", {
+      className: "stats-row stats-row--season",
+      key: s.season_number
+    }, /*#__PURE__*/React.createElement("span", null, "Season ", s.season_number), /*#__PURE__*/React.createElement("span", null, !participated ? '—' : place ? /*#__PURE__*/React.createElement("span", {
+      className: "stats-podium"
+    }, place) : `${fmt(s.final_wins)} wins`));
+  }))) : /*#__PURE__*/React.createElement("div", {
     className: "stats-loading"
   }, "Loading\u2026"), /*#__PURE__*/React.createElement("button", {
     className: "stats-close-btn",
@@ -1742,6 +1778,108 @@ function AuthPage({
   }, "Sign in")))));
 }
 
+// ── Community Pot ──────────────────────────────────────────────────────────
+function usePotCountdown(filledAt, active) {
+  const [remaining, setRemaining] = useState(null);
+  useEffect(() => {
+    if (!active || !filledAt) {
+      setRemaining(null);
+      return;
+    }
+    const expiresAt = new Date(filledAt).getTime() + 3600 * 1000;
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setRemaining(secs);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [filledAt, active]);
+  return remaining;
+}
+function fmtCountdown(secs) {
+  if (secs == null) return '';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+function CommunityPot({
+  pot,
+  fishClicks,
+  onContribute
+}) {
+  const [localPot, setLocalPot] = useState(pot);
+
+  // Sync when parent pot state changes (e.g. on load)
+  useEffect(() => {
+    setLocalPot(pot);
+  }, [pot]);
+
+  // Poll every 10s for live updates
+  useEffect(() => {
+    const id = setInterval(() => {
+      apiFetch('/api/community-pot').then(r => {
+        if (r.ok) setLocalPot(r.data);
+      });
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+  const handleContribute = async amount => {
+    const {
+      ok,
+      data
+    } = await apiGame('/api/community-pot/contribute', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount
+      })
+    });
+    if (ok) {
+      setLocalPot({
+        total_contributed: data.pot_total,
+        target: data.pot_target,
+        filled: data.pot_filled,
+        active: data.pot_active,
+        filled_at: data.filled_at
+      });
+      onContribute(data.fish_clicks);
+    }
+  };
+  const total = localPot.total_contributed || 0;
+  const target = localPot.target || 100_000_000;
+  const pct = Math.min(100, total / target * 100);
+  const active = localPot.active;
+  const countdown = usePotCountdown(localPot.filled_at, active);
+  return /*#__PURE__*/React.createElement("div", {
+    className: `community-pot-bar${active ? ' community-pot-active' : ''}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "community-pot-inner"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "community-pot-label"
+  }, "\uD83C\uDFA3 Community Pot"), /*#__PURE__*/React.createElement("div", {
+    className: "community-pot-progress"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "community-pot-fill",
+    style: {
+      width: pct + '%'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "community-pot-count"
+  }, fmt(total), " / ", fmt(target)), active ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "community-pot-bonus"
+  }, "\u2728 75% Win Rate Active!"), /*#__PURE__*/React.createElement("span", {
+    className: "community-pot-countdown"
+  }, fmtCountdown(countdown))) : /*#__PURE__*/React.createElement("div", {
+    className: "community-pot-buttons"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => handleContribute('10000'),
+    disabled: fishClicks < 1
+  }, "+10k"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => handleContribute('all'),
+    disabled: fishClicks < 1
+  }, "All"))));
+}
+
 // ── Game App ───────────────────────────────────────────────────────────────
 function GameApp({
   username,
@@ -1788,6 +1926,12 @@ function GameApp({
   const [showStats, setShowStats] = useState(false);
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
+  const [communityPot, setCommunityPot] = useState(gameState.community_pot || {
+    total_contributed: 0,
+    target: 100_000_000,
+    filled: false,
+    active: false
+  });
   const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const fireMode = 2; // Mix mode
@@ -1847,7 +1991,9 @@ function GameApp({
     return '';
   }, [activeCosmetics]);
   const pageThemeClass = useMemo(() => {
-    return activeCosmetics.includes('page_season1') ? 'page-season1' : '';
+    if (activeCosmetics.includes('page_season1')) return 'page-season1';
+    if (activeCosmetics.includes('page_season2')) return 'page-season2';
+    return '';
   }, [activeCosmetics]);
   const currentRotationRef = useRef(0);
   const fishTimerRef = useRef(null);
@@ -1996,6 +2142,8 @@ function GameApp({
     });
     if (ok) {
       setFishClicks(data.fish_clicks);
+      if (data.wins != null) setWins(data.wins);
+      if (data.losses != null) setLosses(data.losses);
       setOwnedItems(data.owned_items);
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
@@ -2045,8 +2193,8 @@ function GameApp({
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback(data => {
     setResult(data.result);
-    setWins(data.wins);
-    setLosses(data.losses);
+    if (data.wins_delta) setWins(prev => prev + data.wins_delta);
+    if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
     setStreak(data.streak);
     setShieldCharges(data.shield_charges);
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
@@ -2065,10 +2213,8 @@ function GameApp({
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
-    // Use delta (not absolute) to avoid stale spin responses overwriting concurrent frenzy responses
-    if (data.fish_clicks_delta) setFishClicks(prev => prev + data.fish_clicks_delta);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-    if (data.auto_guard_failed) showToast('Not enough clicks — Auto-Guard disabled');
+    if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -2251,7 +2397,11 @@ function GameApp({
   }, "\u26A1"), /*#__PURE__*/React.createElement("button", {
     className: "logout-btn",
     onClick: handleLogout
-  }, "Logout"), season && /*#__PURE__*/React.createElement(SeasonInfo, {
+  }, "Logout"), /*#__PURE__*/React.createElement(CommunityPot, {
+    pot: communityPot,
+    fishClicks: fishClicks,
+    onContribute: newClicks => setFishClicks(newClicks)
+  }), season && /*#__PURE__*/React.createElement(SeasonInfo, {
     seasonNumber: season.season_number,
     endsAt: season.ends_at
   })), /*#__PURE__*/React.createElement(Fish, {
@@ -2377,6 +2527,8 @@ function GameApp({
     streak: streak
   })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
+    wins: wins,
+    losses: losses,
     ownedItems: ownedItems,
     equippedFish: equippedFish,
     activeCosmetics: activeCosmetics,

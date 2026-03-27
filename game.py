@@ -11,6 +11,7 @@ from flask_login import current_user, login_required
 from db import db_connection
 from extensions import limiter
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
+                    ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
                     inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level)
 from seasons import ensure_current_season, get_season_info
 
@@ -65,6 +66,12 @@ def get_state():
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
+                cur.execute('SELECT total_contributed, target, filled, filled_at FROM community_pot WHERE id = 1')
+                pot = cur.fetchone()
+        pot_active = bool(
+            pot and pot['filled'] and pot['filled_at'] and
+            pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
+        )
         return jsonify({
             'wins':               int(gs['wins']),
             'losses':             gs['losses'],
@@ -82,6 +89,12 @@ def get_state():
             'bonusmult_inf_level': gs['bonusmult_inf_level'],
             'clickmult_inf_level': gs['clickmult_inf_level'],
             'low_spec_mode':       gs['low_spec_mode'],
+            'community_pot': {
+                'total_contributed': pot['total_contributed'] if pot else 0,
+                'target':            pot['target']            if pot else 100_000_000,
+                'filled':            pot['filled']            if pot else False,
+                'active':            pot_active,
+            } if pot else None,
         })
     except Exception:
         log.exception('GET_STATE_ERROR  user_id=%s', current_user.id)
@@ -131,6 +144,10 @@ def spin():
                 )
                 gs = cur.fetchone()
 
+                # Community pot: check if bonus is active (within 1 hour of filling)
+                cur.execute('SELECT filled, filled_at FROM community_pot WHERE id = 1')
+                pot_row = cur.fetchone()
+
             owned               = list(gs['owned_items'])
             streak              = gs['streak']
             best_streak         = gs['best_streak']
@@ -139,14 +156,28 @@ def spin():
             fish_clicks         = gs['fish_clicks']
             active_cosmetics    = list(gs['active_cosmetics'])
 
-            # Auto-guard: if enabled and guard is gone, buy one before spinning
+            pot_active = False
+            if pot_row and pot_row['filled'] and pot_row['filled_at']:
+                pot_active = pot_row['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
+            # Auto-reset expired pot: multiply target by 10, keep total_contributed
+            if pot_row and pot_row['filled'] and not pot_active:
+                with conn.cursor() as cur2:
+                    cur2.execute(
+                        '''UPDATE community_pot
+                           SET filled = false, filled_at = NULL, target = target * 10
+                           WHERE id = 1'''
+                    )
+
+            # Auto-guard: if enabled and guard is gone, buy one before spinning (costs wins)
             auto_guard_failed = False
-            fish_clicks_delta = 0
+            original_wins  = int(gs['wins'])
+            original_losses = gs['losses']
+            new_wins = original_wins
             if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
-                if fish_clicks >= 500:
-                    owned             = owned + ['guard']
-                    fish_clicks      -= 500
-                    fish_clicks_delta = -500
+                if new_wins >= 500:
+                    owned       = owned + ['guard']
+                    new_wins   -= 500
+                    wins_delta  = -500
                 else:
                     active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
                     auto_guard_failed = True
@@ -160,6 +191,8 @@ def spin():
             elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
                 outcome = 'win'
                 lucky_seven_triggered = True
+            elif pot_active:
+                outcome = secrets.choice(['win', 'win', 'win', 'lose'])  # 75% win rate
             else:
                 outcome = secrets.choice(['win', 'lose'])
 
@@ -172,7 +205,7 @@ def spin():
             shield_used_type = None
             guard_triggered  = False
             guard_blocked    = False
-            new_wins         = int(gs['wins'])
+            # new_wins already initialized above (auto-guard may have deducted from it)
             new_losses       = gs['losses']
             bonus_earned     = 0
             new_owned        = owned
@@ -284,8 +317,8 @@ def spin():
         return jsonify({
             'result':             outcome,
             'angle':              total_rotation,
-            'wins':               new_wins,
-            'losses':             new_losses,
+            'wins_delta':         new_wins   - original_wins,
+            'losses_delta':       new_losses - original_losses,
             'streak':             new_streak,
             'owned_items':        new_owned,
             'shield_charges':     shield_charges,
@@ -301,7 +334,6 @@ def spin():
             'resilience_triggered':    resilience_triggered,
             'lucky_seven_triggered':   lucky_seven_triggered,
             'fortune_charm_triggered': fortune_charm_triggered,
-            'fish_clicks_delta':      fish_clicks_delta,
             'active_cosmetics':       active_cosmetics,
             'auto_guard_failed':      auto_guard_failed,
         })
@@ -322,39 +354,42 @@ def buy():
 
     # Infinite repeatable upgrades — handled separately (no "already owned" restriction)
     if item_id in INFINITE_UPGRADES:
-        inf = INFINITE_UPGRADES[item_id]
-        col = inf['db_column']
+        inf      = INFINITE_UPGRADES[item_id]
+        col      = inf['db_column']
+        currency = INFINITE_UPGRADE_CURRENCY[item_id]  # always 'wins'
         try:
             with db_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute(
-                        f'''SELECT fish_clicks, owned_items, shield_charges, regen_recharge_wins,
-                                   active_cosmetics, winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
+                        f'''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
+                                   regen_recharge_wins, active_cosmetics,
+                                   winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
                             FROM game_state WHERE user_id = %s FOR UPDATE''',
                         (current_user.id,),
                     )
                     gs = cur.fetchone()
 
-                owned       = list(gs['owned_items'])
-                fish_clicks = gs['fish_clicks']
-                cur_level   = gs[col]
-                cost        = inf_upgrade_cost(item_id, cur_level)
+                owned     = list(gs['owned_items'])
+                cur_level = gs[col]
+                cost      = inf_upgrade_cost(item_id, cur_level)
 
-                if fish_clicks < cost:
-                    return jsonify({'error': 'Insufficient fish clicks'}), 402
+                if int(gs['wins']) < cost:
+                    return jsonify({'error': 'Insufficient wins'}), 402
 
-                new_level  = cur_level + 1
-                new_clicks = fish_clicks - cost
+                new_wins  = int(gs['wins']) - cost
+                new_level = cur_level + 1
 
                 with conn.cursor() as cur:
                     cur.execute(
-                        f'UPDATE game_state SET fish_clicks = %s, {col} = %s WHERE user_id = %s',
-                        (new_clicks, new_level, current_user.id),
+                        f'UPDATE game_state SET wins = %s, {col} = %s WHERE user_id = %s',
+                        (new_wins, new_level, current_user.id),
                     )
                 conn.commit()
 
             return jsonify({
-                'fish_clicks':         new_clicks,
+                'wins':                new_wins,
+                'losses':              gs['losses'],
+                'fish_clicks':         gs['fish_clicks'],
                 'owned_items':         owned,
                 'shield_charges':      gs['shield_charges'],
                 'regen_recharge_wins': gs['regen_recharge_wins'],
@@ -373,59 +408,78 @@ def buy():
     item     = ALL_ITEMS[item_id]
     cost     = item['cost']
     requires = item.get('requires')
+    currency = ITEM_CURRENCY[item_id]
 
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT fish_clicks, owned_items, shield_charges, regen_recharge_wins, active_cosmetics,
+                    '''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
+                              regen_recharge_wins, active_cosmetics,
                               winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
-            owned       = list(gs['owned_items'])
-            fish_clicks = gs['fish_clicks']
+            owned = list(gs['owned_items'])
 
             if item_id in owned:
                 return jsonify({'error': 'Already owned'}), 409
             if requires and requires not in owned:
                 return jsonify({'error': 'Prerequisite not met'}), 400
-            if fish_clicks < cost:
-                return jsonify({'error': 'Insufficient fish clicks'}), 402
 
-            new_clicks = fish_clicks - cost
-            new_owned  = owned + [item_id]
+            # Currency-specific balance check
+            if currency == 'wins':
+                if int(gs['wins']) < cost:
+                    return jsonify({'error': 'Insufficient wins'}), 402
+                new_wins   = int(gs['wins']) - cost
+                new_losses = gs['losses']
+                new_clicks = gs['fish_clicks']
+            elif currency == 'losses':
+                if gs['losses'] < cost:
+                    return jsonify({'error': 'Insufficient losses'}), 402
+                new_wins   = int(gs['wins'])
+                new_losses = gs['losses'] - cost
+                new_clicks = gs['fish_clicks']
+            else:  # fish_clicks — singularity only
+                if gs['fish_clicks'] < cost:
+                    return jsonify({'error': 'Insufficient fish clicks'}), 402
+                new_wins   = int(gs['wins'])
+                new_losses = gs['losses']
+                new_clicks = gs['fish_clicks'] - cost
+
+            new_owned = owned + [item_id]
 
             if item_id == 'regen_shield':
-                new_charges       = gs['shield_charges']
+                new_charges        = gs['shield_charges']
                 new_regen_recharge = 0
             else:
-                new_charges       = gs['shield_charges']
+                new_charges        = gs['shield_charges']
                 new_regen_recharge = gs['regen_recharge_wins']
 
             # Auto-activate cosmetic items when purchased
             new_active_cosmetics = list(gs['active_cosmetics'])
             if item_id in COSMETIC_SLOTS:
                 slot = COSMETIC_SLOTS[item_id]
-                # Remove all items in the same slot
                 new_active_cosmetics = [c for c in new_active_cosmetics if COSMETIC_SLOTS.get(c) != slot]
                 new_active_cosmetics.append(item_id)
 
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET fish_clicks = %s, owned_items = %s,
-                           shield_charges = %s, regen_recharge_wins = %s,
-                           active_cosmetics = %s
+                       SET wins = %s, losses = %s, fish_clicks = %s,
+                           owned_items = %s, shield_charges = %s,
+                           regen_recharge_wins = %s, active_cosmetics = %s
                        WHERE user_id = %s''',
-                    (new_clicks, new_owned, new_charges, new_regen_recharge,
-                     new_active_cosmetics, current_user.id),
+                    (new_wins, new_losses, new_clicks, new_owned,
+                     new_charges, new_regen_recharge, new_active_cosmetics, current_user.id),
                 )
             conn.commit()
 
         return jsonify({
+            'wins':                new_wins,
+            'losses':              new_losses,
             'fish_clicks':         new_clicks,
             'owned_items':         new_owned,
             'shield_charges':      new_charges,
@@ -438,6 +492,117 @@ def buy():
     except Exception:
         log.exception('BUY_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
         return jsonify({'error': 'Purchase failed'}), 500
+
+
+@game_bp.route('/api/community-pot')
+@login_required
+def community_pot_state():
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute('SELECT total_contributed, target, filled, filled_at FROM community_pot WHERE id = 1')
+                pot = cur.fetchone()
+        if not pot:
+            return jsonify({'total_contributed': 0, 'target': 100_000_000, 'filled': False, 'active': False})
+        pot_active = bool(
+            pot['filled'] and pot['filled_at'] and
+            pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
+        )
+        return jsonify({
+            'total_contributed': pot['total_contributed'],
+            'target':            pot['target'],
+            'filled':            pot['filled'],
+            'active':            pot_active,
+            'filled_at':         pot['filled_at'].isoformat() if pot['filled_at'] else None,
+        })
+    except Exception:
+        log.exception('COMMUNITY_POT_STATE_ERROR')
+        return jsonify({'error': 'Failed to load pot'}), 500
+
+
+@game_bp.route('/api/community-pot/contribute', methods=['POST'])
+@login_required
+@limiter.limit('5 per second')
+def community_pot_contribute():
+    err = require_json()
+    if err:
+        return err
+    data        = request.get_json(silent=True) or {}
+    amount_type = data.get('amount', 'all')  # '10000' or 'all'
+
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT fish_clicks FROM game_state WHERE user_id = %s FOR UPDATE',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+                cur.execute('SELECT total_contributed, target, filled, filled_at FROM community_pot WHERE id = 1 FOR UPDATE')
+                pot = cur.fetchone()
+
+            if not pot:
+                return jsonify({'error': 'Pot not found'}), 500
+            if pot['filled']:
+                pot_expired = not (pot['filled_at'] and
+                    pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1))
+                if not pot_expired:
+                    return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
+                # Expired: reset here so contributions can continue
+                with conn.cursor() as cur2:
+                    cur2.execute(
+                        'UPDATE community_pot SET filled = false, filled_at = NULL, target = target * 10 WHERE id = 1'
+                    )
+                pot = dict(pot)
+                pot['filled'] = False
+                pot['target'] = pot['target'] * 10
+
+            fish_clicks = gs['fish_clicks']
+            if amount_type == '10000':
+                contribute = min(10000, fish_clicks)
+            else:
+                contribute = fish_clicks
+
+            if contribute <= 0:
+                return jsonify({'error': 'No fish clicks to contribute'}), 400
+
+            # Cap at remaining target
+            remaining  = pot['target'] - pot['total_contributed']
+            contribute = min(contribute, remaining)
+            new_total  = pot['total_contributed'] + contribute
+            newly_filled = new_total >= pot['target']
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE game_state SET fish_clicks = fish_clicks - %s WHERE user_id = %s',
+                    (contribute, current_user.id),
+                )
+                if newly_filled:
+                    cur.execute(
+                        '''UPDATE community_pot SET total_contributed = %s, filled = true,
+                           filled_at = now() WHERE id = 1''',
+                        (new_total,),
+                    )
+                else:
+                    cur.execute(
+                        'UPDATE community_pot SET total_contributed = %s WHERE id = 1',
+                        (new_total,),
+                    )
+            conn.commit()
+
+        filled_at_iso = dt.datetime.now(timezone.utc).isoformat() if newly_filled else None
+        return jsonify({
+            'fish_clicks':   fish_clicks - contribute,
+            'contributed':   contribute,
+            'pot_total':     new_total,
+            'pot_target':    pot['target'],
+            'pot_filled':    newly_filled,
+            'pot_active':    newly_filled,
+            'filled_at':     filled_at_iso,
+        })
+    except Exception:
+        log.exception('CONTRIBUTE_POT_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Contribution failed'}), 500
 
 
 @game_bp.route('/api/equip', methods=['POST'])
@@ -661,12 +826,37 @@ def stats():
                     (current_user.id,)
                 )
                 row = cur.fetchone()
+                cur.execute('SELECT season_number FROM seasons ORDER BY id LIMIT 1')
+                season_row = cur.fetchone()
+                current_season = season_row['season_number'] if season_row else 1
+                cur.execute(
+                    '''SELECT season_number, finishing_position, final_wins, final_losses
+                       FROM user_season_history
+                       WHERE user_id = %s
+                       ORDER BY season_number''',
+                    (current_user.id,)
+                )
+                history_rows = cur.fetchall()
+
+        # Build a lookup of user's history by season number
+        history_by_season = {r['season_number']: r for r in history_rows}
+        # Show all completed seasons (1 through current-1); blank if user has no entry
+        season_history = []
+        for sn in range(1, current_season):
+            h = history_by_season.get(sn)
+            season_history.append({
+                'season_number':      sn,
+                'finishing_position': h['finishing_position'] if h else None,
+                'final_wins':         int(h['final_wins']) if h else None,
+            })
+
         return jsonify({
-            'spin_count':         row['spin_count'],
-            'win_count':          row['win_count'],
-            'loss_count':         row['loss_count'],
-            'fish_clicks':        row['fish_clicks'],
-            'total_fish_clicks':  row['total_fish_clicks'],
+            'spin_count':        row['spin_count'],
+            'win_count':         row['win_count'],
+            'loss_count':        row['loss_count'],
+            'fish_clicks':       row['fish_clicks'],
+            'total_fish_clicks': row['total_fish_clicks'],
+            'season_history':    season_history,
         })
     except Exception:
         log.exception('STATS_ERROR  user_id=%s', current_user.id)

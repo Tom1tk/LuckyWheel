@@ -82,6 +82,7 @@ SHOP_ITEMS = {
     # Misc cosmetics
     'golden_wheel':   {'cost': 300,         'requires': None},
     'page_season1':   {'cost': 1000,        'requires': None},
+    'page_season2':   {'cost': 1000,        'requires': None},
     'party_mode':     {'cost': 150,         'requires': None},
     'confetti_1':     {'cost': 75,          'requires': None},
     'confetti_2':     {'cost': 300,         'requires': 'confetti_1'},
@@ -105,6 +106,46 @@ SHOP_ITEMS = {
 
 ALL_ITEMS = {**FISH_SKINS, **SHOP_ITEMS}
 VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
+
+# Season 3: currency classification for each item.
+# 'wins'       — functional items; purchasing deducts from the player's win count.
+# 'losses'     — cosmetic items; purchasing deducts from the player's loss count.
+# 'fish_clicks'— singularity only (too legendary to change).
+_COSMETIC_ITEM_IDS = {
+    # Fish skins
+    'fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark',
+    'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab',
+    'fish_lobster', 'fish_whale',
+    # Fish size
+    'fishsize_1', 'fishsize_2', 'fishsize_3',
+    # Trails
+    'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6',
+    # Wheel themes
+    'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold',
+    'golden_wheel',
+    # Page themes
+    'page_season1', 'page_season2',
+    # Party / confetti
+    'party_mode', 'confetti_1', 'confetti_2', 'confetti_3',
+    # Backgrounds
+    'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic',
+}
+
+ITEM_CURRENCY = {}
+for _id in ALL_ITEMS:
+    if _id == 'singularity':
+        ITEM_CURRENCY[_id] = 'fish_clicks'
+    elif _id in _COSMETIC_ITEM_IDS:
+        ITEM_CURRENCY[_id] = 'losses'
+    else:
+        ITEM_CURRENCY[_id] = 'wins'
+
+# All infinite upgrades are functional → cost wins.
+INFINITE_UPGRADE_CURRENCY = {
+    'winmult_inf':   'wins',
+    'bonusmult_inf': 'wins',
+    'clickmult_inf': 'wins',
+}
 
 # Infinite repeatable upgrades — replace old fixed tier chains.
 # tier_costs[N] = cost to go from level N → N+1 (for the first len(tier_costs) levels).

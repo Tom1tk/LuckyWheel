@@ -76,19 +76,19 @@ def _perform_rollover(conn, season):
     while ends_at <= now:
         log.info('SEASON_ROLLOVER_START  season=%s', current_number)
 
-        # Snapshot top 5 players
+        # Snapshot top 3 players (permanent record for every season)
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 '''SELECT gs.user_id, u.username, gs.wins, gs.losses
                    FROM game_state gs
                    JOIN users u ON u.id = gs.user_id
                    ORDER BY gs.wins DESC
-                   LIMIT 5'''
+                   LIMIT 3'''
             )
-            top5 = cur.fetchall()
+            top3 = cur.fetchall()
 
         with conn.cursor() as cur:
-            for pos, row in enumerate(top5, 1):
+            for pos, row in enumerate(top3, 1):
                 cur.execute(
                     '''INSERT INTO season_snapshots
                            (season_number, position, user_id, username, wins, losses)
@@ -98,7 +98,7 @@ def _perform_rollover(conn, season):
                      row['wins'], row['losses']),
                 )
 
-        # Record all users' final stats
+        # Record all users' final stats for per-season history
         with conn.cursor() as cur:
             cur.execute(
                 '''INSERT INTO user_season_history
@@ -108,7 +108,7 @@ def _perform_rollover(conn, season):
                    ON CONFLICT (user_id, season_number) DO NOTHING''',
                 (current_number,),
             )
-            for pos, row in enumerate(top5, 1):
+            for pos, row in enumerate(top3, 1):
                 cur.execute(
                     '''UPDATE user_season_history
                        SET finishing_position = %s

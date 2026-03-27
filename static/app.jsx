@@ -331,8 +331,8 @@ function drawWheel(canvas, theme = 'default') {
 
   const THEMES = {
     default: [
-      { label: 'WIN',  color: '#006622', bright: '#00CC44', start: -Math.PI/2, end: Math.PI/2 },
-      { label: 'LOSE', color: '#8B0000', bright: '#FF3333', start: Math.PI/2,  end: Math.PI*1.5 },
+      { label: 'WIN',  color: '#005588', bright: '#00AAFF', start: -Math.PI/2, end: Math.PI/2 },
+      { label: 'LOSE', color: '#7a3300', bright: '#FF6600', start: Math.PI/2,  end: Math.PI*1.5 },
     ],
     fire: [
       { label: 'WIN',  color: '#993300', bright: '#FF6600', start: -Math.PI/2, end: Math.PI/2 },
@@ -450,8 +450,8 @@ function drawGuardWheel(canvas) {
 
   // WIN segment (green, small)
   const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#88FF88');
-  gWin.addColorStop(1, '#006600');
+  gWin.addColorStop(0, '#88DDFF');
+  gWin.addColorStop(1, '#005588');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -837,7 +837,8 @@ const SHOP_SECTIONS = [
     { id: 'bg_cosmic',   emoji: '🌌', name: 'Cosmic Casino',   cost: 50000, desc: 'Deep space nebula',       requires: 'bg_abyss' },
   ]},
   { label: '🖼️ Page Theme', items: [
-    { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme. Season 2 (green/red) is default.' },
+    { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme (S1).' },
+    { id: 'page_season2', emoji: '🟢', name: 'Season 2 Theme', cost: 1000, desc: 'Green & red casino theme (S2).' },
   ]},
   { label: '🎲 Special Upgrades', items: [
     { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 500,  desc: '25% chance: +25% to streak bonus payout' },
@@ -892,10 +893,23 @@ const COSMETIC_SECTION_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
-  'page_season1',
+  'page_season1', 'page_season2',
   'final_frenzy',
   'auto_guard',
 ]);
+
+// Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
+const COSMETIC_IDS = new Set([
+  'fish_tropical','fish_puffer','fish_octopus','fish_shark','fish_dolphin',
+  'fish_squid','fish_turtle','fish_crab','fish_lobster','fish_whale',
+  'fishsize_1','fishsize_2','fishsize_3',
+  'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
+  'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
+  'page_season1','page_season2','party_mode','confetti_1','confetti_2','confetti_3',
+  'bg_ocean','bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
+]);
+const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
+const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
 // ── Shop components ────────────────────────────────────────────────────────
 const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, isSkin, isSingularity, isCosmetic, infLevel, displayCost }) {
@@ -942,7 +956,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
       <div className="shop-item-info">
         <div className="shop-item-name">{item.name}</div>
         {infDesc && <div className="shop-item-desc" data-tooltip={infDesc}>{infDesc}</div>}
-        <div className="shop-item-cost">🐟 {cost.toLocaleString()}</div>
+        <div className={`shop-item-cost cost-${getItemCurrency(item.id)}`}>{currencyIcon(getItemCurrency(item.id))} {cost.toLocaleString()}</div>
       </div>
       <div className="shop-item-action">{actionEl}</div>
     </div>
@@ -951,8 +965,8 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed }) {
-  const [activeTab, setActiveTab] = useState('cosmetic');
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed }) {
+  const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
     const cosmetic = [], functional = [];
@@ -981,6 +995,8 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
         const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
         const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
         const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
+        const currency = getItemCurrency(item.id);
+        const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
         return (
           <ShopItem key={item.id} item={item}
             isSkin={false}
@@ -989,7 +1005,7 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
             owned={!item.infinite && ownedItems.includes(item.id)}
             equipped={false}
             active={isCosmetic && activeCosmetics.includes(item.id)}
-            canAfford={fishClicks >= displayCost}
+            canAfford={balance >= displayCost}
             infLevel={infLevel}
             displayCost={displayCost}
             onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
@@ -1003,13 +1019,17 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
     <div className={`shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`}>
       <div className="shop-header">
         <div className="shop-title">🛒 Shop</div>
-        <div className="shop-balance">Balance: <span>🐟 {fmt(fishClicks)}</span></div>
+        <div className="shop-balance">
+          <span className="balance-wins">🏆 {fmt(wins)}</span>
+          <span className="balance-losses">💀 {fmt(losses)}</span>
+          <span className="balance-clicks">🐟 {fmt(fishClicks)}</span>
+        </div>
       </div>
       <div className="shop-tabs">
-        <button className={`shop-tab ${activeTab === 'cosmetic' ? 'active' : ''}`} onClick={() => setActiveTab('cosmetic')}>🎨 Cosmetic</button>
         <button className={`shop-tab ${activeTab === 'functional' ? 'active' : ''}`} onClick={() => setActiveTab('functional')}>⚡ Functional</button>
+        <button className={`shop-tab shop-tab--cosmetic ${activeTab === 'cosmetic' ? 'active' : ''}`} onClick={() => setActiveTab('cosmetic')}>🎨 Cosmetic</button>
       </div>
-      <div className="shop-tab-content">
+      <div className={`shop-tab-content${activeTab === 'cosmetic' ? ' shop-tab-content--cosmetic' : ''}`}>
         {activeTab === 'cosmetic' ? (
           <>
             <div className="shop-section-label">── Fish Skins ──</div>
@@ -1017,7 +1037,7 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
               <ShopItem key={item.id} item={item} isSkin
                 owned={ownedItems.includes(item.id)}
                 equipped={equippedFish === item.id}
-                canAfford={fishClicks >= item.cost}
+                canAfford={losses >= item.cost}
                 onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
               />
             ))}
@@ -1032,6 +1052,9 @@ function ShopPanel({ fishClicks, ownedItems, equippedFish, activeCosmetics, infL
 }
 
 // ── Stats Panel ────────────────────────────────────────────────────────────
+const PLACE_LABEL = pos =>
+  pos === 1 ? '🥇 1st' : pos === 2 ? '🥈 2nd' : pos === 3 ? '🥉 3rd' : null;
+
 function StatsPanel({ open, onClose }) {
   const [stats, setStats] = useState(null);
   useEffect(() => {
@@ -1039,18 +1062,40 @@ function StatsPanel({ open, onClose }) {
     apiFetch('/api/stats').then(r => { if (r.ok) setStats(r.data); });
   }, [open]);
   if (!open) return null;
+  const history = stats?.season_history || [];
   return (
     <div className="stats-overlay" onClick={onClose}>
       <div className="stats-card" onClick={e => e.stopPropagation()}>
         <div className="stats-title">📊 Your Stats</div>
         {stats ? (
-          <div className="stats-list">
-            <div className="stats-row"><span>Total Spins</span><span>{fmt(stats.spin_count)}</span></div>
-            <div className="stats-row"><span>Total Wins</span><span>{fmt(stats.win_count)}</span></div>
-            <div className="stats-row"><span>Total Losses</span><span>{fmt(stats.loss_count)}</span></div>
-            <div className="stats-row"><span>Win Rate</span><span>{stats.spin_count > 0 ? ((stats.win_count / stats.spin_count) * 100).toFixed(1) + '%' : 'N/A'}</span></div>
-            <div className="stats-row"><span>Lifetime Taps</span><span>{fmt(stats.total_fish_clicks)}</span></div>
-          </div>
+          <>
+            <div className="stats-list">
+              <div className="stats-row"><span>Total Spins</span><span>{fmt(stats.spin_count)}</span></div>
+              <div className="stats-row"><span>Total Wins</span><span>{fmt(stats.win_count)}</span></div>
+              <div className="stats-row"><span>Total Losses</span><span>{fmt(stats.loss_count)}</span></div>
+              <div className="stats-row"><span>Win Rate</span><span>{stats.spin_count > 0 ? ((stats.win_count / stats.spin_count) * 100).toFixed(1) + '%' : 'N/A'}</span></div>
+              <div className="stats-row"><span>Lifetime Taps</span><span>{fmt(stats.total_fish_clicks)}</span></div>
+            </div>
+            {history.length > 0 && (
+              <div className="stats-season-history">
+                <div className="stats-section-title">Season History</div>
+                {history.map(s => {
+                  const place = PLACE_LABEL(s.finishing_position);
+                  const participated = s.final_wins != null;
+                  return (
+                    <div className="stats-row stats-row--season" key={s.season_number}>
+                      <span>Season {s.season_number}</span>
+                      <span>
+                        {!participated ? '—' : place
+                          ? <span className="stats-podium">{place}</span>
+                          : `${fmt(s.final_wins)} wins`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         ) : <div className="stats-loading">Loading…</div>}
         <button className="stats-close-btn" onClick={onClose}>✕</button>
       </div>
@@ -1109,6 +1154,85 @@ function AuthPage({ onAuth }) {
   );
 }
 
+// ── Community Pot ──────────────────────────────────────────────────────────
+function usePotCountdown(filledAt, active) {
+  const [remaining, setRemaining] = useState(null);
+  useEffect(() => {
+    if (!active || !filledAt) { setRemaining(null); return; }
+    const expiresAt = new Date(filledAt).getTime() + 3600 * 1000;
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setRemaining(secs);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [filledAt, active]);
+  return remaining;
+}
+
+function fmtCountdown(secs) {
+  if (secs == null) return '';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function CommunityPot({ pot, fishClicks, onContribute }) {
+  const [localPot, setLocalPot] = useState(pot);
+
+  // Sync when parent pot state changes (e.g. on load)
+  useEffect(() => { setLocalPot(pot); }, [pot]);
+
+  // Poll every 10s for live updates
+  useEffect(() => {
+    const id = setInterval(() => {
+      apiFetch('/api/community-pot').then(r => { if (r.ok) setLocalPot(r.data); });
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleContribute = async (amount) => {
+    const { ok, data } = await apiGame('/api/community-pot/contribute', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+    if (ok) {
+      setLocalPot({ total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, filled_at: data.filled_at });
+      onContribute(data.fish_clicks);
+    }
+  };
+
+  const total     = localPot.total_contributed || 0;
+  const target    = localPot.target || 100_000_000;
+  const pct       = Math.min(100, (total / target) * 100);
+  const active    = localPot.active;
+  const countdown = usePotCountdown(localPot.filled_at, active);
+
+  return (
+    <div className={`community-pot-bar${active ? ' community-pot-active' : ''}`}>
+      <div className="community-pot-inner">
+        <span className="community-pot-label">🎣 Community Pot</span>
+        <div className="community-pot-progress">
+          <div className="community-pot-fill" style={{ width: pct + '%' }} />
+        </div>
+        <span className="community-pot-count">{fmt(total)} / {fmt(target)}</span>
+        {active ? (
+          <>
+            <span className="community-pot-bonus">✨ 75% Win Rate Active!</span>
+            <span className="community-pot-countdown">{fmtCountdown(countdown)}</span>
+          </>
+        ) : (
+          <div className="community-pot-buttons">
+            <button onClick={() => handleContribute('10000')} disabled={fishClicks < 1}>+10k</button>
+            <button onClick={() => handleContribute('all')} disabled={fishClicks < 1}>All</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Game App ───────────────────────────────────────────────────────────────
 function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const canvasRef = useRef(null);
@@ -1147,6 +1271,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showStats, setShowStats]     = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
+  const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 100_000_000, filled: false, active: false });
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const fireMode = 2; // Mix mode
@@ -1221,7 +1346,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [activeCosmetics]);
 
   const pageThemeClass = useMemo(() => {
-    return activeCosmetics.includes('page_season1') ? 'page-season1' : '';
+    if (activeCosmetics.includes('page_season1')) return 'page-season1';
+    if (activeCosmetics.includes('page_season2')) return 'page-season2';
+    return '';
   }, [activeCosmetics]);
 
   const currentRotationRef = useRef(0);
@@ -1344,6 +1471,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     });
     if (ok) {
       setFishClicks(data.fish_clicks);
+      if (data.wins != null) setWins(data.wins);
+      if (data.losses != null) setLosses(data.losses);
       setOwnedItems(data.owned_items);
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
@@ -1388,8 +1517,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
     setResult(data.result);
-    setWins(data.wins);
-    setLosses(data.losses);
+    if (data.wins_delta)   setWins(prev => prev + data.wins_delta);
+    if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
     setStreak(data.streak);
     setShieldCharges(data.shield_charges);
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
@@ -1408,10 +1537,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
-    // Use delta (not absolute) to avoid stale spin responses overwriting concurrent frenzy responses
-    if (data.fish_clicks_delta) setFishClicks(prev => prev + data.fish_clicks_delta);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-    if (data.auto_guard_failed) showToast('Not enough clicks — Auto-Guard disabled');
+    if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -1589,6 +1716,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           style={{ opacity: lowSpec ? 1 : 0.5 }}
         >⚡</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        <CommunityPot
+          pot={communityPot}
+          fishClicks={fishClicks}
+          onContribute={newClicks => setFishClicks(newClicks)}
+        />
         {season && <SeasonInfo seasonNumber={season.season_number} endsAt={season.ends_at} />}
       </div>
 
@@ -1718,6 +1850,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
           <ShopPanel
             fishClicks={fishClicks}
+            wins={wins}
+            losses={losses}
             ownedItems={ownedItems}
             equippedFish={equippedFish}
             activeCosmetics={activeCosmetics}
