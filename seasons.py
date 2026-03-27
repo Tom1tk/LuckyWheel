@@ -120,10 +120,12 @@ def _perform_rollover(conn, season):
         with conn.cursor() as cur:
             cur.execute(
                 """UPDATE game_state SET
-                       wins = 0, losses = 0, fish_clicks = 0, streak = 0,
+                       wins = 0, losses = 0, fish_clicks = 0, streak = 0, best_streak = 0,
                        owned_items = '{}', equipped_fish = 'default',
                        shield_charges = 0, regen_recharge_wins = 0,
-                       active_cosmetics = '{}', spin_count = 0, win_count = 0"""
+                       active_cosmetics = '{}', spin_count = 0, win_count = 0, loss_count = 0,
+                       total_fish_clicks = 0,
+                       winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0"""
             )
 
         # Advance season
