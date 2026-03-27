@@ -2,7 +2,37 @@
 
 ---
 
-## Latest — 24 Mar 2026
+## Latest — 27 Mar 2026
+
+### Season 3: Community Pot & Win Rate Boost
+- Introduced the **Community Pot**, a global objective where all players can contribute their Fish Clicks.
+- When the pot reaches its target, a **1-hour 75% Win Rate Boost** is activated for everyone on the server.
+- The pot target starts at 100 million and multiplies by 10 each time it is completed.
+- New `/api/community-pot/state` and `/api/community-pot/contribute` endpoints added.
+- Current pot progress and active boost status are visible to all players.
+
+### Multi-Currency Shop System
+- The shop has been refactored to use a logical multi-currency system to balance progression:
+    - **Functional Upgrades** (Speed, Multipliers, Click Frenzy, Protection, Special Upgrades) now cost **Wins**.
+    - **Cosmetic Items** (Skins, Fish Size, Trails, Themes, Backgrounds, Page Themes) now cost **Losses**.
+    - **The Singularity** remains the ultimate goal, costing **1 Billion Fish Clicks**.
+- Existing players' balances are preserved, and item costs have been adjusted to suit the new currencies.
+- **Auto-Guard** now costs **500 Wins** to trigger (was 500 Fish Clicks).
+
+### New Cosmetic Content
+- **Season 2 Page Theme**: A new premium theme added to the shop for those who want to relive the glory of the previous season.
+
+### Enhanced Stats & Season History
+- The Stats panel (📊) now includes a **Season History** section.
+- Track your finishing position and final win count for all completed seasons.
+
+### Technical Improvements
+- The `/api/spin` response now returns `wins_delta` and `losses_delta` instead of absolute totals, improving client-side animation sync and preventing race conditions.
+- Database schema updated (Migration 008) to support the Community Pot and history tracking.
+
+---
+
+## 24 Mar 2026
 
 ### Community Leaderboard Panel
 - Leaderboard redesigned from a horizontal scrolling ticker to a vertical panel at the bottom-left, styled to match the Season Winners box.

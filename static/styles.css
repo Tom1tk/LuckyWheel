@@ -1,8 +1,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
-/* Fire canvas (appended to body) sits at z-index:1.
-   #root at z-index:2 forms its own stacking context, so all game UI
-   paints above the fire regardless of individual element z-indexes. */
+/* Fire canvas (appended to #root) sits at z-index:1 inside #root's stacking context.
+   All game UI elements (z-index 45+) paint above it; fire shows as a background
+   glow over the transparent page areas. */
 #root { position: relative; z-index: 2; }
 
 body {

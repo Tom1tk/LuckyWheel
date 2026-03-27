@@ -104,7 +104,8 @@ function FireEffect({
   useEffect(() => {
     const canvas = document.createElement('canvas');
     canvas.style.cssText = ['position:fixed', 'inset:0', 'width:100vw', 'height:100vh', 'z-index:1', 'pointer-events:none'].join(';');
-    document.body.appendChild(canvas);
+    const root = document.getElementById('root') || document.body;
+    root.appendChild(canvas);
     const ctx = canvas.getContext('2d');
     function setSize() {
       canvas.width = window.innerWidth;
@@ -158,7 +159,7 @@ function FireEffect({
     return () => {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', setSize);
-      document.body.removeChild(canvas);
+      (document.getElementById('root') || document.body).removeChild(canvas);
     };
   }, [activeMode, lowSpec]); // intensity deliberately excluded — lerped inside tick
 
