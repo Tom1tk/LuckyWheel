@@ -1396,7 +1396,7 @@ const SHOP_SECTIONS = [{
     id: 'singularity',
     emoji: '🌌',
     name: 'The Singularity',
-    cost: 1000000000,
+    cost: 1e67,
     desc: 'Transcend reality itself. Every spin is a win.'
   }]
 }];

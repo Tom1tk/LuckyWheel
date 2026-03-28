@@ -101,7 +101,7 @@ SHOP_ITEMS = {
     'resilience':     {'cost': 500000,      'requires': None},
     'jackpot':        {'cost': 3000,        'requires': None},
     # Legendary
-    'singularity':    {'cost': 1000000000,  'requires': None},
+    'singularity':    {'cost': int(1e67),    'requires': None},
 }
 
 ALL_ITEMS = {**FISH_SKINS, **SHOP_ITEMS}
