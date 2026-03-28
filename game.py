@@ -562,8 +562,8 @@ def community_pot_contribute():
                 pot['target'] = pot['target'] * 10
 
             fish_clicks = gs['fish_clicks']
-            if amount_type == '10000':
-                contribute = min(10000, fish_clicks)
+            if amount_type == '10pct':
+                contribute = min(max(1, pot['target'] // 10), fish_clicks)
             else:
                 contribute = fish_clicks
 
