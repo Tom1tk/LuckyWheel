@@ -287,8 +287,8 @@ def spin():
             # Update best streak
             new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
 
-            # Cap wins to JS-safe integer range to prevent Infinity display
-            _MAX_WINS = 10 ** 15
+            # Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
+            _MAX_WINS = round(9.99e99)
             new_wins = min(new_wins, _MAX_WINS)
 
             # Stats tracking
