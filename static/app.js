@@ -1874,9 +1874,9 @@ function CommunityPot({
   }, fmtCountdown(countdown))) : /*#__PURE__*/React.createElement("div", {
     className: "community-pot-buttons"
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => handleContribute('10000'),
+    onClick: () => handleContribute('10pct'),
     disabled: fishClicks < 1
-  }, "+10k"), /*#__PURE__*/React.createElement("button", {
+  }, "+", fmt(Math.max(1, Math.floor(target / 10)))), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleContribute('all'),
     disabled: fishClicks < 1
   }, "All"))));

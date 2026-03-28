@@ -1226,7 +1226,7 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
           </>
         ) : (
           <div className="community-pot-buttons">
-            <button onClick={() => handleContribute('10000')} disabled={fishClicks < 1}>+10k</button>
+            <button onClick={() => handleContribute('10pct')} disabled={fishClicks < 1}>+{fmt(Math.max(1, Math.floor(target / 10)))}</button>
             <button onClick={() => handleContribute('all')} disabled={fishClicks < 1}>All</button>
           </div>
         )}
