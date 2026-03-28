@@ -287,6 +287,10 @@ def spin():
             # Update best streak
             new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
 
+            # Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
+            _MAX_WINS = round(9.99e99)
+            new_wins = min(new_wins, _MAX_WINS)
+
             # Stats tracking
             new_win_count  = gs['win_count']  + (1 if outcome == 'win'  else 0)
             new_loss_count = gs['loss_count'] + (1 if outcome == 'lose' else 0)
