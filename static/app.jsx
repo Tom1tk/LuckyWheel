@@ -850,7 +850,7 @@ const SHOP_SECTIONS = [
     { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000, desc: '1% chance each win to multiply gains by 50x' },
   ]},
   { label: '🌌 Legendary', items: [
-    { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1000000000,
+    { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1e67,
       desc: 'Transcend reality itself. Every spin is a win.' },
   ]},
 ];
