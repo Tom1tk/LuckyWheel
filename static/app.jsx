@@ -486,6 +486,7 @@ function drawGuardWheel(canvas) {
 
 // ── Number formatter ──────────────────────────────────────────────────────
 function fmt(n) {
+  if (!isFinite(n) || isNaN(n)) return '???';
   if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
   if (n >= 1e12) return (n / 1e12).toFixed(n >= 10e12 ? 1 : 2).replace(/\.?0+$/, '') + 'T';
   if (n >= 1e9)  return (n / 1e9) .toFixed(n >= 10e9  ? 1 : 2).replace(/\.?0+$/, '') + 'B';
@@ -957,7 +958,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
       <div className="shop-item-info">
         <div className="shop-item-name">{item.name}</div>
         {infDesc && <div className="shop-item-desc" data-tooltip={infDesc}>{infDesc}</div>}
-        <div className={`shop-item-cost cost-${getItemCurrency(item.id)}`}>{currencyIcon(getItemCurrency(item.id))} {cost.toLocaleString()}</div>
+        <div className={`shop-item-cost cost-${getItemCurrency(item.id)}`}>{currencyIcon(getItemCurrency(item.id))} {fmt(cost)}</div>
       </div>
       <div className="shop-item-action">{actionEl}</div>
     </div>
