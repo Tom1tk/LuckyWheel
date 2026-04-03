@@ -674,7 +674,7 @@ function Die({ value, rolling, landed }) {
   );
 }
 
-function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec, shopCollapsed }) {
+function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
@@ -1935,16 +1935,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       </div>
 
-      <DicePanel
-        wins={wins}
-        onRoll={handleDiceRoll}
-        rolling={diceRolling}
-        diceResult={diceResult}
-        spinning={spinning}
-        lowSpec={lowSpec}
-        shopCollapsed={shopCollapsed}
-      />
-
       <div className="game-right">
         <button
           className="shop-collapse-btn"
@@ -1962,6 +1952,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               </div>
             )}
             <StreakPanel streak={streak} />
+            <DicePanel
+              wins={wins}
+              onRoll={handleDiceRoll}
+              rolling={diceRolling}
+              diceResult={diceResult}
+              spinning={spinning}
+              lowSpec={lowSpec}
+            />
           </div>
 
           <ShopPanel

@@ -825,8 +825,7 @@ function DicePanel({
   rolling,
   diceResult,
   spinning,
-  lowSpec,
-  shopCollapsed
+  lowSpec
 }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
@@ -2639,15 +2638,7 @@ function GameApp({
   }, (_, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     className: "bulb"
-  })))), /*#__PURE__*/React.createElement(DicePanel, {
-    wins: wins,
-    onRoll: handleDiceRoll,
-    rolling: diceRolling,
-    diceResult: diceResult,
-    spinning: spinning,
-    lowSpec: lowSpec,
-    shopCollapsed: shopCollapsed
-  }), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     className: "game-right"
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-collapse-btn",
@@ -2661,6 +2652,13 @@ function GameApp({
     className: "shield-indicator"
   }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
+  }), /*#__PURE__*/React.createElement(DicePanel, {
+    wins: wins,
+    onRoll: handleDiceRoll,
+    rolling: diceRolling,
+    diceResult: diceResult,
+    spinning: spinning,
+    lowSpec: lowSpec
   })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
