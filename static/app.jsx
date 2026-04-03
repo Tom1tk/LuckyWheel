@@ -712,7 +712,7 @@ function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec }) {
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
   return (
-    <div className={`dice-panel${shopCollapsed ? ' dice-panel-shifted' : ''}`}>
+    <div className="dice-panel">
       <span className="dice-panel-label">🎲 Dice Roll</span>
       <div className="dice-row">
         <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />

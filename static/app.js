@@ -863,7 +863,7 @@ function DicePanel({
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
   return /*#__PURE__*/React.createElement("div", {
-    className: `dice-panel${shopCollapsed ? ' dice-panel-shifted' : ''}`
+    className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
     className: "dice-panel-label"
   }, "\uD83C\uDFB2 Dice Roll"), /*#__PURE__*/React.createElement("div", {
