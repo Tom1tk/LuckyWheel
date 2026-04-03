@@ -792,6 +792,101 @@ const StreakPanel = React.memo(function StreakPanel({
   }, isWin ? `Bonus +${fmt(bonus)}` : `Penalty +${fmt(bonus)}`));
 });
 
+// ── Dice Panel ───────────────────────────────────────────────────────────
+const PIP_LAYOUTS = {
+  1: [[2, 2]],
+  2: [[1, 1], [3, 3]],
+  3: [[1, 1], [2, 2], [3, 3]],
+  4: [[1, 1], [1, 3], [3, 1], [3, 3]],
+  5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
+  6: [[1, 1], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]]
+};
+function Die({
+  value,
+  rolling,
+  landed
+}) {
+  const pips = PIP_LAYOUTS[value] || [];
+  const cls = `die${rolling ? ' die-rolling' : ''}${landed ? ' die-landed' : ''}`;
+  return /*#__PURE__*/React.createElement("div", {
+    className: cls
+  }, pips.map(([row, col], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "pip",
+    style: {
+      gridRow: row,
+      gridColumn: col
+    }
+  })));
+}
+function DicePanel({
+  wins,
+  onRoll,
+  rolling,
+  diceResult,
+  spinning,
+  lowSpec,
+  shopCollapsed
+}) {
+  const [animDie1, setAnimDie1] = React.useState(1);
+  const [animDie2, setAnimDie2] = React.useState(1);
+  const [landed, setLanded] = React.useState(false);
+  const [showResult, setShowResult] = React.useState(false);
+  const intervalRef = React.useRef(null);
+  React.useEffect(() => {
+    if (rolling && !lowSpec) {
+      setLanded(false);
+      setShowResult(false);
+      intervalRef.current = setInterval(() => {
+        setAnimDie1(Math.ceil(Math.random() * 6));
+        setAnimDie2(Math.ceil(Math.random() * 6));
+      }, 80);
+    } else {
+      clearInterval(intervalRef.current);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [rolling, lowSpec]);
+  React.useEffect(() => {
+    if (diceResult) {
+      setAnimDie1(diceResult.die1);
+      setAnimDie2(diceResult.die2);
+      setLanded(true);
+      setShowResult(true);
+      const t = setTimeout(() => {
+        setShowResult(false);
+        setLanded(false);
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [diceResult]);
+  const cost = Math.max(0, Math.floor(wins * 95 / 100));
+  const canRoll = wins >= 2 && cost >= 1 && !rolling && !spinning;
+  const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
+  const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
+  return /*#__PURE__*/React.createElement("div", {
+    className: `dice-panel${shopCollapsed ? ' dice-panel-shifted' : ''}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dice-panel-label"
+  }, "\uD83C\uDFB2 Dice Roll"), /*#__PURE__*/React.createElement("div", {
+    className: "dice-row"
+  }, /*#__PURE__*/React.createElement(Die, {
+    value: die1Val,
+    rolling: rolling && !lowSpec,
+    landed: landed
+  }), /*#__PURE__*/React.createElement(Die, {
+    value: die2Val,
+    rolling: rolling && !lowSpec,
+    landed: landed
+  })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
+    className: "dice-result-text"
+  }, "+", diceResult.dice_sum, " streak!"), /*#__PURE__*/React.createElement("button", {
+    className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
+    onClick: canRoll ? onRoll : undefined,
+    disabled: !canRoll,
+    title: canRoll ? `Costs ${fmt(cost)} wins` : wins < 2 ? 'Not enough wins' : 'Wait…'
+  }, rolling ? 'Rolling…' : `Roll (${fmt(cost)})`));
+}
+
 // ── Season Winners ────────────────────────────────────────────────────────
 function SeasonWinners({
   winners,
@@ -1842,7 +1937,8 @@ function CommunityPot({
         target: data.pot_target,
         filled: data.pot_filled,
         active: data.pot_active,
-        filled_at: data.filled_at
+        filled_at: data.filled_at,
+        win_chance_pct: data.win_chance_pct
       });
       onContribute(data.fish_clicks);
     }
@@ -1869,7 +1965,7 @@ function CommunityPot({
     className: "community-pot-count"
   }, fmt(total), " / ", fmt(target)), active ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "community-pot-bonus"
-  }, "\u2728 75% Win Rate Active!"), /*#__PURE__*/React.createElement("span", {
+  }, "\u2728 ", localPot.win_chance_pct || 51, "% Win Rate Active!"), /*#__PURE__*/React.createElement("span", {
     className: "community-pot-countdown"
   }, fmtCountdown(countdown))) : /*#__PURE__*/React.createElement("div", {
     className: "community-pot-buttons"
@@ -1936,6 +2032,8 @@ function GameApp({
   });
   const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceResult, setDiceResult] = useState(null);
   const fireMode = 2; // Mix mode
 
   const spinSpeed = useMemo(() => {
@@ -2185,6 +2283,34 @@ function GameApp({
     });
     if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
   }, [showToast]);
+  const handleDiceRoll = useCallback(async () => {
+    if (diceRolling || spinning) return;
+    setDiceRolling(true);
+    setDiceResult(null);
+    const {
+      ok,
+      data
+    } = await apiGame('/api/roll-dice', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+    if (!ok) {
+      showToast(data.error || 'Roll failed');
+      setDiceRolling(false);
+      return;
+    }
+    setTimeout(() => {
+      setDiceResult({
+        die1: data.die1,
+        die2: data.die2,
+        dice_sum: data.dice_sum,
+        cost: data.cost
+      });
+      setWins(data.wins);
+      setStreak(data.streak);
+      setDiceRolling(false);
+    }, lowSpec ? 100 : 1200);
+  }, [diceRolling, spinning, lowSpec, showToast]);
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
     setFishClicks(c => c + clickAmount);
@@ -2513,7 +2639,15 @@ function GameApp({
   }, (_, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     className: "bulb"
-  })))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement(DicePanel, {
+    wins: wins,
+    onRoll: handleDiceRoll,
+    rolling: diceRolling,
+    diceResult: diceResult,
+    spinning: spinning,
+    lowSpec: lowSpec,
+    shopCollapsed: shopCollapsed
+  }), /*#__PURE__*/React.createElement("div", {
     className: "game-right"
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-collapse-btn",

@@ -66,7 +66,7 @@ def get_state():
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
-                cur.execute('SELECT total_contributed, target, filled, filled_at FROM community_pot WHERE id = 1')
+                cur.execute('SELECT total_contributed, target, fib_prev, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
         pot_active = bool(
             pot and pot['filled'] and pot['filled_at'] and
@@ -91,9 +91,10 @@ def get_state():
             'low_spec_mode':       gs['low_spec_mode'],
             'community_pot': {
                 'total_contributed': pot['total_contributed'] if pot else 0,
-                'target':            pot['target']            if pot else 100_000_000,
+                'target':            pot['target']            if pot else 10_000,
                 'filled':            pot['filled']            if pot else False,
                 'active':            pot_active,
+                'win_chance_pct':    pot['win_chance_pct']    if pot else 51,
             } if pot else None,
         })
     except Exception:
@@ -145,7 +146,7 @@ def spin():
                 gs = cur.fetchone()
 
                 # Community pot: check if bonus is active (within 1 hour of filling)
-                cur.execute('SELECT filled, filled_at FROM community_pot WHERE id = 1')
+                cur.execute('SELECT filled, filled_at, win_chance_pct FROM community_pot WHERE id = 1')
                 pot_row = cur.fetchone()
 
             owned               = list(gs['owned_items'])
@@ -159,12 +160,15 @@ def spin():
             pot_active = False
             if pot_row and pot_row['filled'] and pot_row['filled_at']:
                 pot_active = pot_row['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
-            # Auto-reset expired pot: multiply target by 10, keep total_contributed
+            # Auto-reset expired pot: advance to next Fibonacci target, increment win chance
             if pot_row and pot_row['filled'] and not pot_active:
                 with conn.cursor() as cur2:
                     cur2.execute(
                         '''UPDATE community_pot
-                           SET filled = false, filled_at = NULL, target = target * 10
+                           SET filled = false, filled_at = NULL,
+                               fib_prev = target,
+                               target = target + fib_prev,
+                               win_chance_pct = LEAST(win_chance_pct + 1, 75)
                            WHERE id = 1'''
                     )
 
@@ -192,7 +196,7 @@ def spin():
                 outcome = 'win'
                 lucky_seven_triggered = True
             elif pot_active:
-                outcome = secrets.choice(['win', 'win', 'win', 'lose'])  # 75% win rate
+                outcome = 'win' if secrets.randbelow(100) < pot_row['win_chance_pct'] else 'lose'
             else:
                 outcome = secrets.choice(['win', 'lose'])
 
@@ -344,6 +348,60 @@ def spin():
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Spin failed'}), 500
+
+
+@game_bp.route('/api/roll-dice', methods=['POST'])
+@login_required
+@limiter.limit('3 per second')
+def roll_dice():
+    err = require_json()
+    if err:
+        return err
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT wins, streak, best_streak FROM game_state WHERE user_id = %s FOR UPDATE',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+
+            wins        = int(gs['wins'])
+            streak      = gs['streak']
+            best_streak = gs['best_streak']
+            cost        = (wins * 95) // 100
+
+            if wins < 2 or cost < 1:
+                return jsonify({'error': 'Not enough wins to roll'}), 400
+
+            die1     = random.randint(1, 6)
+            die2     = random.randint(1, 6)
+            dice_sum = die1 + die2
+
+            new_streak = streak + dice_sum
+            new_best   = max(best_streak, new_streak) if new_streak > 0 else best_streak
+            new_wins   = wins - cost
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET wins = %s, streak = %s, best_streak = %s
+                       WHERE user_id = %s''',
+                    (new_wins, new_streak, new_best, current_user.id),
+                )
+            conn.commit()
+
+        return jsonify({
+            'die1':     die1,
+            'die2':     die2,
+            'dice_sum': dice_sum,
+            'cost':     cost,
+            'wins':     new_wins,
+            'streak':   new_streak,
+        })
+    except Exception:
+        log.exception('ROLL_DICE_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Dice roll failed'}), 500
 
 
 @game_bp.route('/api/buy', methods=['POST'])
@@ -504,10 +562,10 @@ def community_pot_state():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute('SELECT total_contributed, target, filled, filled_at FROM community_pot WHERE id = 1')
+                cur.execute('SELECT total_contributed, target, fib_prev, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
         if not pot:
-            return jsonify({'total_contributed': 0, 'target': 100_000_000, 'filled': False, 'active': False})
+            return jsonify({'total_contributed': 0, 'target': 10_000, 'filled': False, 'active': False, 'win_chance_pct': 51})
         pot_active = bool(
             pot['filled'] and pot['filled_at'] and
             pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
@@ -518,6 +576,7 @@ def community_pot_state():
             'filled':            pot['filled'],
             'active':            pot_active,
             'filled_at':         pot['filled_at'].isoformat() if pot['filled_at'] else None,
+            'win_chance_pct':    pot['win_chance_pct'],
         })
     except Exception:
         log.exception('COMMUNITY_POT_STATE_ERROR')
@@ -542,7 +601,7 @@ def community_pot_contribute():
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
-                cur.execute('SELECT total_contributed, target, filled, filled_at FROM community_pot WHERE id = 1 FOR UPDATE')
+                cur.execute('SELECT total_contributed, target, fib_prev, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1 FOR UPDATE')
                 pot = cur.fetchone()
 
             if not pot:
@@ -555,11 +614,18 @@ def community_pot_contribute():
                 # Expired: reset here so contributions can continue
                 with conn.cursor() as cur2:
                     cur2.execute(
-                        'UPDATE community_pot SET filled = false, filled_at = NULL, target = target * 10 WHERE id = 1'
+                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
+                           fib_prev = target, target = target + fib_prev,
+                           win_chance_pct = LEAST(win_chance_pct + 1, 75)
+                           WHERE id = 1'''
                     )
+                old_target = pot['target']
+                old_fib_prev = pot['fib_prev']
                 pot = dict(pot)
                 pot['filled'] = False
-                pot['target'] = pot['target'] * 10
+                pot['target'] = old_target + old_fib_prev
+                pot['fib_prev'] = old_target
+                pot['win_chance_pct'] = min(pot['win_chance_pct'] + 1, 75)
 
             fish_clicks = gs['fish_clicks']
             if amount_type == '10pct':
@@ -599,10 +665,11 @@ def community_pot_contribute():
             'fish_clicks':   fish_clicks - contribute,
             'contributed':   contribute,
             'pot_total':     new_total,
-            'pot_target':    pot['target'],
-            'pot_filled':    newly_filled,
-            'pot_active':    newly_filled,
-            'filled_at':     filled_at_iso,
+            'pot_target':      pot['target'],
+            'pot_filled':      newly_filled,
+            'pot_active':      newly_filled,
+            'filled_at':       filled_at_iso,
+            'win_chance_pct':  pot['win_chance_pct'],
         })
     except Exception:
         log.exception('CONTRIBUTE_POT_ERROR  user_id=%s', current_user.id)
