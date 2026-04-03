@@ -883,7 +883,7 @@ function DicePanel({
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
     title: canRoll ? `Costs ${fmt(cost)} losses` : 'Not enough losses'
-  }, rolling ? 'Rolling…' : `Roll (${fmt(cost)})`));
+  }, rolling ? 'Rolling…' : `Roll (${fmt(cost)} losses)`));
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────

@@ -727,7 +727,7 @@ function DicePanel({ losses, onRoll, rolling, diceResult, spinning, lowSpec }) {
         disabled={!canRoll}
         title={canRoll ? `Costs ${fmt(cost)} losses` : 'Not enough losses'}
       >
-        {rolling ? 'Rolling…' : `Roll (${fmt(cost)})`}
+        {rolling ? 'Rolling…' : `Roll (${fmt(cost)} losses)`}
       </button>
     </div>
   );
