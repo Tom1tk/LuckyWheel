@@ -369,9 +369,9 @@ def roll_dice():
             wins        = int(gs['wins'])
             streak      = gs['streak']
             best_streak = gs['best_streak']
-            cost        = (wins * 95) // 100
+            cost        = wins
 
-            if wins < 2 or cost < 1:
+            if wins < 1:
                 return jsonify({'error': 'Not enough wins to roll'}), 400
 
             die1     = random.randint(1, 6)

@@ -58,7 +58,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #3a0000 0%, #1a
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
   overflow-y: auto;
 }
@@ -2040,9 +2040,11 @@ body.page-season2 .season-countdown { color: #CC3300; background: rgba(204,51,0,
 
 /* ── Dice Panel ────────────────────────────────────────────────────────────── */
 .dice-panel {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 8px 0 4px;
   border-top: 1px solid rgba(0,170,255,0.15);

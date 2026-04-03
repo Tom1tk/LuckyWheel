@@ -706,8 +706,8 @@ function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec }) {
     }
   }, [diceResult]);
 
-  const cost    = Math.max(0, Math.floor((wins * 95) / 100));
-  const canRoll = wins >= 2 && cost >= 1 && !rolling && !spinning;
+  const cost    = wins;
+  const canRoll = wins >= 1 && !rolling && !spinning;
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
