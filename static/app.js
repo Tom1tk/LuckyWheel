@@ -820,7 +820,7 @@ function Die({
   })));
 }
 function DicePanel({
-  wins,
+  losses,
   onRoll,
   rolling,
   diceResult,
@@ -858,8 +858,8 @@ function DicePanel({
       return () => clearTimeout(t);
     }
   }, [diceResult]);
-  const cost = wins;
-  const canRoll = wins >= 1 && !rolling && !spinning;
+  const cost = losses;
+  const canRoll = losses >= 1 && !rolling && !spinning;
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
   return /*#__PURE__*/React.createElement("div", {
@@ -882,7 +882,7 @@ function DicePanel({
     className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
-    title: canRoll ? `Costs ${fmt(cost)} wins` : wins < 2 ? 'Not enough wins' : 'Wait…'
+    title: canRoll ? `Costs ${fmt(cost)} losses` : 'Not enough losses'
   }, rolling ? 'Rolling…' : `Roll (${fmt(cost)})`));
 }
 
@@ -2305,7 +2305,7 @@ function GameApp({
         dice_sum: data.dice_sum,
         cost: data.cost
       });
-      setWins(data.wins);
+      setLosses(data.losses);
       setStreak(data.streak);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
@@ -2653,7 +2653,7 @@ function GameApp({
   }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
   }), /*#__PURE__*/React.createElement(DicePanel, {
-    wins: wins,
+    losses: losses,
     onRoll: handleDiceRoll,
     rolling: diceRolling,
     diceResult: diceResult,

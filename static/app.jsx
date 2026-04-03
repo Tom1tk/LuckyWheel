@@ -674,7 +674,7 @@ function Die({ value, rolling, landed }) {
   );
 }
 
-function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec }) {
+function DicePanel({ losses, onRoll, rolling, diceResult, spinning, lowSpec }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
@@ -706,8 +706,8 @@ function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec }) {
     }
   }, [diceResult]);
 
-  const cost    = wins;
-  const canRoll = wins >= 1 && !rolling && !spinning;
+  const cost    = losses;
+  const canRoll = losses >= 1 && !rolling && !spinning;
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
@@ -725,7 +725,7 @@ function DicePanel({ wins, onRoll, rolling, diceResult, spinning, lowSpec }) {
         className={`dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`}
         onClick={canRoll ? onRoll : undefined}
         disabled={!canRoll}
-        title={canRoll ? `Costs ${fmt(cost)} wins` : wins < 2 ? 'Not enough wins' : 'Wait…'}
+        title={canRoll ? `Costs ${fmt(cost)} losses` : 'Not enough losses'}
       >
         {rolling ? 'Rolling…' : `Roll (${fmt(cost)})`}
       </button>
@@ -1607,7 +1607,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
     setTimeout(() => {
       setDiceResult({ die1: data.die1, die2: data.die2, dice_sum: data.dice_sum, cost: data.cost });
-      setWins(data.wins);
+      setLosses(data.losses);
       setStreak(data.streak);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
@@ -1953,7 +1953,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             )}
             <StreakPanel streak={streak} />
             <DicePanel
-              wins={wins}
+              losses={losses}
               onRoll={handleDiceRoll}
               rolling={diceRolling}
               diceResult={diceResult}

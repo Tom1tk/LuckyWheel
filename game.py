@@ -361,33 +361,34 @@ def roll_dice():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT wins, streak, best_streak FROM game_state WHERE user_id = %s FOR UPDATE',
+                    'SELECT wins, losses, streak, best_streak FROM game_state WHERE user_id = %s FOR UPDATE',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
             wins        = int(gs['wins'])
+            losses      = int(gs['losses'])
             streak      = gs['streak']
             best_streak = gs['best_streak']
-            cost        = wins
+            cost        = losses
 
-            if wins < 1:
-                return jsonify({'error': 'Not enough wins to roll'}), 400
+            if losses < 1:
+                return jsonify({'error': 'Not enough losses to roll'}), 400
 
             die1     = random.randint(1, 6)
             die2     = random.randint(1, 6)
             dice_sum = die1 + die2
 
-            new_streak = streak + dice_sum
-            new_best   = max(best_streak, new_streak) if new_streak > 0 else best_streak
-            new_wins   = wins - cost
+            new_streak  = streak + dice_sum
+            new_best    = max(best_streak, new_streak) if new_streak > 0 else best_streak
+            new_losses  = 0
 
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET wins = %s, streak = %s, best_streak = %s
+                       SET losses = %s, streak = %s, best_streak = %s
                        WHERE user_id = %s''',
-                    (new_wins, new_streak, new_best, current_user.id),
+                    (new_losses, new_streak, new_best, current_user.id),
                 )
             conn.commit()
 
@@ -396,7 +397,8 @@ def roll_dice():
             'die2':     die2,
             'dice_sum': dice_sum,
             'cost':     cost,
-            'wins':     new_wins,
+            'losses':   new_losses,
+            'wins':     wins,
             'streak':   new_streak,
         })
     except Exception:
