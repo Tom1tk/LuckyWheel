@@ -2068,7 +2068,7 @@ body.page-season2 .season-countdown { color: #CC3300; background: rgba(204,51,0,
 }
 .dice-panel-desc[data-tooltip]:hover::after {
   content: attr(data-tooltip);
-  position: fixed;
+  position: absolute;
   background: #0d0d1a;
   border: 1px solid #AA00FF;
   color: #EEE;
@@ -2080,9 +2080,9 @@ body.page-season2 .season-countdown { color: #CC3300; background: rgba(204,51,0,
   line-height: 1.4;
   z-index: 9999;
   pointer-events: none;
+  bottom: calc(100% + 6px);
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
 }
 
 .dice-row {
