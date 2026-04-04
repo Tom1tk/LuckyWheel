@@ -675,9 +675,9 @@ function Die({ value, rolling, landed }) {
 }
 
 const DICE_TOOLTIP_W = 220;
-const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) amplifies your current streak — bigger if you\'re winning, deeper if you\'re losing. Disabled when your streak is exactly zero. Does not guarantee a win on your next spin.';
 
-function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec }) {
+function DicePanel({ losses, streak, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
@@ -713,7 +713,7 @@ function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinnin
   }, [diceResult]);
 
   const cost    = losses;
-  const canRoll = losses >= 1 && !rolling && !spinning;
+  const canRoll = losses >= 1 && streak !== 0 && !rolling && !spinning;
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
@@ -739,13 +739,13 @@ function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinnin
         <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
       </div>
       {showResult && diceResult && (
-        <span className="dice-result-text">+{diceResult.dice_sum} streak!</span>
+        <span className="dice-result-text">{diceResult.streak_delta > 0 ? '+' : ''}{diceResult.streak_delta} streak!</span>
       )}
       <button
         className={`dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`}
         onClick={canRoll ? onRoll : undefined}
         disabled={!canRoll}
-        title={canRoll ? `Costs ${fmt(cost)} losses` : 'Not enough losses'}
+        title={canRoll ? `Costs ${fmt(cost)} losses` : streak === 0 ? 'No active streak' : 'Not enough losses'}
       >
         {rolling ? 'Rolling…' : `Roll (${fmt(cost)} losses)`}
       </button>
@@ -1629,6 +1629,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (diceRolling || spinning) return;
     setDiceRolling(true);
     setDiceResult(null);
+    const prevStreak = streak;
     const { ok, data } = await apiGame('/api/roll-dice', {
       method: 'POST',
       body: JSON.stringify({}),
@@ -1639,12 +1640,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       return;
     }
     setTimeout(() => {
-      setDiceResult({ die1: data.die1, die2: data.die2, dice_sum: data.dice_sum, cost: data.cost });
+      const streakDelta = data.streak - prevStreak;
+      setDiceResult({ die1: data.die1, die2: data.die2, dice_sum: data.dice_sum, cost: data.cost, streak_delta: streakDelta });
       setLosses(data.losses);
       setStreak(data.streak);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
-  }, [diceRolling, spinning, lowSpec, showToast]);
+  }, [diceRolling, spinning, streak, lowSpec, showToast]);
 
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
@@ -1987,6 +1989,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <StreakPanel streak={streak} />
             <DicePanel
               losses={losses}
+              streak={streak}
               onRoll={handleDiceRoll}
               rolling={diceRolling}
               diceResult={diceResult}

@@ -27,10 +27,13 @@ Five new cosmetic fish skins added, continuing the existing loss-cost chain from
 A new high-risk mechanic has been added between the wheel and the shop panel.
 
 - **Cost**: spending all your current Losses (zeroed out on roll).
-- **Effect**: two dice are rolled (each 1–6). The sum (2–12) is added directly to your win streak — even if you're currently on a loss streak.
-- **Reward**: streak bonuses are exponential (×2 per step from streak 3+), so a roll of 10 on a cold streak can immediately unlock massive bonus payouts.
-- **Risk**: your entire loss balance is consumed. The dice do **not** guarantee a win on your next spin — they only boost the streak counter.
-- The Roll button shows the exact loss cost before you commit. It is disabled if you have 0 losses or while a spin is in progress.
+- **Effect**: two dice are rolled (each 1–6). The sum (2–12) **amplifies your current streak** — it extends a win streak further, or deepens a loss streak further.
+- **Win streak**: roll adds to your streak (e.g. streak 5 + roll 9 → streak 14).
+- **Loss streak**: roll subtracts from your streak (e.g. streak −3 + roll 7 → streak −10).
+- **Zero streak**: the Roll button is disabled — there is no streak to amplify.
+- **Reward**: streak bonuses are exponential (×2 per step from streak 3+), so boosting a win streak can unlock massive multipliers immediately.
+- **Risk**: your entire loss balance is consumed, and rolling on a loss streak makes it worse. The dice do **not** guarantee a win on your next spin.
+- The Roll button shows the exact loss cost before you commit. It is disabled if you have 0 losses, streak is zero, or a spin is in progress.
 
 ### Leaderboard: Hide Zero-Win Players
 - Players with 0 wins are now hidden from the public leaderboard. Only players who have earned at least one win appear in the top 10.

@@ -374,12 +374,19 @@ def roll_dice():
 
             if losses < 1:
                 return jsonify({'error': 'Not enough losses to roll'}), 400
+            if streak == 0:
+                return jsonify({'error': 'No active streak to amplify'}), 400
 
             die1     = random.randint(1, 6)
             die2     = random.randint(1, 6)
             dice_sum = die1 + die2
 
-            new_streak  = streak + dice_sum
+            # Amplify whichever streak the player is currently on
+            if streak > 0:
+                new_streak = streak + dice_sum
+            else:
+                new_streak = streak - dice_sum
+
             new_best    = max(best_streak, new_streak) if new_streak > 0 else best_streak
             new_losses  = 0
 
