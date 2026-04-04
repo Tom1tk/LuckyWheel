@@ -674,12 +674,18 @@ function Die({ value, rolling, landed }) {
   );
 }
 
+const DICE_TOOLTIP_W = 220;
+const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+
 function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
   const [showResult, setShowResult] = React.useState(false);
+  const [tipVisible, setTipVisible] = React.useState(false);
+  const [tipPos, setTipPos]         = React.useState({ left: 0, bottom: 0 });
   const intervalRef = React.useRef(null);
+  const descRef     = React.useRef(null);
 
   React.useEffect(() => {
     if (rolling && !lowSpec) {
@@ -711,12 +717,23 @@ function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinnin
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
-  const tooltip = (spinning || guardSpinning) ? undefined : 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+  const showTip = () => {
+    if (spinning || guardSpinning) return;
+    const rect = descRef.current && descRef.current.getBoundingClientRect();
+    if (!rect) return;
+    let left = rect.left + rect.width / 2 - DICE_TOOLTIP_W / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - DICE_TOOLTIP_W - 8));
+    setTipPos({ left, bottom: window.innerHeight - rect.top + 6 });
+    setTipVisible(true);
+  };
 
   return (
     <div className="dice-panel">
       <span className="dice-panel-label">🎲 Dice Roll</span>
-      <span className="dice-panel-desc" data-tooltip={tooltip}>How it works ⓘ</span>
+      <span className="dice-panel-desc" ref={descRef} onMouseEnter={showTip} onMouseLeave={() => setTipVisible(false)}>How it works ⓘ</span>
+      {tipVisible && (
+        <div className="dice-tooltip" style={{ left: tipPos.left, bottom: tipPos.bottom }}>{DICE_TOOLTIP_TEXT}</div>
+      )}
       <div className="dice-row">
         <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
         <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />

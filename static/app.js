@@ -902,6 +902,8 @@ function Die(_ref8) {
     });
   }));
 }
+var DICE_TOOLTIP_W = 220;
+var DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
 function DicePanel(_ref1) {
   var losses = _ref1.losses,
     onRoll = _ref1.onRoll,
@@ -926,7 +928,19 @@ function DicePanel(_ref1) {
     _React$useState8 = _slicedToArray(_React$useState7, 2),
     showResult = _React$useState8[0],
     setShowResult = _React$useState8[1];
+  var _React$useState9 = React.useState(false),
+    _React$useState0 = _slicedToArray(_React$useState9, 2),
+    tipVisible = _React$useState0[0],
+    setTipVisible = _React$useState0[1];
+  var _React$useState1 = React.useState({
+      left: 0,
+      bottom: 0
+    }),
+    _React$useState10 = _slicedToArray(_React$useState1, 2),
+    tipPos = _React$useState10[0],
+    setTipPos = _React$useState10[1];
   var intervalRef = React.useRef(null);
+  var descRef = React.useRef(null);
   React.useEffect(function () {
     if (rolling && !lowSpec) {
       setLanded(false);
@@ -961,15 +975,36 @@ function DicePanel(_ref1) {
   var canRoll = losses >= 1 && !rolling && !spinning;
   var die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   var die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
-  var tooltip = spinning || guardSpinning ? undefined : 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+  var showTip = function showTip() {
+    if (spinning || guardSpinning) return;
+    var rect = descRef.current && descRef.current.getBoundingClientRect();
+    if (!rect) return;
+    var left = rect.left + rect.width / 2 - DICE_TOOLTIP_W / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - DICE_TOOLTIP_W - 8));
+    setTipPos({
+      left: left,
+      bottom: window.innerHeight - rect.top + 6
+    });
+    setTipVisible(true);
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
     className: "dice-panel-label"
   }, "\uD83C\uDFB2 Dice Roll"), /*#__PURE__*/React.createElement("span", {
     className: "dice-panel-desc",
-    "data-tooltip": tooltip
-  }, "How it works \u24D8"), /*#__PURE__*/React.createElement("div", {
+    ref: descRef,
+    onMouseEnter: showTip,
+    onMouseLeave: function onMouseLeave() {
+      return setTipVisible(false);
+    }
+  }, "How it works \u24D8"), tipVisible && /*#__PURE__*/React.createElement("div", {
+    className: "dice-tooltip",
+    style: {
+      left: tipPos.left,
+      bottom: tipPos.bottom
+    }
+  }, DICE_TOOLTIP_TEXT), /*#__PURE__*/React.createElement("div", {
     className: "dice-row"
   }, /*#__PURE__*/React.createElement(Die, {
     value: die1Val,
