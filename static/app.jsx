@@ -332,7 +332,7 @@ function drawWheel(canvas, theme = 'default') {
 
   const THEMES = {
     default: [
-      { label: 'WIN',  color: '#005588', bright: '#00AAFF', start: -Math.PI/2, end: Math.PI/2 },
+      { label: 'WIN',  color: '#550088', bright: '#AA00FF', start: -Math.PI/2, end: Math.PI/2 },
       { label: 'LOSE', color: '#7a3300', bright: '#FF6600', start: Math.PI/2,  end: Math.PI*1.5 },
     ],
     fire: [
@@ -451,8 +451,8 @@ function drawGuardWheel(canvas) {
 
   // WIN segment (green, small)
   const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#88DDFF');
-  gWin.addColorStop(1, '#005588');
+  gWin.addColorStop(0, '#DD88FF');
+  gWin.addColorStop(1, '#550088');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -512,7 +512,7 @@ const Scoreboard = React.memo(function Scoreboard({ wins, losses, lastResult }) 
 });
 
 // ── Confetti ──────────────────────────────────────────────────────────────
-const CONFETTI_COLORS = ['#FFD700','#FF6600','#FF3333','#00FF88','#00AAFF','#FF00FF','#FFFFFF'];
+const CONFETTI_COLORS = ['#FFD700','#FF6600','#FF3333','#00FF88','#AA00FF','#FF00FF','#FFFFFF'];
 function Confetti({ active, count = 80 }) {
   const pieces = useMemo(() => {
     if (!active) return [];
@@ -829,40 +829,50 @@ function Leaderboard({ currentUser }) {
 
 // ── Shop catalogue ────────────────────────────────────────────────────────
 const FISH_SKINS = [
-  { id: 'fish_tropical', emoji: '🐠', name: 'Tropical Fish', cost: 25,
+  { id: 'fish_tropical', emoji: '🐠', name: 'Tropical Fish', cost: 250,
     labels: { idle: 'Blub blub!', happy: 'Splashy win!', sad: 'Glub...' } },
-  { id: 'fish_puffer',   emoji: '🐡', name: 'Pufferfish',    cost: 50,
+  { id: 'fish_puffer',   emoji: '🐡', name: 'Pufferfish',    cost: 500,
     labels: { idle: '*puffs up*', happy: 'PUFF YEAH!', sad: '*deflates*' } },
-  { id: 'fish_octopus',  emoji: '🐙', name: 'Octopus',       cost: 75,
+  { id: 'fish_octopus',  emoji: '🐙', name: 'Octopus',       cost: 750,
     labels: { idle: '8 arms ready!', happy: 'Ink-redible!', sad: '*squirts ink*' } },
-  { id: 'fish_shark',    emoji: '🦈', name: 'Shark',         cost: 100,
+  { id: 'fish_shark',    emoji: '🦈', name: 'Shark',         cost: 1000,
     labels: { idle: 'Chomp chomp', happy: 'Feeding frenzy!', sad: 'Jaw dropped...' } },
-  { id: 'fish_dolphin',  emoji: '🐬', name: 'Dolphin',       cost: 150,
+  { id: 'fish_dolphin',  emoji: '🐬', name: 'Dolphin',       cost: 1500,
     labels: { idle: 'Eee-eee!', happy: "Flippin' awesome!", sad: '*sad clicks*' } },
-  { id: 'fish_squid',    emoji: '🦑', name: 'Squid',         cost: 200,
+  { id: 'fish_squid',    emoji: '🦑', name: 'Squid',         cost: 2000,
     labels: { idle: 'Ink at the ready', happy: 'Jet-propelled win!', sad: '*squirts ink cloud*' } },
-  { id: 'fish_turtle',   emoji: '🐢', name: 'Turtle',        cost: 350,
+  { id: 'fish_turtle',   emoji: '🐢', name: 'Turtle',        cost: 3500,
     labels: { idle: 'Slow and steady', happy: 'Shell yeah!', sad: 'Into my shell...' } },
-  { id: 'fish_crab',     emoji: '🦀', name: 'Crab',          cost: 600,
+  { id: 'fish_crab',     emoji: '🦀', name: 'Crab',          cost: 6000,
     labels: { idle: '*snaps claws*', happy: 'CRABULOUS!', sad: 'Crabby mood...' } },
-  { id: 'fish_lobster',  emoji: '🦞', name: 'Lobster',       cost: 1000,
+  { id: 'fish_lobster',  emoji: '🦞', name: 'Lobster',       cost: 10000,
     labels: { idle: 'Feeling boujee', happy: 'CLAWSOME WIN!', sad: 'Shellshocked...' } },
-  { id: 'fish_whale',    emoji: '🐋', name: 'Whale',         cost: 2000,
+  { id: 'fish_whale',    emoji: '🐋', name: 'Whale',         cost: 20000,
     labels: { idle: 'Making waves', happy: 'WHALE of a win!', sad: 'Beached...' } },
+  { id: 'fish_seal',     emoji: '🦭', name: 'Seal',          cost: 50000,
+    labels: { idle: '*claps flippers*', happy: 'ARF ARF ARF!', sad: '*sad honk*' } },
+  { id: 'fish_shrimp',   emoji: '🦐', name: 'Shrimp',        cost: 150000,
+    labels: { idle: 'Small but mighty', happy: 'Prawn to win!', sad: 'De-veined...' } },
+  { id: 'fish_coral',    emoji: '🪸', name: 'Coral',         cost: 500000,
+    labels: { idle: 'Growing strong', happy: 'Reef royalty!', sad: 'Bleached out...' } },
+  { id: 'fish_mermaid',  emoji: '🧜', name: 'Mermaid',       cost: 1500000,
+    labels: { idle: 'Under the sea~', happy: 'Mythic win!', sad: 'Into the deep...' } },
+  { id: 'fish_croc',     emoji: '🐊', name: 'Crocodile',     cost: 5000000,
+    labels: { idle: '*death roll ready*', happy: 'SNAPPED IT!', sad: 'Sunk to the bottom...' } },
 ];
 
 const SHOP_SECTIONS = [
   { label: '⚡ Spin Speed', items: [
-    { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 50,   desc: 'Spin time: 4.5s → 3s' },
-    { id: 'turbo_spin',  emoji: '🚀', name: 'Turbo Spin',   cost: 200,  desc: 'Spin time: 3s → 1.5s',  requires: 'speed_boost' },
-    { id: 'hyperspin',   emoji: '💨', name: 'Hyper Spin',   cost: 600,  desc: 'Spin time: 1.5s → 1s',  requires: 'turbo_spin' },
-    { id: 'ultraspin',   emoji: '🌀', name: 'Ultra Spin',   cost: 2000, desc: 'Spin time: 1s → 0.75s', requires: 'hyperspin' },
-    { id: 'maxspin',     emoji: '⚡', name: 'Max Spin',     cost: 6000, desc: 'Spin time: 0.75s → 0.5s',requires: 'ultraspin' },
+    { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 100,       desc: 'Spin time: 4.5s → 3s' },
+    { id: 'turbo_spin',  emoji: '🚀', name: 'Turbo Spin',   cost: 1000,      desc: 'Spin time: 3s → 1.5s',  requires: 'speed_boost' },
+    { id: 'hyperspin',   emoji: '💨', name: 'Hyper Spin',   cost: 10000,     desc: 'Spin time: 1.5s → 1s',  requires: 'turbo_spin' },
+    { id: 'ultraspin',   emoji: '🌀', name: 'Ultra Spin',   cost: 100000,    desc: 'Spin time: 1s → 0.75s', requires: 'hyperspin' },
+    { id: 'maxspin',     emoji: '⚡', name: 'Max Spin',     cost: 1000000,   desc: 'Spin time: 0.75s → 0.5s',requires: 'ultraspin' },
   ]},
   { label: '⏩ Auto Speed', items: [
-    { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 75,   desc: 'Auto delay: 1.5s → 1s' },
-    { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 300,  desc: 'Auto delay: 1s → 0.5s',  requires: 'autospeed_1' },
-    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1200, desc: 'Auto delay: 0.5s → 0',   requires: 'autospeed_2' },
+    { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 200,       desc: 'Auto delay: 1.5s → 1s' },
+    { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 10000,     desc: 'Auto delay: 1s → 0.5s',  requires: 'autospeed_1' },
+    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1000000,   desc: 'Auto delay: 0.5s → 0',   requires: 'autospeed_2' },
   ]},
   { label: '💰 Win Power', items: [
     { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
@@ -871,64 +881,65 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_inf', emoji: '⭐', name: 'Bonus Power', cost: 0, desc: 'Multiplies streak bonuses — ⚠️ also amplifies loss streaks', infinite: true },
   ]},
   { label: '🐟 Fish Size', items: [
-    { id: 'fishsize_1',  emoji: '🔎', name: 'Big Fish',     cost: 50,   desc: 'Fish size: XL (20rem)' },
-    { id: 'fishsize_2',  emoji: '🔎', name: 'Giant Fish',   cost: 200,  desc: 'Fish size: XXL (28rem)', requires: 'fishsize_1' },
-    { id: 'fishsize_3',  emoji: '🔎', name: 'Colossal',     cost: 800,  desc: 'Fish size: MEGA (40rem)',requires: 'fishsize_2' },
+    { id: 'fishsize_1',  emoji: '🔎', name: 'Big Fish',     cost: 100,     desc: 'Fish size: XL (20rem)' },
+    { id: 'fishsize_2',  emoji: '🔎', name: 'Giant Fish',   cost: 5000,    desc: 'Fish size: XXL (28rem)', requires: 'fishsize_1' },
+    { id: 'fishsize_3',  emoji: '🔎', name: 'Colossal',     cost: 500000,  desc: 'Fish size: MEGA (40rem)',requires: 'fishsize_2' },
   ]},
   { label: '✨ Fish Trail', items: [
-    { id: 'trail_1',     emoji: '✨', name: 'Sparkle Trail', cost: 125,   desc: 'Gold shimmer trail' },
-    { id: 'trail_2',     emoji: '🔥', name: 'Fire Trail',    cost: 500,   desc: 'Flame glow trail',       requires: 'trail_1' },
-    { id: 'trail_3',     emoji: '🌈', name: 'Rainbow Trail', cost: 2000,  desc: 'Rainbow hue trail',      requires: 'trail_2' },
-    { id: 'trail_4',     emoji: '❄️', name: 'Frost Trail',   cost: 7000,  desc: 'Ice crystal aura',       requires: 'trail_3' },
-    { id: 'trail_5',     emoji: '⚡', name: 'Thunder Trail', cost: 22000, desc: 'Electric storm aura',    requires: 'trail_4' },
-    { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 70000, desc: 'Cosmic void aura',       requires: 'trail_5' },
+    { id: 'trail_1',     emoji: '✨', name: 'Sparkle Trail', cost: 250,       desc: 'Gold shimmer trail' },
+    { id: 'trail_2',     emoji: '🔥', name: 'Fire Trail',    cost: 2500,      desc: 'Flame glow trail',       requires: 'trail_1' },
+    { id: 'trail_3',     emoji: '🌈', name: 'Rainbow Trail', cost: 25000,     desc: 'Rainbow hue trail',      requires: 'trail_2' },
+    { id: 'trail_4',     emoji: '❄️', name: 'Frost Trail',   cost: 250000,    desc: 'Ice crystal aura',       requires: 'trail_3' },
+    { id: 'trail_5',     emoji: '⚡', name: 'Thunder Trail', cost: 2500000,   desc: 'Electric storm aura',    requires: 'trail_4' },
+    { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 25000000,  desc: 'Cosmic void aura',       requires: 'trail_5' },
   ]},
   { label: '🖱️ Click Power', items: [
     { id: 'clickmult_inf', emoji: '👆', name: 'Click Power', cost: 0, desc: 'Multiplies fish clicks per tap (also scales frenzy)', infinite: true },
-    { id: 'clickfrenzy_1',  emoji: '🖱️', name: 'Frenzy I',    cost: 150,  desc: '+1 passive click/5s (scales with click upgrades)' },
-    { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 600,  desc: '+5 passive clicks/5s (scales with click upgrades)',  requires: 'clickfrenzy_1' },
-    { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 2400, desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
-    { id: 'clickfrenzy_4',  emoji: '🌪️', name: 'Frenzy IV',   cost: 9600, desc: '+50 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_3' },
-    { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',    cost: 38400, desc: '+100 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_4' },
-    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 100000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
+    { id: 'clickfrenzy_1',  emoji: '🖱️', name: 'Frenzy I',    cost: 300,       desc: '+1 passive click/5s (scales with click upgrades)' },
+    { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 3000,      desc: '+5 passive clicks/5s (scales with click upgrades)',  requires: 'clickfrenzy_1' },
+    { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 30000,     desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
+    { id: 'clickfrenzy_4',  emoji: '🌪️', name: 'Frenzy IV',   cost: 300000,    desc: '+50 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_3' },
+    { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',    cost: 3000000,   desc: '+100 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_4' },
+    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 30000000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 300,   desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
-    { id: 'auto_guard',  emoji: '🔁', name: 'Auto-Guard',         cost: 10000, desc: 'Automatically re-buys a Guard for 500 fish clicks when one breaks. Toggle to enable/disable.', requires: 'guard' },
-    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 800,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
+    { id: 'auto_guard',  emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard' },
+    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
   ]},
   { label: '🎡 Wheel Theme', items: [
-    { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
-    { id: 'theme_ice',   emoji: '❄️', name: 'Ice Theme',     cost: 1000,  desc: 'Glacial wheel colors',    requires: 'theme_fire' },
-    { id: 'theme_neon',  emoji: '🟣', name: 'Neon Theme',    cost: 4000,  desc: 'Cyberpunk wheel colors',  requires: 'theme_ice' },
-    { id: 'theme_void',  emoji: '🌑', name: 'Void Theme',    cost: 12000, desc: 'Dark matter wheel',       requires: 'theme_neon' },
-    { id: 'theme_gold',  emoji: '🟡', name: 'Gold Theme',    cost: 40000, desc: 'Pure gold wheel',         requires: 'theme_void' },
-    { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel',  cost: 300,   desc: 'Radiant glow ring' },
+    { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 500,       desc: 'Infernal wheel colors' },
+    { id: 'theme_ice',   emoji: '❄️', name: 'Ice Theme',     cost: 5000,      desc: 'Glacial wheel colors',    requires: 'theme_fire' },
+    { id: 'theme_neon',  emoji: '🟣', name: 'Neon Theme',    cost: 50000,     desc: 'Cyberpunk wheel colors',  requires: 'theme_ice' },
+    { id: 'theme_void',  emoji: '🌑', name: 'Void Theme',    cost: 500000,    desc: 'Dark matter wheel',       requires: 'theme_neon' },
+    { id: 'theme_gold',  emoji: '🟡', name: 'Gold Theme',    cost: 5000000,   desc: 'Pure gold wheel',         requires: 'theme_void' },
+    { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel',  cost: 500,       desc: 'Radiant glow ring' },
   ]},
   { label: '🎊 Confetti', items: [
-    { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',    cost: 150,  desc: 'Confetti every spin' },
-    { id: 'confetti_1',  emoji: '🎊', name: 'Confetti+',     cost: 75,   desc: '2x confetti pieces' },
-    { id: 'confetti_2',  emoji: '🎊', name: 'Confetti++',    cost: 300,  desc: '5x confetti pieces',      requires: 'confetti_1' },
-    { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX',  cost: 1200, desc: '15x confetti pieces',     requires: 'confetti_2' },
+    { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',    cost: 300,    desc: 'Confetti every spin' },
+    { id: 'confetti_1',  emoji: '🎊', name: 'Confetti+',     cost: 150,    desc: '2x confetti pieces' },
+    { id: 'confetti_2',  emoji: '🎊', name: 'Confetti++',    cost: 1500,   desc: '5x confetti pieces',      requires: 'confetti_1' },
+    { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX',  cost: 15000,  desc: '15x confetti pieces',     requires: 'confetti_2' },
   ]},
   { label: '🎨 Atmosphere', items: [
-    { id: 'bg_ocean',    emoji: '🌊', name: 'Ocean Casino',    cost: 100,   desc: 'Deep blue atmosphere' },
-    { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino',    cost: 400,   desc: 'Purple atmosphere',       requires: 'bg_ocean' },
-    { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',  cost: 1600,  desc: 'Blood red atmosphere',    requires: 'bg_royal' },
-    { id: 'bg_forest',   emoji: '🌿', name: 'Enchanted Forest',cost: 5000,  desc: 'Mystical green depths',   requires: 'bg_inferno' },
-    { id: 'bg_abyss',    emoji: '🌑', name: 'The Abyss',       cost: 15000, desc: 'Void of darkness',        requires: 'bg_forest' },
-    { id: 'bg_cosmic',   emoji: '🌌', name: 'Cosmic Casino',   cost: 50000, desc: 'Deep space nebula',       requires: 'bg_abyss' },
+    { id: 'bg_ocean',    emoji: '🌊', name: 'Ocean Casino',    cost: 200,       desc: 'Deep blue atmosphere' },
+    { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino',    cost: 2000,      desc: 'Purple atmosphere',       requires: 'bg_ocean' },
+    { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',  cost: 20000,     desc: 'Blood red atmosphere',    requires: 'bg_royal' },
+    { id: 'bg_forest',   emoji: '🌿', name: 'Enchanted Forest',cost: 200000,    desc: 'Mystical green depths',   requires: 'bg_inferno' },
+    { id: 'bg_abyss',    emoji: '🌑', name: 'The Abyss',       cost: 2000000,   desc: 'Void of darkness',        requires: 'bg_forest' },
+    { id: 'bg_cosmic',   emoji: '🌌', name: 'Cosmic Casino',   cost: 20000000,  desc: 'Deep space nebula',       requires: 'bg_abyss' },
   ]},
   { label: '🖼️ Page Theme', items: [
-    { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme (S1).' },
-    { id: 'page_season2', emoji: '🟢', name: 'Season 2 Theme', cost: 1000, desc: 'Green & red casino theme (S2).' },
+    { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 5000, desc: 'Classic gold & orange casino theme (S1).' },
+    { id: 'page_season2', emoji: '🟢', name: 'Season 2 Theme', cost: 5000, desc: 'Green & red casino theme (S2).' },
+    { id: 'page_season3', emoji: '🟣', name: 'Season 3 Theme', cost: 5000, desc: 'Purple & orange casino theme (S3).' },
   ]},
   { label: '🎲 Special Upgrades', items: [
-    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 500,  desc: '25% chance: +25% to streak bonus payout' },
-    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 1000, desc: 'Every 7th spin is guaranteed a win' },
-    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 750,  desc: '20% chance to double wins earned on any win' },
-    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 500000, desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting' },
-    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000, desc: '1% chance each win to multiply gains by 50x' },
+    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 50000,    desc: '25% chance: +25% to streak bonus payout' },
+    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 100000,   desc: 'Every 7th spin is guaranteed a win' },
+    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 75000,    desc: '20% chance to double wins earned on any win' },
+    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 5000000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting' },
+    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 300000,   desc: '1% chance each win to multiply gains by 50x' },
   ]},
   { label: '🌌 Legendary', items: [
     { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1e67,
@@ -976,7 +987,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
-  'page_season1', 'page_season2',
+  'page_season1', 'page_season2', 'page_season3',
   'final_frenzy',
   'auto_guard',
 ]);
@@ -985,10 +996,11 @@ const COSMETIC_SECTION_IDS = new Set([
 const COSMETIC_IDS = new Set([
   'fish_tropical','fish_puffer','fish_octopus','fish_shark','fish_dolphin',
   'fish_squid','fish_turtle','fish_crab','fish_lobster','fish_whale',
+  'fish_seal','fish_shrimp','fish_coral','fish_mermaid','fish_croc',
   'fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
-  'page_season1','page_season2','party_mode','confetti_1','confetti_2','confetti_3',
+  'page_season1','page_season2','page_season3','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_ocean','bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
@@ -1433,6 +1445,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const pageThemeClass = useMemo(() => {
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
+    if (activeCosmetics.includes('page_season3')) return 'page-season3';
     return '';
   }, [activeCosmetics]);
 

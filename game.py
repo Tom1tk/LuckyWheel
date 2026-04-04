@@ -26,7 +26,7 @@ COSMETIC_SLOTS = {
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
     'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
-    'page_season1': 'page_theme',
+    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
     'final_frenzy': 'frenzy_mode',
     'auto_guard':   'auto_guard',
 }
@@ -946,6 +946,7 @@ def leaderboard():
                     '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
+                       WHERE gs.wins > 0
                        ORDER BY gs.wins DESC
                        LIMIT 10'''
                 )

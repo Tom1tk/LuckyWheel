@@ -77,34 +77,39 @@ Season 3 introduces a multi-currency shop to balance progression:
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
 |------|------|-------|
-| Tropical Fish | 25 | 🐠 |
-| Pufferfish | 50 | 🐡 |
-| Octopus | 75 | 🐙 |
-| Shark | 100 | 🦈 |
-| Dolphin | 150 | 🐬 |
-| Squid | 200 | 🦑 |
-| Turtle | 350 | 🐢 |
-| Crab | 600 | 🦀 |
-| Lobster | 1,000 | 🦞 |
-| Whale | 2,000 | 🐳 |
+| Tropical Fish | 250 | 🐠 |
+| Pufferfish | 500 | 🐡 |
+| Octopus | 750 | 🐙 |
+| Shark | 1,000 | 🦈 |
+| Dolphin | 1,500 | 🐬 |
+| Squid | 2,000 | 🦑 |
+| Turtle | 3,500 | 🐢 |
+| Crab | 6,000 | 🦀 |
+| Lobster | 10,000 | 🦞 |
+| Whale | 20,000 | 🐳 |
+| Seal | 50,000 | 🦭 |
+| Shrimp | 150,000 | 🦐 |
+| Coral | 500,000 | 🪸 |
+| Mermaid | 1,500,000 | 🧜 |
+| Crocodile | 5,000,000 | 🐊 |
 
 Each skin has custom idle/win/loss speech. Buy and equip to change the fish.
 
 ### Spin Speed (Costs Wins)
 | Upgrade | Cost | Spin Duration |
 |---------|------|---------------|
-| Speed Boost | 50 | 4.5s → 3s |
-| Turbo Spin | 200 | 3s → 1.5s |
-| Hyper Spin | 600 | 1.5s → 1s |
-| Ultra Spin | 2,000 | 1s → 0.75s |
-| Max Spin | 6,000 | 0.75s → 0.5s |
+| Speed Boost | 100 | 4.5s → 3s |
+| Turbo Spin | 1,000 | 3s → 1.5s |
+| Hyper Spin | 10,000 | 1.5s → 1s |
+| Ultra Spin | 100,000 | 1s → 0.75s |
+| Max Spin | 1,000,000 | 0.75s → 0.5s |
 
 ### Auto Speed (Costs Wins)
 | Upgrade | Cost | Auto-Spin Delay |
 |---------|------|-----------------|
-| Quick Auto | 75 | 1500ms → 1000ms |
-| Rapid Auto | 300 | 1000ms → 500ms |
-| Instant Auto | 1,200 | 500ms → 0ms |
+| Quick Auto | 200 | 1500ms → 1000ms |
+| Rapid Auto | 10,000 | 1000ms → 500ms |
+| Instant Auto | 1,000,000 | 500ms → 0ms |
 
 ### Win Power (Costs Wins)
 Multiplies each win's score contribution. Single item purchased repeatedly — no tier cap.
@@ -127,20 +132,20 @@ Multiplies streak bonus payouts — for both win streaks **and** loss streaks. �
 ### Fish Size (Costs Losses)
 | Tier | Cost | Fish Size |
 |------|------|-----------|
-| Big Fish | 50 | 20rem |
-| Giant Fish | 200 | 28rem |
-| Colossal | 800 | 40rem |
+| Big Fish | 100 | 20rem |
+| Giant Fish | 5,000 | 28rem |
+| Colossal | 500,000 | 40rem |
 
 ### Fish Trail (Costs Losses)
 Visual trail effect on the fish. Trail and streak aura effects coexist independently.
 | Tier | Cost | Effect |
 |------|------|--------|
-| Sparkle Trail | 125 | ✨ Gold shimmer |
-| Fire Trail | 500 | 🔥 Flame glow |
-| Rainbow Trail | 2,000 | 🌈 Rainbow hue |
-| Frost Trail | 7,000 | ❄️ Ice crystal aura |
-| Thunder Trail | 22,000 | ⚡ Electric sparks |
-| Galaxy Trail | 70,000 | 🌌 Cosmic swirl |
+| Sparkle Trail | 250 | ✨ Gold shimmer |
+| Fire Trail | 2,500 | 🔥 Flame glow |
+| Rainbow Trail | 25,000 | 🌈 Rainbow hue |
+| Frost Trail | 250,000 | ❄️ Ice crystal aura |
+| Thunder Trail | 2,500,000 | ⚡ Electric sparks |
+| Galaxy Trail | 25,000,000 | 🌌 Cosmic swirl |
 
 ### Click Power (Costs Wins)
 Each fish click counts as more clicks server-side. Also scales all Frenzy passive tick amounts. Single item purchased repeatedly — no tier cap.
@@ -154,19 +159,19 @@ Each fish click counts as more clicks server-side. Also scales all Frenzy passiv
 Passive income — server ticks fish clicks automatically. All Frenzy amounts are multiplied by your Click Power level.
 | Tier | Cost | Base clicks per 5s |
 |------|------|--------------------|
-| Frenzy I | 150 | +1 |
-| Frenzy II | 600 | +5 |
-| Frenzy III | 2,400 | +20 |
-| Frenzy IV | 9,600 | +50 |
-| Frenzy V | 38,400 | +100 |
-| Final Frenzy | 100,000 | +500 (requires Frenzy V; toggleable; disables manual clicking while active) |
+| Frenzy I | 300 | +1 |
+| Frenzy II | 3,000 | +5 |
+| Frenzy III | 30,000 | +20 |
+| Frenzy IV | 300,000 | +50 |
+| Frenzy V | 3,000,000 | +100 |
+| Final Frenzy | 30,000,000 | +500 (requires Frenzy V; toggleable; disables manual clicking while active) |
 
 ### Protection (Costs Wins)
 | Item | Cost | Behaviour |
 |------|------|-----------|
-| 🛡️ Guard | 300 | 50% chance to block any loss. Breaks on success, survives on failure. |
-| 🔁 Auto-Guard | 10,000 | Requires Guard. Toggleable. When enabled and Guard breaks, automatically re-buys Guard for 500 Wins before the next spin. Disables itself if you can't afford the 500 Wins cost. |
-| 🔄 Regenerating Shield | 800 | Blocks any loss when charged. Recharges after 5 wins. Never breaks. |
+| 🛡️ Guard | 500 | 50% chance to block any loss. Breaks on success, survives on failure. |
+| 🔁 Auto-Guard | 50,000 | Requires Guard. Toggleable. When enabled and Guard breaks, automatically re-buys Guard for 500 Wins before the next spin. Disables itself if you can't afford the 500 Wins cost. |
+| 🔄 Regenerating Shield | 1,500 | Blocks any loss when charged. Recharges after 5 wins. Never breaks. |
 
 - **Guard** — activates on any loss. A mini-wheel spins (50/50). If it lands on the win segment, the loss is fully blocked and the guard is consumed. If it fails, the guard survives and you take the loss as normal.
 - **Auto-Guard** — toggle on/off via the shop like Final Frenzy. When Guard breaks, the replacement is purchased silently before your next spin for a flat 500 Wins (unaffected by Click Power).
@@ -176,47 +181,48 @@ Passive income — server ticks fish clicks automatically. All Frenzy amounts ar
 Changes the canvas colour palette of the wheel.
 | Theme | Cost | Look |
 |-------|------|------|
-| Fire Theme | 250 | 🔥 Red/orange |
-| Ice Theme | 1,000 | ❄️ Blue/cyan |
-| Neon Theme | 4,000 | 💜 Purple/neon |
-| Void Theme | 12,000 | 🌑 Deep void |
-| Gold Theme | 40,000 | ✨ Pure gold |
-| Golden Wheel | 300 | ✨ Radiant glow ring (independent of theme) |
+| Fire Theme | 500 | 🔥 Red/orange |
+| Ice Theme | 5,000 | ❄️ Blue/cyan |
+| Neon Theme | 50,000 | 💜 Purple/neon |
+| Void Theme | 500,000 | 🌑 Deep void |
+| Gold Theme | 5,000,000 | ✨ Pure gold |
+| Golden Wheel | 500 | ✨ Radiant glow ring (independent of theme) |
 
 ### Atmosphere (Costs Losses)
 
 #### Background Theme
 | Theme | Cost | Look |
 |-------|------|------|
-| Ocean Casino | 100 | Deep sea blue |
-| Royal Casino | 400 | Rich purple |
-| Inferno Casino | 1,600 | Blazing red |
-| Forest | 5,000 | 🌲 Lush green |
-| Abyss | 15,000 | 🌊 Deep dark ocean |
-| Cosmic | 50,000 | 🌌 Space nebula |
+| Ocean Casino | 200 | Deep sea blue |
+| Royal Casino | 2,000 | Rich purple |
+| Inferno Casino | 20,000 | Blazing red |
+| Forest | 200,000 | 🌲 Lush green |
+| Abyss | 2,000,000 | 🌊 Deep dark ocean |
+| Cosmic | 20,000,000 | 🌌 Space nebula |
 
 #### Page Theme
 | Theme | Cost | Look |
 |-------|------|------|
-| Season 1 | 1,000 | Classic gold & orange |
-| Season 2 | 1,000 | Season 2 blue & purple |
+| Season 1 | 5,000 | Classic gold & orange |
+| Season 2 | 5,000 | Green & red |
+| Season 3 | 5,000 | Purple & orange |
 
 #### Confetti
 | Tier | Cost | Count |
 |------|------|-------|
-| Confetti+ | 75 | ×2 |
-| Confetti++ | 300 | ×5 |
-| Confetti MAX | 1,200 | ×15 |
-| Party Mode | 150 | Confetti on every result |
+| Confetti+ | 150 | ×2 |
+| Confetti++ | 1,500 | ×5 |
+| Confetti MAX | 15,000 | ×15 |
+| Party Mode | 300 | Confetti on every result |
 
 ### 🎲 Special Upgrades (Costs Wins)
 | Item | Cost | Effect |
 |------|------|--------|
-| 🍀 Fortune Charm | 500 | All streak bonuses are increased by 25% |
-| 7️⃣ Lucky Seven | 1,000 | Every 7th spin is guaranteed to win |
-| 🔊 Win Echo | 750 | 20% chance each win is doubled |
-| 💪 Resilience | 500,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% chance) |
-| 🎰 Jackpot | 3,000 | 2% chance each spin multiplies all gains by 50× |
+| 🍀 Fortune Charm | 50,000 | All streak bonuses are increased by 25% |
+| 7️⃣ Lucky Seven | 100,000 | Every 7th spin is guaranteed to win |
+| 🔊 Win Echo | 75,000 | 20% chance each win is doubled |
+| 💪 Resilience | 5,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% chance) |
+| 🎰 Jackpot | 300,000 | 2% chance each spin multiplies all gains by 50× |
 
 ### 🌌 Legendary (Costs Fish Clicks)
 | Item | Cost | Effect |

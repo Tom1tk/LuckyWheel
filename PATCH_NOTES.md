@@ -2,7 +2,34 @@
 
 ---
 
-## Latest — 27 Mar 2026
+## Latest — 4 Apr 2026
+
+### Season 4 Balancing: Economy Overhaul
+- **Price rebalancing across the entire shop.** All upgrade and cosmetic chains have been retuned with steeper cost scaling — late-game items like Max Spin, Instant Auto, Galaxy Trail, and Final Frenzy now cost millions of Wins or Losses, reflecting their power and rarity.
+- **Special Upgrades repriced ×100.** Fortune Charm, Lucky Seven, Win Echo, and Jackpot are now 100× their previous cost. Resilience is ×10, now costing 5,000,000 Wins.
+- Fish skin costs increased ~10×. Five new premium fish skins have been added (see below).
+
+### New Fish Skins (Season 4)
+Five new cosmetic fish have been added at progressively higher costs (paid in Losses):
+| Skin | Cost | Emoji |
+|------|------|-------|
+| Seal | 50,000 | 🦭 |
+| Shrimp | 150,000 | 🦐 |
+| Coral | 500,000 | 🪸 |
+| Mermaid | 1,500,000 | 🧜 |
+| Crocodile | 5,000,000 | 🐊 |
+
+### Season 3 Page Theme
+- A new **Season 3 Theme** cosmetic is now available in the Page Theme section of the shop (5,000 Losses).
+- Applies the purple & orange colour scheme from Season 3 — useful if you're running a different page theme and want to switch back.
+- Also fixes a pre-existing bug where the Season 2 page theme could not actually be equipped (it was missing from the server-side cosmetic slot registry).
+
+### Leaderboard: Hide Zero-Win Players
+- Players with 0 wins are now hidden from the public leaderboard. Only players who have earned at least one win appear in the top 10.
+
+---
+
+## 27 Mar 2026
 
 ### Season 3: Community Pot & Win Rate Boost
 - Introduced the **Community Pot**, a global objective where all players can contribute their Fish Clicks.
