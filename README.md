@@ -2,6 +2,8 @@
 
 A casino-style spinning wheel game with a fish mascot, streaks, and a full upgrade shop — running on a Python/Flask backend with PostgreSQL persistence and user authentication.
 
+📋 **[Patch Notes](https://github.com/Tom1tk/fishspin/wiki/Patch-Notes)**
+
 ## Overview
 
 Lucky Wheel is a browser-based gambling wheel built with a Python/Flask backend and a React frontend. Spin the wheel, rack up wins, collect fish clicks, and spend them in the shop on cosmetic upgrades and gameplay boosts.

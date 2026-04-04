@@ -29,6 +29,16 @@ Five new cosmetic fish have been added at progressively higher costs (paid in Lo
 
 ---
 
+## 28 Mar 2026
+
+### Quality of Life
+- **Shop prices** now use the same abbreviated format as win/loss counters (e.g. `10K`, `1M`, `70K`) instead of raw numbers.
+- **Community Pot**: the flat `+10k` contribution button has been replaced with a **+10%** button that contributes 10% of the current pot target. The amount scales as the pot grows (100M target → +10M, 1B target → +100M, etc.).
+- **Community Pot**: the "All in" button now correctly caps at whatever is remaining to fill the pot, rather than donating the player's full click balance.
+- **Win counter**: wins are now capped at `9.99e99` to prevent the score displaying as `Infinity` at extreme multiplier values.
+
+---
+
 ## 27 Mar 2026
 
 ### Season 3: Community Pot & Win Rate Boost
