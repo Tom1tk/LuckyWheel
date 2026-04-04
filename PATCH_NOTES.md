@@ -4,6 +4,21 @@
 
 ## Latest — 4 Apr 2026
 
+### Mobile Responsiveness
+The game is now fully playable on phones and tablets. Desktop layout is completely unchanged.
+
+- **Bottom toolbar** — a fixed tab bar appears on screens ≤ 768 px with five buttons: Shop 🏪, Leaderboard 🏆, Fish 🐟, Season Winners 🏅, and Stats 📊.
+- **Shop drawer** — the right-side panel (shop + sidebar) slides in from the right edge when tapped, and dismisses via the backdrop or a second tap on the toolbar button.
+- **Fish & Community Pot** — the fish mascot and Community Pot are combined into a single overlay card, opened with the 🐟 toolbar button. The Community Pot is hidden from the crowded top bar on mobile.
+- **Leaderboard & Season Winners** — both panels are hidden by default and toggled via the toolbar. The leaderboard docks above the toolbar; season winners appear as a full-width overlay below the top bar.
+- **Backdrop dismiss** — tapping outside any open panel closes it.
+- **Wheel scaling** — the wheel adapts to fill the available screen width/height on small viewports.
+- **Compact top bar** — username hidden, community pot moved to the fish panel, reduced height to maximise vertical space.
+
+---
+
+## 4 Apr 2026
+
 ### Season 4 Balancing: Economy Overhaul
 - **Functional upgrade chains repriced with ~10× per tier scaling.** Late-game functional items now cost millions of Wins — Max Spin (1M), Instant Auto (1M), Final Frenzy (30M). Cosmetic item prices are unchanged.
 - **Special Upgrades repriced ×100.** Fortune Charm, Lucky Seven, Win Echo, and Jackpot are now 100× their previous cost. Resilience is ×10, now costing 5,000,000 Wins.
