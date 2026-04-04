@@ -960,11 +960,15 @@ function DicePanel(_ref1) {
   var canRoll = losses >= 1 && !rolling && !spinning;
   var die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   var die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
+  var tooltip = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
     className: "dice-panel-label"
-  }, "\uD83C\uDFB2 Dice Roll"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDFB2 Dice Roll"), /*#__PURE__*/React.createElement("span", {
+    className: "dice-panel-desc",
+    "data-tooltip": tooltip
+  }, "How it works \u24D8"), /*#__PURE__*/React.createElement("div", {
     className: "dice-row"
   }, /*#__PURE__*/React.createElement(Die, {
     value: die1Val,

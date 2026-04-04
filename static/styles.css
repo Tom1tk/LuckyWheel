@@ -2059,6 +2059,32 @@ body.page-season2 .season-countdown { color: #CC3300; background: rgba(204,51,0,
   text-transform: uppercase;
 }
 
+.dice-panel-desc {
+  font-size: 0.6rem;
+  color: #9966bb;
+  cursor: default;
+  position: relative;
+  white-space: nowrap;
+}
+.dice-panel-desc[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% + 6px);
+  background: #0d0d1a;
+  border: 1px solid #AA00FF;
+  color: #EEE;
+  font-size: 0.6rem;
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: normal;
+  width: 220px;
+  line-height: 1.4;
+  z-index: 200;
+  pointer-events: none;
+}
+
 .dice-row {
   display: flex;
   gap: 10px;
