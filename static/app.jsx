@@ -971,7 +971,7 @@ function ChatPanel({ extraClass = '' }) {
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
         {messages.map(m => (
           <div key={m.id} className="chat-msg">
-            <span className="chat-msg-name">{m.username}</span>
+            <span className="chat-msg-name">{m.username}: </span>
             <span className="chat-msg-text">{m.message}</span>
           </div>
         ))}

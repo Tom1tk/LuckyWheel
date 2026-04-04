@@ -1165,7 +1165,7 @@ function ChatPanel({
     className: "chat-msg"
   }, /*#__PURE__*/React.createElement("span", {
     className: "chat-msg-name"
-  }, m.username), /*#__PURE__*/React.createElement("span", {
+  }, m.username, ": "), /*#__PURE__*/React.createElement("span", {
     className: "chat-msg-text"
   }, m.message))), /*#__PURE__*/React.createElement("div", {
     ref: messagesEndRef
