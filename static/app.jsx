@@ -624,7 +624,7 @@ const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fish
   const animClass = fishSpinning ? 'spinning-fish' : mood;
 
   return (
-    <div className={`fish-panel ${trailClass || ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
+    <div className={`fish-panel${trailClass ? ' ' + trailClass : ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
       {auraStyle && <div className="fish-aura" style={auraStyle} />}
       <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
       <span className={`fish-label ${mood}`}>{labels[mood]}</span>
@@ -754,12 +754,12 @@ function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinnin
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────
-function SeasonWinners({ winners, seasonNumber }) {
+function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
   if (!winners || winners.length === 0) return null;
   const medals = ['🥇', '🥈', '🥉'];
   const rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
   return (
-    <div className="season-winners">
+    <div className={`season-winners${extraClass ? ' ' + extraClass : ''}`}>
       <div className="season-winners-title">Season {seasonNumber} Winners</div>
       {winners.map(w => (
         <div key={w.position} className={`season-winner-row ${rankClasses[w.position - 1] || ''}`}>
@@ -800,8 +800,9 @@ function SeasonInfo({ seasonNumber, endsAt }) {
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
-function Leaderboard({ currentUser }) {
+function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
   const [rows, setRows] = useState([]);
+  const [tab, setTab] = useState('players');
 
   useEffect(() => {
     let ctrl = new AbortController();
@@ -821,28 +822,179 @@ function Leaderboard({ currentUser }) {
 
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
   const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
+  const medals = ['🥇', '🥈', '🥉'];
+  const rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
 
   return (
-    <div className="leaderboard-panel">
-      <div className="leaderboard-panel-title">🏆 Top Players</div>
-      <div className="lb-header">
-        <span className="lb-rank-h"></span>
-        <span className="lb-name-h">Player</span>
-        <span className="lb-wins-h">W</span>
-        <span className="lb-best-h">Best</span>
-        <span className="lb-streak-h">Now</span>
+    <div className={`leaderboard-panel${extraClass ? ' ' + extraClass : ''}`}>
+      <div className="leaderboard-tabs">
+        <button
+          className={`leaderboard-tab${tab === 'players' ? ' active' : ''}`}
+          onClick={() => setTab('players')}
+        >Top Players</button>
+        <button
+          className={`leaderboard-tab${tab === 'winners' ? ' active' : ''}`}
+          onClick={() => setTab('winners')}
+        >Past Winners</button>
       </div>
-      {rows.map((r, i) => (
-        <div key={r.username} className="lb-row">
-          <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
-          <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
-          <span className="lb-wins">{fmt(r.wins)}</span>
-          <span className="lb-best">{r.best_streak > 0 ? `${r.best_streak}🔥` : '—'}</span>
-          <span className={`lb-streak ${infernoClass(r.streak)}`}>
-            {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
-          </span>
+      {tab === 'players' && (
+        <>
+          <div className="lb-header">
+            <span className="lb-rank-h"></span>
+            <span className="lb-name-h">Player</span>
+            <span className="lb-wins-h">W</span>
+            <span className="lb-best-h">Best</span>
+            <span className="lb-streak-h">Now</span>
+          </div>
+          {rows.map((r, i) => (
+            <div key={r.username} className="lb-row">
+              <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
+              <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
+              <span className="lb-wins">{fmt(r.wins)}</span>
+              <span className="lb-best">{r.best_streak > 0 ? `${r.best_streak}🔥` : '—'}</span>
+              <span className={`lb-streak ${infernoClass(r.streak)}`}>
+                {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+      {tab === 'winners' && (
+        <div className="lb-winners-tab">
+          {seasonWinners && seasonWinners.length > 0 ? (
+            <>
+              <div className="lb-winners-title">Season {seasonNumber} Winners</div>
+              {seasonWinners.map(w => (
+                <div key={w.position} className={`season-winner-row ${rankClasses[w.position - 1] || ''}`}>
+                  <span className="sw-medal">{medals[w.position - 1] || w.position}</span>
+                  <span className="sw-name">{w.username}</span>
+                  <span className="sw-wins">{fmt(w.wins)}W</span>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="lb-winners-empty">No season winners yet.</div>
+          )}
         </div>
-      ))}
+      )}
+    </div>
+  );
+}
+
+// ── Chat Panel ────────────────────────────────────────────────────────────
+function ChatPanel({ extraClass = '' }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [error, setError] = useState('');
+  const [timeoutSecs, setTimeoutSecs] = useState(0);
+  const messagesEndRef = useRef(null);
+  const scrollRef = useRef(null);
+  const atBottomRef = useRef(true);
+  const timeoutTimerRef = useRef(null);
+
+  // Poll for new messages
+  useEffect(() => {
+    let ctrl = new AbortController();
+    const load = () => {
+      ctrl.abort();
+      ctrl = new AbortController();
+      apiFetch('/api/chat', { signal: ctrl.signal })
+        .then(r => { if (r.ok) setMessages(r.data); })
+        .catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 3000);
+    return () => { clearInterval(id); ctrl.abort(); };
+  }, []);
+
+  // Auto-scroll only if at bottom
+  useEffect(() => {
+    if (atBottomRef.current && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Countdown timer for timeout feedback
+  useEffect(() => {
+    if (timeoutSecs <= 0) return;
+    clearInterval(timeoutTimerRef.current);
+    timeoutTimerRef.current = setInterval(() => {
+      setTimeoutSecs(s => {
+        if (s <= 1) { clearInterval(timeoutTimerRef.current); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timeoutTimerRef.current);
+  }, [timeoutSecs]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
+
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text) return;
+    setError('');
+    const r = await apiGame('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message: text }),
+    });
+    if (r.ok) {
+      setInput('');
+      // Immediately reload
+      apiFetch('/api/chat')
+        .then(res => { if (res.ok) setMessages(res.data); })
+        .catch(() => {});
+    } else if (r.status === 429) {
+      const secs = r.data.seconds_remaining || 60;
+      setTimeoutSecs(secs);
+      setError(`Timed out. Wait ${secs}s.`);
+    } else {
+      setError(r.data.error || 'Failed to send');
+    }
+  };
+
+  const handleKeyDown = e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const isDisabled = timeoutSecs > 0;
+
+  return (
+    <div className={`chat-panel${extraClass ? ' ' + extraClass : ''}`}>
+      <div className="chat-panel-title">💬 Chat</div>
+      <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
+        {messages.map(m => (
+          <div key={m.id} className="chat-msg">
+            <span className="chat-msg-name">{m.username}</span>
+            <span className="chat-msg-text">{m.message}</span>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      {error && <div className="chat-error">{error}</div>}
+      <div className="chat-input-row">
+        <input
+          className="chat-input"
+          type="text"
+          placeholder={isDisabled ? `Wait ${timeoutSecs}s…` : 'Message…'}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isDisabled}
+          maxLength={200}
+        />
+        <button
+          className="chat-send-btn"
+          onClick={sendMessage}
+          disabled={isDisabled}
+        >↑</button>
+      </div>
     </div>
   );
 }
@@ -1391,7 +1543,20 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling]     = useState(false);
   const [diceResult, setDiceResult]       = useState(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [mobilePanel, setMobilePanel] = useState(null);
   const fireMode = 2; // Mix mode
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const toggleMobilePanel = useCallback((panel) => {
+    setMobilePanel(prev => prev === panel ? null : panel);
+  }, []);
 
   const spinSpeed = useMemo(() => {
     if (ownedItems.includes('maxspin'))   return 0.5;
@@ -1835,9 +2000,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         />
       )}
 
-      {season && season.latest_winners && (
-        <SeasonWinners winners={season.latest_winners} seasonNumber={season.season_number - 1} />
-      )}
+      <ChatPanel
+        extraClass={isMobile && mobilePanel === 'chat' ? 'mobile-visible' : ''}
+      />
 
       <FireEffect
         streak={streak}
@@ -1863,16 +2028,38 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         {season && <SeasonInfo seasonNumber={season.season_number} endsAt={season.ends_at} />}
       </div>
 
-      <Fish
-        mood={fishMood}
-        net={wins - losses}
-        fishClicks={fishClicks}
-        fishData={getFishData(equippedFish)}
-        sizeRem={fishSizeRem}
-        trailClass={trailClass}
-        lowSpec={lowSpec}
-        onFishClick={handleFishClick}
-      />
+      {!isMobile && (
+        <Fish
+          mood={fishMood}
+          net={wins - losses}
+          fishClicks={fishClicks}
+          fishData={getFishData(equippedFish)}
+          sizeRem={fishSizeRem}
+          trailClass={trailClass}
+          lowSpec={lowSpec}
+          onFishClick={handleFishClick}
+        />
+      )}
+
+      {isMobile && (
+        <div className={`mobile-fish-panel${mobilePanel === 'fish' ? ' mobile-visible' : ''}`}>
+          <Fish
+            mood={fishMood}
+            net={wins - losses}
+            fishClicks={fishClicks}
+            fishData={getFishData(equippedFish)}
+            sizeRem={fishSizeRem}
+            trailClass={trailClass}
+            lowSpec={lowSpec}
+            onFishClick={handleFishClick}
+          />
+          <CommunityPot
+            pot={communityPot}
+            fishClicks={fishClicks}
+            onContribute={newClicks => setFishClicks(newClicks)}
+          />
+        </div>
+      )}
 
       {showResult && (
         <div className={`result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`}>
@@ -1968,7 +2155,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       </div>
 
-      <div className="game-right">
+      <div className={`game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`}>
         <button
           className="shop-collapse-btn"
           onClick={() => setShopCollapsed(c => !c)}
@@ -2017,7 +2204,44 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <span className="fish-counter-label">Balance</span>
           <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>
         </div>
-        <Leaderboard currentUser={username} />
+        <Leaderboard
+          currentUser={username}
+          extraClass={isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : ''}
+          seasonWinners={season && season.latest_winners}
+          seasonNumber={season && season.season_number - 1}
+        />
+      </div>
+
+      {isMobile && mobilePanel && (
+        <div className="mobile-backdrop" onClick={() => setMobilePanel(null)} />
+      )}
+
+      <div className="mobile-toolbar">
+        <button
+          className={`mobile-toolbar-btn${mobilePanel === 'shop' ? ' active' : ''}`}
+          onClick={() => toggleMobilePanel('shop')}
+          title="Shop"
+        >🏪</button>
+        <button
+          className={`mobile-toolbar-btn${mobilePanel === 'leaderboard' ? ' active' : ''}`}
+          onClick={() => toggleMobilePanel('leaderboard')}
+          title="Leaderboard"
+        >🏆</button>
+        <button
+          className={`mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}`}
+          onClick={() => toggleMobilePanel('fish')}
+          title="Fish"
+        >🐟</button>
+        <button
+          className={`mobile-toolbar-btn${mobilePanel === 'chat' ? ' active' : ''}`}
+          onClick={() => toggleMobilePanel('chat')}
+          title="Chat"
+        >💬</button>
+        <button
+          className="mobile-toolbar-btn"
+          onClick={() => setShowStats(true)}
+          title="Stats"
+        >📊</button>
       </div>
 
     </div>

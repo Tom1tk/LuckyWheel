@@ -43,8 +43,10 @@ def create_app() -> Flask:
     # Register blueprints (auth also registers @login_manager.user_loader)
     from auth import auth_bp
     from game import game_bp
+    from chat import chat_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(game_bp)
+    app.register_blueprint(chat_bp)
 
     # Security headers on every response
     @app.after_request

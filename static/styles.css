@@ -1515,11 +1515,6 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .streak-inferno-9  { color: #FF0500; text-shadow: 0 0 18px rgba(255,10,0,0.95), 0 0 36px rgba(255,30,0,0.6); font-size: 0.88rem; }
 .streak-inferno-10 { color: #FF0000; text-shadow: 0 0 20px rgba(255,0,0,1), 0 0 40px rgba(255,20,0,0.7), 0 0 60px rgba(255,0,0,0.3); font-size: 0.92rem; }
 
-@media (max-width: 600px) {
-  .leaderboard-panel { width: 180px; }
-  .lb-name { font-size: 0.6rem; }
-}
-
 /* Session-booted banner */
 .session-banner {
   position: fixed;
@@ -1570,50 +1565,336 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .fish-counter-value { font-size: 1rem; }
 }
 
-@media (max-width: 600px) {
-  .game-layout { flex-direction: column; }
-  .game-left { width: 100%; flex-direction: row; justify-content: center; padding: 8px; height: auto; min-width: 0; }
-  .game-right { width: 100%; min-width: 0; max-height: none; padding: 8px; }
-  .game-right-body { flex-direction: column; }
-  .game-right-sidebar { width: 100%; }
-  .game-center { min-height: 420px; }
-  .shop-columns { flex-direction: column; }
-  .shop-col { min-height: 200px; }
+/* ── Mobile toolbar / backdrop (hidden on desktop) ─────────────────────── */
+.mobile-toolbar    { display: none; }
+.mobile-backdrop   { display: none; }
+.mobile-fish-panel { display: none; }
 
-  .casino-container { padding: 8px 0; }
+/* ── Mobile layout (≤768px) ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* User bar — compact, community pot moved to fish panel on mobile */
+  .user-bar { height: 44px; padding: 0 8px; gap: 6px; }
+  .user-bar-name { display: none; }
+  .user-bar .community-pot-bar { display: none; }
+
+  /* Wheel — hero of the page */
+  .casino-container { padding: 8px 0 70px 0; width: 100%; }
   .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
-
   .wheel-wrapper {
-    width: min(290px, calc(100vw - 100px));
-    height: min(290px, calc(100vw - 100px));
+    width:  min(320px, calc(100vw - 40px), calc(100vh - 260px));
+    height: min(320px, calc(100vw - 40px), calc(100vh - 260px));
   }
-
   .bulbs { gap: 8px; }
   .bulb  { width: 10px; height: 10px; }
 
-  .spin-again-btn { font-size: 1rem; padding: 10px 28px; }
-  .bonus-line     { font-size: 1.1rem; }
+  /* Result banner — scaled down */
+  .result-text { font-size: clamp(1.4rem, 6vw, 2.8rem); padding: 12px 20px; }
+  .spin-again-btn { font-size: 0.9rem; padding: 8px 24px; }
+  .bonus-line { font-size: 0.95rem; }
 
+  /* Auth card — full width */
   .auth-card { width: calc(100vw - 40px); padding: 28px 24px; }
 
-  .user-bar-name { display: none; }
+  /* Right panel — slide-in drawer from right, hidden by default */
+  .game-right {
+    width: min(100vw, 420px);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    background: rgba(0, 3, 12, 0.98);
+  }
+  .game-right.mobile-open { transform: translateX(0); }
+  /* Hide desktop shop collapse button on mobile */
+  .shop-collapse-btn { display: none; }
+  /* Reset the desktop shop-collapsed offset on mobile */
+  .game-right-body { transform: none !important; }
+
+  /* Fish panel — always hidden on mobile (rendered inside mobile-fish-panel instead) */
+  .fish-panel { display: none; }
+
+  /* Mobile fish panel — overlay card with fish + community pot */
+  .mobile-fish-panel.mobile-visible {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 160;
+    background: rgba(0, 3, 12, 0.97);
+    border: 1px solid rgba(170, 0, 255, 0.25);
+    border-radius: 12px;
+    padding: 16px;
+    width: min(90vw, 340px);
+    gap: 12px;
+  }
+  /* Reset fish-panel fixed positioning inside the overlay card */
+  .mobile-fish-panel .fish-panel {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    z-index: auto !important;
+    display: block !important;
+  }
+  /* Community pot inside mobile fish panel — stacked layout */
+  .mobile-fish-panel .community-pot-bar {
+    flex: none;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 12px;
+  }
+  .mobile-fish-panel .community-pot-inner {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: none;
+    gap: 6px;
+  }
+  .mobile-fish-panel .community-pot-buttons {
+    justify-content: flex-start;
+  }
+
+  /* Chat panel — hidden by default, shown as overlay */
+  .chat-panel { display: none; }
+  .chat-panel.mobile-visible {
+    display: flex;
+    top: 50px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    z-index: 160;
+  }
+
+  /* Bottom-left stack — sit above toolbar */
+  .bottom-left-stack { bottom: 64px; }
+  .fish-counter-value { font-size: 1rem; }
+
+  /* Leaderboard — hidden by default, shown as overlay */
+  .leaderboard-panel { display: none; }
+  .leaderboard-panel.mobile-visible {
+    display: block;
+    position: fixed;
+    bottom: 64px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 55vh;
+    overflow-y: auto;
+    z-index: 160;
+  }
+
+  /* Mobile backdrop — semi-transparent, tap to dismiss open panel */
+  .mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 149;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  /* Mobile toolbar — fixed bottom bar */
+  .mobile-toolbar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    z-index: 200;
+    background: rgba(0, 3, 12, 0.97);
+    border-top: 1px solid rgba(170, 0, 255, 0.25);
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+  }
+  .mobile-toolbar-btn {
+    background: none;
+    border: 1px solid rgba(170, 0, 255, 0.2);
+    border-radius: 8px;
+    color: #888;
+    font-size: 1.3rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-toolbar-btn.active {
+    color: #AA00FF;
+    border-color: #AA00FF;
+    background: rgba(170, 0, 255, 0.1);
+  }
 }
 
-/* ── Season Winners Panel ───────────────────────────────────────────────── */
-.season-winners {
+/* ── Chat Panel ──────────────────────────────────────────────────────────── */
+.chat-panel {
   position: fixed;
   top: 56px;
   left: 12px;
   width: 210px;
+  height: 320px;
+  display: flex;
+  flex-direction: column;
   background: rgba(0, 5, 15, 0.92);
   border: 1px solid #6600BB;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   box-shadow: 0 0 18px rgba(170, 0, 255, 0.18), 0 2px 12px rgba(0,0,0,0.7);
   z-index: 200;
-  pointer-events: none;
 }
 
+.chat-panel-title {
+  color: #AA00FF;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #6600BB #0a0010;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.chat-msg-name {
+  color: #AA00FF;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+
+.chat-msg-text {
+  color: #ccc;
+  font-size: 0.72rem;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.chat-error {
+  color: #FF4444;
+  font-size: 0.65rem;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(170,0,255,0.3);
+  border-radius: 5px;
+  color: #ddd;
+  font-size: 0.72rem;
+  padding: 4px 6px;
+  outline: none;
+  min-width: 0;
+}
+
+.chat-input:focus {
+  border-color: #AA00FF;
+}
+
+.chat-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-send-btn {
+  background: rgba(170,0,255,0.2);
+  border: 1px solid rgba(170,0,255,0.4);
+  border-radius: 5px;
+  color: #AA00FF;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.chat-send-btn:hover:not(:disabled) {
+  background: rgba(170,0,255,0.35);
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Leaderboard Tabs ────────────────────────────────────────────────────── */
+.leaderboard-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(170,0,255,0.2);
+  margin-bottom: 4px;
+}
+
+.leaderboard-tab {
+  flex: 1;
+  padding: 6px 4px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: transparent;
+  color: #555;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.leaderboard-tab.active {
+  color: #AA00FF;
+  border-bottom-color: #AA00FF;
+  text-shadow: 0 0 8px rgba(170,0,255,0.5);
+}
+
+.leaderboard-tab:not(.active):hover { color: #aaa; }
+
+.lb-winners-tab {
+  padding: 4px 0;
+}
+
+.lb-winners-title {
+  color: #AA00FF;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.85;
+}
+
+.lb-winners-empty {
+  color: #666;
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* ── Season Winners (legacy — kept for .sw-* row styles) ─────────────────── */
 .season-winners-title {
   color: #AA00FF;
   font-size: 0.72rem;
@@ -1905,11 +2186,14 @@ body.page-season1 .leaderboard-panel-title { color: #FFD700; text-shadow: 0 0 8p
 body.page-season1 .lb-rank.gold { color: #FFD700; text-shadow: 0 0 6px #FFD700; }
 body.page-season1 .lb-name.is-you { color: #FFD700; }
 body.page-season1 .lb-wins { color: #FFD700; }
-body.page-season1 .season-winners { background: rgba(10,8,2,0.92); border-color: #B8860B; box-shadow: 0 0 18px rgba(255,215,0,0.18), 0 2px 12px rgba(0,0,0,0.7); }
-body.page-season1 .season-winners-title { color: #FFD700; }
+body.page-season1 .chat-panel { background: rgba(10,8,2,0.92); border-color: #B8860B; box-shadow: 0 0 18px rgba(255,215,0,0.18), 0 2px 12px rgba(0,0,0,0.7); }
+body.page-season1 .chat-panel-title { color: #FFD700; }
+body.page-season1 .lb-winners-title { color: #FFD700; }
 body.page-season1 .sw-gold { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.6); }
 body.page-season1 .season-info { color: #FFD700; }
 body.page-season1 .season-countdown { color: #FFA500; background: rgba(255,165,0,0.1); border-color: rgba(255,165,0,0.25); }
+body.page-season1 .mobile-toolbar { border-top-color: rgba(255,215,0,0.25); }
+body.page-season1 .mobile-toolbar-btn.active { color: #FFD700; border-color: #FFD700; background: rgba(255,215,0,0.1); }
 
 /* ── Low Spec Mode ───────────────────────────────────────────────────────── */
 /* Kills expensive infinite animations and GPU-heavy effects.                 */
@@ -2032,11 +2316,14 @@ body.page-season2 .leaderboard-panel-title { color: #00CC44; text-shadow: 0 0 8p
 body.page-season2 .lb-rank.gold { color: #00CC44; text-shadow: 0 0 6px #00CC44; }
 body.page-season2 .lb-name.is-you { color: #00CC44; }
 body.page-season2 .lb-wins { color: #00CC44; }
-body.page-season2 .season-winners { background: rgba(0,8,2,0.92); border-color: #007722; box-shadow: 0 0 18px rgba(0,204,68,0.18), 0 2px 12px rgba(0,0,0,0.7); }
-body.page-season2 .season-winners-title { color: #00CC44; }
+body.page-season2 .chat-panel { background: rgba(0,8,2,0.92); border-color: #007722; box-shadow: 0 0 18px rgba(0,204,68,0.18), 0 2px 12px rgba(0,0,0,0.7); }
+body.page-season2 .chat-panel-title { color: #00CC44; }
+body.page-season2 .lb-winners-title { color: #00CC44; }
 body.page-season2 .sw-gold { color: #00CC44; text-shadow: 0 0 6px rgba(0,204,68,0.6); }
 body.page-season2 .season-info { color: #00CC44; }
 body.page-season2 .season-countdown { color: #CC3300; background: rgba(204,51,0,0.1); border-color: rgba(204,51,0,0.25); }
+body.page-season2 .mobile-toolbar { border-top-color: rgba(0,200,100,0.25); }
+body.page-season2 .mobile-toolbar-btn.active { color: #00C864; border-color: #00C864; background: rgba(0,200,100,0.1); }
 
 /* ── Dice Panel ────────────────────────────────────────────────────────────── */
 .dice-panel {
@@ -2237,8 +2524,11 @@ body.page-season3 .leaderboard-panel-title { color: #AA00FF; text-shadow: 0 0 8p
 body.page-season3 .lb-rank.gold { color: #AA00FF; text-shadow: 0 0 6px #AA00FF; }
 body.page-season3 .lb-name.is-you { color: #AA00FF; }
 body.page-season3 .lb-wins { color: #AA00FF; }
-body.page-season3 .season-winners { background: rgba(8,0,10,0.92); border-color: #7700CC; box-shadow: 0 0 18px rgba(170,0,255,0.18), 0 2px 12px rgba(0,0,0,0.7); }
-body.page-season3 .season-winners-title { color: #AA00FF; }
+body.page-season3 .chat-panel { background: rgba(8,0,10,0.92); border-color: #7700CC; box-shadow: 0 0 18px rgba(170,0,255,0.18), 0 2px 12px rgba(0,0,0,0.7); }
+body.page-season3 .chat-panel-title { color: #AA00FF; }
+body.page-season3 .lb-winners-title { color: #AA00FF; }
 body.page-season3 .sw-gold { color: #AA00FF; text-shadow: 0 0 6px rgba(170,0,255,0.6); }
 body.page-season3 .season-info { color: #AA00FF; }
 body.page-season3 .season-countdown { color: #FF6600; background: rgba(255,102,0,0.1); border-color: rgba(255,102,0,0.25); }
+body.page-season3 .mobile-toolbar { border-top-color: rgba(170,0,255,0.25); }
+body.page-season3 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA00FF; background: rgba(170,0,255,0.1); }
