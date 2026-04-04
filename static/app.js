@@ -751,7 +751,7 @@ const Fish = React.memo(function Fish({
   } : null;
   const animClass = fishSpinning ? 'spinning-fish' : mood;
   return /*#__PURE__*/React.createElement("div", {
-    className: `fish-panel ${trailClass || ''}`,
+    className: `fish-panel${trailClass ? ' ' + trailClass : ''}`,
     onClick: handleClick,
     style: {
       filter: fishFilter
@@ -922,13 +922,14 @@ function DicePanel({
 // ── Season Winners ────────────────────────────────────────────────────────
 function SeasonWinners({
   winners,
-  seasonNumber
+  seasonNumber,
+  extraClass = ''
 }) {
   if (!winners || winners.length === 0) return null;
   const medals = ['🥇', '🥈', '🥉'];
   const rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
   return /*#__PURE__*/React.createElement("div", {
-    className: "season-winners"
+    className: `season-winners${extraClass ? ' ' + extraClass : ''}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "season-winners-title"
   }, "Season ", seasonNumber, " Winners"), winners.map(w => /*#__PURE__*/React.createElement("div", {
@@ -975,7 +976,8 @@ function SeasonInfo({
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
 function Leaderboard({
-  currentUser
+  currentUser,
+  extraClass
 }) {
   const [rows, setRows] = useState([]);
   useEffect(() => {
@@ -1000,7 +1002,7 @@ function Leaderboard({
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
   const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
   return /*#__PURE__*/React.createElement("div", {
-    className: "leaderboard-panel"
+    className: `leaderboard-panel${extraClass ? ' ' + extraClass : ''}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "leaderboard-panel-title"
   }, "\uD83C\uDFC6 Top Players"), /*#__PURE__*/React.createElement("div", {
@@ -2122,8 +2124,19 @@ function GameApp({
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling] = useState(false);
   const [diceResult, setDiceResult] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [mobilePanel, setMobilePanel] = useState(null);
   const fireMode = 2; // Mix mode
 
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = e => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const toggleMobilePanel = useCallback(panel => {
+    setMobilePanel(prev => prev === panel ? null : panel);
+  }, []);
   const spinSpeed = useMemo(() => {
     if (ownedItems.includes('maxspin')) return 0.5;
     if (ownedItems.includes('ultraspin')) return 0.75;
@@ -2595,7 +2608,8 @@ function GameApp({
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
   }), season && season.latest_winners && /*#__PURE__*/React.createElement(SeasonWinners, {
     winners: season.latest_winners,
-    seasonNumber: season.season_number - 1
+    seasonNumber: season.season_number - 1,
+    extraClass: isMobile && mobilePanel === 'winners' ? 'mobile-visible' : ''
   }), /*#__PURE__*/React.createElement(FireEffect, {
     streak: streak,
     mode: fireMode,
@@ -2624,7 +2638,7 @@ function GameApp({
   }), season && /*#__PURE__*/React.createElement(SeasonInfo, {
     seasonNumber: season.season_number,
     endsAt: season.ends_at
-  })), /*#__PURE__*/React.createElement(Fish, {
+  })), !isMobile && /*#__PURE__*/React.createElement(Fish, {
     mood: fishMood,
     net: wins - losses,
     fishClicks: fishClicks,
@@ -2633,7 +2647,22 @@ function GameApp({
     trailClass: trailClass,
     lowSpec: lowSpec,
     onFishClick: handleFishClick
-  }), showResult && /*#__PURE__*/React.createElement("div", {
+  }), isMobile && /*#__PURE__*/React.createElement("div", {
+    className: `mobile-fish-panel${mobilePanel === 'fish' ? ' mobile-visible' : ''}`
+  }, /*#__PURE__*/React.createElement(Fish, {
+    mood: fishMood,
+    net: wins - losses,
+    fishClicks: fishClicks,
+    fishData: getFishData(equippedFish),
+    sizeRem: fishSizeRem,
+    trailClass: trailClass,
+    lowSpec: lowSpec,
+    onFishClick: handleFishClick
+  }), /*#__PURE__*/React.createElement(CommunityPot, {
+    pot: communityPot,
+    fishClicks: fishClicks,
+    onContribute: newClicks => setFishClicks(newClicks)
+  })), showResult && /*#__PURE__*/React.createElement("div", {
     className: `result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`
   }, result === 'win' || result === 'lose' && shieldFeedback ? /*#__PURE__*/React.createElement("div", {
     className: `result-text ${result === 'win' ? 'win' : 'win'}`
@@ -2732,7 +2761,7 @@ function GameApp({
     key: i,
     className: "bulb"
   })))), /*#__PURE__*/React.createElement("div", {
-    className: "game-right"
+    className: `game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-collapse-btn",
     onClick: () => setShopCollapsed(c => !c),
@@ -2775,8 +2804,34 @@ function GameApp({
   }, "Balance"), /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-value"
   }, getFishData(equippedFish).emoji, " \xD7 ", fmt(fishClicks))), /*#__PURE__*/React.createElement(Leaderboard, {
-    currentUser: username
-  })));
+    currentUser: username,
+    extraClass: isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : ''
+  })), isMobile && mobilePanel && /*#__PURE__*/React.createElement("div", {
+    className: "mobile-backdrop",
+    onClick: () => setMobilePanel(null)
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-toolbar"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: `mobile-toolbar-btn${mobilePanel === 'shop' ? ' active' : ''}`,
+    onClick: () => toggleMobilePanel('shop'),
+    title: "Shop"
+  }, "\uD83C\uDFEA"), /*#__PURE__*/React.createElement("button", {
+    className: `mobile-toolbar-btn${mobilePanel === 'leaderboard' ? ' active' : ''}`,
+    onClick: () => toggleMobilePanel('leaderboard'),
+    title: "Leaderboard"
+  }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
+    className: `mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}`,
+    onClick: () => toggleMobilePanel('fish'),
+    title: "Fish"
+  }, "\uD83D\uDC1F"), /*#__PURE__*/React.createElement("button", {
+    className: `mobile-toolbar-btn${mobilePanel === 'winners' ? ' active' : ''}`,
+    onClick: () => toggleMobilePanel('winners'),
+    title: "Season Winners"
+  }, "\uD83C\uDFC5"), /*#__PURE__*/React.createElement("button", {
+    className: "mobile-toolbar-btn",
+    onClick: () => setShowStats(true),
+    title: "Stats"
+  }, "\uD83D\uDCCA")));
 }
 
 // ── Root App ───────────────────────────────────────────────────────────────
