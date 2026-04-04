@@ -79,21 +79,21 @@ Season 3 introduces a multi-currency shop to balance progression:
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
 |------|------|-------|
-| Tropical Fish | 250 | 🐠 |
-| Pufferfish | 500 | 🐡 |
-| Octopus | 750 | 🐙 |
-| Shark | 1,000 | 🦈 |
-| Dolphin | 1,500 | 🐬 |
-| Squid | 2,000 | 🦑 |
-| Turtle | 3,500 | 🐢 |
-| Crab | 6,000 | 🦀 |
-| Lobster | 10,000 | 🦞 |
-| Whale | 20,000 | 🐳 |
-| Seal | 50,000 | 🦭 |
-| Shrimp | 150,000 | 🦐 |
-| Coral | 500,000 | 🪸 |
-| Mermaid | 1,500,000 | 🧜 |
-| Crocodile | 5,000,000 | 🐊 |
+| Tropical Fish | 25 | 🐠 |
+| Pufferfish | 50 | 🐡 |
+| Octopus | 75 | 🐙 |
+| Shark | 100 | 🦈 |
+| Dolphin | 150 | 🐬 |
+| Squid | 200 | 🦑 |
+| Turtle | 350 | 🐢 |
+| Crab | 600 | 🦀 |
+| Lobster | 1,000 | 🦞 |
+| Whale | 2,000 | 🐳 |
+| Seal | 3,500 | 🦭 |
+| Shrimp | 6,000 | 🦐 |
+| Coral | 10,000 | 🪸 |
+| Mermaid | 17,500 | 🧜 |
+| Crocodile | 30,000 | 🐊 |
 
 Each skin has custom idle/win/loss speech. Buy and equip to change the fish.
 
@@ -134,20 +134,20 @@ Multiplies streak bonus payouts — for both win streaks **and** loss streaks. �
 ### Fish Size (Costs Losses)
 | Tier | Cost | Fish Size |
 |------|------|-----------|
-| Big Fish | 100 | 20rem |
-| Giant Fish | 5,000 | 28rem |
-| Colossal | 500,000 | 40rem |
+| Big Fish | 50 | 20rem |
+| Giant Fish | 200 | 28rem |
+| Colossal | 800 | 40rem |
 
 ### Fish Trail (Costs Losses)
 Visual trail effect on the fish. Trail and streak aura effects coexist independently.
 | Tier | Cost | Effect |
 |------|------|--------|
-| Sparkle Trail | 250 | ✨ Gold shimmer |
-| Fire Trail | 2,500 | 🔥 Flame glow |
-| Rainbow Trail | 25,000 | 🌈 Rainbow hue |
-| Frost Trail | 250,000 | ❄️ Ice crystal aura |
-| Thunder Trail | 2,500,000 | ⚡ Electric sparks |
-| Galaxy Trail | 25,000,000 | 🌌 Cosmic swirl |
+| Sparkle Trail | 125 | ✨ Gold shimmer |
+| Fire Trail | 500 | 🔥 Flame glow |
+| Rainbow Trail | 2,000 | 🌈 Rainbow hue |
+| Frost Trail | 7,000 | ❄️ Ice crystal aura |
+| Thunder Trail | 22,000 | ⚡ Electric sparks |
+| Galaxy Trail | 70,000 | 🌌 Cosmic swirl |
 
 ### Click Power (Costs Wins)
 Each fish click counts as more clicks server-side. Also scales all Frenzy passive tick amounts. Single item purchased repeatedly — no tier cap.
@@ -183,39 +183,39 @@ Passive income — server ticks fish clicks automatically. All Frenzy amounts ar
 Changes the canvas colour palette of the wheel.
 | Theme | Cost | Look |
 |-------|------|------|
-| Fire Theme | 500 | 🔥 Red/orange |
-| Ice Theme | 5,000 | ❄️ Blue/cyan |
-| Neon Theme | 50,000 | 💜 Purple/neon |
-| Void Theme | 500,000 | 🌑 Deep void |
-| Gold Theme | 5,000,000 | ✨ Pure gold |
-| Golden Wheel | 500 | ✨ Radiant glow ring (independent of theme) |
+| Fire Theme | 250 | 🔥 Red/orange |
+| Ice Theme | 1,000 | ❄️ Blue/cyan |
+| Neon Theme | 4,000 | 💜 Purple/neon |
+| Void Theme | 12,000 | 🌑 Deep void |
+| Gold Theme | 40,000 | ✨ Pure gold |
+| Golden Wheel | 300 | ✨ Radiant glow ring (independent of theme) |
 
 ### Atmosphere (Costs Losses)
 
 #### Background Theme
 | Theme | Cost | Look |
 |-------|------|------|
-| Ocean Casino | 200 | Deep sea blue |
-| Royal Casino | 2,000 | Rich purple |
-| Inferno Casino | 20,000 | Blazing red |
-| Forest | 200,000 | 🌲 Lush green |
-| Abyss | 2,000,000 | 🌊 Deep dark ocean |
-| Cosmic | 20,000,000 | 🌌 Space nebula |
+| Ocean Casino | 100 | Deep sea blue |
+| Royal Casino | 400 | Rich purple |
+| Inferno Casino | 1,600 | Blazing red |
+| Forest | 5,000 | 🌲 Lush green |
+| Abyss | 15,000 | 🌊 Deep dark ocean |
+| Cosmic | 50,000 | 🌌 Space nebula |
 
 #### Page Theme
 | Theme | Cost | Look |
 |-------|------|------|
-| Season 1 | 5,000 | Classic gold & orange |
-| Season 2 | 5,000 | Green & red |
-| Season 3 | 5,000 | Purple & orange |
+| Season 1 | 1,000 | Classic gold & orange |
+| Season 2 | 1,000 | Green & red |
+| Season 3 | 1,000 | Purple & orange |
 
 #### Confetti
 | Tier | Cost | Count |
 |------|------|-------|
-| Confetti+ | 150 | ×2 |
-| Confetti++ | 1,500 | ×5 |
-| Confetti MAX | 15,000 | ×15 |
-| Party Mode | 300 | Confetti on every result |
+| Confetti+ | 75 | ×2 |
+| Confetti++ | 300 | ×5 |
+| Confetti MAX | 1,200 | ×15 |
+| Party Mode | 150 | Confetti on every result |
 
 ### 🎲 Special Upgrades (Costs Wins)
 | Item | Cost | Effect |

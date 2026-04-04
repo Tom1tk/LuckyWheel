@@ -5,19 +5,18 @@
 ## Latest — 4 Apr 2026
 
 ### Season 4 Balancing: Economy Overhaul
-- **Price rebalancing across the entire shop.** All upgrade and cosmetic chains have been retuned with steeper cost scaling — late-game items like Max Spin, Instant Auto, Galaxy Trail, and Final Frenzy now cost millions of Wins or Losses, reflecting their power and rarity.
+- **Functional upgrade chains repriced with ~10× per tier scaling.** Late-game functional items now cost millions of Wins — Max Spin (1M), Instant Auto (1M), Final Frenzy (30M). Cosmetic item prices are unchanged.
 - **Special Upgrades repriced ×100.** Fortune Charm, Lucky Seven, Win Echo, and Jackpot are now 100× their previous cost. Resilience is ×10, now costing 5,000,000 Wins.
-- Fish skin costs increased ~10×. Five new premium fish skins have been added (see below).
 
 ### New Fish Skins (Season 4)
-Five new cosmetic fish have been added at progressively higher costs (paid in Losses):
+Five new cosmetic fish skins added, continuing the existing loss-cost chain from Whale (2,000):
 | Skin | Cost | Emoji |
 |------|------|-------|
-| Seal | 50,000 | 🦭 |
-| Shrimp | 150,000 | 🦐 |
-| Coral | 500,000 | 🪸 |
-| Mermaid | 1,500,000 | 🧜 |
-| Crocodile | 5,000,000 | 🐊 |
+| Seal | 3,500 | 🦭 |
+| Shrimp | 6,000 | 🦐 |
+| Coral | 10,000 | 🪸 |
+| Mermaid | 17,500 | 🧜 |
+| Crocodile | 30,000 | 🐊 |
 
 ### Season 3 Page Theme
 - A new **Season 3 Theme** cosmetic is now available in the Page Theme section of the shop (5,000 Losses).
