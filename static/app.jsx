@@ -674,7 +674,7 @@ function Die({ value, rolling, landed }) {
   );
 }
 
-function DicePanel({ losses, onRoll, rolling, diceResult, spinning, lowSpec }) {
+function DicePanel({ losses, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
@@ -711,7 +711,7 @@ function DicePanel({ losses, onRoll, rolling, diceResult, spinning, lowSpec }) {
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
-  const tooltip = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+  const tooltip = (spinning || guardSpinning) ? undefined : 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
 
   return (
     <div className="dice-panel">
@@ -1974,6 +1974,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               rolling={diceRolling}
               diceResult={diceResult}
               spinning={spinning}
+              guardSpinning={!!guardState}
               lowSpec={lowSpec}
             />
           </div>

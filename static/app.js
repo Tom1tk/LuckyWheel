@@ -908,6 +908,7 @@ function DicePanel(_ref1) {
     rolling = _ref1.rolling,
     diceResult = _ref1.diceResult,
     spinning = _ref1.spinning,
+    guardSpinning = _ref1.guardSpinning,
     lowSpec = _ref1.lowSpec;
   var _React$useState = React.useState(1),
     _React$useState2 = _slicedToArray(_React$useState, 2),
@@ -960,7 +961,7 @@ function DicePanel(_ref1) {
   var canRoll = losses >= 1 && !rolling && !spinning;
   var die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   var die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
-  var tooltip = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+  var tooltip = spinning || guardSpinning ? undefined : 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
@@ -3234,6 +3235,7 @@ function GameApp(_ref20) {
     rolling: diceRolling,
     diceResult: diceResult,
     spinning: spinning,
+    guardSpinning: !!guardState,
     lowSpec: lowSpec
   })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
