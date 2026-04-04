@@ -820,9 +820,10 @@ function Die({
   })));
 }
 const DICE_TOOLTIP_W = 220;
-const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) is added to your win streak instantly — even from a loss streak. Higher streaks unlock exponentially bigger bonuses. Does not guarantee a win on your next spin.';
+const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) amplifies your current streak — bigger if you\'re winning, deeper if you\'re losing. Disabled when your streak is exactly zero. Does not guarantee a win on your next spin.';
 function DicePanel({
   losses,
+  streak,
   onRoll,
   rolling,
   diceResult,
@@ -868,7 +869,7 @@ function DicePanel({
     }
   }, [diceResult]);
   const cost = losses;
-  const canRoll = losses >= 1 && !rolling && !spinning;
+  const canRoll = losses >= 1 && streak !== 0 && !rolling && !spinning;
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
   const showTip = () => {
@@ -910,11 +911,11 @@ function DicePanel({
     landed: landed
   })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
     className: "dice-result-text"
-  }, "+", diceResult.dice_sum, " streak!"), /*#__PURE__*/React.createElement("button", {
+  }, diceResult.streak_delta > 0 ? '+' : '', diceResult.streak_delta, " streak!"), /*#__PURE__*/React.createElement("button", {
     className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
-    title: canRoll ? `Costs ${fmt(cost)} losses` : 'Not enough losses'
+    title: canRoll ? `Costs ${fmt(cost)} losses` : streak === 0 ? 'No active streak' : 'Not enough losses'
   }, rolling ? 'Rolling…' : `Roll (${fmt(cost)} losses)`));
 }
 
@@ -2544,6 +2545,7 @@ function GameApp({
     if (diceRolling || spinning) return;
     setDiceRolling(true);
     setDiceResult(null);
+    const prevStreak = streak;
     const {
       ok,
       data
@@ -2557,17 +2559,19 @@ function GameApp({
       return;
     }
     setTimeout(() => {
+      const streakDelta = data.streak - prevStreak;
       setDiceResult({
         die1: data.die1,
         die2: data.die2,
         dice_sum: data.dice_sum,
-        cost: data.cost
+        cost: data.cost,
+        streak_delta: streakDelta
       });
       setLosses(data.losses);
       setStreak(data.streak);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
-  }, [diceRolling, spinning, lowSpec, showToast]);
+  }, [diceRolling, spinning, streak, lowSpec, showToast]);
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
     setFishClicks(c => c + clickAmount);
@@ -2926,6 +2930,7 @@ function GameApp({
     streak: streak
   }), /*#__PURE__*/React.createElement(DicePanel, {
     losses: losses,
+    streak: streak,
     onRoll: handleDiceRoll,
     rolling: diceRolling,
     diceResult: diceResult,

@@ -30,7 +30,7 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - All login and registration attempts are logged with IP, normalised username, User-Agent, and rejection reason
 
 ### Fish Mascot
-- A fish lives on the left side of the screen, centred vertically
+- A fish lives on the left side of the screen, centred vertically (desktop); accessible via the 🐟 toolbar button on mobile
 - Reacts to spin results (happy on win, sad on loss, idle otherwise)
 - Shows a fire aura when wins are ahead, a gloom aura when losses are ahead — aura size and intensity scale with the net gap (tight drop-shadow glow on the fish + large ambient blur halo behind it)
 - Trail effects (sparkle/fire/rainbow/frost/thunder/galaxy) and the aura glow coexist independently
@@ -53,6 +53,13 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - Embers appear from streak 3; inferno ignites from streak 10; screen fills around streak 30
 - Intensity lerps smoothly — wins cause the fire to grow, a loss makes it fall gradually rather than cutting out
 - Suppressed automatically in Low-Spec Mode and when OS `prefers-reduced-motion` is set
+
+### Mobile Support
+- Fully playable on phones and tablets (≤ 768 px breakpoint); desktop layout is completely unchanged
+- **Bottom toolbar** — five icon buttons toggle panels: Shop 🏪, Leaderboard 🏆, Fish+Community Pot 🐟, Season Winners 🏅, Stats 📊
+- **Slide-in drawers** — the shop/sidebar panel slides in from the right; leaderboard, season winners, and fish panels open as overlays
+- **Tap-to-dismiss backdrop** — tapping outside any open panel closes it
+- **Community Pot** moved into the fish panel on mobile to avoid crowding the top bar
 
 ### Performance
 - **Low-Spec Mode** (⚡ button in the top bar) — disables infinite CSS animations, GPU-heavy drop-shadows, confetti, fish aura, and fire effect; respects OS `prefers-reduced-motion`
@@ -454,6 +461,8 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `FireEffect` | Full-viewport canvas fire effect behind all UI — ember particles + cellular automaton inferno, scaled by win streak |
 | `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon / void / gold) |
 | `drawGuardWheel` | Canvas rendering for the guard mini-wheel (50% green / 50% red) |
+
+**Mobile layout** is handled entirely in CSS (`@media (max-width: 768px)`) and a small amount of React state (`isMobile`, `mobilePanel`) in `GameApp`. No separate mobile components — the same components are reused, conditionally positioned via CSS class toggles.
 
 **No localStorage** — all state lives in PostgreSQL. Legacy `localStorage` keys are cleared on mount.
 

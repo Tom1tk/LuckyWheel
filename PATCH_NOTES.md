@@ -4,6 +4,21 @@
 
 ## Latest — 4 Apr 2026
 
+### Mobile Responsiveness
+The game is now fully playable on phones and tablets. Desktop layout is completely unchanged.
+
+- **Bottom toolbar** — a fixed tab bar appears on screens ≤ 768 px with five buttons: Shop 🏪, Leaderboard 🏆, Fish 🐟, Season Winners 🏅, and Stats 📊.
+- **Shop drawer** — the right-side panel (shop + sidebar) slides in from the right edge when tapped, and dismisses via the backdrop or a second tap on the toolbar button.
+- **Fish & Community Pot** — the fish mascot and Community Pot are combined into a single overlay card, opened with the 🐟 toolbar button. The Community Pot is hidden from the crowded top bar on mobile.
+- **Leaderboard & Season Winners** — both panels are hidden by default and toggled via the toolbar. The leaderboard docks above the toolbar; season winners appear as a full-width overlay below the top bar.
+- **Backdrop dismiss** — tapping outside any open panel closes it.
+- **Wheel scaling** — the wheel adapts to fill the available screen width/height on small viewports.
+- **Compact top bar** — username hidden, community pot moved to the fish panel, reduced height to maximise vertical space.
+
+---
+
+## 4 Apr 2026
+
 ### Season 4 Balancing: Economy Overhaul
 - **Functional upgrade chains repriced with ~10× per tier scaling.** Late-game functional items now cost millions of Wins — Max Spin (1M), Instant Auto (1M), Final Frenzy (30M). Cosmetic item prices are unchanged.
 - **Special Upgrades repriced ×100.** Fortune Charm, Lucky Seven, Win Echo, and Jackpot are now 100× their previous cost. Resilience is ×10, now costing 5,000,000 Wins.
@@ -27,10 +42,13 @@ Five new cosmetic fish skins added, continuing the existing loss-cost chain from
 A new high-risk mechanic has been added between the wheel and the shop panel.
 
 - **Cost**: spending all your current Losses (zeroed out on roll).
-- **Effect**: two dice are rolled (each 1–6). The sum (2–12) is added directly to your win streak — even if you're currently on a loss streak.
-- **Reward**: streak bonuses are exponential (×2 per step from streak 3+), so a roll of 10 on a cold streak can immediately unlock massive bonus payouts.
-- **Risk**: your entire loss balance is consumed. The dice do **not** guarantee a win on your next spin — they only boost the streak counter.
-- The Roll button shows the exact loss cost before you commit. It is disabled if you have 0 losses or while a spin is in progress.
+- **Effect**: two dice are rolled (each 1–6). The sum (2–12) **amplifies your current streak** — it extends a win streak further, or deepens a loss streak further.
+- **Win streak**: roll adds to your streak (e.g. streak 5 + roll 9 → streak 14).
+- **Loss streak**: roll subtracts from your streak (e.g. streak −3 + roll 7 → streak −10).
+- **Zero streak**: the Roll button is disabled — there is no streak to amplify.
+- **Reward**: streak bonuses are exponential (×2 per step from streak 3+), so boosting a win streak can unlock massive multipliers immediately.
+- **Risk**: your entire loss balance is consumed, and rolling on a loss streak makes it worse. The dice do **not** guarantee a win on your next spin.
+- The Roll button shows the exact loss cost before you commit. It is disabled if you have 0 losses, streak is zero, or a spin is in progress.
 
 ### Leaderboard: Hide Zero-Win Players
 - Players with 0 wins are now hidden from the public leaderboard. Only players who have earned at least one win appear in the top 10.
