@@ -2282,6 +2282,7 @@ function GameApp({
   const [diceResult, setDiceResult] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
+  const [showChat, setShowChat] = useState(false);
   const fireMode = 2; // Mix mode
 
   useEffect(() => {
@@ -2762,8 +2763,8 @@ function GameApp({
   }), guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
-  }), /*#__PURE__*/React.createElement(ChatPanel, {
-    extraClass: isMobile && mobilePanel === 'chat' ? 'mobile-visible' : ''
+  }), (!isMobile && showChat || isMobile && mobilePanel === 'chat') && /*#__PURE__*/React.createElement(ChatPanel, {
+    extraClass: isMobile ? 'mobile-full' : ''
   }), /*#__PURE__*/React.createElement(FireEffect, {
     streak: streak,
     mode: fireMode,
@@ -2782,7 +2783,14 @@ function GameApp({
     style: {
       opacity: lowSpec ? 1 : 0.5
     }
-  }, "\u26A1"), /*#__PURE__*/React.createElement("button", {
+  }, "\u26A1"), !isMobile && /*#__PURE__*/React.createElement("button", {
+    className: "stats-btn",
+    onClick: () => setShowChat(v => !v),
+    title: showChat ? 'Hide Chat' : 'Show Chat',
+    style: {
+      opacity: showChat ? 1 : 0.5
+    }
+  }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("button", {
     className: "logout-btn",
     onClick: handleLogout
   }, "Logout"), /*#__PURE__*/React.createElement(CommunityPot, {
@@ -2962,7 +2970,7 @@ function GameApp({
     extraClass: isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : '',
     seasonWinners: season && season.latest_winners,
     seasonNumber: season && season.season_number - 1
-  })), isMobile && mobilePanel && /*#__PURE__*/React.createElement("div", {
+  })), isMobile && mobilePanel && mobilePanel !== 'chat' && /*#__PURE__*/React.createElement("div", {
     className: "mobile-backdrop",
     onClick: () => setMobilePanel(null)
   }), /*#__PURE__*/React.createElement("div", {

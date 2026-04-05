@@ -1545,6 +1545,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [diceResult, setDiceResult]       = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
+  const [showChat, setShowChat] = useState(false);
   const fireMode = 2; // Mix mode
 
   useEffect(() => {
@@ -2002,9 +2003,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         />
       )}
 
-      <ChatPanel
-        extraClass={isMobile && mobilePanel === 'chat' ? 'mobile-visible' : ''}
-      />
+      {((!isMobile && showChat) || (isMobile && mobilePanel === 'chat')) && (
+        <ChatPanel extraClass={isMobile ? 'mobile-full' : ''} />
+      )}
 
       <FireEffect
         streak={streak}
@@ -2021,6 +2022,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           title={lowSpec ? 'Low Spec Mode ON — click to restore animations' : 'Low Spec Mode OFF — click to reduce GPU usage'}
           style={{ opacity: lowSpec ? 1 : 0.5 }}
         >⚡</button>
+        {!isMobile && (
+          <button
+            className="stats-btn"
+            onClick={() => setShowChat(v => !v)}
+            title={showChat ? 'Hide Chat' : 'Show Chat'}
+            style={{ opacity: showChat ? 1 : 0.5 }}
+          >💬</button>
+        )}
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         <CommunityPot
           pot={communityPot}
@@ -2215,7 +2224,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         />
       </div>
 
-      {isMobile && mobilePanel && (
+      {isMobile && mobilePanel && mobilePanel !== 'chat' && (
         <div className="mobile-backdrop" onClick={() => setMobilePanel(null)} />
       )}
 
