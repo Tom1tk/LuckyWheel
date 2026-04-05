@@ -1805,10 +1805,15 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   border: 1px solid rgba(170,0,255,0.3);
   border-radius: 5px;
   color: #ddd;
+  font-family: 'Oswald', sans-serif;
   font-size: 0.72rem;
   padding: 4px 6px;
   outline: none;
   min-width: 0;
+}
+.chat-input::placeholder {
+  font-family: 'Oswald', sans-serif;
+  color: #555;
 }
 
 .chat-input:focus {
