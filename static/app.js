@@ -2282,7 +2282,7 @@ function GameApp({
   const [diceResult, setDiceResult] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(true);
   const fireMode = 2; // Mix mode
 
   useEffect(() => {
