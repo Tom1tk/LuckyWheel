@@ -697,6 +697,45 @@ body::before {
   box-shadow: 0 0 12px #FF6600;
 }
 
+/* ── Lucky Seven Counter ─────────────────────────────────────────────────── */
+.lucky-seven-counter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(170,0,255,0.2);
+  flex-shrink: 0;
+  animation: streakEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lucky-seven-counter-label {
+  font-size: 0.8rem;
+  margin-right: 2px;
+}
+
+.lucky-seven-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(170,0,255,0.5);
+  background: rgba(0,0,0,0.4);
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.lucky-seven-pip.filled {
+  background: #AA00FF;
+  border-color: #CC44FF;
+  box-shadow: 0 0 6px rgba(170,0,255,0.7);
+}
+
+.lucky-seven-pip.triggered {
+  background: #FFD700;
+  border-color: #FFD700;
+  box-shadow: 0 0 8px #FFD700;
+}
+
 /* Bonus flash on result banner */
 .bonus-line {
   font-size: 1.6rem;
@@ -1100,7 +1139,10 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.auth-input::placeholder { color: #555; }
+.auth-input::placeholder {
+  color: #666;
+  font-family: 'Oswald', sans-serif;
+}
 .auth-input:focus {
   border-color: #AA00FF;
   box-shadow: 0 0 12px rgba(170,0,255,0.3);
@@ -1783,6 +1825,13 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 
 .chat-msg-text {
   color: #ccc;
+}
+
+.chat-msg-time {
+  color: #666;
+  font-size: 0.62rem;
+  margin-right: 4px;
+  flex-shrink: 0;
 }
 
 .chat-error {

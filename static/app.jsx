@@ -541,14 +541,18 @@ function Confetti({ active, count = 80 }) {
 }
 
 // ── Guard Mini-Wheel ──────────────────────────────────────────────────────
-function GuardWheel({ blocked, onComplete }) {
+function GuardWheel({ blocked, speedMult = 1.0, onComplete }) {
   const canvasRef = useRef(null);
   const [guardRotation, setGuardRotation] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [transDur, setTransDur] = useState(1.8);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) drawGuardWheel(canvas);
+
+    const dur = 1.8 * speedMult;
+    setTransDur(dur);
 
     // WIN segment centered at canvas angle 0° (right side).
     // CSS rotation 270° brings right side to 12 o'clock (pointer).
@@ -557,8 +561,8 @@ function GuardWheel({ blocked, onComplete }) {
     const targetAngle = blocked ? 270 : 90;
     // Delay so browser paints rotation=0 before transitioning (otherwise no animation)
     const spinTimer     = setTimeout(() => setGuardRotation(baseSpins + targetAngle), 50);
-    const revealTimer   = setTimeout(() => setRevealed(true), 2000);
-    const completeTimer = setTimeout(() => onComplete(), 3400);
+    const revealTimer   = setTimeout(() => setRevealed(true), Math.round(2000 * speedMult));
+    const completeTimer = setTimeout(() => onComplete(), Math.round(3400 * speedMult));
     return () => { clearTimeout(spinTimer); clearTimeout(revealTimer); clearTimeout(completeTimer); };
   }, []); // eslint-disable-line
 
@@ -575,7 +579,7 @@ function GuardWheel({ blocked, onComplete }) {
             className="guard-canvas"
             style={{
               transform: `rotate(${guardRotation}deg)`,
-              transition: `transform 1.8s cubic-bezier(0.17, 0.67, 0.12, 0.99)`,
+              transition: `transform ${transDur}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`,
             }}
           />
         </div>
@@ -628,6 +632,19 @@ const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fish
       {auraStyle && <div className="fish-aura" style={auraStyle} />}
       <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
       <span className={`fish-label ${mood}`}>{labels[mood]}</span>
+    </div>
+  );
+});
+
+// ── Lucky Seven Counter ───────────────────────────────────────────────────
+const LuckySevenCounter = React.memo(function LuckySevenCounter({ spinCount }) {
+  const progress = spinCount % 7;
+  return (
+    <div className="lucky-seven-counter">
+      <span className="lucky-seven-counter-label">7️⃣</span>
+      {[1,2,3,4,5,6,7].map(i => (
+        <div key={i} className={`lucky-seven-pip${i <= progress ? ' filled' : ''}${i === 7 && progress === 0 && spinCount > 0 ? ' triggered' : ''}`} />
+      ))}
     </div>
   );
 });
@@ -882,6 +899,15 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
 }
 
 // ── Chat Panel ────────────────────────────────────────────────────────────
+function fmtChatTime(iso) {
+  const d = new Date(iso);
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'pm' : 'am';
+  h = h % 12 || 12;
+  return `${h}:${m}${ampm}`;
+}
+
 function ChatPanel({ extraClass = '' }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -971,6 +997,7 @@ function ChatPanel({ extraClass = '' }) {
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
         {messages.map(m => (
           <div key={m.id} className="chat-msg">
+            {m.created_at && <span className="chat-msg-time">{fmtChatTime(m.created_at)}</span>}
             <span className="chat-msg-name">{m.username}: </span>
             <span className="chat-msg-text">{m.message}</span>
           </div>
@@ -1075,9 +1102,13 @@ const SHOP_SECTIONS = [
     { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 30000000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',       emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
-    { id: 'auto_guard',  emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard' },
-    { id: 'regen_shield',emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
+    { id: 'auto_guard',    emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard' },
+    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'guard_speed_1', emoji: '⚡', name: 'Guard Speed I',      cost: 2000,   desc: 'Guard activates 25% faster.', requires: 'guard' },
+    { id: 'guard_speed_2', emoji: '⚡', name: 'Guard Speed II',     cost: 8000,   desc: 'Guard activates 50% faster.', requires: 'guard_speed_1' },
+    { id: 'guard_speed_3', emoji: '⚡', name: 'Guard Speed III',    cost: 30000,  desc: 'Guard activates 65% faster.', requires: 'guard_speed_2' },
+    { id: 'guard_speed_4', emoji: '⚡', name: 'Guard Speed MAX',    cost: 100000, desc: 'Guard activates 75% faster — near instant.', requires: 'guard_speed_3' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -1341,7 +1372,7 @@ function StatsPanel({ open, onClose }) {
               <div className="stats-row"><span>Total Wins</span><span>{fmt(stats.win_count)}</span></div>
               <div className="stats-row"><span>Total Losses</span><span>{fmt(stats.loss_count)}</span></div>
               <div className="stats-row"><span>Win Rate</span><span>{stats.spin_count > 0 ? ((stats.win_count / stats.spin_count) * 100).toFixed(1) + '%' : 'N/A'}</span></div>
-              <div className="stats-row"><span>Lifetime Taps</span><span>{fmt(stats.total_fish_clicks)}</span></div>
+              <div className="stats-row"><span>Season Taps</span><span>{fmt(stats.total_fish_clicks)}</span></div>
             </div>
             {history.length > 0 && (
               <div className="stats-season-history">
@@ -1539,6 +1570,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 100_000_000, filled: false, active: false });
+  const [spinCount, setSpinCount]     = useState(gameState.spin_count || 0);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling]     = useState(false);
@@ -1566,6 +1598,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (ownedItems.includes('turbo_spin')) return 1.5;
     if (ownedItems.includes('speed_boost')) return 3.0;
     return 4.5;
+  }, [ownedItems]);
+
+  // Guard animation speed multiplier (1.0 = normal, lower = faster)
+  const guardSpeedMult = useMemo(() => {
+    if (ownedItems.includes('guard_speed_4')) return 0.25;
+    if (ownedItems.includes('guard_speed_3')) return 0.35;
+    if (ownedItems.includes('guard_speed_2')) return 0.5;
+    if (ownedItems.includes('guard_speed_1')) return 0.75;
+    return 1.0;
   }, [ownedItems]);
 
   const autoSpinDelay = useMemo(() =>
@@ -1844,6 +1885,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
+    if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
@@ -1999,6 +2041,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       {guardState && (
         <GuardWheel
           blocked={guardState.blocked}
+          speedMult={guardSpeedMult}
           onComplete={() => guardCompleteRef.current && guardCompleteRef.current()}
         />
       )}
@@ -2181,6 +2224,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   <div>{regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'}</div>
                 )}
               </div>
+            )}
+            {ownedItems.includes('lucky_seven') && (
+              <LuckySevenCounter spinCount={spinCount} />
             )}
             <StreakPanel streak={streak} />
             <DicePanel

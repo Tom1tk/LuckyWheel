@@ -78,6 +78,10 @@ SHOP_ITEMS = {
     'guard':          {'cost': 500,          'requires': None},
     'auto_guard':     {'cost': 50_000,       'requires': 'guard'},
     'regen_shield':   {'cost': 1_500,        'requires': None},
+    'guard_speed_1':  {'cost': 2_000,        'requires': 'guard'},
+    'guard_speed_2':  {'cost': 8_000,        'requires': 'guard_speed_1'},
+    'guard_speed_3':  {'cost': 30_000,       'requires': 'guard_speed_2'},
+    'guard_speed_4':  {'cost': 100_000,      'requires': 'guard_speed_3'},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,          'requires': None},
     'theme_ice':      {'cost': 1_000,        'requires': 'theme_fire'},

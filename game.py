@@ -166,6 +166,7 @@ def spin():
                     cur2.execute(
                         '''UPDATE community_pot
                            SET filled = false, filled_at = NULL,
+                               total_contributed = 0,
                                fib_prev = target,
                                target = target + fib_prev,
                                win_chance_pct = LEAST(win_chance_pct + 1, 75)
@@ -344,6 +345,7 @@ def spin():
             'fortune_charm_triggered': fortune_charm_triggered,
             'active_cosmetics':       active_cosmetics,
             'auto_guard_failed':      auto_guard_failed,
+            'new_spin_count':         new_spin_count,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)

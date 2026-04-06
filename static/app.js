@@ -662,14 +662,18 @@ function Confetti({
 // ── Guard Mini-Wheel ──────────────────────────────────────────────────────
 function GuardWheel({
   blocked,
+  speedMult = 1.0,
   onComplete
 }) {
   const canvasRef = useRef(null);
   const [guardRotation, setGuardRotation] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [transDur, setTransDur] = useState(1.8);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) drawGuardWheel(canvas);
+    const dur = 1.8 * speedMult;
+    setTransDur(dur);
 
     // WIN segment centered at canvas angle 0° (right side).
     // CSS rotation 270° brings right side to 12 o'clock (pointer).
@@ -678,8 +682,8 @@ function GuardWheel({
     const targetAngle = blocked ? 270 : 90;
     // Delay so browser paints rotation=0 before transitioning (otherwise no animation)
     const spinTimer = setTimeout(() => setGuardRotation(baseSpins + targetAngle), 50);
-    const revealTimer = setTimeout(() => setRevealed(true), 2000);
-    const completeTimer = setTimeout(() => onComplete(), 3400);
+    const revealTimer = setTimeout(() => setRevealed(true), Math.round(2000 * speedMult));
+    const completeTimer = setTimeout(() => onComplete(), Math.round(3400 * speedMult));
     return () => {
       clearTimeout(spinTimer);
       clearTimeout(revealTimer);
@@ -704,7 +708,7 @@ function GuardWheel({
     className: "guard-canvas",
     style: {
       transform: `rotate(${guardRotation}deg)`,
-      transition: `transform 1.8s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
+      transition: `transform ${transDur}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
     }
   })), revealed && /*#__PURE__*/React.createElement("div", {
     className: `guard-result ${blocked ? 'blocked' : 'failed'}`
@@ -769,6 +773,21 @@ const Fish = React.memo(function Fish({
   }, emoji), /*#__PURE__*/React.createElement("span", {
     className: `fish-label ${mood}`
   }, labels[mood]));
+});
+
+// ── Lucky Seven Counter ───────────────────────────────────────────────────
+const LuckySevenCounter = React.memo(function LuckySevenCounter({
+  spinCount
+}) {
+  const progress = spinCount % 7;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "lucky-seven-counter"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "lucky-seven-counter-label"
+  }, "7\uFE0F\u20E3"), [1, 2, 3, 4, 5, 6, 7].map(i => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: `lucky-seven-pip${i <= progress ? ' filled' : ''}${i === 7 && progress === 0 && spinCount > 0 ? ' triggered' : ''}`
+  })));
 });
 
 // ── Streak Panel ──────────────────────────────────────────────────────────
@@ -1060,6 +1079,14 @@ function Leaderboard({
 }
 
 // ── Chat Panel ────────────────────────────────────────────────────────────
+function fmtChatTime(iso) {
+  const d = new Date(iso);
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'pm' : 'am';
+  h = h % 12 || 12;
+  return `${h}:${m}${ampm}`;
+}
 function ChatPanel({
   extraClass = ''
 }) {
@@ -1163,7 +1190,9 @@ function ChatPanel({
   }, messages.map(m => /*#__PURE__*/React.createElement("div", {
     key: m.id,
     className: "chat-msg"
-  }, /*#__PURE__*/React.createElement("span", {
+  }, m.created_at && /*#__PURE__*/React.createElement("span", {
+    className: "chat-msg-time"
+  }, fmtChatTime(m.created_at)), /*#__PURE__*/React.createElement("span", {
     className: "chat-msg-name"
   }, m.username, ": "), /*#__PURE__*/React.createElement("span", {
     className: "chat-msg-text"
@@ -1560,6 +1589,34 @@ const SHOP_SECTIONS = [{
     name: 'Regenerating Shield',
     cost: 1500,
     desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.'
+  }, {
+    id: 'guard_speed_1',
+    emoji: '⚡',
+    name: 'Guard Speed I',
+    cost: 2000,
+    desc: 'Guard activates 25% faster.',
+    requires: 'guard'
+  }, {
+    id: 'guard_speed_2',
+    emoji: '⚡',
+    name: 'Guard Speed II',
+    cost: 8000,
+    desc: 'Guard activates 50% faster.',
+    requires: 'guard_speed_1'
+  }, {
+    id: 'guard_speed_3',
+    emoji: '⚡',
+    name: 'Guard Speed III',
+    cost: 30000,
+    desc: 'Guard activates 65% faster.',
+    requires: 'guard_speed_2'
+  }, {
+    id: 'guard_speed_4',
+    emoji: '⚡',
+    name: 'Guard Speed MAX',
+    cost: 100000,
+    desc: 'Guard activates 75% faster — near instant.',
+    requires: 'guard_speed_3'
   }]
 }, {
   label: '🎡 Wheel Theme',
@@ -2018,7 +2075,7 @@ function StatsPanel({
     className: "stats-row"
   }, /*#__PURE__*/React.createElement("span", null, "Win Rate"), /*#__PURE__*/React.createElement("span", null, stats.spin_count > 0 ? (stats.win_count / stats.spin_count * 100).toFixed(1) + '%' : 'N/A')), /*#__PURE__*/React.createElement("div", {
     className: "stats-row"
-  }, /*#__PURE__*/React.createElement("span", null, "Lifetime Taps"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "Season Taps"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "stats-season-history"
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-section-title"
@@ -2276,6 +2333,7 @@ function GameApp({
     filled: false,
     active: false
   });
+  const [spinCount, setSpinCount] = useState(gameState.spin_count || 0);
   const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling] = useState(false);
@@ -2301,6 +2359,15 @@ function GameApp({
     if (ownedItems.includes('turbo_spin')) return 1.5;
     if (ownedItems.includes('speed_boost')) return 3.0;
     return 4.5;
+  }, [ownedItems]);
+
+  // Guard animation speed multiplier (1.0 = normal, lower = faster)
+  const guardSpeedMult = useMemo(() => {
+    if (ownedItems.includes('guard_speed_4')) return 0.25;
+    if (ownedItems.includes('guard_speed_3')) return 0.35;
+    if (ownedItems.includes('guard_speed_2')) return 0.5;
+    if (ownedItems.includes('guard_speed_1')) return 0.75;
+    return 1.0;
   }, [ownedItems]);
   const autoSpinDelay = useMemo(() => ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500, [ownedItems]);
   const clickAmount = useMemo(() => {
@@ -2603,6 +2670,7 @@ function GameApp({
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
+    if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     setShieldFeedback(data.shield_used ? {
@@ -2762,6 +2830,7 @@ function GameApp({
     className: `overlay ${showResult ? 'active' : ''}`
   }), guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
+    speedMult: guardSpeedMult,
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
   }), (!isMobile && showChat || isMobile && mobilePanel === 'chat') && /*#__PURE__*/React.createElement(ChatPanel, {
     extraClass: isMobile ? 'mobile-full' : ''
@@ -2934,7 +3003,9 @@ function GameApp({
     className: "game-right-sidebar"
   }, (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {
     className: "shield-indicator"
-  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
+  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
+    spinCount: spinCount
+  }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
   }), /*#__PURE__*/React.createElement(DicePanel, {
     losses: losses,
