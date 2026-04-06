@@ -16,7 +16,6 @@ chat_bp = Blueprint('chat', __name__)
 _BLOCKED_WORDS = [
     r'\bn[i1!|]gg[e3]r\b',
     r'\bf[a@]gg[o0]t\b',
-    r'\bc[u*]nt\b',
     r'\bk[i1]k[e3]\b',
     r'\bch[i1]nk\b',
     r'\bsp[i1]c\b',
