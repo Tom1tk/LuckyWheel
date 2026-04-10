@@ -1172,8 +1172,7 @@ const SHOP_SECTIONS = [
     { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX',  cost: 1200, desc: '15x confetti pieces',     requires: 'confetti_2' },
   ]},
   { label: '🎨 Atmosphere', items: [
-    { id: 'bg_ocean',    emoji: '🌊', name: 'Ocean Casino',    cost: 100,   desc: 'Deep blue atmosphere' },
-    { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino',    cost: 400,   desc: 'Purple atmosphere',       requires: 'bg_ocean' },
+    { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino',    cost: 400,   desc: 'Purple atmosphere' },
     { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',  cost: 1600,  desc: 'Blood red atmosphere',    requires: 'bg_royal' },
     { id: 'bg_forest',   emoji: '🌿', name: 'Enchanted Forest',cost: 5000,  desc: 'Mystical green depths',   requires: 'bg_inferno' },
     { id: 'bg_abyss',    emoji: '🌑', name: 'The Abyss',       cost: 15000, desc: 'Void of darkness',        requires: 'bg_forest' },
@@ -1241,7 +1240,7 @@ function getFishData(equippedFish) {
 }
 
 const COSMETIC_SECTION_IDS = new Set([
-  'bg_ocean','bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
+  'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
   'fishsize_1','fishsize_2','fishsize_3',
   'confetti_1','confetti_2','confetti_3',
   'party_mode',
@@ -1262,7 +1261,7 @@ const COSMETIC_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
   'page_season1','page_season2','page_season3','page_season4','page_season5','party_mode','confetti_1','confetti_2','confetti_3',
-  'bg_ocean','bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
+  'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';

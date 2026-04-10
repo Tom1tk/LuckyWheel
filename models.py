@@ -103,8 +103,7 @@ SHOP_ITEMS = {
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
     'confetti_3':     {'cost': 1_200,        'requires': 'confetti_2'},
     # Backgrounds (cosmetic)
-    'bg_ocean':       {'cost': 100,          'requires': None},
-    'bg_royal':       {'cost': 400,          'requires': 'bg_ocean'},
+    'bg_royal':       {'cost': 400,          'requires': None},
     'bg_inferno':     {'cost': 1_600,        'requires': 'bg_royal'},
     'bg_forest':      {'cost': 5_000,        'requires': 'bg_inferno'},
     'bg_abyss':       {'cost': 15_000,       'requires': 'bg_forest'},
@@ -162,7 +161,7 @@ _COSMETIC_ITEM_IDS = {
     # Party / confetti
     'party_mode', 'confetti_1', 'confetti_2', 'confetti_3',
     # Backgrounds
-    'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic',
+    'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic',
 }
 
 ITEM_CURRENCY = {}
