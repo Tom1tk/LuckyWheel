@@ -1622,7 +1622,7 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
           </>
         ) : (
           <>
-            <span className="community-pot-winrate">🍀 Win Rate: {winRate}%</span>
+            <span className="community-pot-winrate">🍀 Fill to boost: {winRate}% win rate (30 min)</span>
             <div className="community-pot-buttons">
               <button onClick={() => handleContribute('10pct')} disabled={fishClicks < 1}>+{fmt(Math.max(1, Math.floor(target / 10)))}</button>
               <button onClick={() => handleContribute('all')} disabled={fishClicks < 1}>All</button>

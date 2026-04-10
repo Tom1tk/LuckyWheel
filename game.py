@@ -64,7 +64,8 @@ def get_state():
                               active_cosmetics, spin_count, win_count,
                               winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
                               streak_armor_level, low_spec_mode,
-                              dice_charges, dice_last_recharge, jackpot_echo_next
+                              dice_charges, dice_last_recharge, jackpot_echo_next,
+                              dice_rolled_since_spin
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -72,10 +73,10 @@ def get_state():
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at, last_decay_check FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
         now_utc = dt.datetime.now(timezone.utc)
-        # Brief 5-minute celebration window after a fill (UI only)
+        # Brief 30-minute celebration window after a fill (UI only)
         pot_celebrate = bool(
             pot and pot['filled'] and pot['filled_at'] and
-            pot['filled_at'] > now_utc - dt.timedelta(minutes=5)
+            pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
         )
         # Recharge dice charges based on elapsed time
         owned_items     = list(gs['owned_items'])
@@ -108,9 +109,10 @@ def get_state():
             'clickmult_inf_level': gs['clickmult_inf_level'],
             'streak_armor_level':  gs['streak_armor_level'],
             'low_spec_mode':       gs['low_spec_mode'],
-            'dice_charges':        dice_charges,
-            'dice_last_recharge':  last_recharge.isoformat(),
-            'jackpot_echo_next':   gs['jackpot_echo_next'],
+            'dice_charges':           dice_charges,
+            'dice_last_recharge':     last_recharge.isoformat(),
+            'jackpot_echo_next':      gs['jackpot_echo_next'],
+            'dice_rolled_since_spin': bool(gs['dice_rolled_since_spin']),
             'community_pot': {
                 'total_contributed': pot['total_contributed'] if pot else 0,
                 'target':            pot['target']            if pot else 1_000,
@@ -162,13 +164,13 @@ def spin():
                               spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
                               fish_clicks, active_cosmetics,
-                              dice_charges, dice_last_recharge, jackpot_echo_next
+                              dice_charges, dice_last_recharge, jackpot_echo_next,
+                              dice_rolled_since_spin
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
-                # Community pot: win_chance_pct is always applied (season 5: permanent stacking boost)
                 cur.execute('SELECT filled, filled_at, win_chance_pct, last_decay_check, total_contributed, target FROM community_pot WHERE id = 1')
                 pot_row = cur.fetchone()
 
@@ -181,15 +183,23 @@ def spin():
             active_cosmetics    = list(gs['active_cosmetics'])
             now_utc             = dt.datetime.now(timezone.utc)
 
-            # Community pot: clear brief celebration window if expired (5-minute window)
-            if pot_row and pot_row['filled'] and pot_row['filled_at']:
-                pot_celebrate_expired = pot_row['filled_at'] <= now_utc - dt.timedelta(minutes=5)
-                if pot_celebrate_expired:
-                    with conn.cursor() as cur2:
-                        cur2.execute('UPDATE community_pot SET filled = false WHERE id = 1')
+            pot_active = bool(
+                pot_row and pot_row['filled'] and pot_row['filled_at'] and
+                pot_row['filled_at'] > now_utc - dt.timedelta(minutes=30)
+            )
+            # Auto-reset expired pot: advance to next target (×1.5), reset contributions
+            if pot_row and pot_row['filled'] and not pot_active:
+                new_pot_target = max(int(pot_row['target'] * 1.5), 1)
+                with conn.cursor() as cur2:
+                    cur2.execute(
+                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
+                           total_contributed = 0, target = %s, last_decay_check = NOW()
+                           WHERE id = 1''',
+                        (new_pot_target,)
+                    )
 
-            # Community pot: apply target decay if 12+ hours since last check
-            if pot_row and pot_row['last_decay_check']:
+            # Community pot: apply target decay if 12+ hours since last check (only when pot is not active)
+            if pot_row and pot_row['last_decay_check'] and not pot_active:
                 last_decay = pot_row['last_decay_check']
                 if last_decay.tzinfo is None:
                     last_decay = last_decay.replace(tzinfo=timezone.utc)
@@ -239,16 +249,17 @@ def spin():
             new_spin_count = gs['spin_count'] + 1
 
             # Determine outcome
-            # Season 5: win_chance_pct always applies (permanent stacking pot bonus, starts at 50%)
-            pot_win_pct = float(pot_row['win_chance_pct']) if pot_row else 50.0
             lucky_seven_triggered = False
             if 'singularity' in owned:
                 outcome = 'win'
             elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
                 outcome = 'win'
                 lucky_seven_triggered = True
-            else:
+            elif pot_active:
+                pot_win_pct = float(pot_row['win_chance_pct']) if pot_row else 50.5
                 outcome = 'win' if random.random() < (pot_win_pct / 100.0) else 'lose'
+            else:
+                outcome = secrets.choice(['win', 'lose'])
 
             # Multipliers — derived entirely from inf level columns
             win_mult   = win_mult_from_level(gs['winmult_inf_level'])
@@ -379,7 +390,8 @@ def spin():
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
-                           jackpot_echo_next = %s
+                           jackpot_echo_next = %s,
+                           dice_rolled_since_spin = FALSE
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak, new_best_streak,
                      shield_charges, regen_recharge_wins,
@@ -436,7 +448,7 @@ def roll_dice():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, streak, best_streak, owned_items,
-                              dice_charges, dice_last_recharge
+                              dice_charges, dice_last_recharge, dice_rolled_since_spin
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -464,28 +476,37 @@ def roll_dice():
                 return jsonify({'error': 'Need a win streak of 3 or more to roll'}), 400
             if dice_charges < 1:
                 return jsonify({'error': 'No dice charges available'}), 400
+            if gs['dice_rolled_since_spin']:
+                return jsonify({'error': 'You must spin once before rolling again'}), 400
 
             die1     = random.randint(1, 6)
             die2     = random.randint(1, 6)
             dice_sum = die1 + die2
 
             # Snake eyes (1,1): lose half the win streak — cursed roll!
-            cursed = (die1 == 1 and die2 == 1)
+            # Double sixes (6,6): double the win streak — blessed roll!
+            cursed  = (die1 == 1 and die2 == 1)
+            blessed = (die1 == 6 and die2 == 6)
             if cursed:
                 new_streak = max(0, streak // 2)
+            elif blessed:
+                new_streak = streak * 2
             else:
                 new_streak = streak + dice_sum
 
             new_best      = max(best_streak, new_streak) if new_streak > 0 else best_streak
             new_charges   = dice_charges - 1
+            # Reset recharge clock from now when a charge is consumed
+            new_last_recharge = now_utc if new_charges < max_charges else last_recharge
 
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
                        SET streak = %s, best_streak = %s,
-                           dice_charges = %s, dice_last_recharge = %s
+                           dice_charges = %s, dice_last_recharge = %s,
+                           dice_rolled_since_spin = TRUE
                        WHERE user_id = %s''',
-                    (new_streak, new_best, new_charges, last_recharge, current_user.id),
+                    (new_streak, new_best, new_charges, new_last_recharge, current_user.id),
                 )
             conn.commit()
 
@@ -494,6 +515,7 @@ def roll_dice():
             'die2':              die2,
             'dice_sum':          dice_sum,
             'cursed':            cursed,
+            'blessed':           blessed,
             'streak':            new_streak,
             'wins':              wins,
             'dice_charges':      new_charges,
@@ -625,7 +647,7 @@ def buy():
                 new_clicks = gs['fish_clicks']
             else:  # fish_clicks — singularity only
                 if gs['fish_clicks'] < cost:
-                    return jsonify({'error': 'Insufficient fish clicks'}), 402
+                    return jsonify({'error': 'Insufficient fish bucks'}), 402
                 new_wins   = int(gs['wins'])
                 new_losses = gs['losses']
                 new_clicks = gs['fish_clicks'] - cost
@@ -683,19 +705,35 @@ def community_pot_state():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
-        if not pot:
-            return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0})
-        # 5-minute celebration window
-        pot_celebrate = bool(
-            pot['filled'] and pot['filled_at'] and
-            pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(minutes=5)
-        )
+            if not pot:
+                return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0})
+            now_utc = dt.datetime.now(timezone.utc)
+            pot_active = bool(
+                pot['filled'] and pot['filled_at'] and
+                pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
+            )
+            # Lazy reset: if window expired, advance target and clear filled state
+            if pot['filled'] and not pot_active:
+                new_pot_target = max(int(pot['target'] * 1.5), 1)
+                with conn.cursor() as cur2:
+                    cur2.execute(
+                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
+                           total_contributed = 0, target = %s, last_decay_check = NOW()
+                           WHERE id = 1''',
+                        (new_pot_target,)
+                    )
+                conn.commit()
+                pot = dict(pot)
+                pot['filled'] = False
+                pot['total_contributed'] = 0
+                pot['target'] = new_pot_target
         return jsonify({
             'total_contributed': pot['total_contributed'],
             'target':            pot['target'],
             'filled':            pot['filled'],
-            'active':            pot_celebrate,
+            'active':            pot_active,
             'win_chance_pct':    float(pot['win_chance_pct']),
+            'filled_at':         pot['filled_at'].isoformat() if pot['filled_at'] else None,
         })
     except Exception:
         log.exception('COMMUNITY_POT_STATE_ERROR')
@@ -711,6 +749,8 @@ def community_pot_contribute():
         return err
     data        = request.get_json(silent=True) or {}
     amount_type = data.get('amount', 'all')  # '10pct' or 'all'
+    if amount_type not in ('10pct', 'all'):
+        return jsonify({'error': 'Invalid amount type'}), 400
 
     try:
         with db_connection() as conn:
@@ -730,18 +770,23 @@ def community_pot_contribute():
 
             now_utc = dt.datetime.now(timezone.utc)
 
-            # Season 5: pot resets immediately on fill — no waiting period.
-            # If filled and celebration window expired, just clear the flag.
             if pot['filled']:
-                pot_celebrate_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(minutes=5)
-                if pot_celebrate_active:
-                    # Pot just filled — the in-memory state has total_contributed=0, new target.
-                    # Allow contributions to the next pot immediately (filled=True just for celebration).
-                    # total_contributed was reset on fill, so remaining = target - 0 = target.
-                    pass
-                else:
-                    with conn.cursor() as cur2:
-                        cur2.execute('UPDATE community_pot SET filled = false WHERE id = 1')
+                pot_window_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
+                if pot_window_active:
+                    return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
+                # Window expired: advance to next target (×1.5), reset contributions
+                new_exp_target = max(int(pot['target'] * 1.5), 1)
+                with conn.cursor() as cur2:
+                    cur2.execute(
+                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
+                           total_contributed = 0, target = %s, last_decay_check = NOW()
+                           WHERE id = 1''',
+                        (new_exp_target,)
+                    )
+                pot = dict(pot)
+                pot['filled'] = False
+                pot['total_contributed'] = 0
+                pot['target'] = new_exp_target
 
             # Apply decay if 12+ hours since last check
             last_decay = pot['last_decay_check']
@@ -768,7 +813,7 @@ def community_pot_contribute():
                 contribute = fish_clicks
 
             if contribute <= 0:
-                return jsonify({'error': 'No fish clicks to contribute'}), 400
+                return jsonify({'error': 'No fish bucks to contribute'}), 400
 
             # Cap at remaining target
             remaining    = effective_target - int(pot['total_contributed'])
@@ -784,18 +829,14 @@ def community_pot_contribute():
                     (contribute, current_user.id),
                 )
                 if newly_filled:
-                    # Season 5: immediate reset — +0.5% win chance (cap 60%), advance target by 50%
-                    new_pct    = min(float(pot['win_chance_pct']) + 0.5, 60.0)
-                    new_target = min(int(effective_target * 1.5), 10_000)
-                    new_target = max(new_target, 1)
+                    new_pct = min(float(pot['win_chance_pct']) + 0.5, 75.0)
                     cur.execute(
                         '''UPDATE community_pot
-                           SET total_contributed = 0,
+                           SET total_contributed = %s,
                                filled = true, filled_at = now(),
-                               win_chance_pct = %s,
-                               target = %s
+                               win_chance_pct = %s
                            WHERE id = 1''',
-                        (new_pct, new_target),
+                        (new_total, new_pct),
                     )
                 else:
                     cur.execute(
@@ -805,22 +846,25 @@ def community_pot_contribute():
             conn.commit()
 
         if newly_filled:
-            ret_total  = 0
-            ret_target = new_target
-            ret_pct    = new_pct
+            ret_total    = new_total
+            ret_target   = effective_target
+            ret_pct      = new_pct
+            ret_filled_at = dt.datetime.now(timezone.utc).isoformat()
         else:
-            ret_total  = new_total
-            ret_target = effective_target
-            ret_pct    = float(pot['win_chance_pct'])
+            ret_total    = new_total
+            ret_target   = effective_target
+            ret_pct      = float(pot['win_chance_pct'])
+            ret_filled_at = pot['filled_at'].isoformat() if pot['filled_at'] else None
 
         return jsonify({
-            'fish_clicks':   fish_clicks - contribute,
-            'contributed':   contribute,
-            'pot_total':     ret_total,
-            'pot_target':    ret_target,
-            'pot_filled':    newly_filled,
-            'pot_active':    newly_filled,
+            'fish_clicks':    fish_clicks - contribute,
+            'contributed':    contribute,
+            'pot_total':      ret_total,
+            'pot_target':     ret_target,
+            'pot_filled':     newly_filled,
+            'pot_active':     newly_filled,
             'win_chance_pct': ret_pct,
+            'filled_at':      ret_filled_at,
         })
     except Exception:
         log.exception('CONTRIBUTE_POT_ERROR  user_id=%s', current_user.id)
