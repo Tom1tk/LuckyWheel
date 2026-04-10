@@ -85,8 +85,10 @@ Two additional dice mechanics added:
 ### Mobile: Dice Panel on Main Page
 The Dice Roll panel is now visible on the main page on mobile, matching the desktop layout. It was previously not shown on small screens.
 
-### Ocean Casino: Animated Seabed Background
-The Ocean Casino background theme now features an animated seabed scene rendered in an iframe behind the main UI. A static fallback is used automatically in Low-Spec Mode.
+### Ocean Casino: Default Background & Animated Seabed
+Ocean Casino is now the **default background** for all players — no purchase required to see it. Players who buy and equip a different background will override it as before.
+
+The Ocean Casino background now features an **animated seabed scene** rendered behind the main UI. A static fallback is used automatically in Low-Spec Mode.
 
 ---
 

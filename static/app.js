@@ -1,32 +1,87 @@
-const {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo
-} = React;
+"use strict";
+
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
+function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _regeneratorRuntime() { "use strict"; var r = _regenerator(), e = r.m(_regeneratorRuntime), t = (Object.getPrototypeOf ? Object.getPrototypeOf(e) : e.__proto__).constructor; function n(r) { var e = "function" == typeof r && r.constructor; return !!e && (e === t || "GeneratorFunction" === (e.displayName || e.name)); } var o = { "throw": 1, "return": 2, "break": 3, "continue": 3 }; function a(r) { var e, t; return function (n) { e || (e = { stop: function stop() { return t(n.a, 2); }, "catch": function _catch() { return n.v; }, abrupt: function abrupt(r, e) { return t(n.a, o[r], e); }, delegateYield: function delegateYield(r, o, a) { return e.resultName = o, t(n.d, _regeneratorValues(r), a); }, finish: function finish(r) { return t(n.f, r); } }, t = function t(r, _t, o) { n.p = e.prev, n.n = e.next; try { return r(_t, o); } finally { e.next = n.n; } }), e.resultName && (e[e.resultName] = n.v, e.resultName = void 0), e.sent = n.v, e.next = n.n; try { return r.call(this, e); } finally { n.p = e.prev, n.n = e.next; } }; } return (_regeneratorRuntime = function _regeneratorRuntime() { return { wrap: function wrap(e, t, n, o) { return r.w(a(e), t, n, o && o.reverse()); }, isGeneratorFunction: n, mark: r.m, awrap: function awrap(r, e) { return new _OverloadYield(r, e); }, AsyncIterator: _regeneratorAsyncIterator, async: function async(r, e, t, o, u) { return (n(e) ? _regeneratorAsyncGen : _regeneratorAsync)(a(r), e, t, o, u); }, keys: _regeneratorKeys, values: _regeneratorValues }; })(); }
+function _regeneratorValues(e) { if (null != e) { var t = e["function" == typeof Symbol && Symbol.iterator || "@@iterator"], r = 0; if (t) return t.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) return { next: function next() { return e && r >= e.length && (e = void 0), { value: e && e[r++], done: !e }; } }; } throw new TypeError(_typeof(e) + " is not iterable"); }
+function _regeneratorKeys(e) { var n = Object(e), r = []; for (var t in n) r.unshift(t); return function e() { for (; r.length;) if ((t = r.pop()) in n) return e.value = t, e.done = !1, e; return e.done = !0, e; }; }
+function _regeneratorAsync(n, e, r, t, o) { var a = _regeneratorAsyncGen(n, e, r, t, o); return a.next().then(function (n) { return n.done ? n.value : a.next(); }); }
+function _regeneratorAsyncGen(r, e, t, o, n) { return new _regeneratorAsyncIterator(_regenerator().w(r, e, t, o), n || Promise); }
+function _regeneratorAsyncIterator(t, e) { function n(r, o, i, f) { try { var c = t[r](o), u = c.value; return u instanceof _OverloadYield ? e.resolve(u.v).then(function (t) { n("next", t, i, f); }, function (t) { n("throw", t, i, f); }) : e.resolve(u).then(function (t) { c.value = t, i(c); }, function (t) { return n("throw", t, i, f); }); } catch (t) { f(t); } } var r; this.next || (_regeneratorDefine2(_regeneratorAsyncIterator.prototype), _regeneratorDefine2(_regeneratorAsyncIterator.prototype, "function" == typeof Symbol && Symbol.asyncIterator || "@asyncIterator", function () { return this; })), _regeneratorDefine2(this, "_invoke", function (t, o, i) { function f() { return new e(function (e, r) { n(t, i, e, r); }); } return r = r ? r.then(f, f) : f(); }, !0); }
+function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
+function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
+function _OverloadYield(e, d) { this.v = e, this.k = d; }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+var _React = React,
+  useState = _React.useState,
+  useRef = _React.useRef,
+  useEffect = _React.useEffect,
+  useCallback = _React.useCallback,
+  useMemo = _React.useMemo;
 
 // ── API helpers ───────────────────────────────────────────────────────────
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    ...opts
-  });
-  const json = await res.json().catch(() => ({}));
-  return {
-    ok: res.ok,
-    status: res.status,
-    data: json
-  };
+function apiFetch(_x) {
+  return _apiFetch.apply(this, arguments);
 }
-let _onSessionExpired = null;
+function _apiFetch() {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee13(path) {
+    var opts,
+      res,
+      json,
+      _args13 = arguments;
+    return _regeneratorRuntime().wrap(function _callee13$(_context13) {
+      while (1) switch (_context13.prev = _context13.next) {
+        case 0:
+          opts = _args13.length > 1 && _args13[1] !== undefined ? _args13[1] : {};
+          _context13.next = 3;
+          return fetch(path, _objectSpread({
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }, opts));
+        case 3:
+          res = _context13.sent;
+          _context13.next = 6;
+          return res.json()["catch"](function () {
+            return {};
+          });
+        case 6:
+          json = _context13.sent;
+          return _context13.abrupt("return", {
+            ok: res.ok,
+            status: res.status,
+            data: json
+          });
+        case 8:
+        case "end":
+          return _context13.stop();
+      }
+    }, _callee13);
+  }));
+  return _apiFetch.apply(this, arguments);
+}
+var _onSessionExpired = null;
 function setSessionExpiredHandler(fn) {
   _onSessionExpired = fn;
 }
-function apiGame(path, opts = {}) {
-  return apiFetch(path, opts).then(r => {
+function apiGame(path) {
+  var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  return apiFetch(path, opts).then(function (r) {
     if (r.status === 401 && _onSessionExpired) _onSessionExpired();
     return r;
   });
@@ -35,11 +90,11 @@ function apiGame(path, opts = {}) {
 // ── Fire Effect ────────────────────────────────────────────────────────────
 function makeParticle(w, h, maxHeight, intensity, scattered) {
   // scattered=true: spawn within visible fire zone for immediate appearance
-  const y = scattered ? h - Math.random() * maxHeight : h - Math.random() * 8;
-  const lifeUsed = scattered ? Math.random() * 60 : 0;
+  var y = scattered ? h - Math.random() * maxHeight : h - Math.random() * 8;
+  var lifeUsed = scattered ? Math.random() * 60 : 0;
   return {
     x: Math.random() * w,
-    y,
+    y: y,
     vx: (Math.random() - 0.5) * 1.2,
     vy: -(1.5 + Math.random() * 4.0 * intensity + 0.5),
     size: 1.5 + Math.random() * 4.0 * intensity,
@@ -49,64 +104,64 @@ function makeParticle(w, h, maxHeight, intensity, scattered) {
     seed: Math.random() * 100
   };
 }
-function initMode3(state, w, h, infInt = 0) {
-  const bw = Math.max(1, Math.ceil(w / 4));
-  const bh = Math.max(1, Math.ceil(h / 4));
+function initMode3(state, w, h) {
+  var infInt = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
+  var bw = Math.max(1, Math.ceil(w / 4));
+  var bh = Math.max(1, Math.ceil(h / 4));
   state.buf = new Uint8Array(bw * bh);
   state.bw = bw;
   state.bh = bh;
-  const off = document.createElement('canvas');
+  var off = document.createElement('canvas');
   off.width = bw;
   off.height = bh;
   state.offCanvas = off;
   state.offCtx = off.getContext('2d');
   // only pre-warm if inferno has actually started
   if (infInt <= 0) return;
-  const seedHeat = 60 + infInt * 195;
-  const warmupSteps = Math.floor(30 + infInt * 60);
-  for (let warmup = 0; warmup < warmupSteps; warmup++) {
-    for (let i = 0; i < bw; i++) {
-      const row = bh - 1 - Math.floor(Math.random() * 3);
+  var seedHeat = 60 + infInt * 195;
+  var warmupSteps = Math.floor(30 + infInt * 60);
+  for (var warmup = 0; warmup < warmupSteps; warmup++) {
+    for (var i = 0; i < bw; i++) {
+      var row = bh - 1 - Math.floor(Math.random() * 3);
       state.buf[row * bw + i] = Math.min(255, seedHeat * (0.7 + Math.random() * 0.6));
     }
-    for (let y = 0; y < bh - 1; y++) {
-      for (let x = 0; x < bw; x++) {
-        const below = state.buf[(y + 1) * bw + x];
-        const bl = x > 0 ? state.buf[(y + 1) * bw + (x - 1)] : below;
-        const br = x < bw - 1 ? state.buf[(y + 1) * bw + (x + 1)] : below;
-        const wl = 0.8 + Math.random() * 0.6;
-        const wr = 0.8 + Math.random() * 0.6;
-        const avg = (below * 1.2 + bl * wl + br * wr) / (1.2 + wl + wr);
-        const warmCool = infInt > 0 ? Math.max(0.05, 255 / (bh * infInt) - 0.6) : 50;
+    for (var y = 0; y < bh - 1; y++) {
+      for (var x = 0; x < bw; x++) {
+        var below = state.buf[(y + 1) * bw + x];
+        var bl = x > 0 ? state.buf[(y + 1) * bw + (x - 1)] : below;
+        var br = x < bw - 1 ? state.buf[(y + 1) * bw + (x + 1)] : below;
+        var wl = 0.8 + Math.random() * 0.6;
+        var wr = 0.8 + Math.random() * 0.6;
+        var avg = (below * 1.2 + bl * wl + br * wr) / (1.2 + wl + wr);
+        var warmCool = infInt > 0 ? Math.max(0.05, 255 / (bh * infInt) - 0.6) : 50;
         state.buf[y * bw + x] = Math.max(0, avg - (warmCool + Math.random() * 1.2));
       }
     }
   }
 }
-function FireEffect({
-  streak,
-  mode,
-  lowSpec
-}) {
-  const animRef = useRef(null);
-  const stateRef = useRef({});
-  const targetRef = useRef({
+function FireEffect(_ref) {
+  var streak = _ref.streak,
+    mode = _ref.mode,
+    lowSpec = _ref.lowSpec;
+  var animRef = useRef(null);
+  var stateRef = useRef({});
+  var targetRef = useRef({
     intensity: 0,
     inferno: 0
   });
-  const intensity = Math.min(Math.max(streak - 3, 0) / 47, 1);
-  const infernoIntensity = Math.min(Math.max(streak - 10, 0) / 40, 1);
-  const activeMode = lowSpec ? 1 : mode;
+  var intensity = Math.min(Math.max(streak - 3, 0) / 47, 1);
+  var infernoIntensity = Math.min(Math.max(streak - 10, 0) / 40, 1);
+  var activeMode = lowSpec ? 1 : mode;
 
   // Keep targets updated every render without restarting the effect
   targetRef.current.intensity = intensity;
   targetRef.current.inferno = infernoIntensity;
-  useEffect(() => {
-    const canvas = document.createElement('canvas');
+  useEffect(function () {
+    var canvas = document.createElement('canvas');
     canvas.style.cssText = ['position:fixed', 'inset:0', 'width:100vw', 'height:100vh', 'z-index:1', 'pointer-events:none'].join(';');
-    const root = document.getElementById('root') || document.body;
+    var root = document.getElementById('root') || document.body;
     root.appendChild(canvas);
-    const ctx = canvas.getContext('2d');
+    var ctx = canvas.getContext('2d');
     function setSize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -116,22 +171,24 @@ function FireEffect({
     window.addEventListener('resize', setSize);
 
     // Seed particles at current intensity so there's no startup flash
-    const w = canvas.width,
+    var w = canvas.width,
       h = canvas.height;
-    const initInt = targetRef.current.intensity;
+    var initInt = targetRef.current.intensity;
     if (initInt > 0 && (activeMode === 1 || activeMode === 2)) {
-      const maxH = h * (0.05 + initInt * 0.82);
-      const count = lowSpec ? Math.floor(25 + initInt * 150) : Math.floor(50 + initInt * 350);
+      var maxH = h * (0.05 + initInt * 0.82);
+      var count = lowSpec ? Math.floor(25 + initInt * 150) : Math.floor(50 + initInt * 350);
       stateRef.current.particles = Array.from({
         length: count
-      }, (_, i) => makeParticle(w, h, maxH, initInt, i < count * 0.8));
+      }, function (_, i) {
+        return makeParticle(w, h, maxH, initInt, i < count * 0.8);
+      });
     }
 
     // Lerped display values — these change every frame, never trigger re-mounts
-    let dispInt = targetRef.current.intensity;
-    let dispInfern = targetRef.current.inferno;
-    let last = 0;
-    const FRAME_MS = lowSpec ? 1000 / 24 : 1000 / 40;
+    var dispInt = targetRef.current.intensity;
+    var dispInfern = targetRef.current.inferno;
+    var last = 0;
+    var FRAME_MS = lowSpec ? 1000 / 24 : 1000 / 40;
     function tick(ts) {
       if (ts - last < FRAME_MS) {
         animRef.current = requestAnimationFrame(tick);
@@ -140,14 +197,14 @@ function FireEffect({
       last = ts;
 
       // Lerp towards targets — faster falling (loss) than rising (win)
-      const tgt = targetRef.current;
-      const intSpeed = dispInt > tgt.intensity ? 0.10 : 0.06;
-      const infSpeed = dispInfern > tgt.inferno ? 0.10 : 0.06;
+      var tgt = targetRef.current;
+      var intSpeed = dispInt > tgt.intensity ? 0.10 : 0.06;
+      var infSpeed = dispInfern > tgt.inferno ? 0.10 : 0.06;
       dispInt += (tgt.intensity - dispInt) * intSpeed;
       dispInfern += (tgt.inferno - dispInfern) * infSpeed;
       if (Math.abs(dispInt - tgt.intensity) < 0.001) dispInt = tgt.intensity;
       if (Math.abs(dispInfern - tgt.inferno) < 0.001) dispInfern = tgt.inferno;
-      const cw = canvas.width,
+      var cw = canvas.width,
         ch = canvas.height;
       ctx.clearRect(0, 0, cw, ch);
       if (dispInt > 0) {
@@ -156,7 +213,7 @@ function FireEffect({
       animRef.current = requestAnimationFrame(tick);
     }
     animRef.current = requestAnimationFrame(tick);
-    return () => {
+    return function () {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', setSize);
       (document.getElementById('root') || document.body).removeChild(canvas);
@@ -168,14 +225,14 @@ function FireEffect({
 
 // Mode 1: rising ember particles — spawn distributed immediately
 function renderEmbers(ctx, w, h, intensity, t, state) {
-  const maxHeight = h * (0.05 + intensity * 0.82);
-  const count = Math.floor(50 + intensity * 350);
-  const parts = state.particles;
+  var maxHeight = h * (0.05 + intensity * 0.82);
+  var count = Math.floor(50 + intensity * 350);
+  var parts = state.particles;
   if (!parts) return;
   while (parts.length < count) parts.push(makeParticle(w, h, maxHeight, intensity, false));
   if (parts.length > count) parts.splice(count);
-  for (let i = 0; i < parts.length; i++) {
-    const p = parts[i];
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i];
     p.life++;
     p.x += p.vx + Math.sin(t * 2.2 + p.seed) * 0.6;
     p.y += p.vy;
@@ -183,14 +240,14 @@ function renderEmbers(ctx, w, h, intensity, t, state) {
       parts[i] = makeParticle(w, h, maxHeight, intensity, false);
       continue;
     }
-    const age = p.life / p.maxLife;
+    var age = p.life / p.maxLife;
     // glow: brightest and largest at the base, fading as it rises
-    const riseFrac = Math.max(0, (h - p.y) / maxHeight); // 0=bottom, 1=top
-    const size = p.size * (1 - riseFrac * 0.5) * (1 - age * 0.4);
-    const light = 50 + riseFrac * 30 + intensity * 15;
-    const alpha = (1 - age * 0.7) * (0.75 + intensity * 0.25) * (1 - riseFrac * 0.5);
+    var riseFrac = Math.max(0, (h - p.y) / maxHeight); // 0=bottom, 1=top
+    var size = p.size * (1 - riseFrac * 0.5) * (1 - age * 0.4);
+    var light = 50 + riseFrac * 30 + intensity * 15;
+    var alpha = (1 - age * 0.7) * (0.75 + intensity * 0.25) * (1 - riseFrac * 0.5);
     ctx.globalAlpha = Math.min(alpha, 1);
-    ctx.fillStyle = `hsl(${p.hue}, 100%, ${light}%)`;
+    ctx.fillStyle = "hsl(".concat(p.hue, ", 100%, ").concat(light, "%)");
     ctx.beginPath();
     ctx.arc(p.x, p.y, Math.max(0.5, size), 0, Math.PI * 2);
     ctx.fill();
@@ -203,19 +260,20 @@ function renderMix(ctx, w, h, intensity, infernoIntensity, t, state) {
   // --- inferno layer at reduced opacity ---
   if (state.buf && state.offCtx && infernoIntensity > 0) {
     stepInferno(state, infernoIntensity);
-    const {
-      bw,
-      bh,
-      buf,
-      offCtx,
-      offCanvas
-    } = state;
-    const imgData = offCtx.createImageData(bw, bh);
-    const pix = imgData.data;
-    for (let i = 0; i < bw * bh; i++) {
-      const v = buf[i];
+    var bw = state.bw,
+      bh = state.bh,
+      buf = state.buf,
+      offCtx = state.offCtx,
+      offCanvas = state.offCanvas;
+    var imgData = offCtx.createImageData(bw, bh);
+    var pix = imgData.data;
+    for (var i = 0; i < bw * bh; i++) {
+      var v = buf[i];
       if (v === 0) continue;
-      let r, g, b, a;
+      var r = void 0,
+        g = void 0,
+        b = void 0,
+        a = void 0;
       if (v < 64) {
         r = v * 4;
         g = 0;
@@ -252,28 +310,28 @@ function renderMix(ctx, w, h, intensity, infernoIntensity, t, state) {
 
   // --- ember particles on top with additive blend ---
   ctx.globalCompositeOperation = 'lighter';
-  const maxHeight = h * (0.05 + intensity * 0.82);
-  const count = Math.floor(50 + intensity * 350);
-  const parts = state.particles;
+  var maxHeight = h * (0.05 + intensity * 0.82);
+  var count = Math.floor(50 + intensity * 350);
+  var parts = state.particles;
   if (parts) {
     while (parts.length < count) parts.push(makeParticle(w, h, maxHeight, intensity, false));
     if (parts.length > count) parts.splice(count);
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts[i];
+    for (var _i = 0; _i < parts.length; _i++) {
+      var p = parts[_i];
       p.life++;
       p.x += p.vx + Math.sin(t * 2.2 + p.seed) * 0.6;
       p.y += p.vy;
       if (p.y < h - maxHeight || p.life > p.maxLife) {
-        parts[i] = makeParticle(w, h, maxHeight, intensity, false);
+        parts[_i] = makeParticle(w, h, maxHeight, intensity, false);
         continue;
       }
-      const age = p.life / p.maxLife;
-      const riseFrac = Math.max(0, (h - p.y) / maxHeight);
-      const size = p.size * (1 - riseFrac * 0.4) * (1 - age * 0.4);
-      const light = 55 + riseFrac * 30 + intensity * 10;
-      const alpha = (1 - age * 0.65) * (0.7 + intensity * 0.3) * (1 - riseFrac * 0.4);
+      var age = p.life / p.maxLife;
+      var riseFrac = Math.max(0, (h - p.y) / maxHeight);
+      var size = p.size * (1 - riseFrac * 0.4) * (1 - age * 0.4);
+      var light = 55 + riseFrac * 30 + intensity * 10;
+      var alpha = (1 - age * 0.65) * (0.7 + intensity * 0.3) * (1 - riseFrac * 0.4);
       ctx.globalAlpha = Math.min(alpha, 1);
-      ctx.fillStyle = `hsl(${p.hue}, 100%, ${light}%)`;
+      ctx.fillStyle = "hsl(".concat(p.hue, ", 100%, ").concat(light, "%)");
       ctx.beginPath();
       ctx.arc(p.x, p.y, Math.max(0.5, size), 0, Math.PI * 2);
       ctx.fill();
@@ -285,42 +343,40 @@ function renderMix(ctx, w, h, intensity, infernoIntensity, t, state) {
 
 // Shared inferno propagation step (used by both mode 2 and mode 3)
 function stepInferno(state, infernoIntensity) {
-  const {
-    bw,
-    bh,
-    buf
-  } = state;
+  var bw = state.bw,
+    bh = state.bh,
+    buf = state.buf;
 
   // Always keep the very bottom row at max heat — anchors fire to ground level
-  for (let x = 0; x < bw; x++) {
+  for (var x = 0; x < bw; x++) {
     buf[(bh - 1) * bw + x] = 200 + Math.floor(Math.random() * 55);
   }
 
   // Additional heat sources scale from 0 for intensity-driven height
-  const baseCount = Math.floor(bw * infernoIntensity);
-  const sources = Math.max(0, baseCount + Math.floor((Math.random() - 0.5) * baseCount * 0.8));
-  const baseStr = 60 + infernoIntensity * 195;
-  for (let i = 0; i < sources; i++) {
-    const x = Math.floor(Math.random() * bw);
-    const row = bh - 1 - Math.floor(Math.random() * 3);
-    const str = baseStr * (0.5 + Math.random() * 0.8);
-    buf[row * bw + x] = Math.min(255, buf[row * bw + x] + str);
+  var baseCount = Math.floor(bw * infernoIntensity);
+  var sources = Math.max(0, baseCount + Math.floor((Math.random() - 0.5) * baseCount * 0.8));
+  var baseStr = 60 + infernoIntensity * 195;
+  for (var i = 0; i < sources; i++) {
+    var _x2 = Math.floor(Math.random() * bw);
+    var row = bh - 1 - Math.floor(Math.random() * 3);
+    var str = baseStr * (0.5 + Math.random() * 0.8);
+    buf[row * bw + _x2] = Math.min(255, buf[row * bw + _x2] + str);
   }
 
   // Derive cooling so fire height is LINEAR in infernoIntensity:
   //   height_cells ≈ 255 / baseCool  →  baseCool = 255 / (bh * infernoIntensity)
   // Subtract noise average (0.6) so actual mean cooling lands on the target.
-  const baseCool = infernoIntensity > 0 ? Math.max(0.05, 255 / (2 * bh * infernoIntensity) - 0.6) : 50;
-  for (let y = 0; y < bh - 1; y++) {
-    for (let x = 0; x < bw; x++) {
-      const below = buf[(y + 1) * bw + x];
-      const bl = x > 0 ? buf[(y + 1) * bw + (x - 1)] : below;
-      const br = x < bw - 1 ? buf[(y + 1) * bw + (x + 1)] : below;
-      const wl = 0.8 + Math.random() * 0.6;
-      const wr = 0.8 + Math.random() * 0.6;
-      const avg = (below * 1.2 + bl * wl + br * wr) / (1.2 + wl + wr);
-      const cooling = baseCool + Math.random() * 1.2;
-      buf[y * bw + x] = Math.max(0, avg - cooling);
+  var baseCool = infernoIntensity > 0 ? Math.max(0.05, 255 / (2 * bh * infernoIntensity) - 0.6) : 50;
+  for (var y = 0; y < bh - 1; y++) {
+    for (var _x3 = 0; _x3 < bw; _x3++) {
+      var below = buf[(y + 1) * bw + _x3];
+      var bl = _x3 > 0 ? buf[(y + 1) * bw + (_x3 - 1)] : below;
+      var br = _x3 < bw - 1 ? buf[(y + 1) * bw + (_x3 + 1)] : below;
+      var wl = 0.8 + Math.random() * 0.6;
+      var wr = 0.8 + Math.random() * 0.6;
+      var avg = (below * 1.2 + bl * wl + br * wr) / (1.2 + wl + wr);
+      var cooling = baseCool + Math.random() * 1.2;
+      buf[y * bw + _x3] = Math.max(0, avg - cooling);
     }
   }
 }
@@ -328,20 +384,21 @@ function stepInferno(state, infernoIntensity) {
 // Mode 3: cellular automaton fire (solo, full opacity)
 function renderInferno(ctx, w, h, intensity, state) {
   if (!state.buf || !state.offCtx) return;
-  const {
-    bw,
-    bh,
-    buf,
-    offCtx,
-    offCanvas
-  } = state;
+  var bw = state.bw,
+    bh = state.bh,
+    buf = state.buf,
+    offCtx = state.offCtx,
+    offCanvas = state.offCanvas;
   stepInferno(state, intensity);
-  const imgData = offCtx.createImageData(bw, bh);
-  const pix = imgData.data;
-  for (let i = 0; i < bw * bh; i++) {
-    const v = buf[i];
+  var imgData = offCtx.createImageData(bw, bh);
+  var pix = imgData.data;
+  for (var i = 0; i < bw * bh; i++) {
+    var v = buf[i];
     if (v === 0) continue;
-    let r, g, b, a;
+    var r = void 0,
+      g = void 0,
+      b = void 0,
+      a = void 0;
     if (v < 64) {
       r = v * 4;
       g = 0;
@@ -376,15 +433,16 @@ function renderInferno(ctx, w, h, intensity, state) {
 }
 
 // ── Draw main wheel ────────────────────────────────────────────────────────
-function drawWheel(canvas, theme = 'default') {
-  const ctx = canvas.getContext('2d');
-  const size = canvas.width;
-  const cx = size / 2,
+function drawWheel(canvas) {
+  var theme = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'default';
+  var ctx = canvas.getContext('2d');
+  var size = canvas.width;
+  var cx = size / 2,
     cy = size / 2,
     r = size / 2 - 4;
   ctx.clearRect(0, 0, size, size);
-  const THEMES = {
-    default: [{
+  var THEMES = {
+    "default": [{
       label: 'WIN',
       color: '#550088',
       bright: '#AA00FF',
@@ -436,7 +494,7 @@ function drawWheel(canvas, theme = 'default') {
       start: Math.PI / 2,
       end: Math.PI * 1.5
     }],
-    void: [{
+    "void": [{
       label: 'WIN',
       color: '#0a0a1a',
       bright: '#6633FF',
@@ -476,9 +534,9 @@ function drawWheel(canvas, theme = 'default') {
       end: Math.PI * 1.5
     }]
   };
-  const segments = THEMES[theme] || THEMES.default;
-  segments.forEach(seg => {
-    const grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  var segments = THEMES[theme] || THEMES["default"];
+  segments.forEach(function (seg) {
+    var grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
     grad.addColorStop(0, seg.bright);
     grad.addColorStop(1, seg.color);
     ctx.beginPath();
@@ -496,30 +554,30 @@ function drawWheel(canvas, theme = 'default') {
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    const mx = cx + r * Math.cos(seg.start);
-    const my = cy + r * Math.sin(seg.start);
+    var mx = cx + r * Math.cos(seg.start);
+    var my = cy + r * Math.sin(seg.start);
     ctx.lineTo(mx, my);
     ctx.strokeStyle = '#111';
     ctx.lineWidth = 4;
     ctx.stroke();
-    const midAngle = (seg.start + seg.end) / 2;
+    var midAngle = (seg.start + seg.end) / 2;
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(midAngle);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `bold ${size * 0.1}px 'Oswald', Arial Black, sans-serif`;
+    ctx.font = "bold ".concat(size * 0.1, "px 'Oswald', Arial Black, sans-serif");
     ctx.fillStyle = '#FFF';
     ctx.shadowColor = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur = 8;
     ctx.fillText(seg.label, r * 0.55, 0);
     ctx.restore();
-    const dotCount = 8;
-    for (let i = 0; i <= dotCount; i++) {
-      const a = seg.start + (seg.end - seg.start) * (i / dotCount);
-      const dr = r * 0.88;
-      const dx = cx + dr * Math.cos(a);
-      const dy = cy + dr * Math.sin(a);
+    var dotCount = 8;
+    for (var i = 0; i <= dotCount; i++) {
+      var a = seg.start + (seg.end - seg.start) * (i / dotCount);
+      var dr = r * 0.88;
+      var dx = cx + dr * Math.cos(a);
+      var dy = cy + dr * Math.sin(a);
       ctx.beginPath();
       ctx.arc(dx, dy, 5, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -539,21 +597,21 @@ function drawWheel(canvas, theme = 'default') {
 
 // ── Draw guard mini-wheel ──────────────────────────────────────────────────
 function drawGuardWheel(canvas) {
-  const ctx = canvas.getContext('2d');
-  const size = canvas.width;
-  const cx = size / 2,
+  var ctx = canvas.getContext('2d');
+  var size = canvas.width;
+  var cx = size / 2,
     cy = size / 2,
     r = size / 2 - 4;
   ctx.clearRect(0, 0, size, size);
 
   // WIN (50%): canvas angles centered at 0° (right side = 3 o'clock)
   // At CSS rotation 270° the right side is at 12 o'clock (pointer)
-  const winHalf = Math.PI * 0.50; // ±90°
-  const winStart = -winHalf;
-  const winEnd = winHalf;
+  var winHalf = Math.PI * 0.50; // ±90°
+  var winStart = -winHalf;
+  var winEnd = winHalf;
 
   // FAIL segment (large)
-  const gFail = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  var gFail = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
   gFail.addColorStop(0, '#FF5555');
   gFail.addColorStop(1, '#770000');
   ctx.beginPath();
@@ -563,10 +621,10 @@ function drawGuardWheel(canvas) {
   ctx.fillStyle = gFail;
   ctx.fill();
 
-  // WIN segment (green, small)
-  const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#DD88FF');
-  gWin.addColorStop(1, '#550088');
+  // WIN segment (cyan)
+  var gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  gWin.addColorStop(0, '#55EEEE');
+  gWin.addColorStop(1, '#006666');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -575,7 +633,7 @@ function drawGuardWheel(canvas) {
   ctx.fill();
 
   // Divider lines
-  [winStart, winEnd].forEach(a => {
+  [winStart, winEnd].forEach(function (a) {
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
@@ -610,11 +668,10 @@ function fmt(n) {
 }
 
 // ── Scoreboard ────────────────────────────────────────────────────────────
-const Scoreboard = React.memo(function Scoreboard({
-  wins,
-  losses,
-  lastResult
-}) {
+var Scoreboard = React.memo(function Scoreboard(_ref2) {
+  var wins = _ref2.wins,
+    losses = _ref2.losses,
+    lastResult = _ref2.lastResult;
   return /*#__PURE__*/React.createElement("div", {
     className: "scoreboard"
   }, /*#__PURE__*/React.createElement("div", {
@@ -622,82 +679,101 @@ const Scoreboard = React.memo(function Scoreboard({
   }, /*#__PURE__*/React.createElement("span", {
     className: "score-label"
   }, "Wins"), /*#__PURE__*/React.createElement("span", {
-    className: `score-value ${lastResult === 'win' ? 'score-bump' : ''}`,
+    className: "score-value ".concat(lastResult === 'win' ? 'score-bump' : ''),
     key: wins
   }, fmt(wins))), /*#__PURE__*/React.createElement("div", {
     className: "score-box losses-box"
   }, /*#__PURE__*/React.createElement("span", {
     className: "score-label"
   }, "Losses"), /*#__PURE__*/React.createElement("span", {
-    className: `score-value ${lastResult === 'lose' ? 'score-bump' : ''}`,
+    className: "score-value ".concat(lastResult === 'lose' ? 'score-bump' : ''),
     key: losses
   }, fmt(losses))));
 });
 
 // ── Confetti ──────────────────────────────────────────────────────────────
-const CONFETTI_COLORS = ['#FFD700', '#FF6600', '#FF3333', '#00FF88', '#AA00FF', '#FF00FF', '#FFFFFF'];
-function Confetti({
-  active,
-  count = 80
-}) {
-  const pieces = useMemo(() => {
+var CONFETTI_COLORS = ['#FFD700', '#FF6600', '#FF3333', '#00FF88', '#AA00FF', '#FF00FF', '#FFFFFF'];
+function Confetti(_ref3) {
+  var active = _ref3.active,
+    _ref3$count = _ref3.count,
+    count = _ref3$count === void 0 ? 80 : _ref3$count;
+  var pieces = useMemo(function () {
     if (!active) return [];
     return Array.from({
       length: count
-    }, (_, i) => ({
-      key: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.8,
-      dur: 1.8 + Math.random() * 1.5,
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      size: 8 + Math.floor(Math.random() * 10),
-      shape: Math.random() > 0.5 ? '50%' : '2px'
-    }));
+    }, function (_, i) {
+      return {
+        key: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 0.8,
+        dur: 1.8 + Math.random() * 1.5,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        size: 8 + Math.floor(Math.random() * 10),
+        shape: Math.random() > 0.5 ? '50%' : '2px'
+      };
+    });
   }, [active, count]);
   return /*#__PURE__*/React.createElement("div", {
     className: "confetti-container"
-  }, pieces.map(p => /*#__PURE__*/React.createElement("div", {
-    key: p.key,
-    className: "confetti-piece",
-    style: {
-      left: `${p.left}%`,
-      top: 0,
-      width: p.size,
-      height: p.size,
-      background: p.color,
-      borderRadius: p.shape,
-      animationDuration: `${p.dur}s`,
-      animationDelay: `${p.delay}s`
-    }
-  })));
+  }, pieces.map(function (p) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: p.key,
+      className: "confetti-piece",
+      style: {
+        left: "".concat(p.left, "%"),
+        top: 0,
+        width: p.size,
+        height: p.size,
+        background: p.color,
+        borderRadius: p.shape,
+        animationDuration: "".concat(p.dur, "s"),
+        animationDelay: "".concat(p.delay, "s")
+      }
+    });
+  }));
 }
 
 // ── Guard Mini-Wheel ──────────────────────────────────────────────────────
-function GuardWheel({
-  blocked,
-  speedMult = 1.0,
-  onComplete
-}) {
-  const canvasRef = useRef(null);
-  const [guardRotation, setGuardRotation] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  const [transDur, setTransDur] = useState(1.8);
-  useEffect(() => {
-    const canvas = canvasRef.current;
+function GuardWheel(_ref4) {
+  var blocked = _ref4.blocked,
+    _ref4$speedMult = _ref4.speedMult,
+    speedMult = _ref4$speedMult === void 0 ? 1.0 : _ref4$speedMult,
+    onComplete = _ref4.onComplete;
+  var canvasRef = useRef(null);
+  var _useState = useState(0),
+    _useState2 = _slicedToArray(_useState, 2),
+    guardRotation = _useState2[0],
+    setGuardRotation = _useState2[1];
+  var _useState3 = useState(false),
+    _useState4 = _slicedToArray(_useState3, 2),
+    revealed = _useState4[0],
+    setRevealed = _useState4[1];
+  var _useState5 = useState(1.8),
+    _useState6 = _slicedToArray(_useState5, 2),
+    transDur = _useState6[0],
+    setTransDur = _useState6[1];
+  useEffect(function () {
+    var canvas = canvasRef.current;
     if (canvas) drawGuardWheel(canvas);
-    const dur = 1.8 * speedMult;
+    var dur = 1.8 * speedMult;
     setTransDur(dur);
 
     // WIN segment centered at canvas angle 0° (right side).
     // CSS rotation 270° brings right side to 12 o'clock (pointer).
     // FAIL centered at canvas 180°; CSS rotation 90° brings it to pointer.
-    const baseSpins = 4 * 360;
-    const targetAngle = blocked ? 270 : 90;
+    var baseSpins = 4 * 360;
+    var targetAngle = blocked ? 270 : 90;
     // Delay so browser paints rotation=0 before transitioning (otherwise no animation)
-    const spinTimer = setTimeout(() => setGuardRotation(baseSpins + targetAngle), 50);
-    const revealTimer = setTimeout(() => setRevealed(true), Math.round(2000 * speedMult));
-    const completeTimer = setTimeout(() => onComplete(), Math.round(3400 * speedMult));
-    return () => {
+    var spinTimer = setTimeout(function () {
+      return setGuardRotation(baseSpins + targetAngle);
+    }, 50);
+    var revealTimer = setTimeout(function () {
+      return setRevealed(true);
+    }, Math.round(2000 * speedMult));
+    var completeTimer = setTimeout(function () {
+      return onComplete();
+    }, Math.round(3400 * speedMult));
+    return function () {
       clearTimeout(spinTimer);
       clearTimeout(revealTimer);
       clearTimeout(completeTimer);
@@ -720,55 +796,63 @@ function GuardWheel({
     height: 180,
     className: "guard-canvas",
     style: {
-      transform: `rotate(${guardRotation}deg)`,
-      transition: `transform ${transDur}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
+      transform: "rotate(".concat(guardRotation, "deg)"),
+      transition: "transform ".concat(transDur, "s cubic-bezier(0.17, 0.67, 0.12, 0.99)")
     }
   })), revealed && /*#__PURE__*/React.createElement("div", {
-    className: `guard-result ${blocked ? 'blocked' : 'failed'}`
+    className: "guard-result ".concat(blocked ? 'blocked' : 'failed')
   }, blocked ? '🛡️ BLOCKED!' : '💔 Guard Failed')));
 }
 
 // ── Fish ──────────────────────────────────────────────────────────────────
-const Fish = React.memo(function Fish({
-  mood,
-  net,
-  fishClicks,
-  onFishClick,
-  fishData,
-  sizeRem,
-  trailClass,
-  lowSpec
-}) {
-  const [spinKey, setSpinKey] = useState(0);
-  const [fishSpinning, setFishSpinning] = useState(false);
-  const timerRef = useRef(null);
-  const {
-    emoji,
-    labels
-  } = fishData || DEFAULT_FISH;
-  const handleClick = () => {
+var Fish = React.memo(function Fish(_ref5) {
+  var mood = _ref5.mood,
+    net = _ref5.net,
+    fishClicks = _ref5.fishClicks,
+    onFishClick = _ref5.onFishClick,
+    fishData = _ref5.fishData,
+    sizeRem = _ref5.sizeRem,
+    trailClass = _ref5.trailClass,
+    lowSpec = _ref5.lowSpec;
+  var _useState7 = useState(0),
+    _useState8 = _slicedToArray(_useState7, 2),
+    spinKey = _useState8[0],
+    setSpinKey = _useState8[1];
+  var _useState9 = useState(false),
+    _useState0 = _slicedToArray(_useState9, 2),
+    fishSpinning = _useState0[0],
+    setFishSpinning = _useState0[1];
+  var timerRef = useRef(null);
+  var _ref6 = fishData || DEFAULT_FISH,
+    emoji = _ref6.emoji,
+    labels = _ref6.labels;
+  var handleClick = function handleClick() {
     if (timerRef.current) clearTimeout(timerRef.current);
     setFishSpinning(true);
-    setSpinKey(k => k + 1);
-    timerRef.current = setTimeout(() => setFishSpinning(false), 650);
+    setSpinKey(function (k) {
+      return k + 1;
+    });
+    timerRef.current = setTimeout(function () {
+      return setFishSpinning(false);
+    }, 650);
     onFishClick();
   };
-  const diff = Math.abs(net);
-  const glowSize = Math.min(8 + diff * 3, 80);
-  const glowSize2 = Math.min(16 + diff * 6, 160);
-  const glowOpacity = Math.min(0.5 + diff * 0.015, 1.0);
-  const fishFilter = lowSpec ? 'none' : net > 0 ? `drop-shadow(0 0 ${glowSize}px rgba(255,140,0,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(255,80,0,${glowOpacity * 0.6}))` : net < 0 ? `drop-shadow(0 0 ${glowSize}px rgba(160,0,255,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(80,0,180,${glowOpacity * 0.6}))` : 'drop-shadow(0 0 8px rgba(255,215,0,0.3))';
-  const auraBlur = Math.min(80 + diff * 12, 120);
-  const auraOpacity = Math.min(0.3 + diff * 0.008, 0.88);
-  const auraColor = net > 0 ? 'rgba(255,130,0,0.9)' : 'rgba(150,0,255,0.9)';
-  const auraStyle = !lowSpec && diff > 0 ? {
+  var diff = Math.abs(net);
+  var glowSize = Math.min(8 + diff * 3, 80);
+  var glowSize2 = Math.min(16 + diff * 6, 160);
+  var glowOpacity = Math.min(0.5 + diff * 0.015, 1.0);
+  var fishFilter = lowSpec ? 'none' : net > 0 ? "drop-shadow(0 0 ".concat(glowSize, "px rgba(255,140,0,").concat(glowOpacity, ")) drop-shadow(0 0 ").concat(glowSize2, "px rgba(255,80,0,").concat(glowOpacity * 0.6, "))") : net < 0 ? "drop-shadow(0 0 ".concat(glowSize, "px rgba(160,0,255,").concat(glowOpacity, ")) drop-shadow(0 0 ").concat(glowSize2, "px rgba(80,0,180,").concat(glowOpacity * 0.6, "))") : 'drop-shadow(0 0 8px rgba(255,215,0,0.3))';
+  var auraBlur = Math.min(80 + diff * 12, 120);
+  var auraOpacity = Math.min(0.3 + diff * 0.008, 0.88);
+  var auraColor = net > 0 ? 'rgba(255,130,0,0.9)' : 'rgba(150,0,255,0.9)';
+  var auraStyle = !lowSpec && diff > 0 ? {
     background: auraColor,
-    filter: `blur(${auraBlur}px)`,
+    filter: "blur(".concat(auraBlur, "px)"),
     opacity: auraOpacity
   } : null;
-  const animClass = fishSpinning ? 'spinning-fish' : mood;
+  var animClass = fishSpinning ? 'spinning-fish' : mood;
   return /*#__PURE__*/React.createElement("div", {
-    className: `fish-panel${trailClass ? ' ' + trailClass : ''}`,
+    className: "fish-panel".concat(trailClass ? ' ' + trailClass : ''),
     onClick: handleClick,
     style: {
       filter: fishFilter
@@ -778,41 +862,41 @@ const Fish = React.memo(function Fish({
     className: "fish-aura",
     style: auraStyle
   }), /*#__PURE__*/React.createElement("span", {
-    className: `fish-body ${animClass}`,
+    className: "fish-body ".concat(animClass),
     key: spinKey || mood,
     style: {
-      fontSize: `${sizeRem}rem`
+      fontSize: "".concat(sizeRem, "rem")
     }
   }, emoji), /*#__PURE__*/React.createElement("span", {
-    className: `fish-label ${mood}`
+    className: "fish-label ".concat(mood)
   }, labels[mood]));
 });
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────
-const LuckySevenCounter = React.memo(function LuckySevenCounter({
-  spinCount
-}) {
-  const progress = spinCount % 7;
+var LuckySevenCounter = React.memo(function LuckySevenCounter(_ref7) {
+  var spinCount = _ref7.spinCount;
+  var progress = spinCount % 7;
   return /*#__PURE__*/React.createElement("div", {
     className: "lucky-seven-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "lucky-seven-counter-label"
-  }, "7\uFE0F\u20E3"), [1, 2, 3, 4, 5, 6, 7].map(i => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: `lucky-seven-pip${i <= progress ? ' filled' : ''}${i === 7 && progress === 0 && spinCount > 0 ? ' triggered' : ''}`
-  })));
+  }, "7\uFE0F\u20E3"), [1, 2, 3, 4, 5, 6, 7].map(function (i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "lucky-seven-pip".concat(i <= progress ? ' filled' : '').concat(i === 7 && progress === 0 && spinCount > 0 ? ' triggered' : '')
+    });
+  }));
 });
 
 // ── Streak Panel ──────────────────────────────────────────────────────────
-const StreakPanel = React.memo(function StreakPanel({
-  streak
-}) {
+var StreakPanel = React.memo(function StreakPanel(_ref8) {
+  var streak = _ref8.streak;
   if (Math.abs(streak) < 2) return null;
-  const isWin = streak > 0;
-  const count = Math.abs(streak);
-  const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
+  var isWin = streak > 0;
+  var count = Math.abs(streak);
+  var bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
   return /*#__PURE__*/React.createElement("div", {
-    className: `streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`
+    className: "streak-panel ".concat(isWin ? 'win-streak' : 'lose-streak')
   }, /*#__PURE__*/React.createElement("span", {
     className: "streak-fire"
   }, isWin ? '🔥' : '💀'), /*#__PURE__*/React.createElement("span", {
@@ -821,11 +905,11 @@ const StreakPanel = React.memo(function StreakPanel({
     className: "streak-label"
   }, isWin ? 'Win Streak' : 'Lose Streak'), bonus > 0 && /*#__PURE__*/React.createElement("span", {
     className: "streak-bonus"
-  }, isWin ? `Bonus +${fmt(bonus)}` : `Penalty +${fmt(bonus)}`));
+  }, isWin ? "Bonus +".concat(fmt(bonus)) : "Penalty +".concat(fmt(bonus))));
 });
 
 // ── Dice Panel ───────────────────────────────────────────────────────────
-const PIP_LAYOUTS = {
+var PIP_LAYOUTS = {
   1: [[2, 2]],
   2: [[1, 1], [3, 3]],
   3: [[1, 1], [2, 2], [3, 3]],
@@ -833,122 +917,154 @@ const PIP_LAYOUTS = {
   5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
   6: [[1, 1], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]]
 };
-function Die({
-  value,
-  rolling,
-  landed
-}) {
-  const pips = PIP_LAYOUTS[value] || [];
-  const cls = `die${rolling ? ' die-rolling' : ''}${landed ? ' die-landed' : ''}`;
+function Die(_ref9) {
+  var value = _ref9.value,
+    rolling = _ref9.rolling,
+    landed = _ref9.landed;
+  var pips = PIP_LAYOUTS[value] || [];
+  var cls = "die".concat(rolling ? ' die-rolling' : '').concat(landed ? ' die-landed' : '');
   return /*#__PURE__*/React.createElement("div", {
     className: cls
-  }, pips.map(([row, col], i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "pip",
-    style: {
-      gridRow: row,
-      gridColumn: col
-    }
-  })));
+  }, pips.map(function (_ref0, i) {
+    var _ref1 = _slicedToArray(_ref0, 2),
+      row = _ref1[0],
+      col = _ref1[1];
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "pip",
+      style: {
+        gridRow: row,
+        gridColumn: col
+      }
+    });
+  }));
 }
-const DICE_TOOLTIP_W = 240;
-const DICE_TOOLTIP_TEXT = 'Roll two dice to amplify your win streak. The sum (2–12) is added to your streak. Requires a win streak of 3 or more. ⚠️ Snake eyes (1+1) curses you — losing half your streak! Charges recharge every 10 minutes.';
+var DICE_TOOLTIP_W = 240;
+var DICE_TOOLTIP_TEXT = 'Roll two dice to amplify your win streak. The sum (2–12) is added to your streak. Requires a win streak of 3 or more. ⚠️ Snake eyes (1+1) curses you — losing half your streak! Charges recharge every 10 minutes.';
 function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
-  const [secsToNext, setSecsToNext] = React.useState(null);
-  React.useEffect(() => {
+  var _React$useState = React.useState(null),
+    _React$useState2 = _slicedToArray(_React$useState, 2),
+    secsToNext = _React$useState2[0],
+    setSecsToNext = _React$useState2[1];
+  React.useEffect(function () {
     if (!diceLastRecharge || diceCharges >= maxCharges) {
       setSecsToNext(null);
       return;
     }
-    const rechargeAt = new Date(diceLastRecharge).getTime() + 600 * 1000;
-    const tick = () => {
-      const secs = Math.max(0, Math.ceil((rechargeAt - Date.now()) / 1000));
+    var rechargeAt = new Date(diceLastRecharge).getTime() + 600 * 1000;
+    var tick = function tick() {
+      var secs = Math.max(0, Math.ceil((rechargeAt - Date.now()) / 1000));
       setSecsToNext(secs);
     };
     tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    var id = setInterval(tick, 1000);
+    return function () {
+      return clearInterval(id);
+    };
   }, [diceLastRecharge, diceCharges, maxCharges]);
   return secsToNext;
 }
-function DicePanel({
-  streak,
-  onRoll,
-  rolling,
-  diceResult,
-  spinning,
-  guardSpinning,
-  lowSpec,
-  diceCharges,
-  maxDiceCharges,
-  diceLastRecharge
-}) {
-  const [animDie1, setAnimDie1] = React.useState(1);
-  const [animDie2, setAnimDie2] = React.useState(1);
-  const [landed, setLanded] = React.useState(false);
-  const [showResult, setShowResult] = React.useState(false);
-  const [tipVisible, setTipVisible] = React.useState(false);
-  const [tipPos, setTipPos] = React.useState({
-    left: 0,
-    bottom: 0
-  });
-  const intervalRef = React.useRef(null);
-  const descRef = React.useRef(null);
-  const secsToNext = useDiceCountdown(diceLastRecharge, diceCharges, maxDiceCharges);
-  React.useEffect(() => {
+function DicePanel(_ref10) {
+  var streak = _ref10.streak,
+    onRoll = _ref10.onRoll,
+    rolling = _ref10.rolling,
+    diceResult = _ref10.diceResult,
+    spinning = _ref10.spinning,
+    guardSpinning = _ref10.guardSpinning,
+    lowSpec = _ref10.lowSpec,
+    diceCharges = _ref10.diceCharges,
+    maxDiceCharges = _ref10.maxDiceCharges,
+    diceLastRecharge = _ref10.diceLastRecharge;
+  var _React$useState3 = React.useState(1),
+    _React$useState4 = _slicedToArray(_React$useState3, 2),
+    animDie1 = _React$useState4[0],
+    setAnimDie1 = _React$useState4[1];
+  var _React$useState5 = React.useState(1),
+    _React$useState6 = _slicedToArray(_React$useState5, 2),
+    animDie2 = _React$useState6[0],
+    setAnimDie2 = _React$useState6[1];
+  var _React$useState7 = React.useState(false),
+    _React$useState8 = _slicedToArray(_React$useState7, 2),
+    landed = _React$useState8[0],
+    setLanded = _React$useState8[1];
+  var _React$useState9 = React.useState(false),
+    _React$useState0 = _slicedToArray(_React$useState9, 2),
+    showResult = _React$useState0[0],
+    setShowResult = _React$useState0[1];
+  var _React$useState1 = React.useState(false),
+    _React$useState10 = _slicedToArray(_React$useState1, 2),
+    tipVisible = _React$useState10[0],
+    setTipVisible = _React$useState10[1];
+  var _React$useState11 = React.useState({
+      left: 0,
+      bottom: 0
+    }),
+    _React$useState12 = _slicedToArray(_React$useState11, 2),
+    tipPos = _React$useState12[0],
+    setTipPos = _React$useState12[1];
+  var intervalRef = React.useRef(null);
+  var descRef = React.useRef(null);
+  var secsToNext = useDiceCountdown(diceLastRecharge, diceCharges, maxDiceCharges);
+  React.useEffect(function () {
     if (rolling && !lowSpec) {
       setLanded(false);
       setShowResult(false);
-      intervalRef.current = setInterval(() => {
+      intervalRef.current = setInterval(function () {
         setAnimDie1(Math.ceil(Math.random() * 6));
         setAnimDie2(Math.ceil(Math.random() * 6));
       }, 80);
     } else {
       clearInterval(intervalRef.current);
     }
-    return () => clearInterval(intervalRef.current);
+    return function () {
+      return clearInterval(intervalRef.current);
+    };
   }, [rolling, lowSpec]);
-  React.useEffect(() => {
+  React.useEffect(function () {
     if (diceResult) {
       setAnimDie1(diceResult.die1);
       setAnimDie2(diceResult.die2);
       setLanded(true);
       setShowResult(true);
-      const t = setTimeout(() => {
+      var t = setTimeout(function () {
         setShowResult(false);
         setLanded(false);
       }, 3000);
-      return () => clearTimeout(t);
+      return function () {
+        return clearTimeout(t);
+      };
     }
   }, [diceResult]);
-  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning;
-  const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
-  const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
-  const showTip = () => {
+  var canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning;
+  var die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
+  var die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
+  var showTip = function showTip() {
     if (spinning || guardSpinning) return;
-    const rect = descRef.current && descRef.current.getBoundingClientRect();
+    var rect = descRef.current && descRef.current.getBoundingClientRect();
     if (!rect) return;
-    let left = rect.left + rect.width / 2 - DICE_TOOLTIP_W / 2;
+    var left = rect.left + rect.width / 2 - DICE_TOOLTIP_W / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - DICE_TOOLTIP_W - 8));
     setTipPos({
-      left,
+      left: left,
       bottom: window.innerHeight - rect.top + 6
     });
     setTipVisible(true);
   };
-  const fmtCountdownSecs = s => {
+  var fmtCountdownSecs = function fmtCountdownSecs(s) {
     if (s == null) return '';
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${String(sec).padStart(2, '0')}`;
+    var m = Math.floor(s / 60);
+    var sec = s % 60;
+    return "".concat(m, ":").concat(String(sec).padStart(2, '0'));
   };
-  const chargesDots = Array.from({
+  var chargesDots = Array.from({
     length: maxDiceCharges
-  }, (_, i) => /*#__PURE__*/React.createElement("span", {
-    key: i,
-    className: `dice-charge-dot${i < diceCharges ? ' charged' : ''}`
-  }, "\u25CF"));
-  let disabledReason = '';
+  }, function (_, i) {
+    return /*#__PURE__*/React.createElement("span", {
+      key: i,
+      className: "dice-charge-dot".concat(i < diceCharges ? ' charged' : '')
+    }, "\u25CF");
+  });
+  var disabledReason = '';
   if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
@@ -958,7 +1074,9 @@ function DicePanel({
     className: "dice-panel-desc",
     ref: descRef,
     onMouseEnter: showTip,
-    onMouseLeave: () => setTipVisible(false)
+    onMouseLeave: function onMouseLeave() {
+      return setTipVisible(false);
+    }
   }, "How it works \u24D8"), tipVisible && /*#__PURE__*/React.createElement("div", {
     className: "dice-tooltip",
     style: {
@@ -980,62 +1098,68 @@ function DicePanel({
     rolling: rolling && !lowSpec,
     landed: landed
   })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
-    className: `dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`
-  }, diceResult.cursed ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}` : `+${diceResult.streak_delta} streak!`), /*#__PURE__*/React.createElement("button", {
-    className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
+    className: "dice-result-text".concat(diceResult.cursed ? ' dice-cursed' : '')
+  }, diceResult.cursed ? "\uD83D\uDC80 CURSED! Streak -".concat(diceResult.streak_before - diceResult.streak_after) : "+".concat(diceResult.streak_delta, " streak!")), /*#__PURE__*/React.createElement("button", {
+    className: "dice-roll-btn".concat(canRoll ? '' : ' dice-roll-btn--disabled'),
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
     title: canRoll ? 'Roll the dice!' : disabledReason
-  }, rolling ? 'Rolling…' : `Roll (${diceCharges}/${maxDiceCharges} charges)`));
+  }, rolling ? 'Rolling…' : "Roll (".concat(diceCharges, "/").concat(maxDiceCharges, " charges)")));
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────
-function SeasonWinners({
-  winners,
-  seasonNumber,
-  extraClass = ''
-}) {
+function SeasonWinners(_ref11) {
+  var winners = _ref11.winners,
+    seasonNumber = _ref11.seasonNumber,
+    _ref11$extraClass = _ref11.extraClass,
+    extraClass = _ref11$extraClass === void 0 ? '' : _ref11$extraClass;
   if (!winners || winners.length === 0) return null;
-  const medals = ['🥇', '🥈', '🥉'];
-  const rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
+  var medals = ['🥇', '🥈', '🥉'];
+  var rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
   return /*#__PURE__*/React.createElement("div", {
-    className: `season-winners${extraClass ? ' ' + extraClass : ''}`
+    className: "season-winners".concat(extraClass ? ' ' + extraClass : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "season-winners-title"
-  }, "Season ", seasonNumber, " Winners"), winners.map(w => /*#__PURE__*/React.createElement("div", {
-    key: w.position,
-    className: `season-winner-row ${rankClasses[w.position - 1] || ''}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "sw-medal"
-  }, medals[w.position - 1] || w.position), /*#__PURE__*/React.createElement("span", {
-    className: "sw-name"
-  }, w.username), /*#__PURE__*/React.createElement("span", {
-    className: "sw-wins"
-  }, fmt(w.wins), "W"))));
+  }, "Season ", seasonNumber, " Winners"), winners.map(function (w) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: w.position,
+      className: "season-winner-row ".concat(rankClasses[w.position - 1] || '')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "sw-medal"
+    }, medals[w.position - 1] || w.position), /*#__PURE__*/React.createElement("span", {
+      className: "sw-name"
+    }, w.username), /*#__PURE__*/React.createElement("span", {
+      className: "sw-wins"
+    }, fmt(w.wins), "W"));
+  }));
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo({
-  seasonNumber,
-  endsAt
-}) {
-  const [timeLeft, setTimeLeft] = useState('');
-  useEffect(() => {
+function SeasonInfo(_ref12) {
+  var seasonNumber = _ref12.seasonNumber,
+    endsAt = _ref12.endsAt;
+  var _useState1 = useState(''),
+    _useState10 = _slicedToArray(_useState1, 2),
+    timeLeft = _useState10[0],
+    setTimeLeft = _useState10[1];
+  useEffect(function () {
     if (!endsAt) return;
-    const update = () => {
-      const diff = new Date(endsAt) - new Date();
+    var update = function update() {
+      var diff = new Date(endsAt) - new Date();
       if (diff <= 0) {
         setTimeLeft('Ending...');
         return;
       }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor(diff % 86400000 / 3600000);
-      const m = Math.floor(diff % 3600000 / 60000);
-      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`);
+      var d = Math.floor(diff / 86400000);
+      var h = Math.floor(diff % 86400000 / 3600000);
+      var m = Math.floor(diff % 3600000 / 60000);
+      setTimeLeft(d > 0 ? "".concat(d, "d ").concat(h, "h ").concat(m, "m") : h > 0 ? "".concat(h, "h ").concat(m, "m") : "".concat(m, "m"));
     };
     update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
+    var id = setInterval(update, 60000);
+    return function () {
+      return clearInterval(id);
+    };
   }, [endsAt]);
   return /*#__PURE__*/React.createElement("div", {
     className: "season-info"
@@ -1045,47 +1169,60 @@ function SeasonInfo({
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
-function Leaderboard({
-  currentUser,
-  extraClass,
-  seasonWinners,
-  seasonNumber
-}) {
-  const [rows, setRows] = useState([]);
-  const [tab, setTab] = useState('players');
-  useEffect(() => {
-    let ctrl = new AbortController();
-    const load = () => {
+function Leaderboard(_ref13) {
+  var currentUser = _ref13.currentUser,
+    extraClass = _ref13.extraClass,
+    seasonWinners = _ref13.seasonWinners,
+    seasonNumber = _ref13.seasonNumber;
+  var _useState11 = useState([]),
+    _useState12 = _slicedToArray(_useState11, 2),
+    rows = _useState12[0],
+    setRows = _useState12[1];
+  var _useState13 = useState('players'),
+    _useState14 = _slicedToArray(_useState13, 2),
+    tab = _useState14[0],
+    setTab = _useState14[1];
+  useEffect(function () {
+    var ctrl = new AbortController();
+    var load = function load() {
       ctrl.abort();
       ctrl = new AbortController();
       apiFetch('/api/leaderboard', {
         signal: ctrl.signal
-      }).then(r => {
+      }).then(function (r) {
         if (r.ok) setRows(r.data);
-      }).catch(() => {});
+      })["catch"](function () {});
     };
     load();
-    const id = setInterval(load, 5000);
-    return () => {
+    var id = setInterval(load, 5000);
+    return function () {
       clearInterval(id);
       ctrl.abort();
     };
   }, []);
   if (rows.length === 0) return null;
-  const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-  const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
-  const medals = ['🥇', '🥈', '🥉'];
-  const rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
+  var rankClass = function rankClass(i) {
+    return i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+  };
+  var infernoClass = function infernoClass(streak) {
+    return streak > 0 ? "streak-inferno-".concat(Math.min(streak, 10)) : '';
+  };
+  var medals = ['🥇', '🥈', '🥉'];
+  var rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
   return /*#__PURE__*/React.createElement("div", {
-    className: `leaderboard-panel${extraClass ? ' ' + extraClass : ''}`
+    className: "leaderboard-panel".concat(extraClass ? ' ' + extraClass : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "leaderboard-tabs"
   }, /*#__PURE__*/React.createElement("button", {
-    className: `leaderboard-tab${tab === 'players' ? ' active' : ''}`,
-    onClick: () => setTab('players')
+    className: "leaderboard-tab".concat(tab === 'players' ? ' active' : ''),
+    onClick: function onClick() {
+      return setTab('players');
+    }
   }, "Top Players"), /*#__PURE__*/React.createElement("button", {
-    className: `leaderboard-tab${tab === 'winners' ? ' active' : ''}`,
-    onClick: () => setTab('winners')
+    className: "leaderboard-tab".concat(tab === 'winners' ? ' active' : ''),
+    onClick: function onClick() {
+      return setTab('winners');
+    }
   }, "Past Winners")), tab === 'players' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "lb-header"
   }, /*#__PURE__*/React.createElement("span", {
@@ -1098,80 +1235,96 @@ function Leaderboard({
     className: "lb-best-h"
   }, "Best"), /*#__PURE__*/React.createElement("span", {
     className: "lb-streak-h"
-  }, "Now")), rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
-    key: r.username,
-    className: "lb-row"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `lb-rank ${rankClass(i)}`
-  }, i + 1, "."), /*#__PURE__*/React.createElement("span", {
-    className: `lb-name ${r.username === currentUser ? 'is-you' : ''}`
-  }, r.username), /*#__PURE__*/React.createElement("span", {
-    className: "lb-wins"
-  }, fmt(r.wins)), /*#__PURE__*/React.createElement("span", {
-    className: "lb-best"
-  }, r.best_streak > 0 ? `${r.best_streak}🔥` : '—'), /*#__PURE__*/React.createElement("span", {
-    className: `lb-streak ${infernoClass(r.streak)}`
-  }, r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0')))), tab === 'winners' && /*#__PURE__*/React.createElement("div", {
+  }, "Now")), rows.map(function (r, i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: r.username,
+      className: "lb-row"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "lb-rank ".concat(rankClass(i))
+    }, i + 1, "."), /*#__PURE__*/React.createElement("span", {
+      className: "lb-name ".concat(r.username === currentUser ? 'is-you' : '')
+    }, r.username), /*#__PURE__*/React.createElement("span", {
+      className: "lb-wins"
+    }, fmt(r.wins)), /*#__PURE__*/React.createElement("span", {
+      className: "lb-best"
+    }, r.best_streak > 0 ? "".concat(r.best_streak, "\uD83D\uDD25") : '—'), /*#__PURE__*/React.createElement("span", {
+      className: "lb-streak ".concat(infernoClass(r.streak))
+    }, r.streak > 0 ? "".concat(r.streak, "\uD83D\uDD25") : r.streak < 0 ? "".concat(r.streak, "\uD83D\uDC80") : '0'));
+  })), tab === 'winners' && /*#__PURE__*/React.createElement("div", {
     className: "lb-winners-tab"
   }, seasonWinners && seasonWinners.length > 0 ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "lb-winners-title"
-  }, "Season ", seasonNumber, " Winners"), seasonWinners.map(w => /*#__PURE__*/React.createElement("div", {
-    key: w.position,
-    className: `season-winner-row ${rankClasses[w.position - 1] || ''}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "sw-medal"
-  }, medals[w.position - 1] || w.position), /*#__PURE__*/React.createElement("span", {
-    className: "sw-name"
-  }, w.username), /*#__PURE__*/React.createElement("span", {
-    className: "sw-wins"
-  }, fmt(w.wins), "W")))) : /*#__PURE__*/React.createElement("div", {
+  }, "Season ", seasonNumber, " Winners"), seasonWinners.map(function (w) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: w.position,
+      className: "season-winner-row ".concat(rankClasses[w.position - 1] || '')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "sw-medal"
+    }, medals[w.position - 1] || w.position), /*#__PURE__*/React.createElement("span", {
+      className: "sw-name"
+    }, w.username), /*#__PURE__*/React.createElement("span", {
+      className: "sw-wins"
+    }, fmt(w.wins), "W"));
+  })) : /*#__PURE__*/React.createElement("div", {
     className: "lb-winners-empty"
   }, "No season winners yet.")));
 }
 
 // ── Chat Panel ────────────────────────────────────────────────────────────
 function fmtChatTime(iso) {
-  const d = new Date(iso);
-  let h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const ampm = h >= 12 ? 'pm' : 'am';
+  var d = new Date(iso);
+  var h = d.getHours();
+  var m = String(d.getMinutes()).padStart(2, '0');
+  var ampm = h >= 12 ? 'pm' : 'am';
   h = h % 12 || 12;
-  return `${h}:${m}${ampm}`;
+  return "".concat(h, ":").concat(m).concat(ampm);
 }
-function ChatPanel({
-  extraClass = ''
-}) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [error, setError] = useState('');
-  const [timeoutSecs, setTimeoutSecs] = useState(0);
-  const messagesEndRef = useRef(null);
-  const scrollRef = useRef(null);
-  const atBottomRef = useRef(true);
-  const timeoutTimerRef = useRef(null);
+function ChatPanel(_ref14) {
+  var _ref14$extraClass = _ref14.extraClass,
+    extraClass = _ref14$extraClass === void 0 ? '' : _ref14$extraClass;
+  var _useState15 = useState([]),
+    _useState16 = _slicedToArray(_useState15, 2),
+    messages = _useState16[0],
+    setMessages = _useState16[1];
+  var _useState17 = useState(''),
+    _useState18 = _slicedToArray(_useState17, 2),
+    input = _useState18[0],
+    setInput = _useState18[1];
+  var _useState19 = useState(''),
+    _useState20 = _slicedToArray(_useState19, 2),
+    error = _useState20[0],
+    setError = _useState20[1];
+  var _useState21 = useState(0),
+    _useState22 = _slicedToArray(_useState21, 2),
+    timeoutSecs = _useState22[0],
+    setTimeoutSecs = _useState22[1];
+  var messagesEndRef = useRef(null);
+  var scrollRef = useRef(null);
+  var atBottomRef = useRef(true);
+  var timeoutTimerRef = useRef(null);
 
   // Poll for new messages
-  useEffect(() => {
-    let ctrl = new AbortController();
-    const load = () => {
+  useEffect(function () {
+    var ctrl = new AbortController();
+    var load = function load() {
       ctrl.abort();
       ctrl = new AbortController();
       apiFetch('/api/chat', {
         signal: ctrl.signal
-      }).then(r => {
+      }).then(function (r) {
         if (r.ok) setMessages(r.data);
-      }).catch(() => {});
+      })["catch"](function () {});
     };
     load();
-    const id = setInterval(load, 3000);
-    return () => {
+    var id = setInterval(load, 3000);
+    return function () {
       clearInterval(id);
       ctrl.abort();
     };
   }, []);
 
   // Auto-scroll only if at bottom
-  useEffect(() => {
+  useEffect(function () {
     if (atBottomRef.current && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({
         behavior: 'smooth'
@@ -1180,11 +1333,11 @@ function ChatPanel({
   }, [messages]);
 
   // Countdown timer for timeout feedback
-  useEffect(() => {
+  useEffect(function () {
     if (timeoutSecs <= 0) return;
     clearInterval(timeoutTimerRef.current);
-    timeoutTimerRef.current = setInterval(() => {
-      setTimeoutSecs(s => {
+    timeoutTimerRef.current = setInterval(function () {
+      setTimeoutSecs(function (s) {
         if (s <= 1) {
           clearInterval(timeoutTimerRef.current);
           return 0;
@@ -1192,62 +1345,88 @@ function ChatPanel({
         return s - 1;
       });
     }, 1000);
-    return () => clearInterval(timeoutTimerRef.current);
+    return function () {
+      return clearInterval(timeoutTimerRef.current);
+    };
   }, [timeoutSecs]);
-  const handleScroll = () => {
-    const el = scrollRef.current;
+  var handleScroll = function handleScroll() {
+    var el = scrollRef.current;
     if (!el) return;
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
   };
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!text) return;
-    setError('');
-    const r = await apiGame('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: text
-      })
-    });
-    if (r.ok) {
-      setInput('');
-      // Immediately reload
-      apiFetch('/api/chat').then(res => {
-        if (res.ok) setMessages(res.data);
-      }).catch(() => {});
-    } else if (r.status === 429) {
-      const secs = r.data.seconds_remaining || 60;
-      setTimeoutSecs(secs);
-      setError(`Timed out. Wait ${secs}s.`);
-    } else {
-      setError(r.data.error || 'Failed to send');
-    }
-  };
-  const handleKeyDown = e => {
+  var sendMessage = /*#__PURE__*/function () {
+    var _ref15 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+      var text, r, secs;
+      return _regeneratorRuntime().wrap(function _callee$(_context) {
+        while (1) switch (_context.prev = _context.next) {
+          case 0:
+            text = input.trim();
+            if (text) {
+              _context.next = 3;
+              break;
+            }
+            return _context.abrupt("return");
+          case 3:
+            setError('');
+            _context.next = 6;
+            return apiGame('/api/chat', {
+              method: 'POST',
+              body: JSON.stringify({
+                message: text
+              })
+            });
+          case 6:
+            r = _context.sent;
+            if (r.ok) {
+              setInput('');
+              // Immediately reload
+              apiFetch('/api/chat').then(function (res) {
+                if (res.ok) setMessages(res.data);
+              })["catch"](function () {});
+            } else if (r.status === 429) {
+              secs = r.data.seconds_remaining || 60;
+              setTimeoutSecs(secs);
+              setError("Timed out. Wait ".concat(secs, "s."));
+            } else {
+              setError(r.data.error || 'Failed to send');
+            }
+          case 8:
+          case "end":
+            return _context.stop();
+        }
+      }, _callee);
+    }));
+    return function sendMessage() {
+      return _ref15.apply(this, arguments);
+    };
+  }();
+  var handleKeyDown = function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
-  const isDisabled = timeoutSecs > 0;
+  var isDisabled = timeoutSecs > 0;
   return /*#__PURE__*/React.createElement("div", {
-    className: `chat-panel${extraClass ? ' ' + extraClass : ''}`
+    className: "chat-panel".concat(extraClass ? ' ' + extraClass : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "chat-panel-title"
   }, "\uD83D\uDCAC Chat"), /*#__PURE__*/React.createElement("div", {
     className: "chat-messages",
     ref: scrollRef,
     onScroll: handleScroll
-  }, messages.map(m => /*#__PURE__*/React.createElement("div", {
-    key: m.id,
-    className: "chat-msg"
-  }, m.created_at && /*#__PURE__*/React.createElement("span", {
-    className: "chat-msg-time"
-  }, fmtChatTime(m.created_at)), /*#__PURE__*/React.createElement("span", {
-    className: "chat-msg-name"
-  }, m.username, ": "), /*#__PURE__*/React.createElement("span", {
-    className: "chat-msg-text"
-  }, m.message))), /*#__PURE__*/React.createElement("div", {
+  }, messages.map(function (m) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      className: "chat-msg"
+    }, m.created_at && /*#__PURE__*/React.createElement("span", {
+      className: "chat-msg-time"
+    }, fmtChatTime(m.created_at)), /*#__PURE__*/React.createElement("span", {
+      className: "chat-msg-name"
+    }, m.username, ": "), /*#__PURE__*/React.createElement("span", {
+      className: "chat-msg-text"
+    }, m.message));
+  }), /*#__PURE__*/React.createElement("div", {
     ref: messagesEndRef
   })), error && /*#__PURE__*/React.createElement("div", {
     className: "chat-error"
@@ -1256,9 +1435,11 @@ function ChatPanel({
   }, /*#__PURE__*/React.createElement("input", {
     className: "chat-input",
     type: "text",
-    placeholder: isDisabled ? `Wait ${timeoutSecs}s…` : 'Message…',
+    placeholder: isDisabled ? "Wait ".concat(timeoutSecs, "s\u2026") : 'Message…',
     value: input,
-    onChange: e => setInput(e.target.value),
+    onChange: function onChange(e) {
+      return setInput(e.target.value);
+    },
     onKeyDown: handleKeyDown,
     disabled: isDisabled,
     maxLength: 200
@@ -1270,7 +1451,7 @@ function ChatPanel({
 }
 
 // ── Shop catalogue ────────────────────────────────────────────────────────
-const FISH_SKINS = [{
+var FISH_SKINS = [{
   id: 'fish_tropical',
   emoji: '🐠',
   name: 'Tropical Fish',
@@ -1421,7 +1602,7 @@ const FISH_SKINS = [{
     sad: 'Sunk to the bottom...'
   }
 }];
-const SHOP_SECTIONS = [{
+var SHOP_SECTIONS = [{
   label: '⚡ Spin Speed',
   items: [{
     id: 'speed_boost',
@@ -1896,35 +2077,34 @@ const SHOP_SECTIONS = [{
 }];
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
-const INF_UPGRADE_CFG = {
+var INF_UPGRADE_CFG = {
   winmult_inf: {
     tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200],
-    infBase: 1_000_000,
+    infBase: 1000000,
     infScale: 1.4
   },
   bonusmult_inf: {
     tierCosts: [300, 1200, 4800, 20000, 80000, 300000],
-    infBase: 500_000,
+    infBase: 500000,
     infScale: 1.4
   },
   clickmult_inf: {
     tierCosts: [100, 400, 900, 2000, 4500],
-    infBase: 10_000,
+    infBase: 10000,
     infScale: 1.5
   },
   streak_armor_inf: {
     tierCosts: [500, 2000, 4500, 8000, 12500, 18000, 24500, 32000, 40500, 50000],
-    infBase: 999_999_999,
+    infBase: 999999999,
     infScale: 1.0,
     maxLevel: 10
   }
 };
 function infCost(id, level) {
-  const {
-    tierCosts,
-    infBase,
-    infScale
-  } = INF_UPGRADE_CFG[id];
+  var _INF_UPGRADE_CFG$id = INF_UPGRADE_CFG[id],
+    tierCosts = _INF_UPGRADE_CFG$id.tierCosts,
+    infBase = _INF_UPGRADE_CFG$id.infBase,
+    infScale = _INF_UPGRADE_CFG$id.infScale;
   if (level < tierCosts.length) return tierCosts[level];
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
@@ -1938,14 +2118,14 @@ function infMultiplier(id, level) {
     return 128 + (level - 7) * 16;
   }
   if (id === 'bonusmult_inf') {
-    const fixed = [1, 2, 5, 10, 20, 50, 100];
+    var fixed = [1, 2, 5, 10, 20, 50, 100];
     if (level <= 6) return fixed[level];
     return 100 + (level - 6) * 10;
   }
   if (id === 'clickmult_inf') return level <= 0 ? 1 : level + 1;
   return 1;
 }
-const DEFAULT_FISH = {
+var DEFAULT_FISH = {
   emoji: '🐟',
   labels: {
     idle: 'Click me!',
@@ -1954,53 +2134,66 @@ const DEFAULT_FISH = {
   }
 };
 function getFishData(equippedFish) {
-  return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
+  return FISH_SKINS.find(function (s) {
+    return s.id === equippedFish;
+  }) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
+var COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
-const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
-const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
+var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+var getItemCurrency = function getItemCurrency(id) {
+  return id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
+};
+var currencyIcon = function currencyIcon(c) {
+  return c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
+};
 
 // ── Shop components ────────────────────────────────────────────────────────
-const ShopItem = React.memo(function ShopItem({
-  item,
-  owned,
-  equipped,
-  active,
-  canAfford,
-  onBuy,
-  onEquip,
-  onEquipCosmetic,
-  isSkin,
-  isSingularity,
-  isCosmetic,
-  infLevel,
-  displayCost
-}) {
-  const isInfinite = !!item.infinite;
-  const cost = isInfinite ? displayCost : item.cost;
-  let actionEl;
+var ShopItem = React.memo(function ShopItem(_ref16) {
+  var item = _ref16.item,
+    owned = _ref16.owned,
+    equipped = _ref16.equipped,
+    active = _ref16.active,
+    canAfford = _ref16.canAfford,
+    onBuy = _ref16.onBuy,
+    onEquip = _ref16.onEquip,
+    onEquipCosmetic = _ref16.onEquipCosmetic,
+    isSkin = _ref16.isSkin,
+    isSingularity = _ref16.isSingularity,
+    isCosmetic = _ref16.isCosmetic,
+    infLevel = _ref16.infLevel,
+    displayCost = _ref16.displayCost;
+  var isInfinite = !!item.infinite;
+  var cost = isInfinite ? displayCost : item.cost;
+  var actionEl;
   if (isInfinite) {
     actionEl = /*#__PURE__*/React.createElement("button", {
-      className: `shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`,
-      onClick: () => canAfford && onBuy(item.id, cost)
+      className: "shop-buy-btn ".concat(canAfford ? 'can-afford' : 'cant-afford'),
+      onClick: function onClick() {
+        return canAfford && onBuy(item.id, cost);
+      }
     }, "Buy");
   } else if (owned && isSkin) {
     actionEl = equipped ? /*#__PURE__*/React.createElement("span", {
       className: "shop-equipped-badge"
     }, "\u2713 On") : /*#__PURE__*/React.createElement("button", {
       className: "shop-equip-btn",
-      onClick: () => onEquip(item.id)
+      onClick: function onClick() {
+        return onEquip(item.id);
+      }
     }, "Equip");
   } else if (owned && isCosmetic) {
     actionEl = active ? /*#__PURE__*/React.createElement("button", {
       className: "shop-equip-btn active-cosmetic",
-      onClick: () => onEquipCosmetic(item.id)
+      onClick: function onClick() {
+        return onEquipCosmetic(item.id);
+      }
     }, "Active") : /*#__PURE__*/React.createElement("button", {
       className: "shop-equip-btn",
-      onClick: () => onEquipCosmetic(item.id)
+      onClick: function onClick() {
+        return onEquipCosmetic(item.id);
+      }
     }, "Equip");
   } else if (owned) {
     actionEl = /*#__PURE__*/React.createElement("span", {
@@ -2008,22 +2201,24 @@ const ShopItem = React.memo(function ShopItem({
     }, "Active");
   } else {
     actionEl = /*#__PURE__*/React.createElement("button", {
-      className: `shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`,
-      onClick: () => canAfford && onBuy(item.id, cost)
+      className: "shop-buy-btn ".concat(canAfford ? 'can-afford' : 'cant-afford'),
+      onClick: function onClick() {
+        return canAfford && onBuy(item.id, cost);
+      }
     }, "Buy");
   }
-  const extraClass = isSingularity && !owned ? 'singularity-item' : '';
-  const infDesc = isInfinite && infLevel != null ? (() => {
-    const cfg = INF_UPGRADE_CFG[item.id];
-    const atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
-    if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
-    const cur = infMultiplier(item.id, infLevel);
-    const nxt = infMultiplier(item.id, infLevel + 1);
-    const sep = item.id === 'streak_armor_inf' ? '%' : 'x';
-    return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
-  })() : item.desc;
+  var extraClass = isSingularity && !owned ? 'singularity-item' : '';
+  var infDesc = isInfinite && infLevel != null ? function () {
+    var cfg = INF_UPGRADE_CFG[item.id];
+    var atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
+    if (atMax) return "Lv".concat(infLevel, " \xB7 MAX  ").concat(item.desc);
+    var cur = infMultiplier(item.id, infLevel);
+    var nxt = infMultiplier(item.id, infLevel + 1);
+    var sep = item.id === 'streak_armor_inf' ? '%' : 'x';
+    return "Lv".concat(infLevel, " \xB7 ").concat(cur).concat(sep, " \u2192 ").concat(nxt).concat(sep, "  ").concat(item.desc);
+  }() : item.desc;
   return /*#__PURE__*/React.createElement("div", {
-    className: `shop-item ${!isInfinite && owned ? equipped || active ? 'equipped' : 'owned' : ''} ${extraClass}`
+    className: "shop-item ".concat(!isInfinite && owned ? equipped || active ? 'equipped' : 'owned' : '', " ").concat(extraClass)
   }, /*#__PURE__*/React.createElement("span", {
     className: "shop-item-emoji"
   }, item.emoji), /*#__PURE__*/React.createElement("div", {
@@ -2034,131 +2229,135 @@ const ShopItem = React.memo(function ShopItem({
     className: "shop-item-desc",
     "data-tooltip": infDesc
   }, infDesc), /*#__PURE__*/React.createElement("div", {
-    className: `shop-item-cost cost-${getItemCurrency(item.id)}`
+    className: "shop-item-cost cost-".concat(getItemCurrency(item.id))
   }, currencyIcon(getItemCurrency(item.id)), " ", fmt(cost))), /*#__PURE__*/React.createElement("div", {
     className: "shop-item-action"
   }, actionEl));
 });
-const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
+var COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
 // Season 5 tier thresholds
-const TIER_THRESHOLDS = {
+var TIER_THRESHOLDS = {
   2: 1000,
   3: 10000
 };
-function ShopPanel({
-  fishClicks,
-  wins,
-  losses,
-  ownedItems,
-  equippedFish,
-  activeCosmetics,
-  infLevels,
-  onBuy,
-  onEquip,
-  onEquipCosmetic,
-  collapsed,
-  winCount
-}) {
-  const [activeTab, setActiveTab] = useState('functional');
-  const {
-    cosmeticSections,
-    functionalSections
-  } = useMemo(() => {
-    const cosmetic = [],
-      functional = [];
-    SHOP_SECTIONS.forEach(section => {
-      const isCosmeticSection = COSMETIC_SECTION_LABELS.has(section.label);
-      const visibleItems = section.items.filter(item => {
-        const requiresMet = !item.requires || ownedItems.includes(item.requires);
-        if (isCosmeticSection) return requiresMet;
-        if (item.infinite) {
-          // streak_armor_inf requires resilience owned
-          if (item.id === 'streak_armor_inf') return ownedItems.includes('resilience');
-          return requiresMet;
-        }
-        const isOwned = ownedItems.includes(item.id);
-        if (!isOwned) return requiresMet; // next tier to buy
-        // Owned: show only if this is the latest owned in its chain
-        const nextInChain = section.items.find(other => other.requires === item.id && !other.infinite && !COSMETIC_SECTION_IDS.has(other.id));
-        return !nextInChain || !ownedItems.includes(nextInChain.id);
+function ShopPanel(_ref17) {
+  var fishClicks = _ref17.fishClicks,
+    wins = _ref17.wins,
+    losses = _ref17.losses,
+    ownedItems = _ref17.ownedItems,
+    equippedFish = _ref17.equippedFish,
+    activeCosmetics = _ref17.activeCosmetics,
+    infLevels = _ref17.infLevels,
+    onBuy = _ref17.onBuy,
+    onEquip = _ref17.onEquip,
+    onEquipCosmetic = _ref17.onEquipCosmetic,
+    collapsed = _ref17.collapsed,
+    winCount = _ref17.winCount;
+  var _useState23 = useState('functional'),
+    _useState24 = _slicedToArray(_useState23, 2),
+    activeTab = _useState24[0],
+    setActiveTab = _useState24[1];
+  var _useMemo = useMemo(function () {
+      var cosmetic = [],
+        functional = [];
+      SHOP_SECTIONS.forEach(function (section) {
+        var isCosmeticSection = COSMETIC_SECTION_LABELS.has(section.label);
+        var visibleItems = section.items.filter(function (item) {
+          var requiresMet = !item.requires || ownedItems.includes(item.requires);
+          if (isCosmeticSection) return requiresMet;
+          if (item.infinite) {
+            // streak_armor_inf requires resilience owned
+            if (item.id === 'streak_armor_inf') return ownedItems.includes('resilience');
+            return requiresMet;
+          }
+          var isOwned = ownedItems.includes(item.id);
+          if (!isOwned) return requiresMet; // next tier to buy
+          // Owned: show only if this is the latest owned in its chain
+          var nextInChain = section.items.find(function (other) {
+            return other.requires === item.id && !other.infinite && !COSMETIC_SECTION_IDS.has(other.id);
+          });
+          return !nextInChain || !ownedItems.includes(nextInChain.id);
+        });
+        if (visibleItems.length === 0) return;
+        (COSMETIC_SECTION_LABELS.has(section.label) ? cosmetic : functional).push(_objectSpread(_objectSpread({}, section), {}, {
+          visibleItems: visibleItems
+        }));
       });
-      if (visibleItems.length === 0) return;
-      (COSMETIC_SECTION_LABELS.has(section.label) ? cosmetic : functional).push({
-        ...section,
-        visibleItems
-      });
-    });
-    return {
-      cosmeticSections: cosmetic,
-      functionalSections: functional
-    };
-  }, [ownedItems]);
-  const renderSection = section => /*#__PURE__*/React.createElement(React.Fragment, {
-    key: section.label
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "shop-section-label"
-  }, "\u2500\u2500 ", section.label, " \u2500\u2500"), section.visibleItems.map(item => {
-    const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
-    const itemTierNum = item.tier || 1;
-    const tierLocked = itemTierNum > 1 && !ownedItems.includes(item.id);
-    const tierThreshold = tierLocked ? TIER_THRESHOLDS[itemTierNum] : null;
-    const tierUnlocked = !tierLocked || winCount >= (tierThreshold || 0);
-    const infLevel = item.infinite ? infLevels[item.id] || 0 : null;
-    const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
-    const atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
-    const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
-    const currency = getItemCurrency(item.id);
-    const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
-    if (tierLocked && !tierUnlocked) {
-      return /*#__PURE__*/React.createElement("div", {
+      return {
+        cosmeticSections: cosmetic,
+        functionalSections: functional
+      };
+    }, [ownedItems]),
+    cosmeticSections = _useMemo.cosmeticSections,
+    functionalSections = _useMemo.functionalSections;
+  var renderSection = function renderSection(section) {
+    return /*#__PURE__*/React.createElement(React.Fragment, {
+      key: section.label
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "shop-section-label"
+    }, "\u2500\u2500 ", section.label, " \u2500\u2500"), section.visibleItems.map(function (item) {
+      var isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
+      var itemTierNum = item.tier || 1;
+      var tierLocked = itemTierNum > 1 && !ownedItems.includes(item.id);
+      var tierThreshold = tierLocked ? TIER_THRESHOLDS[itemTierNum] : null;
+      var tierUnlocked = !tierLocked || winCount >= (tierThreshold || 0);
+      var infLevel = item.infinite ? infLevels[item.id] || 0 : null;
+      var cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
+      var atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
+      var displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
+      var currency = getItemCurrency(item.id);
+      var balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
+      if (tierLocked && !tierUnlocked) {
+        return /*#__PURE__*/React.createElement("div", {
+          key: item.id,
+          className: "shop-item shop-item--locked"
+        }, /*#__PURE__*/React.createElement("span", {
+          className: "shop-item-emoji",
+          style: {
+            opacity: 0.4
+          }
+        }, item.emoji), /*#__PURE__*/React.createElement("div", {
+          className: "shop-item-info"
+        }, /*#__PURE__*/React.createElement("div", {
+          className: "shop-item-name",
+          style: {
+            opacity: 0.5
+          }
+        }, item.name), /*#__PURE__*/React.createElement("div", {
+          className: "shop-item-desc",
+          style: {
+            opacity: 0.5
+          }
+        }, "\uD83D\uDD12 Unlocks at ", fmt(tierThreshold), " total wins")), /*#__PURE__*/React.createElement("div", {
+          className: "shop-item-action"
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            fontSize: '0.7rem',
+            color: 'var(--text-muted, #888)'
+          }
+        }, fmt(winCount), "/", fmt(tierThreshold))));
+      }
+      return /*#__PURE__*/React.createElement(ShopItem, {
         key: item.id,
-        className: "shop-item shop-item--locked"
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "shop-item-emoji",
-        style: {
-          opacity: 0.4
-        }
-      }, item.emoji), /*#__PURE__*/React.createElement("div", {
-        className: "shop-item-info"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "shop-item-name",
-        style: {
-          opacity: 0.5
-        }
-      }, item.name), /*#__PURE__*/React.createElement("div", {
-        className: "shop-item-desc",
-        style: {
-          opacity: 0.5
-        }
-      }, "\uD83D\uDD12 Unlocks at ", fmt(tierThreshold), " total wins")), /*#__PURE__*/React.createElement("div", {
-        className: "shop-item-action"
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: '0.7rem',
-          color: 'var(--text-muted, #888)'
-        }
-      }, fmt(winCount), "/", fmt(tierThreshold))));
-    }
-    return /*#__PURE__*/React.createElement(ShopItem, {
-      key: item.id,
-      item: item,
-      isSkin: false,
-      isSingularity: item.id === 'singularity',
-      isCosmetic: isCosmetic,
-      owned: !item.infinite && ownedItems.includes(item.id),
-      equipped: false,
-      active: isCosmetic && activeCosmetics.includes(item.id),
-      canAfford: !atMaxLevel && balance >= displayCost,
-      infLevel: infLevel,
-      displayCost: atMaxLevel ? 0 : displayCost,
-      onBuy: onBuy,
-      onEquip: onEquip,
-      onEquipCosmetic: onEquipCosmetic
-    });
-  }));
+        item: item,
+        isSkin: false,
+        isSingularity: item.id === 'singularity',
+        isCosmetic: isCosmetic,
+        owned: !item.infinite && ownedItems.includes(item.id),
+        equipped: false,
+        active: isCosmetic && activeCosmetics.includes(item.id),
+        canAfford: !atMaxLevel && balance >= displayCost,
+        infLevel: infLevel,
+        displayCost: atMaxLevel ? 0 : displayCost,
+        onBuy: onBuy,
+        onEquip: onEquip,
+        onEquipCosmetic: onEquipCosmetic
+      });
+    }));
+  };
   return /*#__PURE__*/React.createElement("div", {
-    className: `shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`
+    className: "shop-panel".concat(collapsed ? ' shop-panel--collapsed' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "shop-header"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2174,49 +2373,61 @@ function ShopPanel({
   }, "\uD83D\uDC1F ", fmt(fishClicks)))), /*#__PURE__*/React.createElement("div", {
     className: "shop-tabs"
   }, /*#__PURE__*/React.createElement("button", {
-    className: `shop-tab ${activeTab === 'functional' ? 'active' : ''}`,
-    onClick: () => setActiveTab('functional')
+    className: "shop-tab ".concat(activeTab === 'functional' ? 'active' : ''),
+    onClick: function onClick() {
+      return setActiveTab('functional');
+    }
   }, "\u26A1 Functional"), /*#__PURE__*/React.createElement("button", {
-    className: `shop-tab shop-tab--cosmetic ${activeTab === 'cosmetic' ? 'active' : ''}`,
-    onClick: () => setActiveTab('cosmetic')
+    className: "shop-tab shop-tab--cosmetic ".concat(activeTab === 'cosmetic' ? 'active' : ''),
+    onClick: function onClick() {
+      return setActiveTab('cosmetic');
+    }
   }, "\uD83C\uDFA8 Cosmetic")), /*#__PURE__*/React.createElement("div", {
-    className: `shop-tab-content${activeTab === 'cosmetic' ? ' shop-tab-content--cosmetic' : ''}`
+    className: "shop-tab-content".concat(activeTab === 'cosmetic' ? ' shop-tab-content--cosmetic' : '')
   }, activeTab === 'cosmetic' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "shop-section-label"
-  }, "\u2500\u2500 Fish Skins \u2500\u2500"), FISH_SKINS.map(item => /*#__PURE__*/React.createElement(ShopItem, {
-    key: item.id,
-    item: item,
-    isSkin: true,
-    owned: ownedItems.includes(item.id),
-    equipped: equippedFish === item.id,
-    canAfford: losses >= item.cost,
-    onBuy: onBuy,
-    onEquip: onEquip,
-    onEquipCosmetic: onEquipCosmetic
-  })), cosmeticSections.map(renderSection)) : functionalSections.map(renderSection)));
+  }, "\u2500\u2500 Fish Skins \u2500\u2500"), FISH_SKINS.map(function (item) {
+    return /*#__PURE__*/React.createElement(ShopItem, {
+      key: item.id,
+      item: item,
+      isSkin: true,
+      owned: ownedItems.includes(item.id),
+      equipped: equippedFish === item.id,
+      canAfford: losses >= item.cost,
+      onBuy: onBuy,
+      onEquip: onEquip,
+      onEquipCosmetic: onEquipCosmetic
+    });
+  }), cosmeticSections.map(renderSection)) : functionalSections.map(renderSection)));
 }
 
 // ── Stats Panel ────────────────────────────────────────────────────────────
-const PLACE_LABEL = pos => pos === 1 ? '🥇 1st' : pos === 2 ? '🥈 2nd' : pos === 3 ? '🥉 3rd' : null;
-function StatsPanel({
-  open,
-  onClose
-}) {
-  const [stats, setStats] = useState(null);
-  useEffect(() => {
+var PLACE_LABEL = function PLACE_LABEL(pos) {
+  return pos === 1 ? '🥇 1st' : pos === 2 ? '🥈 2nd' : pos === 3 ? '🥉 3rd' : null;
+};
+function StatsPanel(_ref18) {
+  var open = _ref18.open,
+    onClose = _ref18.onClose;
+  var _useState25 = useState(null),
+    _useState26 = _slicedToArray(_useState25, 2),
+    stats = _useState26[0],
+    setStats = _useState26[1];
+  useEffect(function () {
     if (!open) return;
-    apiFetch('/api/stats').then(r => {
+    apiFetch('/api/stats').then(function (r) {
       if (r.ok) setStats(r.data);
     });
   }, [open]);
   if (!open) return null;
-  const history = stats?.season_history || [];
+  var history = (stats === null || stats === void 0 ? void 0 : stats.season_history) || [];
   return /*#__PURE__*/React.createElement("div", {
     className: "stats-overlay",
     onClick: onClose
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-card",
-    onClick: e => e.stopPropagation()
+    onClick: function onClick(e) {
+      return e.stopPropagation();
+    }
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-title"
   }, "\uD83D\uDCCA Your Stats"), stats ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
@@ -2235,15 +2446,15 @@ function StatsPanel({
     className: "stats-season-history"
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-section-title"
-  }, "Season History"), history.map(s => {
-    const place = PLACE_LABEL(s.finishing_position);
-    const participated = s.final_wins != null;
+  }, "Season History"), history.map(function (s) {
+    var place = PLACE_LABEL(s.finishing_position);
+    var participated = s.final_wins != null;
     return /*#__PURE__*/React.createElement("div", {
       className: "stats-row stats-row--season",
       key: s.season_number
     }, /*#__PURE__*/React.createElement("span", null, "Season ", s.season_number), /*#__PURE__*/React.createElement("span", null, !participated ? '—' : place ? /*#__PURE__*/React.createElement("span", {
       className: "stats-podium"
-    }, place) : `${fmt(s.final_wins)} wins`));
+    }, place) : "".concat(fmt(s.final_wins), " wins")));
   }))) : /*#__PURE__*/React.createElement("div", {
     className: "stats-loading"
   }, "Loading\u2026"), /*#__PURE__*/React.createElement("button", {
@@ -2253,35 +2464,65 @@ function StatsPanel({
 }
 
 // ── Auth Page ──────────────────────────────────────────────────────────────
-function AuthPage({
-  onAuth
-}) {
-  const [mode, setMode] = useState('login');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const submit = async e => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    const {
-      ok,
-      data
-    } = await apiFetch(`/api/${mode}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        username,
-        password
-      })
-    });
-    setLoading(false);
-    if (ok) {
-      onAuth(data.username);
-    } else {
-      setError(data.error || 'Something went wrong');
-    }
-  };
+function AuthPage(_ref19) {
+  var onAuth = _ref19.onAuth;
+  var _useState27 = useState('login'),
+    _useState28 = _slicedToArray(_useState27, 2),
+    mode = _useState28[0],
+    setMode = _useState28[1];
+  var _useState29 = useState(''),
+    _useState30 = _slicedToArray(_useState29, 2),
+    username = _useState30[0],
+    setUsername = _useState30[1];
+  var _useState31 = useState(''),
+    _useState32 = _slicedToArray(_useState31, 2),
+    password = _useState32[0],
+    setPassword = _useState32[1];
+  var _useState33 = useState(''),
+    _useState34 = _slicedToArray(_useState33, 2),
+    error = _useState34[0],
+    setError = _useState34[1];
+  var _useState35 = useState(false),
+    _useState36 = _slicedToArray(_useState35, 2),
+    loading = _useState36[0],
+    setLoading = _useState36[1];
+  var submit = /*#__PURE__*/function () {
+    var _ref20 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee2(e) {
+      var _yield$apiFetch, ok, data;
+      return _regeneratorRuntime().wrap(function _callee2$(_context2) {
+        while (1) switch (_context2.prev = _context2.next) {
+          case 0:
+            e.preventDefault();
+            setError('');
+            setLoading(true);
+            _context2.next = 5;
+            return apiFetch("/api/".concat(mode), {
+              method: 'POST',
+              body: JSON.stringify({
+                username: username,
+                password: password
+              })
+            });
+          case 5:
+            _yield$apiFetch = _context2.sent;
+            ok = _yield$apiFetch.ok;
+            data = _yield$apiFetch.data;
+            setLoading(false);
+            if (ok) {
+              onAuth(data.username);
+            } else {
+              setError(data.error || 'Something went wrong');
+            }
+          case 10:
+          case "end":
+            return _context2.stop();
+        }
+      }, _callee2);
+    }));
+    return function submit(_x4) {
+      return _ref20.apply(this, arguments);
+    };
+  }();
   return /*#__PURE__*/React.createElement("div", {
     className: "auth-overlay"
   }, /*#__PURE__*/React.createElement("form", {
@@ -2298,7 +2539,9 @@ function AuthPage({
     type: "text",
     placeholder: "Username",
     value: username,
-    onChange: e => setUsername(e.target.value),
+    onChange: function onChange(e) {
+      return setUsername(e.target.value);
+    },
     autoComplete: "username",
     autoCapitalize: "none",
     autoCorrect: "off",
@@ -2309,7 +2552,9 @@ function AuthPage({
     type: "password",
     placeholder: "Password",
     value: password,
-    onChange: e => setPassword(e.target.value),
+    onChange: function onChange(e) {
+      return setPassword(e.target.value);
+    },
     autoComplete: mode === 'login' ? 'current-password' : 'new-password',
     autoCapitalize: "none",
     autoCorrect: "off",
@@ -2322,12 +2567,12 @@ function AuthPage({
   }, loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'), /*#__PURE__*/React.createElement("div", {
     className: "auth-toggle"
   }, mode === 'login' ? /*#__PURE__*/React.createElement(React.Fragment, null, "No account? ", /*#__PURE__*/React.createElement("a", {
-    onClick: () => {
+    onClick: function onClick() {
       setMode('register');
       setError('');
     }
   }, "Register")) : /*#__PURE__*/React.createElement(React.Fragment, null, "Have an account? ", /*#__PURE__*/React.createElement("a", {
-    onClick: () => {
+    onClick: function onClick() {
       setMode('login');
       setError('');
     }
@@ -2336,83 +2581,114 @@ function AuthPage({
 
 // ── Community Pot ──────────────────────────────────────────────────────────
 function usePotCountdown(filledAt, active) {
-  const [remaining, setRemaining] = useState(null);
-  useEffect(() => {
+  var _useState37 = useState(null),
+    _useState38 = _slicedToArray(_useState37, 2),
+    remaining = _useState38[0],
+    setRemaining = _useState38[1];
+  useEffect(function () {
     if (!active || !filledAt) {
       setRemaining(null);
       return;
     }
-    const expiresAt = new Date(filledAt).getTime() + 3600 * 1000;
-    const tick = () => {
-      const secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+    var expiresAt = new Date(filledAt).getTime() + 1800 * 1000;
+    var tick = function tick() {
+      var secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
       setRemaining(secs);
     };
     tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    var id = setInterval(tick, 1000);
+    return function () {
+      return clearInterval(id);
+    };
   }, [filledAt, active]);
   return remaining;
 }
 function fmtCountdown(secs) {
   if (secs == null) return '';
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  var m = Math.floor(secs / 60);
+  var s = secs % 60;
+  return "".concat(m, ":").concat(String(s).padStart(2, '0'));
 }
-function CommunityPot({
-  pot,
-  fishClicks,
-  onContribute
-}) {
-  const [localPot, setLocalPot] = useState(pot);
-  const [justFilled, setJustFilled] = useState(!!pot.active);
+function CommunityPot(_ref21) {
+  var pot = _ref21.pot,
+    fishClicks = _ref21.fishClicks,
+    onContribute = _ref21.onContribute;
+  var _useState39 = useState(pot),
+    _useState40 = _slicedToArray(_useState39, 2),
+    localPot = _useState40[0],
+    setLocalPot = _useState40[1];
+  var _useState41 = useState(!!pot.active),
+    _useState42 = _slicedToArray(_useState41, 2),
+    justFilled = _useState42[0],
+    setJustFilled = _useState42[1];
 
   // Sync when parent pot state changes (e.g. on load)
-  useEffect(() => {
+  useEffect(function () {
     setLocalPot(pot);
     setJustFilled(!!pot.active);
   }, [pot]);
 
-  // Poll every 10s for live updates — drives celebration state from server
-  useEffect(() => {
-    const id = setInterval(() => {
-      apiFetch('/api/community-pot').then(r => {
+  // Poll every 5s for live updates — drives celebration state from server
+  useEffect(function () {
+    var id = setInterval(function () {
+      apiFetch('/api/community-pot').then(function (r) {
         if (r.ok) {
           setLocalPot(r.data);
           setJustFilled(!!r.data.active);
         }
       });
-    }, 10000);
-    return () => clearInterval(id);
+    }, 5000);
+    return function () {
+      return clearInterval(id);
+    };
   }, []);
-  const handleContribute = async amount => {
-    const {
-      ok,
-      data
-    } = await apiGame('/api/community-pot/contribute', {
-      method: 'POST',
-      body: JSON.stringify({
-        amount
-      })
-    });
-    if (ok) {
-      setLocalPot({
-        total_contributed: data.pot_total,
-        target: data.pot_target,
-        filled: data.pot_filled,
-        active: data.pot_active,
-        win_chance_pct: data.win_chance_pct
-      });
-      onContribute(data.fish_clicks);
-      setJustFilled(!!data.pot_active);
-    }
-  };
-  const total = localPot.total_contributed || 0;
-  const target = localPot.target || 1_000;
-  const pct = Math.min(100, total / target * 100);
-  const winRate = (localPot.win_chance_pct || 50.0).toFixed(1);
+  var handleContribute = /*#__PURE__*/function () {
+    var _ref22 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee3(amount) {
+      var _yield$apiGame, ok, data;
+      return _regeneratorRuntime().wrap(function _callee3$(_context3) {
+        while (1) switch (_context3.prev = _context3.next) {
+          case 0:
+            _context3.next = 2;
+            return apiGame('/api/community-pot/contribute', {
+              method: 'POST',
+              body: JSON.stringify({
+                amount: amount
+              })
+            });
+          case 2:
+            _yield$apiGame = _context3.sent;
+            ok = _yield$apiGame.ok;
+            data = _yield$apiGame.data;
+            if (ok) {
+              setLocalPot({
+                total_contributed: data.pot_total,
+                target: data.pot_target,
+                filled: data.pot_filled,
+                active: data.pot_active,
+                filled_at: data.filled_at,
+                win_chance_pct: data.win_chance_pct
+              });
+              onContribute(data.fish_clicks);
+              setJustFilled(!!data.pot_active);
+            }
+          case 6:
+          case "end":
+            return _context3.stop();
+        }
+      }, _callee3);
+    }));
+    return function handleContribute(_x5) {
+      return _ref22.apply(this, arguments);
+    };
+  }();
+  var total = localPot.total_contributed || 0;
+  var target = localPot.target || 1000;
+  var pct = Math.min(100, total / target * 100);
+  var winRate = (localPot.win_chance_pct || 50.0).toFixed(1);
+  var active = localPot.active;
+  var countdown = usePotCountdown(localPot.filled_at, active);
   return /*#__PURE__*/React.createElement("div", {
-    className: `community-pot-bar${justFilled ? ' community-pot-active' : ''}`
+    className: "community-pot-bar".concat(justFilled ? ' community-pot-active' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "community-pot-inner"
   }, /*#__PURE__*/React.createElement("span", {
@@ -2426,98 +2702,238 @@ function CommunityPot({
     }
   })), /*#__PURE__*/React.createElement("span", {
     className: "community-pot-count"
-  }, fmt(total), " / ", fmt(target)), justFilled ? /*#__PURE__*/React.createElement("span", {
+  }, fmt(total), " / ", fmt(target)), justFilled ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "community-pot-bonus"
-  }, "\uD83C\uDF89 Pot filled! Win Rate \u2192 ", winRate, "%") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+  }, "\uD83C\uDF89 Pot filled! Win Rate \u2192 ", winRate, "%"), /*#__PURE__*/React.createElement("span", {
+    className: "community-pot-countdown"
+  }, fmtCountdown(countdown))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "community-pot-winrate"
   }, "\uD83C\uDF40 Win Rate: ", winRate, "%"), /*#__PURE__*/React.createElement("div", {
     className: "community-pot-buttons"
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => handleContribute('10pct'),
+    onClick: function onClick() {
+      return handleContribute('10pct');
+    },
     disabled: fishClicks < 1
   }, "+", fmt(Math.max(1, Math.floor(target / 10)))), /*#__PURE__*/React.createElement("button", {
-    onClick: () => handleContribute('all'),
+    onClick: function onClick() {
+      return handleContribute('all');
+    },
     disabled: fishClicks < 1
   }, "All")))));
 }
 
 // ── Game App ───────────────────────────────────────────────────────────────
-function GameApp({
-  username,
-  gameState,
-  onLogout,
-  onSessionExpired
-}) {
-  const canvasRef = useRef(null);
-  const [rotation, setRotation] = useState(0);
-  const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState(null);
-  const [showResult, setShowResult] = useState(false);
-  const setShowResultSync = v => {
+function GameApp(_ref23) {
+  var _gameState$dice_charg;
+  var username = _ref23.username,
+    gameState = _ref23.gameState,
+    onLogout = _ref23.onLogout,
+    onSessionExpired = _ref23.onSessionExpired;
+  var canvasRef = useRef(null);
+  var _useState43 = useState(0),
+    _useState44 = _slicedToArray(_useState43, 2),
+    rotation = _useState44[0],
+    setRotation = _useState44[1];
+  var _useState45 = useState(false),
+    _useState46 = _slicedToArray(_useState45, 2),
+    spinning = _useState46[0],
+    setSpinning = _useState46[1];
+  var _useState47 = useState(null),
+    _useState48 = _slicedToArray(_useState47, 2),
+    result = _useState48[0],
+    setResult = _useState48[1];
+  var _useState49 = useState(false),
+    _useState50 = _slicedToArray(_useState49, 2),
+    showResult = _useState50[0],
+    setShowResult = _useState50[1];
+  var setShowResultSync = function setShowResultSync(v) {
     showResultRef.current = v;
     setShowResult(v);
   };
-  const [shieldFeedback, setShieldFeedback] = useState(null);
-  const [guardState, setGuardState] = useState(null); // { blocked, broke } | null
-  const guardCompleteRef = useRef(null);
-  const [hideResult, setHideResult] = useState(false);
-  const [confetti, setConfetti] = useState(false);
-  const [wins, setWins] = useState(gameState.wins);
-  const [losses, setLosses] = useState(gameState.losses);
-  const [streak, setStreak] = useState(gameState.streak);
-  const [fishMood, setFishMood] = useState('idle');
-  const [fishClicks, setFishClicks] = useState(gameState.fish_clicks);
-  const [bonusEarned, setBonusEarned] = useState(0);
-  const [echoTriggered, setEchoTriggered] = useState(false);
-  const [jackpotHit, setJackpotHit] = useState(false);
-  const [resilienceTriggered, setResilienceTriggered] = useState(false);
-  const [luckySevenTriggered, setLuckySevenTriggered] = useState(false);
-  const [fortuneCharmTriggered, setFortuneCharmTriggered] = useState(false);
-  const [shieldCharges, setShieldCharges] = useState(gameState.shield_charges);
-  const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
-  const [autoSpin, setAutoSpin] = useState(false);
-  const [ownedItems, setOwnedItems] = useState(gameState.owned_items);
-  const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
-  const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
-  const [infLevels, setInfLevels] = useState({
-    winmult_inf: gameState.winmult_inf_level || 0,
-    bonusmult_inf: gameState.bonusmult_inf_level || 0,
-    clickmult_inf: gameState.clickmult_inf_level || 0,
-    streak_armor_inf: gameState.streak_armor_level || 0
-  });
-  const [showStats, setShowStats] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [season, setSeason] = useState(gameState.season || null);
-  const [communityPot, setCommunityPot] = useState(gameState.community_pot || {
-    total_contributed: 0,
-    target: 1_000,
-    filled: false,
-    active: false,
-    win_chance_pct: 50.0
-  });
-  const [spinCount, setSpinCount] = useState(gameState.spin_count || 0);
-  const [winCount, setWinCount] = useState(gameState.win_count || 0);
-  const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
-  const [shopCollapsed, setShopCollapsed] = useState(false);
-  const [diceRolling, setDiceRolling] = useState(false);
-  const [diceResult, setDiceResult] = useState(null);
-  const [diceCharges, setDiceCharges] = useState(gameState.dice_charges ?? 1);
-  const [diceLastRecharge, setDiceLastRecharge] = useState(gameState.dice_last_recharge || new Date().toISOString());
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
-  const [mobilePanel, setMobilePanel] = useState(null);
-  const [showChat, setShowChat] = useState(true);
-  const fireMode = 2; // Mix mode
+  var _useState51 = useState(null),
+    _useState52 = _slicedToArray(_useState51, 2),
+    shieldFeedback = _useState52[0],
+    setShieldFeedback = _useState52[1];
+  var _useState53 = useState(null),
+    _useState54 = _slicedToArray(_useState53, 2),
+    guardState = _useState54[0],
+    setGuardState = _useState54[1]; // { blocked, broke } | null
+  var guardCompleteRef = useRef(null);
+  var _useState55 = useState(false),
+    _useState56 = _slicedToArray(_useState55, 2),
+    hideResult = _useState56[0],
+    setHideResult = _useState56[1];
+  var _useState57 = useState(false),
+    _useState58 = _slicedToArray(_useState57, 2),
+    confetti = _useState58[0],
+    setConfetti = _useState58[1];
+  var _useState59 = useState(gameState.wins),
+    _useState60 = _slicedToArray(_useState59, 2),
+    wins = _useState60[0],
+    setWins = _useState60[1];
+  var _useState61 = useState(gameState.losses),
+    _useState62 = _slicedToArray(_useState61, 2),
+    losses = _useState62[0],
+    setLosses = _useState62[1];
+  var _useState63 = useState(gameState.streak),
+    _useState64 = _slicedToArray(_useState63, 2),
+    streak = _useState64[0],
+    setStreak = _useState64[1];
+  var _useState65 = useState('idle'),
+    _useState66 = _slicedToArray(_useState65, 2),
+    fishMood = _useState66[0],
+    setFishMood = _useState66[1];
+  var _useState67 = useState(gameState.fish_clicks),
+    _useState68 = _slicedToArray(_useState67, 2),
+    fishClicks = _useState68[0],
+    setFishClicks = _useState68[1];
+  var _useState69 = useState(0),
+    _useState70 = _slicedToArray(_useState69, 2),
+    bonusEarned = _useState70[0],
+    setBonusEarned = _useState70[1];
+  var _useState71 = useState(false),
+    _useState72 = _slicedToArray(_useState71, 2),
+    echoTriggered = _useState72[0],
+    setEchoTriggered = _useState72[1];
+  var _useState73 = useState(false),
+    _useState74 = _slicedToArray(_useState73, 2),
+    jackpotHit = _useState74[0],
+    setJackpotHit = _useState74[1];
+  var _useState75 = useState(false),
+    _useState76 = _slicedToArray(_useState75, 2),
+    resilienceTriggered = _useState76[0],
+    setResilienceTriggered = _useState76[1];
+  var _useState77 = useState(false),
+    _useState78 = _slicedToArray(_useState77, 2),
+    luckySevenTriggered = _useState78[0],
+    setLuckySevenTriggered = _useState78[1];
+  var _useState79 = useState(false),
+    _useState80 = _slicedToArray(_useState79, 2),
+    fortuneCharmTriggered = _useState80[0],
+    setFortuneCharmTriggered = _useState80[1];
+  var _useState81 = useState(gameState.shield_charges),
+    _useState82 = _slicedToArray(_useState81, 2),
+    shieldCharges = _useState82[0],
+    setShieldCharges = _useState82[1];
+  var _useState83 = useState(gameState.regen_recharge_wins || 0),
+    _useState84 = _slicedToArray(_useState83, 2),
+    regenRechargeWins = _useState84[0],
+    setRegenRechargeWins = _useState84[1];
+  var _useState85 = useState(false),
+    _useState86 = _slicedToArray(_useState85, 2),
+    autoSpin = _useState86[0],
+    setAutoSpin = _useState86[1];
+  var _useState87 = useState(gameState.owned_items),
+    _useState88 = _slicedToArray(_useState87, 2),
+    ownedItems = _useState88[0],
+    setOwnedItems = _useState88[1];
+  var _useState89 = useState(gameState.equipped_fish),
+    _useState90 = _slicedToArray(_useState89, 2),
+    equippedFish = _useState90[0],
+    setEquippedFish = _useState90[1];
+  var _useState91 = useState(gameState.active_cosmetics || []),
+    _useState92 = _slicedToArray(_useState91, 2),
+    activeCosmetics = _useState92[0],
+    setActiveCosmetics = _useState92[1];
+  var _useState93 = useState({
+      winmult_inf: gameState.winmult_inf_level || 0,
+      bonusmult_inf: gameState.bonusmult_inf_level || 0,
+      clickmult_inf: gameState.clickmult_inf_level || 0,
+      streak_armor_inf: gameState.streak_armor_level || 0
+    }),
+    _useState94 = _slicedToArray(_useState93, 2),
+    infLevels = _useState94[0],
+    setInfLevels = _useState94[1];
+  var _useState95 = useState(false),
+    _useState96 = _slicedToArray(_useState95, 2),
+    showStats = _useState96[0],
+    setShowStats = _useState96[1];
+  var _useState97 = useState(null),
+    _useState98 = _slicedToArray(_useState97, 2),
+    toast = _useState98[0],
+    setToast = _useState98[1];
+  var _useState99 = useState(gameState.season || null),
+    _useState100 = _slicedToArray(_useState99, 2),
+    season = _useState100[0],
+    setSeason = _useState100[1];
+  var _useState101 = useState(gameState.community_pot || {
+      total_contributed: 0,
+      target: 1000,
+      filled: false,
+      active: false,
+      win_chance_pct: 50.0
+    }),
+    _useState102 = _slicedToArray(_useState101, 2),
+    communityPot = _useState102[0],
+    setCommunityPot = _useState102[1];
+  var _useState103 = useState(gameState.spin_count || 0),
+    _useState104 = _slicedToArray(_useState103, 2),
+    spinCount = _useState104[0],
+    setSpinCount = _useState104[1];
+  var _useState105 = useState(gameState.win_count || 0),
+    _useState106 = _slicedToArray(_useState105, 2),
+    winCount = _useState106[0],
+    setWinCount = _useState106[1];
+  var _useState107 = useState(function () {
+      var _gameState$low_spec_m;
+      return (_gameState$low_spec_m = gameState.low_spec_mode) !== null && _gameState$low_spec_m !== void 0 ? _gameState$low_spec_m : localStorage.getItem('lowSpecMode') === 'true';
+    }),
+    _useState108 = _slicedToArray(_useState107, 2),
+    lowSpec = _useState108[0],
+    setLowSpec = _useState108[1];
+  var _useState109 = useState(false),
+    _useState110 = _slicedToArray(_useState109, 2),
+    shopCollapsed = _useState110[0],
+    setShopCollapsed = _useState110[1];
+  var _useState111 = useState(false),
+    _useState112 = _slicedToArray(_useState111, 2),
+    diceRolling = _useState112[0],
+    setDiceRolling = _useState112[1];
+  var _useState113 = useState(null),
+    _useState114 = _slicedToArray(_useState113, 2),
+    diceResult = _useState114[0],
+    setDiceResult = _useState114[1];
+  var _useState115 = useState((_gameState$dice_charg = gameState.dice_charges) !== null && _gameState$dice_charg !== void 0 ? _gameState$dice_charg : 1),
+    _useState116 = _slicedToArray(_useState115, 2),
+    diceCharges = _useState116[0],
+    setDiceCharges = _useState116[1];
+  var _useState117 = useState(gameState.dice_last_recharge || new Date().toISOString()),
+    _useState118 = _slicedToArray(_useState117, 2),
+    diceLastRecharge = _useState118[0],
+    setDiceLastRecharge = _useState118[1];
+  var _useState119 = useState(function () {
+      return window.innerWidth <= 768;
+    }),
+    _useState120 = _slicedToArray(_useState119, 2),
+    isMobile = _useState120[0],
+    setIsMobile = _useState120[1];
+  var _useState121 = useState(null),
+    _useState122 = _slicedToArray(_useState121, 2),
+    mobilePanel = _useState122[0],
+    setMobilePanel = _useState122[1];
+  var _useState123 = useState(true),
+    _useState124 = _slicedToArray(_useState123, 2),
+    showChat = _useState124[0],
+    setShowChat = _useState124[1];
+  var fireMode = 2; // Mix mode
 
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)');
-    const handler = e => setIsMobile(e.matches);
+  useEffect(function () {
+    var mq = window.matchMedia('(max-width: 768px)');
+    var handler = function handler(e) {
+      return setIsMobile(e.matches);
+    };
     mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    return function () {
+      return mq.removeEventListener('change', handler);
+    };
   }, []);
-  const toggleMobilePanel = useCallback(panel => {
-    setMobilePanel(prev => prev === panel ? null : panel);
+  var toggleMobilePanel = useCallback(function (panel) {
+    setMobilePanel(function (prev) {
+      return prev === panel ? null : panel;
+    });
   }, []);
-  const spinSpeed = useMemo(() => {
+  var spinSpeed = useMemo(function () {
     if (ownedItems.includes('maxspin')) return 0.5;
     if (ownedItems.includes('ultraspin')) return 0.75;
     if (ownedItems.includes('hyperspin')) return 1.0;
@@ -2527,20 +2943,22 @@ function GameApp({
   }, [ownedItems]);
 
   // Guard animation speed multiplier (1.0 = normal, lower = faster)
-  const guardSpeedMult = useMemo(() => {
+  var guardSpeedMult = useMemo(function () {
     if (ownedItems.includes('guard_speed_4')) return 0.25;
     if (ownedItems.includes('guard_speed_3')) return 0.35;
     if (ownedItems.includes('guard_speed_2')) return 0.5;
     if (ownedItems.includes('guard_speed_1')) return 0.75;
     return 1.0;
   }, [ownedItems]);
-  const autoSpinDelay = useMemo(() => ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500, [ownedItems]);
-  const diceMaxCharges = useMemo(() => {
+  var autoSpinDelay = useMemo(function () {
+    return ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500;
+  }, [ownedItems]);
+  var diceMaxCharges = useMemo(function () {
     if (ownedItems.includes('dice_charge_3')) return 3;
     if (ownedItems.includes('dice_charge_2')) return 2;
     return 1;
   }, [ownedItems]);
-  const clickAmount = useMemo(() => {
+  var clickAmount = useMemo(function () {
     if (ownedItems.includes('double_click_5')) return 6;
     if (ownedItems.includes('double_click_4')) return 5;
     if (ownedItems.includes('double_click_3')) return 4;
@@ -2548,7 +2966,7 @@ function GameApp({
     if (ownedItems.includes('double_click')) return 2;
     return 1;
   }, [ownedItems]);
-  const clickFrenzyRate = useMemo(() => {
+  var clickFrenzyRate = useMemo(function () {
     if (activeCosmetics.includes('final_frenzy')) return 500;
     if (ownedItems.includes('clickfrenzy_5')) return 100;
     if (ownedItems.includes('clickfrenzy_4')) return 50;
@@ -2557,9 +2975,13 @@ function GameApp({
     if (ownedItems.includes('clickfrenzy_1')) return 1;
     return 0;
   }, [ownedItems]);
-  const fishSizeRem = useMemo(() => activeCosmetics.includes('fishsize_3') ? 40 : activeCosmetics.includes('fishsize_2') ? 28 : activeCosmetics.includes('fishsize_1') ? 20 : 15, [activeCosmetics]);
-  const confettiCount = useMemo(() => Math.min(200, 80 * (activeCosmetics.includes('confetti_3') ? 15 : activeCosmetics.includes('confetti_2') ? 5 : activeCosmetics.includes('confetti_1') ? 2 : 1)), [activeCosmetics]);
-  const wheelTheme = useMemo(() => {
+  var fishSizeRem = useMemo(function () {
+    return activeCosmetics.includes('fishsize_3') ? 40 : activeCosmetics.includes('fishsize_2') ? 28 : activeCosmetics.includes('fishsize_1') ? 20 : 15;
+  }, [activeCosmetics]);
+  var confettiCount = useMemo(function () {
+    return Math.min(200, 80 * (activeCosmetics.includes('confetti_3') ? 15 : activeCosmetics.includes('confetti_2') ? 5 : activeCosmetics.includes('confetti_1') ? 2 : 1));
+  }, [activeCosmetics]);
+  var wheelTheme = useMemo(function () {
     if (activeCosmetics.includes('theme_gold')) return 'gold';
     if (activeCosmetics.includes('theme_void')) return 'void';
     if (activeCosmetics.includes('theme_neon')) return 'neon';
@@ -2568,16 +2990,16 @@ function GameApp({
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     return 'default';
   }, [activeCosmetics]);
-  const bgClass = useMemo(() => {
+  var bgClass = useMemo(function () {
     if (activeCosmetics.includes('bg_cosmic')) return 'bg-cosmic';
     if (activeCosmetics.includes('bg_abyss')) return 'bg-abyss';
     if (activeCosmetics.includes('bg_forest')) return 'bg-forest';
     if (activeCosmetics.includes('bg_inferno')) return 'bg-inferno';
     if (activeCosmetics.includes('bg_royal')) return 'bg-royal';
     if (activeCosmetics.includes('bg_ocean')) return 'bg-ocean';
-    return '';
+    return 'bg-ocean'; // Season 5 default
   }, [activeCosmetics]);
-  const trailClass = useMemo(() => {
+  var trailClass = useMemo(function () {
     if (activeCosmetics.includes('trail_6')) return 'trail-galaxy';
     if (activeCosmetics.includes('trail_5')) return 'trail-thunder';
     if (activeCosmetics.includes('trail_4')) return 'trail-frost';
@@ -2586,7 +3008,7 @@ function GameApp({
     if (activeCosmetics.includes('trail_1')) return 'trail-sparkle';
     return '';
   }, [activeCosmetics]);
-  const pageThemeClass = useMemo(() => {
+  var pageThemeClass = useMemo(function () {
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
@@ -2594,35 +3016,35 @@ function GameApp({
     if (activeCosmetics.includes('page_season5')) return 'page-season5';
     return '';
   }, [activeCosmetics]);
-  const currentRotationRef = useRef(0);
-  const fishTimerRef = useRef(null);
-  const toastTimerRef = useRef(null);
-  const confettiTimerRef = useRef(null);
-  const autoSpinRef = useRef(false);
-  const spinSpeedRef = useRef(4.5);
-  const autoSpinDelayRef = useRef(1500);
-  const spinningRef = useRef(false);
-  const showResultRef = useRef(false);
-  const clickBufferRef = useRef(0);
-  const activeCosmeticsRef = useRef(activeCosmetics);
-  const lowSpecRef = useRef(lowSpec);
-  useEffect(() => {
+  var currentRotationRef = useRef(0);
+  var fishTimerRef = useRef(null);
+  var toastTimerRef = useRef(null);
+  var confettiTimerRef = useRef(null);
+  var autoSpinRef = useRef(false);
+  var spinSpeedRef = useRef(4.5);
+  var autoSpinDelayRef = useRef(1500);
+  var spinningRef = useRef(false);
+  var showResultRef = useRef(false);
+  var clickBufferRef = useRef(0);
+  var activeCosmeticsRef = useRef(activeCosmetics);
+  var lowSpecRef = useRef(lowSpec);
+  useEffect(function () {
     activeCosmeticsRef.current = activeCosmetics;
   }, [activeCosmetics]);
-  useEffect(() => {
+  useEffect(function () {
     lowSpecRef.current = lowSpec;
   }, [lowSpec]);
-  useEffect(() => {
+  useEffect(function () {
     autoSpinRef.current = autoSpin;
     if (autoSpin && !spinning) spin();
   }, [autoSpin]); // eslint-disable-line
-  useEffect(() => {
+  useEffect(function () {
     spinSpeedRef.current = spinSpeed;
   }, [spinSpeed]);
-  useEffect(() => {
+  useEffect(function () {
     autoSpinDelayRef.current = autoSpinDelay;
   }, [autoSpinDelay]);
-  useEffect(() => {
+  useEffect(function () {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
     apiGame('/api/settings', {
@@ -2631,214 +3053,363 @@ function GameApp({
         low_spec_mode: lowSpec
       })
     });
+    var iframe = document.getElementById('seabed-bg');
+    if (iframe) {
+      iframe.src = lowSpec ? '/static/seabed-static.html' : '/static/seabed-animated.html';
+    }
   }, [lowSpec]);
-  useEffect(() => {
+  useEffect(function () {
+    var show = bgClass === 'bg-ocean';
+    var iframe = document.getElementById('seabed-bg');
+    var overlay = document.getElementById('seabed-overlay');
+    if (iframe) iframe.style.display = show ? 'block' : 'none';
+    if (overlay) overlay.style.display = show ? 'block' : 'none';
+  }, [bgClass]);
+  useEffect(function () {
     setSessionExpiredHandler(onSessionExpired);
-    return () => setSessionExpiredHandler(null);
+    return function () {
+      return setSessionExpiredHandler(null);
+    };
   }, [onSessionExpired]);
-  useEffect(() => {
+  useEffect(function () {
     if (clickFrenzyRate === 0) return;
-    const id = setInterval(async () => {
-      const {
-        ok,
-        data
-      } = await apiGame('/api/click-frenzy', {
-        method: 'POST',
-        body: '{}'
-      });
-      if (ok) setFishClicks(data.fish_clicks);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [clickFrenzyRate]);
-  useEffect(() => {
-    const currentNumber = season ? season.season_number : null;
-    const id = setInterval(async () => {
-      const r = await apiFetch('/api/season');
-      if (!r.ok) return;
-      if (currentNumber !== null && r.data.season_number !== currentNumber) {
-        showToast(`Season ${currentNumber} has ended! Season ${r.data.season_number} begins!`);
-        const gs = await apiGame('/api/state');
-        if (gs.ok) {
-          setSeason(gs.data.season);
-          setWins(gs.data.wins);
-          setLosses(gs.data.losses);
-          setStreak(gs.data.streak);
-          setFishClicks(gs.data.fish_clicks);
-          setOwnedItems(gs.data.owned_items);
-          setEquippedFish(gs.data.equipped_fish);
-          setShieldCharges(gs.data.shield_charges);
-          setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
-          setActiveCosmetics(gs.data.active_cosmetics || []);
-          setInfLevels({
-            winmult_inf: gs.data.winmult_inf_level || 0,
-            bonusmult_inf: gs.data.bonusmult_inf_level || 0,
-            clickmult_inf: gs.data.clickmult_inf_level || 0
-          });
+    var id = setInterval(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee4() {
+      var _yield$apiGame2, ok, data;
+      return _regeneratorRuntime().wrap(function _callee4$(_context4) {
+        while (1) switch (_context4.prev = _context4.next) {
+          case 0:
+            _context4.next = 2;
+            return apiGame('/api/click-frenzy', {
+              method: 'POST',
+              body: '{}'
+            });
+          case 2:
+            _yield$apiGame2 = _context4.sent;
+            ok = _yield$apiGame2.ok;
+            data = _yield$apiGame2.data;
+            if (ok) setFishClicks(data.fish_clicks);
+          case 6:
+          case "end":
+            return _context4.stop();
         }
-      } else {
-        setSeason(r.data);
-      }
-    }, 60000);
-    return () => clearInterval(id);
+      }, _callee4);
+    })), 5000);
+    return function () {
+      return clearInterval(id);
+    };
+  }, [clickFrenzyRate]);
+  useEffect(function () {
+    var currentNumber = season ? season.season_number : null;
+    var id = setInterval(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
+      var r, gs;
+      return _regeneratorRuntime().wrap(function _callee5$(_context5) {
+        while (1) switch (_context5.prev = _context5.next) {
+          case 0:
+            _context5.next = 2;
+            return apiFetch('/api/season');
+          case 2:
+            r = _context5.sent;
+            if (r.ok) {
+              _context5.next = 5;
+              break;
+            }
+            return _context5.abrupt("return");
+          case 5:
+            if (!(currentNumber !== null && r.data.season_number !== currentNumber)) {
+              _context5.next = 13;
+              break;
+            }
+            showToast("Season ".concat(currentNumber, " has ended! Season ").concat(r.data.season_number, " begins!"));
+            _context5.next = 9;
+            return apiGame('/api/state');
+          case 9:
+            gs = _context5.sent;
+            if (gs.ok) {
+              setSeason(gs.data.season);
+              setWins(gs.data.wins);
+              setLosses(gs.data.losses);
+              setStreak(gs.data.streak);
+              setFishClicks(gs.data.fish_clicks);
+              setOwnedItems(gs.data.owned_items);
+              setEquippedFish(gs.data.equipped_fish);
+              setShieldCharges(gs.data.shield_charges);
+              setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
+              setActiveCosmetics(gs.data.active_cosmetics || []);
+              setInfLevels({
+                winmult_inf: gs.data.winmult_inf_level || 0,
+                bonusmult_inf: gs.data.bonusmult_inf_level || 0,
+                clickmult_inf: gs.data.clickmult_inf_level || 0
+              });
+            }
+            _context5.next = 14;
+            break;
+          case 13:
+            setSeason(r.data);
+          case 14:
+          case "end":
+            return _context5.stop();
+        }
+      }, _callee5);
+    })), 60000);
+    return function () {
+      return clearInterval(id);
+    };
   }, [season ? season.season_number : null]); // eslint-disable-line
 
-  useEffect(() => {
-    const classes = [bgClass, pageThemeClass].filter(Boolean).join(' ');
+  useEffect(function () {
+    var classes = [bgClass, pageThemeClass].filter(Boolean).join(' ');
     document.body.className = classes;
-    return () => {
+    return function () {
       document.body.className = '';
     };
   }, [bgClass, pageThemeClass]);
-  useEffect(() => {
-    const canvas = canvasRef.current;
+  useEffect(function () {
+    var canvas = canvasRef.current;
     if (canvas) drawWheel(canvas, wheelTheme);
   }, [wheelTheme]);
-  const showToast = useCallback(msg => {
+  var showToast = useCallback(function (msg) {
     setToast(msg);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = setTimeout(function () {
+      return setToast(null);
+    }, 3000);
   }, []);
-  const flushClicks = useCallback(async () => {
-    const count = clickBufferRef.current;
-    if (count === 0) return;
-    clickBufferRef.current = 0;
-    const {
-      ok,
-      data
-    } = await apiGame('/api/fish-click', {
-      method: 'POST',
-      body: JSON.stringify({
-        count
-      })
-    });
-    if (ok) setFishClicks(data.fish_clicks);
-  }, []);
-  useEffect(() => {
-    const id = setInterval(flushClicks, 500);
-    return () => {
+  var flushClicks = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee6() {
+    var count, _yield$apiGame3, ok, data;
+    return _regeneratorRuntime().wrap(function _callee6$(_context6) {
+      while (1) switch (_context6.prev = _context6.next) {
+        case 0:
+          count = clickBufferRef.current;
+          if (!(count === 0)) {
+            _context6.next = 3;
+            break;
+          }
+          return _context6.abrupt("return");
+        case 3:
+          clickBufferRef.current = 0;
+          _context6.next = 6;
+          return apiGame('/api/fish-click', {
+            method: 'POST',
+            body: JSON.stringify({
+              count: count
+            })
+          });
+        case 6:
+          _yield$apiGame3 = _context6.sent;
+          ok = _yield$apiGame3.ok;
+          data = _yield$apiGame3.data;
+          if (ok) setFishClicks(data.fish_clicks);
+        case 10:
+        case "end":
+          return _context6.stop();
+      }
+    }, _callee6);
+  })), []);
+  useEffect(function () {
+    var id = setInterval(flushClicks, 500);
+    return function () {
       clearInterval(id);
-      const count = clickBufferRef.current;
+      var count = clickBufferRef.current;
       if (count > 0) {
         clickBufferRef.current = 0;
         apiGame('/api/fish-click', {
           method: 'POST',
           body: JSON.stringify({
-            count
+            count: count
           })
         });
       }
     };
   }, [flushClicks]);
-  const handleBuy = useCallback(async id => {
-    const {
-      ok,
-      data
-    } = await apiGame('/api/buy', {
-      method: 'POST',
-      body: JSON.stringify({
-        item_id: id
-      })
-    });
-    if (ok) {
-      setFishClicks(data.fish_clicks);
-      if (data.wins != null) setWins(data.wins);
-      if (data.losses != null) setLosses(data.losses);
-      setOwnedItems(data.owned_items);
-      setShieldCharges(data.shield_charges);
-      setRegenRechargeWins(data.regen_recharge_wins ?? 0);
-      if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null) {
-        setInfLevels(prev => ({
-          winmult_inf: data.winmult_inf_level ?? prev.winmult_inf,
-          bonusmult_inf: data.bonusmult_inf_level ?? prev.bonusmult_inf,
-          clickmult_inf: data.clickmult_inf_level ?? prev.clickmult_inf,
-          streak_armor_inf: data.streak_armor_level ?? prev.streak_armor_inf
-        }));
+  var handleBuy = useCallback(/*#__PURE__*/function () {
+    var _ref27 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee7(id) {
+      var _yield$apiGame4, ok, data, _data$regen_recharge_;
+      return _regeneratorRuntime().wrap(function _callee7$(_context7) {
+        while (1) switch (_context7.prev = _context7.next) {
+          case 0:
+            _context7.next = 2;
+            return apiGame('/api/buy', {
+              method: 'POST',
+              body: JSON.stringify({
+                item_id: id
+              })
+            });
+          case 2:
+            _yield$apiGame4 = _context7.sent;
+            ok = _yield$apiGame4.ok;
+            data = _yield$apiGame4.data;
+            if (ok) {
+              setFishClicks(data.fish_clicks);
+              if (data.wins != null) setWins(data.wins);
+              if (data.losses != null) setLosses(data.losses);
+              setOwnedItems(data.owned_items);
+              setShieldCharges(data.shield_charges);
+              setRegenRechargeWins((_data$regen_recharge_ = data.regen_recharge_wins) !== null && _data$regen_recharge_ !== void 0 ? _data$regen_recharge_ : 0);
+              if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+              if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null) {
+                setInfLevels(function (prev) {
+                  var _data$winmult_inf_lev, _data$bonusmult_inf_l, _data$clickmult_inf_l, _data$streak_armor_le;
+                  return {
+                    winmult_inf: (_data$winmult_inf_lev = data.winmult_inf_level) !== null && _data$winmult_inf_lev !== void 0 ? _data$winmult_inf_lev : prev.winmult_inf,
+                    bonusmult_inf: (_data$bonusmult_inf_l = data.bonusmult_inf_level) !== null && _data$bonusmult_inf_l !== void 0 ? _data$bonusmult_inf_l : prev.bonusmult_inf,
+                    clickmult_inf: (_data$clickmult_inf_l = data.clickmult_inf_level) !== null && _data$clickmult_inf_l !== void 0 ? _data$clickmult_inf_l : prev.clickmult_inf,
+                    streak_armor_inf: (_data$streak_armor_le = data.streak_armor_level) !== null && _data$streak_armor_le !== void 0 ? _data$streak_armor_le : prev.streak_armor_inf
+                  };
+                });
+              }
+            } else {
+              showToast(data.error || 'Purchase failed');
+            }
+          case 6:
+          case "end":
+            return _context7.stop();
+        }
+      }, _callee7);
+    }));
+    return function (_x6) {
+      return _ref27.apply(this, arguments);
+    };
+  }(), [showToast]);
+  var handleEquip = useCallback(/*#__PURE__*/function () {
+    var _ref28 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee8(id) {
+      var _yield$apiGame5, ok, data;
+      return _regeneratorRuntime().wrap(function _callee8$(_context8) {
+        while (1) switch (_context8.prev = _context8.next) {
+          case 0:
+            _context8.next = 2;
+            return apiGame('/api/equip', {
+              method: 'POST',
+              body: JSON.stringify({
+                fish_id: id
+              })
+            });
+          case 2:
+            _yield$apiGame5 = _context8.sent;
+            ok = _yield$apiGame5.ok;
+            data = _yield$apiGame5.data;
+            if (ok) setEquippedFish(data.equipped_fish);else showToast(data.error || 'Equip failed');
+          case 6:
+          case "end":
+            return _context8.stop();
+        }
+      }, _callee8);
+    }));
+    return function (_x7) {
+      return _ref28.apply(this, arguments);
+    };
+  }(), [showToast]);
+  var handleEquipCosmetic = useCallback(/*#__PURE__*/function () {
+    var _ref29 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee9(id) {
+      var _yield$apiGame6, ok, data;
+      return _regeneratorRuntime().wrap(function _callee9$(_context9) {
+        while (1) switch (_context9.prev = _context9.next) {
+          case 0:
+            _context9.next = 2;
+            return apiGame('/api/equip-cosmetic', {
+              method: 'POST',
+              body: JSON.stringify({
+                item_id: id
+              })
+            });
+          case 2:
+            _yield$apiGame6 = _context9.sent;
+            ok = _yield$apiGame6.ok;
+            data = _yield$apiGame6.data;
+            if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
+          case 6:
+          case "end":
+            return _context9.stop();
+        }
+      }, _callee9);
+    }));
+    return function (_x8) {
+      return _ref29.apply(this, arguments);
+    };
+  }(), [showToast]);
+  var handleDiceRoll = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee0() {
+    var prevStreak, _yield$apiGame7, ok, data;
+    return _regeneratorRuntime().wrap(function _callee0$(_context0) {
+      while (1) switch (_context0.prev = _context0.next) {
+        case 0:
+          if (!(diceRolling || spinning)) {
+            _context0.next = 2;
+            break;
+          }
+          return _context0.abrupt("return");
+        case 2:
+          setDiceRolling(true);
+          setDiceResult(null);
+          prevStreak = streak;
+          _context0.next = 7;
+          return apiGame('/api/roll-dice', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 7:
+          _yield$apiGame7 = _context0.sent;
+          ok = _yield$apiGame7.ok;
+          data = _yield$apiGame7.data;
+          if (ok) {
+            _context0.next = 14;
+            break;
+          }
+          showToast(data.error || 'Roll failed');
+          setDiceRolling(false);
+          return _context0.abrupt("return");
+        case 14:
+          setTimeout(function () {
+            var streakDelta = data.streak - prevStreak;
+            setDiceResult({
+              die1: data.die1,
+              die2: data.die2,
+              dice_sum: data.dice_sum,
+              streak_delta: streakDelta,
+              cursed: data.cursed,
+              streak_before: prevStreak,
+              streak_after: data.streak
+            });
+            setStreak(data.streak);
+            if (data.dice_charges != null) setDiceCharges(data.dice_charges);
+            if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
+            setDiceRolling(false);
+          }, lowSpec ? 100 : 1200);
+        case 15:
+        case "end":
+          return _context0.stop();
       }
-    } else {
-      showToast(data.error || 'Purchase failed');
-    }
-  }, [showToast]);
-  const handleEquip = useCallback(async id => {
-    const {
-      ok,
-      data
-    } = await apiGame('/api/equip', {
-      method: 'POST',
-      body: JSON.stringify({
-        fish_id: id
-      })
-    });
-    if (ok) setEquippedFish(data.equipped_fish);else showToast(data.error || 'Equip failed');
-  }, [showToast]);
-  const handleEquipCosmetic = useCallback(async id => {
-    const {
-      ok,
-      data
-    } = await apiGame('/api/equip-cosmetic', {
-      method: 'POST',
-      body: JSON.stringify({
-        item_id: id
-      })
-    });
-    if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
-  }, [showToast]);
-  const handleDiceRoll = useCallback(async () => {
-    if (diceRolling || spinning) return;
-    setDiceRolling(true);
-    setDiceResult(null);
-    const prevStreak = streak;
-    const {
-      ok,
-      data
-    } = await apiGame('/api/roll-dice', {
-      method: 'POST',
-      body: JSON.stringify({})
-    });
-    if (!ok) {
-      showToast(data.error || 'Roll failed');
-      setDiceRolling(false);
-      return;
-    }
-    setTimeout(() => {
-      const streakDelta = data.streak - prevStreak;
-      setDiceResult({
-        die1: data.die1,
-        die2: data.die2,
-        dice_sum: data.dice_sum,
-        streak_delta: streakDelta,
-        cursed: data.cursed,
-        streak_before: prevStreak,
-        streak_after: data.streak
-      });
-      setStreak(data.streak);
-      if (data.dice_charges != null) setDiceCharges(data.dice_charges);
-      if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
-      setDiceRolling(false);
-    }, lowSpec ? 100 : 1200);
-  }, [diceRolling, spinning, streak, lowSpec, showToast]);
-  const handleFishClick = useCallback(() => {
+    }, _callee0);
+  })), [diceRolling, spinning, streak, lowSpec, showToast]);
+  var handleFishClick = useCallback(function () {
     if (activeCosmetics.includes('final_frenzy')) return;
-    setFishClicks(c => c + clickAmount);
+    setFishClicks(function (c) {
+      return c + clickAmount;
+    });
     clickBufferRef.current += 1;
     if (clickBufferRef.current >= 10) flushClicks();
   }, [clickAmount, flushClicks, activeCosmetics]);
 
   // Shared post-spin state update (used both directly and via guard callback)
-  const applySpinResult = useCallback(data => {
+  var applySpinResult = useCallback(function (data) {
+    var _data$regen_recharge_2, _data$regen_recharge_3;
     setResult(data.result);
-    if (data.wins_delta) setWins(prev => prev + data.wins_delta);
-    if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
+    if (data.wins_delta) setWins(function (prev) {
+      return prev + data.wins_delta;
+    });
+    if (data.losses_delta) setLosses(function (prev) {
+      return prev + data.losses_delta;
+    });
     setStreak(data.streak);
     setShieldCharges(data.shield_charges);
-    setRegenRechargeWins(data.regen_recharge_wins ?? 0);
+    setRegenRechargeWins((_data$regen_recharge_2 = data.regen_recharge_wins) !== null && _data$regen_recharge_2 !== void 0 ? _data$regen_recharge_2 : 0);
     if (data.owned_items) {
-      const spinResult = new Set(data.owned_items);
+      var spinResult = new Set(data.owned_items);
       // Sync guard from spin result (can be removed by guard block, added by auto-guard).
       // All other items kept from prev to preserve mid-spin shop purchases.
-      setOwnedItems(prev => {
-        const withoutGuard = prev.filter(id => id !== 'guard');
-        return spinResult.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
+      setOwnedItems(function (prev) {
+        var withoutGuard = prev.filter(function (id) {
+          return id !== 'guard';
+        });
+        return spinResult.has('guard') ? [].concat(_toConsumableArray(withoutGuard), ['guard']) : withoutGuard;
       });
     }
     setBonusEarned(data.bonus_earned);
@@ -2852,18 +3423,20 @@ function GameApp({
     if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
-    if (data.wins_delta > 0) setWinCount(prev => prev + 1);
+    if (data.wins_delta > 0) setWinCount(function (prev) {
+      return prev + 1;
+    });
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
       chargesLeft: data.shield_charges,
-      rechargeWins: data.regen_recharge_wins ?? 0
+      rechargeWins: (_data$regen_recharge_3 = data.regen_recharge_wins) !== null && _data$regen_recharge_3 !== void 0 ? _data$regen_recharge_3 : 0
     } : data.guard_triggered && data.guard_blocked ? {
       type: 'guard',
       broke: true
     } : null);
     setShowResultSync(true);
-    const cosm = activeCosmeticsRef.current;
+    var cosm = activeCosmeticsRef.current;
     if (!lowSpecRef.current) {
       if (data.result === 'win' || data.guard_triggered && data.guard_blocked) {
         setConfetti(true);
@@ -2871,114 +3444,143 @@ function GameApp({
         setConfetti(true);
       }
       if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
-      confettiTimerRef.current = setTimeout(() => setConfetti(false), 3500);
+      confettiTimerRef.current = setTimeout(function () {
+        return setConfetti(false);
+      }, 3500);
     }
-    const mood = data.result === 'win' || data.guard_triggered && data.guard_blocked ? 'happy' : 'sad';
+    var mood = data.result === 'win' || data.guard_triggered && data.guard_blocked ? 'happy' : 'sad';
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
-    fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
+    fishTimerRef.current = setTimeout(function () {
+      return setFishMood('idle');
+    }, 2500);
     spinningRef.current = false;
     setSpinning(false);
   }, [showToast]);
-  const spin = useCallback(async () => {
-    if (spinningRef.current) return;
-    if (showResultRef.current) {
-      setHideResult(true);
-      setShowResultSync(false);
-      setConfetti(false);
-      setTimeout(() => {
-        setHideResult(false);
-        setResult(null);
-        setShieldFeedback(null);
-      }, 350);
-    }
-    setBonusEarned(0);
-    setEchoTriggered(false);
-    setJackpotHit(false);
-    setResilienceTriggered(false);
-    setLuckySevenTriggered(false);
-    setFortuneCharmTriggered(false);
-    spinningRef.current = true;
-    setSpinning(true);
-    let data;
-    try {
-      const res = await apiGame('/api/spin', {
-        method: 'POST',
-        body: '{}'
-      });
-      if (!res.ok) {
-        spinningRef.current = false;
-        setSpinning(false);
-        if (autoSpinRef.current) setTimeout(() => {
-          if (autoSpinRef.current) spin();
-        }, 1000);
-        return;
-      }
-      data = res.data;
-    } catch (e) {
-      spinningRef.current = false;
-      setSpinning(false);
-      if (autoSpinRef.current) setTimeout(() => {
-        if (autoSpinRef.current) spin();
-      }, 1000);
-      return;
-    }
-    const base = currentRotationRef.current;
-    const segmentAngle = data.angle % 360;
-    const minTarget = base + 5 * 360;
-    const newRotation = Math.ceil((minTarget - segmentAngle) / 360) * 360 + segmentAngle;
-    currentRotationRef.current = newRotation;
-    setRotation(newRotation);
-    setTimeout(() => {
-      if (data.guard_triggered) {
-        // Show guard wheel; defer result display until guard resolves
-        setGuardState({
-          blocked: data.guard_blocked
-        });
-        guardCompleteRef.current = () => {
-          setGuardState(null);
-          applySpinResult(data);
-          if (autoSpinRef.current) {
-            const delay = Math.max(2000, autoSpinDelayRef.current);
-            setTimeout(() => {
-              if (autoSpinRef.current) {
-                setHideResult(true);
-                setTimeout(() => {
-                  setShowResultSync(false);
-                  setHideResult(false);
-                  setResult(null);
-                  setShieldFeedback(null);
-                  setConfetti(false);
-                  spin();
-                }, 320);
-              }
-            }, delay);
+  var spin = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee1() {
+    var data, res, base, segmentAngle, minTarget, newRotation;
+    return _regeneratorRuntime().wrap(function _callee1$(_context1) {
+      while (1) switch (_context1.prev = _context1.next) {
+        case 0:
+          if (!spinningRef.current) {
+            _context1.next = 2;
+            break;
           }
-        };
-      } else {
-        applySpinResult(data);
-        if (autoSpinRef.current) {
-          const delay = data.shield_used ? Math.max(2000, autoSpinDelayRef.current) : Math.max(1500, autoSpinDelayRef.current);
-          setTimeout(() => {
-            if (autoSpinRef.current) {
-              setHideResult(true);
-              setTimeout(() => {
-                setShowResultSync(false);
-                setHideResult(false);
-                setResult(null);
-                setShieldFeedback(null);
-                spin();
-                setTimeout(() => setConfetti(false), 3000);
-              }, 320);
+          return _context1.abrupt("return");
+        case 2:
+          if (showResultRef.current) {
+            setHideResult(true);
+            setShowResultSync(false);
+            setConfetti(false);
+            setTimeout(function () {
+              setHideResult(false);
+              setResult(null);
+              setShieldFeedback(null);
+            }, 350);
+          }
+          setBonusEarned(0);
+          setEchoTriggered(false);
+          setJackpotHit(false);
+          setResilienceTriggered(false);
+          setLuckySevenTriggered(false);
+          setFortuneCharmTriggered(false);
+          spinningRef.current = true;
+          setSpinning(true);
+          _context1.prev = 11;
+          _context1.next = 14;
+          return apiGame('/api/spin', {
+            method: 'POST',
+            body: '{}'
+          });
+        case 14:
+          res = _context1.sent;
+          if (res.ok) {
+            _context1.next = 20;
+            break;
+          }
+          spinningRef.current = false;
+          setSpinning(false);
+          if (autoSpinRef.current) setTimeout(function () {
+            if (autoSpinRef.current) spin();
+          }, 1000);
+          return _context1.abrupt("return");
+        case 20:
+          data = res.data;
+          _context1.next = 29;
+          break;
+        case 23:
+          _context1.prev = 23;
+          _context1.t0 = _context1["catch"](11);
+          spinningRef.current = false;
+          setSpinning(false);
+          if (autoSpinRef.current) setTimeout(function () {
+            if (autoSpinRef.current) spin();
+          }, 1000);
+          return _context1.abrupt("return");
+        case 29:
+          base = currentRotationRef.current;
+          segmentAngle = data.angle % 360;
+          minTarget = base + 5 * 360;
+          newRotation = Math.ceil((minTarget - segmentAngle) / 360) * 360 + segmentAngle;
+          currentRotationRef.current = newRotation;
+          setRotation(newRotation);
+          setTimeout(function () {
+            if (data.guard_triggered) {
+              // Show guard wheel; defer result display until guard resolves
+              setGuardState({
+                blocked: data.guard_blocked
+              });
+              guardCompleteRef.current = function () {
+                setGuardState(null);
+                applySpinResult(data);
+                if (autoSpinRef.current) {
+                  var delay = Math.max(2000, autoSpinDelayRef.current);
+                  setTimeout(function () {
+                    if (autoSpinRef.current) {
+                      setHideResult(true);
+                      setTimeout(function () {
+                        setShowResultSync(false);
+                        setHideResult(false);
+                        setResult(null);
+                        setShieldFeedback(null);
+                        setConfetti(false);
+                        spin();
+                      }, 320);
+                    }
+                  }, delay);
+                }
+              };
+            } else {
+              applySpinResult(data);
+              if (autoSpinRef.current) {
+                var delay = data.shield_used ? Math.max(2000, autoSpinDelayRef.current) : Math.max(1500, autoSpinDelayRef.current);
+                setTimeout(function () {
+                  if (autoSpinRef.current) {
+                    setHideResult(true);
+                    setTimeout(function () {
+                      setShowResultSync(false);
+                      setHideResult(false);
+                      setResult(null);
+                      setShieldFeedback(null);
+                      spin();
+                      setTimeout(function () {
+                        return setConfetti(false);
+                      }, 3000);
+                    }, 320);
+                  }
+                }, delay);
+              }
             }
-          }, delay);
-        }
+          }, spinSpeedRef.current * 1000 + 200);
+        case 36:
+        case "end":
+          return _context1.stop();
       }
-    }, spinSpeedRef.current * 1000 + 200);
-  }, [applySpinResult]);
-  const handleSpinAgain = useCallback(() => {
+    }, _callee1, null, [[11, 23]]);
+  })), [applySpinResult]);
+  var handleSpinAgain = useCallback(function () {
     setHideResult(true);
-    setTimeout(() => {
+    setTimeout(function () {
       setShowResultSync(false);
       setHideResult(false);
       setResult(null);
@@ -2987,31 +3589,50 @@ function GameApp({
       spin();
     }, 320);
   }, [spin]);
-  const handleLogout = async () => {
-    await apiFetch('/api/logout', {
-      method: 'POST',
-      body: '{}'
-    });
-    onLogout();
-  };
-  const hasGuard = ownedItems.includes('guard');
-  const hasRegen = ownedItems.includes('regen_shield');
+  var handleLogout = /*#__PURE__*/function () {
+    var _ref32 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee10() {
+      return _regeneratorRuntime().wrap(function _callee10$(_context10) {
+        while (1) switch (_context10.prev = _context10.next) {
+          case 0:
+            _context10.next = 2;
+            return apiFetch('/api/logout', {
+              method: 'POST',
+              body: '{}'
+            });
+          case 2:
+            onLogout();
+          case 3:
+          case "end":
+            return _context10.stop();
+        }
+      }, _callee10);
+    }));
+    return function handleLogout() {
+      return _ref32.apply(this, arguments);
+    };
+  }();
+  var hasGuard = ownedItems.includes('guard');
+  var hasRegen = ownedItems.includes('regen_shield');
   return /*#__PURE__*/React.createElement("div", {
     className: lowSpec ? 'low-spec' : ''
   }, /*#__PURE__*/React.createElement(StatsPanel, {
     open: showStats,
-    onClose: () => setShowStats(false)
+    onClose: function onClose() {
+      return setShowStats(false);
+    }
   }), toast && /*#__PURE__*/React.createElement("div", {
     className: "toast-notification"
   }, toast), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), /*#__PURE__*/React.createElement("div", {
-    className: `overlay ${showResult ? 'active' : ''}`
+    className: "overlay ".concat(showResult ? 'active' : '')
   }), guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
     speedMult: guardSpeedMult,
-    onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
+    onComplete: function onComplete() {
+      return guardCompleteRef.current && guardCompleteRef.current();
+    }
   }), (!isMobile && showChat || isMobile && mobilePanel === 'chat') && /*#__PURE__*/React.createElement(ChatPanel, {
     extraClass: isMobile ? 'mobile-full' : ''
   }), /*#__PURE__*/React.createElement(FireEffect, {
@@ -3024,17 +3645,27 @@ function GameApp({
     className: "user-bar-name"
   }, "\uD83D\uDC64 ", username), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
-    onClick: () => setShowStats(true)
+    onClick: function onClick() {
+      return setShowStats(true);
+    }
   }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
-    onClick: () => setLowSpec(v => !v),
+    onClick: function onClick() {
+      return setLowSpec(function (v) {
+        return !v;
+      });
+    },
     title: lowSpec ? 'Low Spec Mode ON — click to restore animations' : 'Low Spec Mode OFF — click to reduce GPU usage',
     style: {
       opacity: lowSpec ? 1 : 0.5
     }
   }, "\u26A1"), !isMobile && /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
-    onClick: () => setShowChat(v => !v),
+    onClick: function onClick() {
+      return setShowChat(function (v) {
+        return !v;
+      });
+    },
     title: showChat ? 'Hide Chat' : 'Show Chat',
     style: {
       opacity: showChat ? 1 : 0.5
@@ -3045,7 +3676,9 @@ function GameApp({
   }, "Logout"), /*#__PURE__*/React.createElement(CommunityPot, {
     pot: communityPot,
     fishClicks: fishClicks,
-    onContribute: newClicks => setFishClicks(newClicks)
+    onContribute: function onContribute(newClicks) {
+      return setFishClicks(newClicks);
+    }
   }), season && /*#__PURE__*/React.createElement(SeasonInfo, {
     seasonNumber: season.season_number,
     endsAt: season.ends_at
@@ -3059,7 +3692,7 @@ function GameApp({
     lowSpec: lowSpec,
     onFishClick: handleFishClick
   }), isMobile && /*#__PURE__*/React.createElement("div", {
-    className: `mobile-fish-panel${mobilePanel === 'fish' ? ' mobile-visible' : ''}`
+    className: "mobile-fish-panel".concat(mobilePanel === 'fish' ? ' mobile-visible' : '')
   }, /*#__PURE__*/React.createElement(Fish, {
     mood: fishMood,
     net: wins - losses,
@@ -3072,11 +3705,13 @@ function GameApp({
   }), /*#__PURE__*/React.createElement(CommunityPot, {
     pot: communityPot,
     fishClicks: fishClicks,
-    onContribute: newClicks => setFishClicks(newClicks)
+    onContribute: function onContribute(newClicks) {
+      return setFishClicks(newClicks);
+    }
   })), showResult && /*#__PURE__*/React.createElement("div", {
-    className: `result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`
+    className: "result-banner ".concat(showResult && !hideResult ? 'show' : '', " ").concat(hideResult ? 'hide' : '')
   }, result === 'win' || result === 'lose' && shieldFeedback ? /*#__PURE__*/React.createElement("div", {
-    className: `result-text ${result === 'win' ? 'win' : 'win'}`
+    className: "result-text ".concat(result === 'win' ? 'win' : 'win')
   }, result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️') : /*#__PURE__*/React.createElement("div", {
     className: "result-text lose"
   }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), jackpotHit && /*#__PURE__*/React.createElement("div", {
@@ -3093,18 +3728,18 @@ function GameApp({
     className: "bonus-line"
   }, "\uD83D\uDD25 Streak Bonus +", fmt(bonusEarned), "!"), bonusEarned < 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line lose-bonus"
-  }, "\uD83D\uDC80 Loss Streak +", fmt(Math.abs(bonusEarned)), " extra losses!"), shieldFeedback && (() => {
-    const names = {
+  }, "\uD83D\uDC80 Loss Streak +", fmt(Math.abs(bonusEarned)), " extra losses!"), shieldFeedback && function () {
+    var names = {
       regen_shield: 'Regenerating Shield',
       guard: 'Guard'
     };
-    const emojis = {
+    var emojis = {
       regen_shield: '🔄',
       guard: '🛡️'
     };
-    const name = names[shieldFeedback.type] || shieldFeedback.type;
-    const emoji = emojis[shieldFeedback.type] || '🛡️';
-    const sub = shieldFeedback.type === 'regen_shield' ? `Recharging… ${shieldFeedback.rechargeWins} win${shieldFeedback.rechargeWins !== 1 ? 's' : ''}` : shieldFeedback.type === 'guard' ? 'Guard consumed' : null;
+    var name = names[shieldFeedback.type] || shieldFeedback.type;
+    var emoji = emojis[shieldFeedback.type] || '🛡️';
+    var sub = shieldFeedback.type === 'regen_shield' ? "Recharging\u2026 ".concat(shieldFeedback.rechargeWins, " win").concat(shieldFeedback.rechargeWins !== 1 ? 's' : '') : shieldFeedback.type === 'guard' ? 'Guard consumed' : null;
     return /*#__PURE__*/React.createElement("div", {
       className: "shield-feedback"
     }, /*#__PURE__*/React.createElement("div", {
@@ -3114,7 +3749,7 @@ function GameApp({
     }, name, " Blocked!"), sub && /*#__PURE__*/React.createElement("div", {
       className: "shield-feedback-sub"
     }, sub));
-  })(), /*#__PURE__*/React.createElement("button", {
+  }(), /*#__PURE__*/React.createElement("button", {
     className: "spin-again-btn",
     onClick: handleSpinAgain
   }, "Spin Again")), /*#__PURE__*/React.createElement("div", {
@@ -3123,41 +3758,45 @@ function GameApp({
     className: "bulbs"
   }, Array.from({
     length: 16
-  }, (_, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "bulb"
-  }))), /*#__PURE__*/React.createElement("div", {
+  }, function (_, i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "bulb"
+    });
+  })), /*#__PURE__*/React.createElement("div", {
     className: "casino-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "casino-title"
   }, "Lucky Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, "Try Your Fortune")), /*#__PURE__*/React.createElement("div", {
-    className: `wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`,
+    className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
     onClick: !spinning && !autoSpin ? spin : undefined,
     title: autoSpin ? 'Auto-spin active' : 'Click to spin!'
   }, /*#__PURE__*/React.createElement("div", {
-    className: `pointer ${spinning ? 'spinning' : ''}`
+    className: "pointer ".concat(spinning ? 'spinning' : '')
   }), /*#__PURE__*/React.createElement("canvas", {
     ref: canvasRef,
     width: 380,
     height: 380,
-    className: `wheel-canvas ${spinning ? 'spinning' : ''}`,
+    className: "wheel-canvas ".concat(spinning ? 'spinning' : ''),
     style: {
-      transform: `rotate(${rotation}deg)`,
-      transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
+      transform: "rotate(".concat(rotation, "deg)"),
+      transition: "transform ".concat(spinSpeed, "s cubic-bezier(0.17, 0.67, 0.12, 0.99)")
     }
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-hub"
   }, "\u2605")), /*#__PURE__*/React.createElement("div", {
-    className: `spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`,
+    className: "spin-prompt ".concat(spinning || autoSpin ? 'hidden' : ''),
     onClick: spin
   }, spinning || autoSpin ? '' : '▶ Click to Spin ◀'), /*#__PURE__*/React.createElement("label", {
     className: "autospin-row"
   }, /*#__PURE__*/React.createElement("input", {
     type: "checkbox",
     checked: autoSpin,
-    onChange: e => setAutoSpin(e.target.checked)
+    onChange: function onChange(e) {
+      return setAutoSpin(e.target.checked);
+    }
   }), /*#__PURE__*/React.createElement("span", {
     className: "autospin-label"
   }, "Auto Spin")), /*#__PURE__*/React.createElement(Scoreboard, {
@@ -3179,22 +3818,28 @@ function GameApp({
     className: "bulbs"
   }, Array.from({
     length: 16
-  }, (_, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "bulb"
-  })))), /*#__PURE__*/React.createElement("div", {
-    className: `game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`
+  }, function (_, i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "bulb"
+    });
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "game-right".concat(isMobile && mobilePanel === 'shop' ? ' mobile-open' : '')
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-collapse-btn",
-    onClick: () => setShopCollapsed(c => !c),
+    onClick: function onClick() {
+      return setShopCollapsed(function (c) {
+        return !c;
+      });
+    },
     title: shopCollapsed ? 'Expand shop' : 'Collapse shop'
   }, shopCollapsed ? '‹' : '›'), /*#__PURE__*/React.createElement("div", {
-    className: `game-right-body${shopCollapsed ? ' shop-collapsed' : ''}`
+    className: "game-right-body".concat(shopCollapsed ? ' shop-collapsed' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "game-right-sidebar"
   }, (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {
     className: "shield-indicator"
-  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
+  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? "\uD83D\uDD04 ".concat(regenRechargeWins, " win").concat(regenRechargeWins !== 1 ? 's' : '') : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
     spinCount: spinCount
   }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
@@ -3237,73 +3882,129 @@ function GameApp({
     seasonNumber: season && season.season_number - 1
   })), isMobile && mobilePanel && mobilePanel !== 'chat' && /*#__PURE__*/React.createElement("div", {
     className: "mobile-backdrop",
-    onClick: () => setMobilePanel(null)
+    onClick: function onClick() {
+      return setMobilePanel(null);
+    }
   }), /*#__PURE__*/React.createElement("div", {
     className: "mobile-toolbar"
   }, /*#__PURE__*/React.createElement("button", {
-    className: `mobile-toolbar-btn${mobilePanel === 'shop' ? ' active' : ''}`,
-    onClick: () => toggleMobilePanel('shop'),
+    className: "mobile-toolbar-btn".concat(mobilePanel === 'shop' ? ' active' : ''),
+    onClick: function onClick() {
+      return toggleMobilePanel('shop');
+    },
     title: "Shop"
   }, "\uD83C\uDFEA"), /*#__PURE__*/React.createElement("button", {
-    className: `mobile-toolbar-btn${mobilePanel === 'leaderboard' ? ' active' : ''}`,
-    onClick: () => toggleMobilePanel('leaderboard'),
+    className: "mobile-toolbar-btn".concat(mobilePanel === 'leaderboard' ? ' active' : ''),
+    onClick: function onClick() {
+      return toggleMobilePanel('leaderboard');
+    },
     title: "Leaderboard"
   }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
-    className: `mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}`,
-    onClick: () => toggleMobilePanel('fish'),
+    className: "mobile-toolbar-btn".concat(mobilePanel === 'fish' ? ' active' : ''),
+    onClick: function onClick() {
+      return toggleMobilePanel('fish');
+    },
     title: "Fish"
   }, "\uD83D\uDC1F"), /*#__PURE__*/React.createElement("button", {
-    className: `mobile-toolbar-btn${mobilePanel === 'chat' ? ' active' : ''}`,
-    onClick: () => toggleMobilePanel('chat'),
+    className: "mobile-toolbar-btn".concat(mobilePanel === 'chat' ? ' active' : ''),
+    onClick: function onClick() {
+      return toggleMobilePanel('chat');
+    },
     title: "Chat"
   }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("button", {
     className: "mobile-toolbar-btn",
-    onClick: () => setShowStats(true),
+    onClick: function onClick() {
+      return setShowStats(true);
+    },
     title: "Stats"
   }, "\uD83D\uDCCA")));
 }
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  const [user, setUser] = useState(undefined);
-  const [gameState, setGameState] = useState(null);
-  const [sessionMsg, setSessionMsg] = useState('');
-  useEffect(() => {
+  var _useState125 = useState(undefined),
+    _useState126 = _slicedToArray(_useState125, 2),
+    user = _useState126[0],
+    setUser = _useState126[1];
+  var _useState127 = useState(null),
+    _useState128 = _slicedToArray(_useState127, 2),
+    gameState = _useState128[0],
+    setGameState = _useState128[1];
+  var _useState129 = useState(''),
+    _useState130 = _slicedToArray(_useState129, 2),
+    sessionMsg = _useState130[0],
+    setSessionMsg = _useState130[1];
+  useEffect(function () {
     localStorage.clear();
   }, []);
-  useEffect(() => {
-    (async () => {
-      const {
-        ok,
-        data
-      } = await apiFetch('/api/me');
-      if (ok && data.username) {
-        const gs = await apiFetch('/api/state');
-        if (gs.ok) {
-          setGameState(gs.data);
-          setUser(data.username);
-        } else {
-          setUser(null);
+  useEffect(function () {
+    _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee11() {
+      var _yield$apiFetch2, ok, data, gs;
+      return _regeneratorRuntime().wrap(function _callee11$(_context11) {
+        while (1) switch (_context11.prev = _context11.next) {
+          case 0:
+            _context11.next = 2;
+            return apiFetch('/api/me');
+          case 2:
+            _yield$apiFetch2 = _context11.sent;
+            ok = _yield$apiFetch2.ok;
+            data = _yield$apiFetch2.data;
+            if (!(ok && data.username)) {
+              _context11.next = 12;
+              break;
+            }
+            _context11.next = 8;
+            return apiFetch('/api/state');
+          case 8:
+            gs = _context11.sent;
+            if (gs.ok) {
+              setGameState(gs.data);
+              setUser(data.username);
+            } else {
+              setUser(null);
+            }
+            _context11.next = 13;
+            break;
+          case 12:
+            setUser(null);
+          case 13:
+          case "end":
+            return _context11.stop();
         }
-      } else {
-        setUser(null);
-      }
-    })();
+      }, _callee11);
+    }))();
   }, []);
-  const handleAuth = async username => {
-    const gs = await apiFetch('/api/state');
-    if (gs.ok) {
-      setGameState(gs.data);
-      setUser(username);
-      setSessionMsg('');
-    }
-  };
-  const handleLogout = () => {
+  var handleAuth = /*#__PURE__*/function () {
+    var _ref34 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee12(username) {
+      var gs;
+      return _regeneratorRuntime().wrap(function _callee12$(_context12) {
+        while (1) switch (_context12.prev = _context12.next) {
+          case 0:
+            _context12.next = 2;
+            return apiFetch('/api/state');
+          case 2:
+            gs = _context12.sent;
+            if (gs.ok) {
+              setGameState(gs.data);
+              setUser(username);
+              setSessionMsg('');
+            }
+          case 4:
+          case "end":
+            return _context12.stop();
+        }
+      }, _callee12);
+    }));
+    return function handleAuth(_x9) {
+      return _ref34.apply(this, arguments);
+    };
+  }();
+  var handleLogout = function handleLogout() {
     setUser(null);
     setGameState(null);
     setSessionMsg('');
   };
-  const handleSessionExpired = useCallback(() => {
+  var handleSessionExpired = useCallback(function () {
     setUser(null);
     setGameState(null);
     setSessionMsg('Your session was taken over by a new login. Please sign in again.');

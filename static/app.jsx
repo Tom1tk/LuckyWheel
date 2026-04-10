@@ -453,10 +453,10 @@ function drawGuardWheel(canvas) {
   ctx.fillStyle = gFail;
   ctx.fill();
 
-  // WIN segment (green, small)
+  // WIN segment (cyan)
   const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#DD88FF');
-  gWin.addColorStop(1, '#550088');
+  gWin.addColorStop(0, '#55EEEE');
+  gWin.addColorStop(1, '#006666');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -1549,7 +1549,7 @@ function usePotCountdown(filledAt, active) {
   const [remaining, setRemaining] = useState(null);
   useEffect(() => {
     if (!active || !filledAt) { setRemaining(null); return; }
-    const expiresAt = new Date(filledAt).getTime() + 3600 * 1000;
+    const expiresAt = new Date(filledAt).getTime() + 1800 * 1000;
     const tick = () => {
       const secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
       setRemaining(secs);
@@ -1575,7 +1575,7 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
   // Sync when parent pot state changes (e.g. on load)
   useEffect(() => { setLocalPot(pot); setJustFilled(!!pot.active); }, [pot]);
 
-  // Poll every 10s for live updates — drives celebration state from server
+  // Poll every 5s for live updates — drives celebration state from server
   useEffect(() => {
     const id = setInterval(() => {
       apiFetch('/api/community-pot').then(r => {
@@ -1584,7 +1584,7 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
           setJustFilled(!!r.data.active);
         }
       });
-    }, 10000);
+    }, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -1594,16 +1594,18 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
       body: JSON.stringify({ amount }),
     });
     if (ok) {
-      setLocalPot({ total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, win_chance_pct: data.win_chance_pct });
+      setLocalPot({ total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, filled_at: data.filled_at, win_chance_pct: data.win_chance_pct });
       onContribute(data.fish_clicks);
       setJustFilled(!!data.pot_active);
     }
   };
 
-  const total   = localPot.total_contributed || 0;
-  const target  = localPot.target || 1_000;
-  const pct     = Math.min(100, (total / target) * 100);
-  const winRate = (localPot.win_chance_pct || 50.0).toFixed(1);
+  const total    = localPot.total_contributed || 0;
+  const target   = localPot.target || 1_000;
+  const pct      = Math.min(100, (total / target) * 100);
+  const winRate  = (localPot.win_chance_pct || 50.0).toFixed(1);
+  const active   = localPot.active;
+  const countdown = usePotCountdown(localPot.filled_at, active);
 
   return (
     <div className={`community-pot-bar${justFilled ? ' community-pot-active' : ''}`}>
@@ -1614,7 +1616,10 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
         </div>
         <span className="community-pot-count">{fmt(total)} / {fmt(target)}</span>
         {justFilled ? (
-          <span className="community-pot-bonus">🎉 Pot filled! Win Rate → {winRate}%</span>
+          <>
+            <span className="community-pot-bonus">🎉 Pot filled! Win Rate → {winRate}%</span>
+            <span className="community-pot-countdown">{fmtCountdown(countdown)}</span>
+          </>
         ) : (
           <>
             <span className="community-pot-winrate">🍀 Win Rate: {winRate}%</span>
@@ -1765,7 +1770,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('bg_inferno')) return 'bg-inferno';
     if (activeCosmetics.includes('bg_royal'))   return 'bg-royal';
     if (activeCosmetics.includes('bg_ocean'))   return 'bg-ocean';
-    return '';
+    return 'bg-ocean';  // Season 5 default
   }, [activeCosmetics]);
 
   const trailClass = useMemo(() => {
@@ -1812,7 +1817,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
     apiGame('/api/settings', { method: 'POST', body: JSON.stringify({ low_spec_mode: lowSpec }) });
+    const iframe = document.getElementById('seabed-bg');
+    if (iframe) {
+      iframe.src = lowSpec ? '/static/seabed-static.html' : '/static/seabed-animated.html';
+    }
   }, [lowSpec]);
+
+  useEffect(() => {
+    const show = bgClass === 'bg-ocean';
+    const iframe = document.getElementById('seabed-bg');
+    const overlay = document.getElementById('seabed-overlay');
+    if (iframe)  iframe.style.display  = show ? 'block' : 'none';
+    if (overlay) overlay.style.display = show ? 'block' : 'none';
+  }, [bgClass]);
 
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);

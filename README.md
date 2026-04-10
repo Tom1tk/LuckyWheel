@@ -209,9 +209,11 @@ Changes the canvas colour palette of the wheel.
 ### Atmosphere (Costs Losses)
 
 #### Background Theme
+Ocean Casino is the **default background** for all players in Season 5 (animated seabed scene; static fallback in Low-Spec Mode). Purchasing and equipping a different background overrides it.
+
 | Theme | Cost | Look |
 |-------|------|------|
-| Ocean Casino | 100 | Deep sea blue |
+| Ocean Casino | 100 | Deep sea blue (Season 5 default — animated seabed) |
 | Royal Casino | 400 | Rich purple |
 | Inferno Casino | 1,600 | Blazing red |
 | Forest | 5,000 | 🌲 Lush green |
