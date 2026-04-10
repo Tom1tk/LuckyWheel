@@ -1990,10 +1990,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
-    setFishClicks(c => c + clickAmount);
+    const clickMult = infLevels.clickmult_inf <= 0 ? 1 : infLevels.clickmult_inf + 1;
+    setFishClicks(c => c + clickAmount * clickMult);
     clickBufferRef.current += clickAmount;
     if (clickBufferRef.current >= 10) flushClicks();
-  }, [clickAmount, flushClicks, activeCosmetics]);
+  }, [clickAmount, flushClicks, activeCosmetics, infLevels.clickmult_inf]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
