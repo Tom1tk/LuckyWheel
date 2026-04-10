@@ -28,6 +28,9 @@ FISH_SKINS = {
 SHOP_ITEMS = {
     # Spin speed
     'speed_boost':    {'cost': 100,          'requires': None},
+    # Dice charge upgrades (unlocked via tier gating)
+    'dice_charge_2':  {'cost': 2_000,        'requires': None},
+    'dice_charge_3':  {'cost': 15_000,       'requires': 'dice_charge_2'},
     'turbo_spin':     {'cost': 1_000,        'requires': 'speed_boost'},
     'hyperspin':      {'cost': 10_000,       'requires': 'turbo_spin'},
     'ultraspin':      {'cost': 100_000,      'requires': 'hyperspin'},
@@ -93,6 +96,8 @@ SHOP_ITEMS = {
     'page_season1':   {'cost': 1_000,        'requires': None},
     'page_season2':   {'cost': 1_000,        'requires': None},
     'page_season3':   {'cost': 1_000,        'requires': None},
+    'page_season4':   {'cost': 1_000,        'requires': None},
+    'page_season5':   {'cost': 1_000,        'requires': None},
     'party_mode':     {'cost': 150,          'requires': None},
     'confetti_1':     {'cost': 75,           'requires': None},
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
@@ -113,6 +118,24 @@ SHOP_ITEMS = {
     # Legendary
     'singularity':    {'cost': int(1e67),    'requires': None},
 }
+
+# Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
+# Thresholds are based on win_count (total wins earned all-time this season)
+UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 10_000}
+UPGRADE_TIER_2 = {
+    'regen_shield', 'auto_guard', 'final_frenzy', 'dice_charge_2',
+}
+UPGRADE_TIER_3 = {
+    'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience', 'dice_charge_3',
+}
+
+def item_tier(item_id):
+    """Return the tier (1, 2, or 3) required to purchase this item."""
+    if item_id in UPGRADE_TIER_3:
+        return 3
+    if item_id in UPGRADE_TIER_2:
+        return 2
+    return 1
 
 ALL_ITEMS = {**FISH_SKINS, **SHOP_ITEMS}
 VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
@@ -135,7 +158,7 @@ _COSMETIC_ITEM_IDS = {
     'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold',
     'golden_wheel',
     # Page themes
-    'page_season1', 'page_season2', 'page_season3',
+    'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5',
     # Party / confetti
     'party_mode', 'confetti_1', 'confetti_2', 'confetti_3',
     # Backgrounds
@@ -153,9 +176,10 @@ for _id in ALL_ITEMS:
 
 # All infinite upgrades are functional → cost wins.
 INFINITE_UPGRADE_CURRENCY = {
-    'winmult_inf':   'wins',
-    'bonusmult_inf': 'wins',
-    'clickmult_inf': 'wins',
+    'winmult_inf':     'wins',
+    'bonusmult_inf':   'wins',
+    'clickmult_inf':   'wins',
+    'streak_armor_inf': 'wins',
 }
 
 # Infinite repeatable upgrades — replace old fixed tier chains.
@@ -179,6 +203,15 @@ INFINITE_UPGRADES = {
         'tier_costs':   [100, 400, 900, 2000, 4500],
         'inf_base_cost': 10_000,
         'inf_scale':     1.5,
+    },
+    # Streak Armor: +1% to Resilience save chance per level, base 50%, cap 60% (10 levels).
+    # Requires owning 'resilience'.
+    'streak_armor_inf': {
+        'db_column':    'streak_armor_level',
+        'tier_costs':   [500, 2_000, 4_500, 8_000, 12_500, 18_000, 24_500, 32_000, 40_500, 50_000],
+        'inf_base_cost': 999_999_999,  # effectively impossible past level 10
+        'inf_scale':     1.0,
+        'max_level':    10,            # hard cap — checked in buy endpoint
     },
 }
 
@@ -209,6 +242,36 @@ def bonus_mult_from_level(level):
 def click_mult_from_level(level):
     if level <= 0: return 1
     return level + 1                           # 2, 3, 4, 5, 6, 7, 8, …
+
+def streak_bonus(count):
+    """Season 5 soft-capped streak bonus formula.
+    Keeps exponential growth through streak 15, then cubic to 35, then linear.
+    Streak 1-15: identical to old formula (2^(count-3)).
+    """
+    if count < 3:
+        return 0
+    if count <= 15:
+        return 1 << (count - 3)          # exponential: 1 to 4096 (identical to old)
+    if count <= 35:
+        return 4096 + (count - 15) ** 3  # cubic: 4096 to 12096
+    if count <= 75:
+        return 12096 + (count - 35) * 500  # linear: 12096 to 32096
+    return 32096 + (count - 75) * 200      # slow linear
+
+
+# Dice roll constants (Season 5)
+DICE_RECHARGE_SECONDS = 600   # 10 minutes per charge
+DICE_MAX_CHARGES_BASE = 1     # default max without upgrades
+
+
+def dice_max_charges(owned_items):
+    """Return the maximum dice charges based on owned upgrades."""
+    if 'dice_charge_3' in owned_items:
+        return 3
+    if 'dice_charge_2' in owned_items:
+        return 2
+    return DICE_MAX_CHARGES_BASE
+
 
 LOCKOUT_RULES = [
     (20, 3600),  # 20+ fails → 1 hour

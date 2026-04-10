@@ -355,6 +355,10 @@ function drawWheel(canvas, theme = 'default') {
       { label: 'WIN',  color: '#7a5c00', bright: '#FFE566', start: -Math.PI/2, end: Math.PI/2 },
       { label: 'LOSE', color: '#3d2000', bright: '#CC8800', start: Math.PI/2,  end: Math.PI*1.5 },
     ],
+    bioluminescence: [
+      { label: 'WIN',  color: '#003a4d', bright: '#00E5FF', start: -Math.PI/2, end: Math.PI/2 },
+      { label: 'LOSE', color: '#4d1020', bright: '#FF6B6B', start: Math.PI/2,  end: Math.PI*1.5 },
+    ],
   };
   const segments = THEMES[theme] || THEMES.default;
 
@@ -691,10 +695,26 @@ function Die({ value, rolling, landed }) {
   );
 }
 
-const DICE_TOOLTIP_W = 220;
-const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) amplifies your current streak — bigger if you\'re winning, deeper if you\'re losing. Disabled when your streak is exactly zero. Does not guarantee a win on your next spin.';
+const DICE_TOOLTIP_W = 240;
+const DICE_TOOLTIP_TEXT = 'Roll two dice to amplify your win streak. The sum (2–12) is added to your streak. Requires a win streak of 3 or more. ⚠️ Snake eyes (1+1) curses you — losing half your streak! Charges recharge every 10 minutes.';
 
-function DicePanel({ losses, streak, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec }) {
+function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
+  const [secsToNext, setSecsToNext] = React.useState(null);
+  React.useEffect(() => {
+    if (!diceLastRecharge || diceCharges >= maxCharges) { setSecsToNext(null); return; }
+    const rechargeAt = new Date(diceLastRecharge).getTime() + 600 * 1000;
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((rechargeAt - Date.now()) / 1000));
+      setSecsToNext(secs);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [diceLastRecharge, diceCharges, maxCharges]);
+  return secsToNext;
+}
+
+function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
@@ -703,6 +723,8 @@ function DicePanel({ losses, streak, onRoll, rolling, diceResult, spinning, guar
   const [tipPos, setTipPos]         = React.useState({ left: 0, bottom: 0 });
   const intervalRef = React.useRef(null);
   const descRef     = React.useRef(null);
+
+  const secsToNext = useDiceCountdown(diceLastRecharge, diceCharges, maxDiceCharges);
 
   React.useEffect(() => {
     if (rolling && !lowSpec) {
@@ -724,13 +746,13 @@ function DicePanel({ losses, streak, onRoll, rolling, diceResult, spinning, guar
       setAnimDie2(diceResult.die2);
       setLanded(true);
       setShowResult(true);
-      const t = setTimeout(() => { setShowResult(false); setLanded(false); }, 2000);
+      const t = setTimeout(() => { setShowResult(false); setLanded(false); }, 3000);
       return () => clearTimeout(t);
     }
   }, [diceResult]);
 
-  const cost    = losses;
-  const canRoll = losses >= 1 && streak !== 0 && !rolling && !spinning;
+  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning;
+
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
 
@@ -744,6 +766,21 @@ function DicePanel({ losses, streak, onRoll, rolling, diceResult, spinning, guar
     setTipVisible(true);
   };
 
+  const fmtCountdownSecs = (s) => {
+    if (s == null) return '';
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const chargesDots = Array.from({ length: maxDiceCharges }, (_, i) => (
+    <span key={i} className={`dice-charge-dot${i < diceCharges ? ' charged' : ''}`}>●</span>
+  ));
+
+  let disabledReason = '';
+  if (diceCharges < 1) disabledReason = 'No charges';
+  else if (streak < 3) disabledReason = 'Need win streak ≥3';
+
   return (
     <div className="dice-panel">
       <span className="dice-panel-label">🎲 Dice Roll</span>
@@ -751,20 +788,30 @@ function DicePanel({ losses, streak, onRoll, rolling, diceResult, spinning, guar
       {tipVisible && (
         <div className="dice-tooltip" style={{ left: tipPos.left, bottom: tipPos.bottom }}>{DICE_TOOLTIP_TEXT}</div>
       )}
+      <div className="dice-charges-row">
+        {chargesDots}
+        {secsToNext != null && diceCharges < maxDiceCharges && (
+          <span className="dice-recharge-timer">+1 in {fmtCountdownSecs(secsToNext)}</span>
+        )}
+      </div>
       <div className="dice-row">
         <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
         <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
       </div>
       {showResult && diceResult && (
-        <span className="dice-result-text">{diceResult.streak_delta > 0 ? '+' : ''}{diceResult.streak_delta} streak!</span>
+        <span className={`dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`}>
+          {diceResult.cursed
+            ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}`
+            : `+${diceResult.streak_delta} streak!`}
+        </span>
       )}
       <button
         className={`dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`}
         onClick={canRoll ? onRoll : undefined}
         disabled={!canRoll}
-        title={canRoll ? `Costs ${fmt(cost)} losses` : streak === 0 ? 'No active streak' : 'Not enough losses'}
+        title={canRoll ? 'Roll the dice!' : disabledReason}
       >
-        {rolling ? 'Rolling…' : `Roll (${fmt(cost)} losses)`}
+        {rolling ? 'Rolling…' : `Roll (${diceCharges}/${maxDiceCharges} charges)`}
       </button>
     </div>
   );
@@ -1099,12 +1146,12 @@ const SHOP_SECTIONS = [
     { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 30000,     desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
     { id: 'clickfrenzy_4',  emoji: '🌪️', name: 'Frenzy IV',   cost: 300000,    desc: '+50 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_3' },
     { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',    cost: 3000000,   desc: '+100 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_4' },
-    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 30000000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5' },
+    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 30000000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5', tier: 2 },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
-    { id: 'auto_guard',    emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard' },
-    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'auto_guard',    emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard', tier: 2 },
+    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
     { id: 'guard_speed_1', emoji: '⚡', name: 'Guard Speed I',      cost: 2000,   desc: 'Guard activates 25% faster.', requires: 'guard' },
     { id: 'guard_speed_2', emoji: '⚡', name: 'Guard Speed II',     cost: 8000,   desc: 'Guard activates 50% faster.', requires: 'guard_speed_1' },
     { id: 'guard_speed_3', emoji: '⚡', name: 'Guard Speed III',    cost: 30000,  desc: 'Guard activates 65% faster.', requires: 'guard_speed_2' },
@@ -1136,13 +1183,20 @@ const SHOP_SECTIONS = [
     { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme (S1).' },
     { id: 'page_season2', emoji: '🟢', name: 'Season 2 Theme', cost: 1000, desc: 'Green & red casino theme (S2).' },
     { id: 'page_season3', emoji: '🟣', name: 'Season 3 Theme', cost: 1000, desc: 'Purple & orange casino theme (S3).' },
+    { id: 'page_season4', emoji: '💜', name: 'Season 4 Theme', cost: 1000, desc: 'Deep violet casino theme (S4).' },
+    { id: 'page_season5', emoji: '🌊', name: 'Season 5 Theme', cost: 1000, desc: 'Bioluminescent deep ocean theme (S5).' },
+  ]},
+  { label: '🎲 Dice Charges', items: [
+    { id: 'dice_charge_2', emoji: '🎲', name: 'Extra Charge',    cost: 2000,    desc: 'Max dice charges: 1 → 2', tier: 2 },
+    { id: 'dice_charge_3', emoji: '🎲', name: 'Max Charge',      cost: 15000,   desc: 'Max dice charges: 2 → 3', requires: 'dice_charge_2', tier: 3 },
   ]},
   { label: '🎲 Special Upgrades', items: [
-    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 50000,    desc: '25% chance: +25% to streak bonus payout' },
-    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 100000,   desc: 'Every 7th spin is guaranteed a win' },
-    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 75000,    desc: '20% chance to double wins earned on any win' },
-    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 5000000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting' },
-    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 300000,   desc: '1% chance each win to multiply gains by 50x' },
+    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 50000,    desc: '25% chance: +25% to streak bonus payout', tier: 3 },
+    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 100000,   desc: 'Every 7th spin is guaranteed a win', tier: 3 },
+    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 75000,    desc: '20% chance to double wins earned on any win', tier: 3 },
+    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 5000000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
+    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 300000,   desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
+    { id: 'streak_armor_inf', emoji: '🛡️', name: 'Streak Armor', cost: 0, desc: '+1% to Resilience save chance per level (base 50%, cap 60%)', infinite: true },
   ]},
   { label: '🌌 Legendary', items: [
     { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1e67,
@@ -1152,9 +1206,10 @@ const SHOP_SECTIONS = [
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 const INF_UPGRADE_CFG = {
-  winmult_inf:   { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 1_000_000, infScale: 1.4 },
-  bonusmult_inf: { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 500_000,   infScale: 1.4 },
-  clickmult_inf: { tierCosts: [100, 400, 900, 2000, 4500],                    infBase: 10_000,    infScale: 1.5 },
+  winmult_inf:      { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 1_000_000, infScale: 1.4 },
+  bonusmult_inf:    { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 500_000,   infScale: 1.4 },
+  clickmult_inf:    { tierCosts: [100, 400, 900, 2000, 4500],                    infBase: 10_000,    infScale: 1.5 },
+  streak_armor_inf: { tierCosts: [500, 2000, 4500, 8000, 12500, 18000, 24500, 32000, 40500, 50000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
 };
 function infCost(id, level) {
   const { tierCosts, infBase, infScale } = INF_UPGRADE_CFG[id];
@@ -1162,6 +1217,9 @@ function infCost(id, level) {
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
 function infMultiplier(id, level) {
+  if (id === 'streak_armor_inf') {
+    return Math.min(50 + level, 60);  // resilience % chance
+  }
   if (id === 'winmult_inf') {
     if (level <= 0) return 1;
     if (level <= 7) return Math.pow(2, level);
@@ -1190,7 +1248,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
-  'page_season1', 'page_season2', 'page_season3',
+  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5',
   'final_frenzy',
   'auto_guard',
 ]);
@@ -1203,7 +1261,7 @@ const COSMETIC_IDS = new Set([
   'fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
-  'page_season1','page_season2','page_season3','party_mode','confetti_1','confetti_2','confetti_3',
+  'page_season1','page_season2','page_season3','page_season4','page_season5','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_ocean','bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
@@ -1243,9 +1301,13 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
   const extraClass = isSingularity && !owned ? 'singularity-item' : '';
   const infDesc = isInfinite && infLevel != null
     ? (() => {
+        const cfg = INF_UPGRADE_CFG[item.id];
+        const atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
+        if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
         const cur = infMultiplier(item.id, infLevel);
         const nxt = infMultiplier(item.id, infLevel + 1);
-        return `Lv${infLevel} · x${cur} → x${nxt}  ${item.desc}`;
+        const sep = item.id === 'streak_armor_inf' ? '%' : 'x';
+        return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
       })()
     : item.desc;
   return (
@@ -1263,7 +1325,10 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed }) {
+// Season 5 tier thresholds
+const TIER_THRESHOLDS = { 2: 1000, 3: 10000 };
+
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed, winCount }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -1273,7 +1338,11 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
       const visibleItems = section.items.filter(item => {
         const requiresMet = !item.requires || ownedItems.includes(item.requires);
         if (isCosmeticSection) return requiresMet;
-        if (item.infinite) return requiresMet; // infinite items always visible once prereq met
+        if (item.infinite) {
+          // streak_armor_inf requires resilience owned
+          if (item.id === 'streak_armor_inf') return ownedItems.includes('resilience');
+          return requiresMet;
+        }
         const isOwned = ownedItems.includes(item.id);
         if (!isOwned) return requiresMet; // next tier to buy
         // Owned: show only if this is the latest owned in its chain
@@ -1291,10 +1360,33 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
       <div className="shop-section-label">── {section.label} ──</div>
       {section.visibleItems.map(item => {
         const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
+        const itemTierNum = item.tier || 1;
+        const tierLocked = itemTierNum > 1 && !ownedItems.includes(item.id);
+        const tierThreshold = tierLocked ? TIER_THRESHOLDS[itemTierNum] : null;
+        const tierUnlocked = !tierLocked || (winCount >= (tierThreshold || 0));
+
         const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
+        const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
+        const atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
         const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
         const currency = getItemCurrency(item.id);
         const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
+
+        if (tierLocked && !tierUnlocked) {
+          return (
+            <div key={item.id} className="shop-item shop-item--locked">
+              <span className="shop-item-emoji" style={{ opacity: 0.4 }}>{item.emoji}</span>
+              <div className="shop-item-info">
+                <div className="shop-item-name" style={{ opacity: 0.5 }}>{item.name}</div>
+                <div className="shop-item-desc" style={{ opacity: 0.5 }}>🔒 Unlocks at {fmt(tierThreshold)} total wins</div>
+              </div>
+              <div className="shop-item-action">
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)' }}>{fmt(winCount)}/{fmt(tierThreshold)}</span>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <ShopItem key={item.id} item={item}
             isSkin={false}
@@ -1303,9 +1395,9 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
             owned={!item.infinite && ownedItems.includes(item.id)}
             equipped={false}
             active={isCosmetic && activeCosmetics.includes(item.id)}
-            canAfford={balance >= displayCost}
+            canAfford={!atMaxLevel && balance >= displayCost}
             infLevel={infLevel}
-            displayCost={displayCost}
+            displayCost={atMaxLevel ? 0 : displayCost}
             onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
           />
         );
@@ -1478,14 +1570,20 @@ function fmtCountdown(secs) {
 
 function CommunityPot({ pot, fishClicks, onContribute }) {
   const [localPot, setLocalPot] = useState(pot);
+  const [justFilled, setJustFilled] = useState(!!pot.active);
 
   // Sync when parent pot state changes (e.g. on load)
-  useEffect(() => { setLocalPot(pot); }, [pot]);
+  useEffect(() => { setLocalPot(pot); setJustFilled(!!pot.active); }, [pot]);
 
-  // Poll every 10s for live updates
+  // Poll every 10s for live updates — drives celebration state from server
   useEffect(() => {
     const id = setInterval(() => {
-      apiFetch('/api/community-pot').then(r => { if (r.ok) setLocalPot(r.data); });
+      apiFetch('/api/community-pot').then(r => {
+        if (r.ok) {
+          setLocalPot(r.data);
+          setJustFilled(!!r.data.active);
+        }
+      });
     }, 10000);
     return () => clearInterval(id);
   }, []);
@@ -1496,35 +1594,35 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
       body: JSON.stringify({ amount }),
     });
     if (ok) {
-      setLocalPot({ total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, filled_at: data.filled_at, win_chance_pct: data.win_chance_pct });
+      setLocalPot({ total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, win_chance_pct: data.win_chance_pct });
       onContribute(data.fish_clicks);
+      setJustFilled(!!data.pot_active);
     }
   };
 
-  const total     = localPot.total_contributed || 0;
-  const target    = localPot.target || 100_000_000;
-  const pct       = Math.min(100, (total / target) * 100);
-  const active    = localPot.active;
-  const countdown = usePotCountdown(localPot.filled_at, active);
+  const total   = localPot.total_contributed || 0;
+  const target  = localPot.target || 1_000;
+  const pct     = Math.min(100, (total / target) * 100);
+  const winRate = (localPot.win_chance_pct || 50.0).toFixed(1);
 
   return (
-    <div className={`community-pot-bar${active ? ' community-pot-active' : ''}`}>
+    <div className={`community-pot-bar${justFilled ? ' community-pot-active' : ''}`}>
       <div className="community-pot-inner">
         <span className="community-pot-label">🎣 Community Pot</span>
         <div className="community-pot-progress">
           <div className="community-pot-fill" style={{ width: pct + '%' }} />
         </div>
         <span className="community-pot-count">{fmt(total)} / {fmt(target)}</span>
-        {active ? (
-          <>
-            <span className="community-pot-bonus">✨ {localPot.win_chance_pct || 51}% Win Rate Active!</span>
-            <span className="community-pot-countdown">{fmtCountdown(countdown)}</span>
-          </>
+        {justFilled ? (
+          <span className="community-pot-bonus">🎉 Pot filled! Win Rate → {winRate}%</span>
         ) : (
-          <div className="community-pot-buttons">
-            <button onClick={() => handleContribute('10pct')} disabled={fishClicks < 1}>+{fmt(Math.max(1, Math.floor(target / 10)))}</button>
-            <button onClick={() => handleContribute('all')} disabled={fishClicks < 1}>All</button>
-          </div>
+          <>
+            <span className="community-pot-winrate">🍀 Win Rate: {winRate}%</span>
+            <div className="community-pot-buttons">
+              <button onClick={() => handleContribute('10pct')} disabled={fishClicks < 1}>+{fmt(Math.max(1, Math.floor(target / 10)))}</button>
+              <button onClick={() => handleContribute('all')} disabled={fishClicks < 1}>All</button>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -1562,19 +1660,23 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
   const [infLevels, setInfLevels]     = useState({
-    winmult_inf:   gameState.winmult_inf_level   || 0,
-    bonusmult_inf: gameState.bonusmult_inf_level || 0,
-    clickmult_inf: gameState.clickmult_inf_level || 0,
+    winmult_inf:      gameState.winmult_inf_level   || 0,
+    bonusmult_inf:    gameState.bonusmult_inf_level || 0,
+    clickmult_inf:    gameState.clickmult_inf_level || 0,
+    streak_armor_inf: gameState.streak_armor_level  || 0,
   });
   const [showStats, setShowStats]     = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
-  const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 100_000_000, filled: false, active: false });
+  const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 1_000, filled: false, active: false, win_chance_pct: 50.0 });
   const [spinCount, setSpinCount]     = useState(gameState.spin_count || 0);
+  const [winCount, setWinCount]       = useState(gameState.win_count || 0);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling]     = useState(false);
   const [diceResult, setDiceResult]       = useState(null);
+  const [diceCharges, setDiceCharges]     = useState(gameState.dice_charges ?? 1);
+  const [diceLastRecharge, setDiceLastRecharge] = useState(gameState.dice_last_recharge || new Date().toISOString());
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
   const [showChat, setShowChat] = useState(true);
@@ -1613,6 +1715,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500,
   [ownedItems]);
 
+  const diceMaxCharges = useMemo(() => {
+    if (ownedItems.includes('dice_charge_3')) return 3;
+    if (ownedItems.includes('dice_charge_2')) return 2;
+    return 1;
+  }, [ownedItems]);
+
   const clickAmount = useMemo(() => {
     if (ownedItems.includes('double_click_5')) return 6;
     if (ownedItems.includes('double_click_4')) return 5;
@@ -1646,6 +1754,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice'))  return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
+    if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     return 'default';
   }, [activeCosmetics]);
 
@@ -1673,6 +1782,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
+    if (activeCosmetics.includes('page_season4')) return 'page-season4';
+    if (activeCosmetics.includes('page_season5')) return 'page-season5';
     return '';
   }, [activeCosmetics]);
 
@@ -1802,12 +1913,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null) {
-        setInfLevels({
-          winmult_inf:   data.winmult_inf_level   ?? 0,
-          bonusmult_inf: data.bonusmult_inf_level ?? 0,
-          clickmult_inf: data.clickmult_inf_level ?? 0,
-        });
+      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null) {
+        setInfLevels(prev => ({
+          winmult_inf:      data.winmult_inf_level    ?? prev.winmult_inf,
+          bonusmult_inf:    data.bonusmult_inf_level  ?? prev.bonusmult_inf,
+          clickmult_inf:    data.clickmult_inf_level  ?? prev.clickmult_inf,
+          streak_armor_inf: data.streak_armor_level   ?? prev.streak_armor_inf,
+        }));
       }
     } else {
       showToast(data.error || 'Purchase failed');
@@ -1848,9 +1960,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
     setTimeout(() => {
       const streakDelta = data.streak - prevStreak;
-      setDiceResult({ die1: data.die1, die2: data.die2, dice_sum: data.dice_sum, cost: data.cost, streak_delta: streakDelta });
-      setLosses(data.losses);
+      setDiceResult({
+        die1: data.die1, die2: data.die2, dice_sum: data.dice_sum,
+        streak_delta: streakDelta, cursed: data.cursed,
+        streak_before: prevStreak, streak_after: data.streak,
+      });
       setStreak(data.streak);
+      if (data.dice_charges != null) setDiceCharges(data.dice_charges);
+      if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
   }, [diceRolling, spinning, streak, lowSpec, showToast]);
@@ -1888,6 +2005,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
+    if (data.dice_charges != null) setDiceCharges(data.dice_charges);
+    if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
+    if (data.wins_delta > 0) setWinCount(prev => prev + 1);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -2125,7 +2245,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="result-text lose">💀 YOU LOSE 💀</div>
           )}
           {jackpotHit && (
-            <div className="bonus-line jackpot-line">🎰 JACKPOT! 50x multiplier applied!</div>
+            <div className="bonus-line jackpot-line">🎰 JACKPOT! 25x multiplier applied!</div>
           )}
           {echoTriggered && !jackpotHit && (
             <div className="bonus-line echo-line">🔊 WIN ECHO! Wins doubled!</div>
@@ -2204,6 +2324,21 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
         <Scoreboard wins={wins} losses={losses} lastResult={result} />
 
+        {isMobile && (
+          <DicePanel
+            streak={streak}
+            onRoll={handleDiceRoll}
+            rolling={diceRolling}
+            diceResult={diceResult}
+            spinning={spinning}
+            guardSpinning={!!guardState}
+            lowSpec={lowSpec}
+            diceCharges={diceCharges}
+            maxDiceCharges={diceMaxCharges}
+            diceLastRecharge={diceLastRecharge}
+          />
+        )}
+
         <div className="bulbs">
           {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
         </div>
@@ -2230,7 +2365,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             )}
             <StreakPanel streak={streak} />
             <DicePanel
-              losses={losses}
               streak={streak}
               onRoll={handleDiceRoll}
               rolling={diceRolling}
@@ -2238,6 +2372,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               spinning={spinning}
               guardSpinning={!!guardState}
               lowSpec={lowSpec}
+              diceCharges={diceCharges}
+              maxDiceCharges={diceMaxCharges}
+              diceLastRecharge={diceLastRecharge}
             />
           </div>
 
@@ -2253,6 +2390,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onEquip={handleEquip}
             onEquipCosmetic={handleEquipCosmetic}
             collapsed={shopCollapsed}
+            winCount={winCount}
           />
         </div>
       </div>

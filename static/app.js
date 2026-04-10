@@ -461,6 +461,19 @@ function drawWheel(canvas, theme = 'default') {
       bright: '#CC8800',
       start: Math.PI / 2,
       end: Math.PI * 1.5
+    }],
+    bioluminescence: [{
+      label: 'WIN',
+      color: '#003a4d',
+      bright: '#00E5FF',
+      start: -Math.PI / 2,
+      end: Math.PI / 2
+    }, {
+      label: 'LOSE',
+      color: '#4d1020',
+      bright: '#FF6B6B',
+      start: Math.PI / 2,
+      end: Math.PI * 1.5
     }]
   };
   const segments = THEMES[theme] || THEMES.default;
@@ -838,17 +851,37 @@ function Die({
     }
   })));
 }
-const DICE_TOOLTIP_W = 220;
-const DICE_TOOLTIP_TEXT = 'Spend all your Losses to roll two dice. The sum (2–12) amplifies your current streak — bigger if you\'re winning, deeper if you\'re losing. Disabled when your streak is exactly zero. Does not guarantee a win on your next spin.';
+const DICE_TOOLTIP_W = 240;
+const DICE_TOOLTIP_TEXT = 'Roll two dice to amplify your win streak. The sum (2–12) is added to your streak. Requires a win streak of 3 or more. ⚠️ Snake eyes (1+1) curses you — losing half your streak! Charges recharge every 10 minutes.';
+function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
+  const [secsToNext, setSecsToNext] = React.useState(null);
+  React.useEffect(() => {
+    if (!diceLastRecharge || diceCharges >= maxCharges) {
+      setSecsToNext(null);
+      return;
+    }
+    const rechargeAt = new Date(diceLastRecharge).getTime() + 600 * 1000;
+    const tick = () => {
+      const secs = Math.max(0, Math.ceil((rechargeAt - Date.now()) / 1000));
+      setSecsToNext(secs);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [diceLastRecharge, diceCharges, maxCharges]);
+  return secsToNext;
+}
 function DicePanel({
-  losses,
   streak,
   onRoll,
   rolling,
   diceResult,
   spinning,
   guardSpinning,
-  lowSpec
+  lowSpec,
+  diceCharges,
+  maxDiceCharges,
+  diceLastRecharge
 }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
@@ -861,6 +894,7 @@ function DicePanel({
   });
   const intervalRef = React.useRef(null);
   const descRef = React.useRef(null);
+  const secsToNext = useDiceCountdown(diceLastRecharge, diceCharges, maxDiceCharges);
   React.useEffect(() => {
     if (rolling && !lowSpec) {
       setLanded(false);
@@ -883,12 +917,11 @@ function DicePanel({
       const t = setTimeout(() => {
         setShowResult(false);
         setLanded(false);
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(t);
     }
   }, [diceResult]);
-  const cost = losses;
-  const canRoll = losses >= 1 && streak !== 0 && !rolling && !spinning;
+  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning;
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
   const showTip = () => {
@@ -903,6 +936,20 @@ function DicePanel({
     });
     setTipVisible(true);
   };
+  const fmtCountdownSecs = s => {
+    if (s == null) return '';
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+  const chargesDots = Array.from({
+    length: maxDiceCharges
+  }, (_, i) => /*#__PURE__*/React.createElement("span", {
+    key: i,
+    className: `dice-charge-dot${i < diceCharges ? ' charged' : ''}`
+  }, "\u25CF"));
+  let disabledReason = '';
+  if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
@@ -919,6 +966,10 @@ function DicePanel({
       bottom: tipPos.bottom
     }
   }, DICE_TOOLTIP_TEXT), /*#__PURE__*/React.createElement("div", {
+    className: "dice-charges-row"
+  }, chargesDots, secsToNext != null && diceCharges < maxDiceCharges && /*#__PURE__*/React.createElement("span", {
+    className: "dice-recharge-timer"
+  }, "+1 in ", fmtCountdownSecs(secsToNext))), /*#__PURE__*/React.createElement("div", {
     className: "dice-row"
   }, /*#__PURE__*/React.createElement(Die, {
     value: die1Val,
@@ -929,13 +980,13 @@ function DicePanel({
     rolling: rolling && !lowSpec,
     landed: landed
   })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
-    className: "dice-result-text"
-  }, diceResult.streak_delta > 0 ? '+' : '', diceResult.streak_delta, " streak!"), /*#__PURE__*/React.createElement("button", {
+    className: `dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`
+  }, diceResult.cursed ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}` : `+${diceResult.streak_delta} streak!`), /*#__PURE__*/React.createElement("button", {
     className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
-    title: canRoll ? `Costs ${fmt(cost)} losses` : streak === 0 ? 'No active streak' : 'Not enough losses'
-  }, rolling ? 'Rolling…' : `Roll (${fmt(cost)} losses)`));
+    title: canRoll ? 'Roll the dice!' : disabledReason
+  }, rolling ? 'Rolling…' : `Roll (${diceCharges}/${maxDiceCharges} charges)`));
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────
@@ -1566,7 +1617,8 @@ const SHOP_SECTIONS = [{
     name: 'Final Frenzy',
     cost: 30000000,
     desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.',
-    requires: 'clickfrenzy_5'
+    requires: 'clickfrenzy_5',
+    tier: 2
   }]
 }, {
   label: '🛡️ Protection',
@@ -1582,13 +1634,15 @@ const SHOP_SECTIONS = [{
     name: 'Auto-Guard',
     cost: 50000,
     desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.',
-    requires: 'guard'
+    requires: 'guard',
+    tier: 2
   }, {
     id: 'regen_shield',
     emoji: '🔄',
     name: 'Regenerating Shield',
     cost: 1500,
-    desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.'
+    desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.',
+    tier: 2
   }, {
     id: 'guard_speed_1',
     emoji: '⚡',
@@ -1754,6 +1808,36 @@ const SHOP_SECTIONS = [{
     name: 'Season 3 Theme',
     cost: 1000,
     desc: 'Purple & orange casino theme (S3).'
+  }, {
+    id: 'page_season4',
+    emoji: '💜',
+    name: 'Season 4 Theme',
+    cost: 1000,
+    desc: 'Deep violet casino theme (S4).'
+  }, {
+    id: 'page_season5',
+    emoji: '🌊',
+    name: 'Season 5 Theme',
+    cost: 1000,
+    desc: 'Bioluminescent deep ocean theme (S5).'
+  }]
+}, {
+  label: '🎲 Dice Charges',
+  items: [{
+    id: 'dice_charge_2',
+    emoji: '🎲',
+    name: 'Extra Charge',
+    cost: 2000,
+    desc: 'Max dice charges: 1 → 2',
+    tier: 2
+  }, {
+    id: 'dice_charge_3',
+    emoji: '🎲',
+    name: 'Max Charge',
+    cost: 15000,
+    desc: 'Max dice charges: 2 → 3',
+    requires: 'dice_charge_2',
+    tier: 3
   }]
 }, {
   label: '🎲 Special Upgrades',
@@ -1762,31 +1846,43 @@ const SHOP_SECTIONS = [{
     emoji: '🍀',
     name: 'Fortune Charm',
     cost: 50000,
-    desc: '25% chance: +25% to streak bonus payout'
+    desc: '25% chance: +25% to streak bonus payout',
+    tier: 3
   }, {
     id: 'lucky_seven',
     emoji: '7️⃣',
     name: 'Lucky Seven',
     cost: 100000,
-    desc: 'Every 7th spin is guaranteed a win'
+    desc: 'Every 7th spin is guaranteed a win',
+    tier: 3
   }, {
     id: 'win_echo',
     emoji: '🔊',
     name: 'Win Echo',
     cost: 75000,
-    desc: '20% chance to double wins earned on any win'
+    desc: '20% chance to double wins earned on any win',
+    tier: 3
   }, {
     id: 'resilience',
     emoji: '💪',
     name: 'Resilience',
     cost: 5000000,
-    desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting'
+    desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting',
+    tier: 3
   }, {
     id: 'jackpot',
     emoji: '🎰',
     name: 'Jackpot',
     cost: 300000,
-    desc: '1% chance each win to multiply gains by 50x'
+    desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.',
+    tier: 3
+  }, {
+    id: 'streak_armor_inf',
+    emoji: '🛡️',
+    name: 'Streak Armor',
+    cost: 0,
+    desc: '+1% to Resilience save chance per level (base 50%, cap 60%)',
+    infinite: true
   }]
 }, {
   label: '🌌 Legendary',
@@ -1815,6 +1911,12 @@ const INF_UPGRADE_CFG = {
     tierCosts: [100, 400, 900, 2000, 4500],
     infBase: 10_000,
     infScale: 1.5
+  },
+  streak_armor_inf: {
+    tierCosts: [500, 2000, 4500, 8000, 12500, 18000, 24500, 32000, 40500, 50000],
+    infBase: 999_999_999,
+    infScale: 1.0,
+    maxLevel: 10
   }
 };
 function infCost(id, level) {
@@ -1827,6 +1929,9 @@ function infCost(id, level) {
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
 function infMultiplier(id, level) {
+  if (id === 'streak_armor_inf') {
+    return Math.min(50 + level, 60); // resilience % chance
+  }
   if (id === 'winmult_inf') {
     if (level <= 0) return 1;
     if (level <= 7) return Math.pow(2, level);
@@ -1851,10 +1956,10 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_ocean', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
@@ -1909,9 +2014,13 @@ const ShopItem = React.memo(function ShopItem({
   }
   const extraClass = isSingularity && !owned ? 'singularity-item' : '';
   const infDesc = isInfinite && infLevel != null ? (() => {
+    const cfg = INF_UPGRADE_CFG[item.id];
+    const atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
+    if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
     const cur = infMultiplier(item.id, infLevel);
     const nxt = infMultiplier(item.id, infLevel + 1);
-    return `Lv${infLevel} · x${cur} → x${nxt}  ${item.desc}`;
+    const sep = item.id === 'streak_armor_inf' ? '%' : 'x';
+    return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
   })() : item.desc;
   return /*#__PURE__*/React.createElement("div", {
     className: `shop-item ${!isInfinite && owned ? equipped || active ? 'equipped' : 'owned' : ''} ${extraClass}`
@@ -1931,6 +2040,12 @@ const ShopItem = React.memo(function ShopItem({
   }, actionEl));
 });
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
+
+// Season 5 tier thresholds
+const TIER_THRESHOLDS = {
+  2: 1000,
+  3: 10000
+};
 function ShopPanel({
   fishClicks,
   wins,
@@ -1942,7 +2057,8 @@ function ShopPanel({
   onBuy,
   onEquip,
   onEquipCosmetic,
-  collapsed
+  collapsed,
+  winCount
 }) {
   const [activeTab, setActiveTab] = useState('functional');
   const {
@@ -1956,7 +2072,11 @@ function ShopPanel({
       const visibleItems = section.items.filter(item => {
         const requiresMet = !item.requires || ownedItems.includes(item.requires);
         if (isCosmeticSection) return requiresMet;
-        if (item.infinite) return requiresMet; // infinite items always visible once prereq met
+        if (item.infinite) {
+          // streak_armor_inf requires resilience owned
+          if (item.id === 'streak_armor_inf') return ownedItems.includes('resilience');
+          return requiresMet;
+        }
         const isOwned = ownedItems.includes(item.id);
         if (!isOwned) return requiresMet; // next tier to buy
         // Owned: show only if this is the latest owned in its chain
@@ -1980,10 +2100,46 @@ function ShopPanel({
     className: "shop-section-label"
   }, "\u2500\u2500 ", section.label, " \u2500\u2500"), section.visibleItems.map(item => {
     const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
+    const itemTierNum = item.tier || 1;
+    const tierLocked = itemTierNum > 1 && !ownedItems.includes(item.id);
+    const tierThreshold = tierLocked ? TIER_THRESHOLDS[itemTierNum] : null;
+    const tierUnlocked = !tierLocked || winCount >= (tierThreshold || 0);
     const infLevel = item.infinite ? infLevels[item.id] || 0 : null;
+    const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
+    const atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
     const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
     const currency = getItemCurrency(item.id);
     const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
+    if (tierLocked && !tierUnlocked) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: item.id,
+        className: "shop-item shop-item--locked"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "shop-item-emoji",
+        style: {
+          opacity: 0.4
+        }
+      }, item.emoji), /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-info"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-name",
+        style: {
+          opacity: 0.5
+        }
+      }, item.name), /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-desc",
+        style: {
+          opacity: 0.5
+        }
+      }, "\uD83D\uDD12 Unlocks at ", fmt(tierThreshold), " total wins")), /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-action"
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: '0.7rem',
+          color: 'var(--text-muted, #888)'
+        }
+      }, fmt(winCount), "/", fmt(tierThreshold))));
+    }
     return /*#__PURE__*/React.createElement(ShopItem, {
       key: item.id,
       item: item,
@@ -1993,9 +2149,9 @@ function ShopPanel({
       owned: !item.infinite && ownedItems.includes(item.id),
       equipped: false,
       active: isCosmetic && activeCosmetics.includes(item.id),
-      canAfford: balance >= displayCost,
+      canAfford: !atMaxLevel && balance >= displayCost,
       infLevel: infLevel,
-      displayCost: displayCost,
+      displayCost: atMaxLevel ? 0 : displayCost,
       onBuy: onBuy,
       onEquip: onEquip,
       onEquipCosmetic: onEquipCosmetic
@@ -2209,17 +2365,22 @@ function CommunityPot({
   onContribute
 }) {
   const [localPot, setLocalPot] = useState(pot);
+  const [justFilled, setJustFilled] = useState(!!pot.active);
 
   // Sync when parent pot state changes (e.g. on load)
   useEffect(() => {
     setLocalPot(pot);
+    setJustFilled(!!pot.active);
   }, [pot]);
 
-  // Poll every 10s for live updates
+  // Poll every 10s for live updates — drives celebration state from server
   useEffect(() => {
     const id = setInterval(() => {
       apiFetch('/api/community-pot').then(r => {
-        if (r.ok) setLocalPot(r.data);
+        if (r.ok) {
+          setLocalPot(r.data);
+          setJustFilled(!!r.data.active);
+        }
       });
     }, 10000);
     return () => clearInterval(id);
@@ -2240,19 +2401,18 @@ function CommunityPot({
         target: data.pot_target,
         filled: data.pot_filled,
         active: data.pot_active,
-        filled_at: data.filled_at,
         win_chance_pct: data.win_chance_pct
       });
       onContribute(data.fish_clicks);
+      setJustFilled(!!data.pot_active);
     }
   };
   const total = localPot.total_contributed || 0;
-  const target = localPot.target || 100_000_000;
+  const target = localPot.target || 1_000;
   const pct = Math.min(100, total / target * 100);
-  const active = localPot.active;
-  const countdown = usePotCountdown(localPot.filled_at, active);
+  const winRate = (localPot.win_chance_pct || 50.0).toFixed(1);
   return /*#__PURE__*/React.createElement("div", {
-    className: `community-pot-bar${active ? ' community-pot-active' : ''}`
+    className: `community-pot-bar${justFilled ? ' community-pot-active' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "community-pot-inner"
   }, /*#__PURE__*/React.createElement("span", {
@@ -2266,11 +2426,11 @@ function CommunityPot({
     }
   })), /*#__PURE__*/React.createElement("span", {
     className: "community-pot-count"
-  }, fmt(total), " / ", fmt(target)), active ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+  }, fmt(total), " / ", fmt(target)), justFilled ? /*#__PURE__*/React.createElement("span", {
     className: "community-pot-bonus"
-  }, "\u2728 ", localPot.win_chance_pct || 51, "% Win Rate Active!"), /*#__PURE__*/React.createElement("span", {
-    className: "community-pot-countdown"
-  }, fmtCountdown(countdown))) : /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF89 Pot filled! Win Rate \u2192 ", winRate, "%") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "community-pot-winrate"
+  }, "\uD83C\uDF40 Win Rate: ", winRate, "%"), /*#__PURE__*/React.createElement("div", {
     className: "community-pot-buttons"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => handleContribute('10pct'),
@@ -2278,7 +2438,7 @@ function CommunityPot({
   }, "+", fmt(Math.max(1, Math.floor(target / 10)))), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleContribute('all'),
     disabled: fishClicks < 1
-  }, "All"))));
+  }, "All")))));
 }
 
 // ── Game App ───────────────────────────────────────────────────────────────
@@ -2322,22 +2482,27 @@ function GameApp({
   const [infLevels, setInfLevels] = useState({
     winmult_inf: gameState.winmult_inf_level || 0,
     bonusmult_inf: gameState.bonusmult_inf_level || 0,
-    clickmult_inf: gameState.clickmult_inf_level || 0
+    clickmult_inf: gameState.clickmult_inf_level || 0,
+    streak_armor_inf: gameState.streak_armor_level || 0
   });
   const [showStats, setShowStats] = useState(false);
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || {
     total_contributed: 0,
-    target: 100_000_000,
+    target: 1_000,
     filled: false,
-    active: false
+    active: false,
+    win_chance_pct: 50.0
   });
   const [spinCount, setSpinCount] = useState(gameState.spin_count || 0);
+  const [winCount, setWinCount] = useState(gameState.win_count || 0);
   const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling] = useState(false);
   const [diceResult, setDiceResult] = useState(null);
+  const [diceCharges, setDiceCharges] = useState(gameState.dice_charges ?? 1);
+  const [diceLastRecharge, setDiceLastRecharge] = useState(gameState.dice_last_recharge || new Date().toISOString());
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
   const [showChat, setShowChat] = useState(true);
@@ -2370,6 +2535,11 @@ function GameApp({
     return 1.0;
   }, [ownedItems]);
   const autoSpinDelay = useMemo(() => ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500, [ownedItems]);
+  const diceMaxCharges = useMemo(() => {
+    if (ownedItems.includes('dice_charge_3')) return 3;
+    if (ownedItems.includes('dice_charge_2')) return 2;
+    return 1;
+  }, [ownedItems]);
   const clickAmount = useMemo(() => {
     if (ownedItems.includes('double_click_5')) return 6;
     if (ownedItems.includes('double_click_4')) return 5;
@@ -2395,6 +2565,7 @@ function GameApp({
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice')) return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
+    if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     return 'default';
   }, [activeCosmetics]);
   const bgClass = useMemo(() => {
@@ -2419,6 +2590,8 @@ function GameApp({
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
+    if (activeCosmetics.includes('page_season4')) return 'page-season4';
+    if (activeCosmetics.includes('page_season5')) return 'page-season5';
     return '';
   }, [activeCosmetics]);
   const currentRotationRef = useRef(0);
@@ -2574,12 +2747,13 @@ function GameApp({
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null) {
-        setInfLevels({
-          winmult_inf: data.winmult_inf_level ?? 0,
-          bonusmult_inf: data.bonusmult_inf_level ?? 0,
-          clickmult_inf: data.clickmult_inf_level ?? 0
-        });
+      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null) {
+        setInfLevels(prev => ({
+          winmult_inf: data.winmult_inf_level ?? prev.winmult_inf,
+          bonusmult_inf: data.bonusmult_inf_level ?? prev.bonusmult_inf,
+          clickmult_inf: data.clickmult_inf_level ?? prev.clickmult_inf,
+          streak_armor_inf: data.streak_armor_level ?? prev.streak_armor_inf
+        }));
       }
     } else {
       showToast(data.error || 'Purchase failed');
@@ -2632,11 +2806,14 @@ function GameApp({
         die1: data.die1,
         die2: data.die2,
         dice_sum: data.dice_sum,
-        cost: data.cost,
-        streak_delta: streakDelta
+        streak_delta: streakDelta,
+        cursed: data.cursed,
+        streak_before: prevStreak,
+        streak_after: data.streak
       });
-      setLosses(data.losses);
       setStreak(data.streak);
+      if (data.dice_charges != null) setDiceCharges(data.dice_charges);
+      if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
   }, [diceRolling, spinning, streak, lowSpec, showToast]);
@@ -2673,6 +2850,9 @@ function GameApp({
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
+    if (data.dice_charges != null) setDiceCharges(data.dice_charges);
+    if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
+    if (data.wins_delta > 0) setWinCount(prev => prev + 1);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -2901,7 +3081,7 @@ function GameApp({
     className: "result-text lose"
   }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line jackpot-line"
-  }, "\uD83C\uDFB0 JACKPOT! 50x multiplier applied!"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDFB0 JACKPOT! 25x multiplier applied!"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line echo-line"
   }, "\uD83D\uDD0A WIN ECHO! Wins doubled!"), luckySevenTriggered && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line lucky-seven-line"
@@ -2984,6 +3164,17 @@ function GameApp({
     wins: wins,
     losses: losses,
     lastResult: result
+  }), isMobile && /*#__PURE__*/React.createElement(DicePanel, {
+    streak: streak,
+    onRoll: handleDiceRoll,
+    rolling: diceRolling,
+    diceResult: diceResult,
+    spinning: spinning,
+    guardSpinning: !!guardState,
+    lowSpec: lowSpec,
+    diceCharges: diceCharges,
+    maxDiceCharges: diceMaxCharges,
+    diceLastRecharge: diceLastRecharge
   }), /*#__PURE__*/React.createElement("div", {
     className: "bulbs"
   }, Array.from({
@@ -3008,14 +3199,16 @@ function GameApp({
   }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak
   }), /*#__PURE__*/React.createElement(DicePanel, {
-    losses: losses,
     streak: streak,
     onRoll: handleDiceRoll,
     rolling: diceRolling,
     diceResult: diceResult,
     spinning: spinning,
     guardSpinning: !!guardState,
-    lowSpec: lowSpec
+    lowSpec: lowSpec,
+    diceCharges: diceCharges,
+    maxDiceCharges: diceMaxCharges,
+    diceLastRecharge: diceLastRecharge
   })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
@@ -3027,7 +3220,8 @@ function GameApp({
     onBuy: handleBuy,
     onEquip: handleEquip,
     onEquipCosmetic: handleEquipCosmetic,
-    collapsed: shopCollapsed
+    collapsed: shopCollapsed,
+    winCount: winCount
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
   }, /*#__PURE__*/React.createElement("div", {

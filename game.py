@@ -2,7 +2,7 @@ import datetime as dt
 import logging
 import random
 import secrets
-from datetime import timezone
+from datetime import timezone, timedelta
 
 import psycopg2.extras
 from flask import Blueprint, jsonify, request
@@ -12,7 +12,9 @@ from db import db_connection
 from extensions import limiter
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
-                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level)
+                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level,
+                    streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
+                    UPGRADE_TIER_THRESHOLDS, item_tier)
 from seasons import ensure_current_season, get_season_info
 
 COSMETIC_SLOTS = {
@@ -26,7 +28,7 @@ COSMETIC_SLOTS = {
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
     'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
-    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
+    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme', 'page_season4': 'page_theme', 'page_season5': 'page_theme',
     'final_frenzy': 'frenzy_mode',
     'auto_guard':   'auto_guard',
 }
@@ -61,23 +63,39 @@ def get_state():
                               equipped_fish, shield_charges, regen_recharge_wins,
                               active_cosmetics, spin_count, win_count,
                               winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
-                              low_spec_mode
+                              streak_armor_level, low_spec_mode,
+                              dice_charges, dice_last_recharge, jackpot_echo_next
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
-                cur.execute('SELECT total_contributed, target, fib_prev, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
+                cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at, last_decay_check FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
-        pot_active = bool(
+        now_utc = dt.datetime.now(timezone.utc)
+        # Brief 5-minute celebration window after a fill (UI only)
+        pot_celebrate = bool(
             pot and pot['filled'] and pot['filled_at'] and
-            pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
+            pot['filled_at'] > now_utc - dt.timedelta(minutes=5)
         )
+        # Recharge dice charges based on elapsed time
+        owned_items     = list(gs['owned_items'])
+        max_charges     = dice_max_charges(owned_items)
+        dice_charges    = gs['dice_charges']
+        last_recharge   = gs['dice_last_recharge']
+        if last_recharge.tzinfo is None:
+            last_recharge = last_recharge.replace(tzinfo=timezone.utc)
+        elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
+        if elapsed_charges > 0 and dice_charges < max_charges:
+            new_dice_charges = min(dice_charges + elapsed_charges, max_charges)
+            new_last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+            dice_charges   = new_dice_charges
+            last_recharge  = new_last_recharge
         return jsonify({
             'wins':               int(gs['wins']),
             'losses':             gs['losses'],
             'fish_clicks':        gs['fish_clicks'],
             'streak':             gs['streak'],
-            'owned_items':        list(gs['owned_items']),
+            'owned_items':        owned_items,
             'equipped_fish':      gs['equipped_fish'],
             'shield_charges':     gs['shield_charges'],
             'regen_recharge_wins': gs['regen_recharge_wins'],
@@ -88,13 +106,17 @@ def get_state():
             'winmult_inf_level':   gs['winmult_inf_level'],
             'bonusmult_inf_level': gs['bonusmult_inf_level'],
             'clickmult_inf_level': gs['clickmult_inf_level'],
+            'streak_armor_level':  gs['streak_armor_level'],
             'low_spec_mode':       gs['low_spec_mode'],
+            'dice_charges':        dice_charges,
+            'dice_last_recharge':  last_recharge.isoformat(),
+            'jackpot_echo_next':   gs['jackpot_echo_next'],
             'community_pot': {
                 'total_contributed': pot['total_contributed'] if pot else 0,
-                'target':            pot['target']            if pot else 10_000,
+                'target':            pot['target']            if pot else 1_000,
                 'filled':            pot['filled']            if pot else False,
-                'active':            pot_active,
-                'win_chance_pct':    pot['win_chance_pct']    if pot else 51,
+                'active':            pot_celebrate,
+                'win_chance_pct':    float(pot['win_chance_pct']) if pot else 50.0,
             } if pot else None,
         })
     except Exception:
@@ -138,15 +160,16 @@ def spin():
                 cur.execute(
                     '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges, regen_recharge_wins,
                               spin_count, win_count, loss_count,
-                              winmult_inf_level, bonusmult_inf_level,
-                              fish_clicks, active_cosmetics
+                              winmult_inf_level, bonusmult_inf_level, streak_armor_level,
+                              fish_clicks, active_cosmetics,
+                              dice_charges, dice_last_recharge, jackpot_echo_next
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
-                # Community pot: check if bonus is active (within 1 hour of filling)
-                cur.execute('SELECT filled, filled_at, win_chance_pct FROM community_pot WHERE id = 1')
+                # Community pot: win_chance_pct is always applied (season 5: permanent stacking boost)
+                cur.execute('SELECT filled, filled_at, win_chance_pct, last_decay_check, total_contributed, target FROM community_pot WHERE id = 1')
                 pot_row = cur.fetchone()
 
             owned               = list(gs['owned_items'])
@@ -156,22 +179,47 @@ def spin():
             regen_recharge_wins = gs['regen_recharge_wins']
             fish_clicks         = gs['fish_clicks']
             active_cosmetics    = list(gs['active_cosmetics'])
+            now_utc             = dt.datetime.now(timezone.utc)
 
-            pot_active = False
+            # Community pot: clear brief celebration window if expired (5-minute window)
             if pot_row and pot_row['filled'] and pot_row['filled_at']:
-                pot_active = pot_row['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
-            # Auto-reset expired pot: advance to next Fibonacci target, increment win chance
-            if pot_row and pot_row['filled'] and not pot_active:
-                with conn.cursor() as cur2:
-                    cur2.execute(
-                        '''UPDATE community_pot
-                           SET filled = false, filled_at = NULL,
-                               total_contributed = 0,
-                               fib_prev = target,
-                               target = target + fib_prev,
-                               win_chance_pct = LEAST(win_chance_pct + 1, 75)
-                           WHERE id = 1'''
-                    )
+                pot_celebrate_expired = pot_row['filled_at'] <= now_utc - dt.timedelta(minutes=5)
+                if pot_celebrate_expired:
+                    with conn.cursor() as cur2:
+                        cur2.execute('UPDATE community_pot SET filled = false WHERE id = 1')
+
+            # Community pot: apply target decay if 12+ hours since last check
+            if pot_row and pot_row['last_decay_check']:
+                last_decay = pot_row['last_decay_check']
+                if last_decay.tzinfo is None:
+                    last_decay = last_decay.replace(tzinfo=timezone.utc)
+                decay_periods = int((now_utc - last_decay).total_seconds() / (12 * 3600))
+                if decay_periods > 0:
+                    new_target = int(pot_row['target'])
+                    for _ in range(decay_periods):
+                        new_target = max(500, int(new_target * 0.8))
+                    # Safety: never drop below current fill amount + 1
+                    if pot_row['total_contributed'] > 0:
+                        new_target = max(new_target, int(pot_row['total_contributed']) + 1)
+                    new_decay_ts = last_decay + timedelta(hours=12 * decay_periods)
+                    with conn.cursor() as cur2:
+                        cur2.execute(
+                            'UPDATE community_pot SET target = %s, last_decay_check = %s WHERE id = 1',
+                            (new_target, new_decay_ts)
+                        )
+
+            # Dice recharge
+            dice_charges   = gs['dice_charges']
+            last_recharge  = gs['dice_last_recharge']
+            if last_recharge.tzinfo is None:
+                last_recharge = last_recharge.replace(tzinfo=timezone.utc)
+            max_charges = dice_max_charges(owned)
+            elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
+            if elapsed_charges > 0 and dice_charges < max_charges:
+                new_dice_charges  = min(dice_charges + elapsed_charges, max_charges)
+                new_last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+                dice_charges      = new_dice_charges
+                last_recharge     = new_last_recharge
 
             # Auto-guard: if enabled and guard is gone, buy one before spinning (costs wins)
             auto_guard_failed = False
@@ -191,15 +239,16 @@ def spin():
             new_spin_count = gs['spin_count'] + 1
 
             # Determine outcome
+            # Season 5: win_chance_pct always applies (permanent stacking pot bonus, starts at 50%)
+            pot_win_pct = float(pot_row['win_chance_pct']) if pot_row else 50.0
+            lucky_seven_triggered = False
             if 'singularity' in owned:
                 outcome = 'win'
             elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
                 outcome = 'win'
                 lucky_seven_triggered = True
-            elif pot_active:
-                outcome = 'win' if secrets.randbelow(100) < pot_row['win_chance_pct'] else 'lose'
             else:
-                outcome = secrets.choice(['win', 'lose'])
+                outcome = 'win' if random.random() < (pot_win_pct / 100.0) else 'lose'
 
             # Multipliers — derived entirely from inf level columns
             win_mult   = win_mult_from_level(gs['winmult_inf_level'])
@@ -214,11 +263,18 @@ def spin():
             new_losses       = gs['losses']
             bonus_earned     = 0
             new_owned        = owned
-            echo_triggered        = False
-            jackpot_hit           = False
-            resilience_triggered  = False
-            lucky_seven_triggered = False
+            echo_triggered          = False
+            jackpot_hit             = False
+            jackpot_echo_triggered  = False
+            resilience_triggered    = False
             fortune_charm_triggered = False
+            new_jackpot_echo_next   = False  # whether next spin should echo
+
+            # Jackpot echo from previous spin
+            jackpot_echo_pending = bool(gs['jackpot_echo_next'])
+
+            # Resilience: dynamic chance based on streak_armor_level (base 50%, +1%/level, cap 60%)
+            resilience_chance = min(0.50 + gs['streak_armor_level'] * 0.01, 0.60)
 
             if outcome == 'lose':
                 # Regen shield: protects any loss when charged
@@ -237,27 +293,25 @@ def spin():
                         new_streak    = streak  # loss blocked, keep streak
                     else:
                         # Guard failed: take the loss
-                        if 'resilience' in owned and streak > 0 and random.random() < 0.50:
+                        if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                             resilience_triggered = True
                             new_streak = max(0, streak - 1)
                         else:
                             new_streak = streak - 1 if streak <= 0 else -1
                         loss_count   = abs(new_streak) if new_streak < 0 else 0
-                        raw_lb       = (1 << (loss_count - 3)) if loss_count >= 3 else 0
-                        loss_bonus   = raw_lb * bonus_mult
+                        loss_bonus   = streak_bonus(loss_count) * bonus_mult
                         new_losses  += 1 + loss_bonus
                         bonus_earned = -loss_bonus if loss_bonus > 0 else 0
 
                 else:
                     # No protection
-                    if 'resilience' in owned and streak > 0 and random.random() < 0.50:
+                    if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                         resilience_triggered = True
                         new_streak = max(0, streak - 1)
                     else:
                         new_streak = streak - 1 if streak <= 0 else -1
                     loss_count   = abs(new_streak) if new_streak < 0 else 0
-                    raw_lb       = (1 << (loss_count - 3)) if loss_count >= 3 else 0
-                    loss_bonus   = raw_lb * bonus_mult
+                    loss_bonus   = streak_bonus(loss_count) * bonus_mult
                     new_losses  += 1 + loss_bonus
                     bonus_earned = -loss_bonus if loss_bonus > 0 else 0
 
@@ -266,8 +320,8 @@ def spin():
                 if regen_recharge_wins > 0:
                     regen_recharge_wins -= 1
 
-                count     = abs(new_streak)
-                raw_bonus = (1 << (count - 3)) if count >= 3 else 0
+                count      = abs(new_streak)
+                raw_bonus  = streak_bonus(count)
                 base_bonus = raw_bonus * bonus_mult
                 # Fortune charm: +25% to all streak bonuses
                 if 'fortune_charm' in owned and base_bonus > 0 and random.random() < 0.25:
@@ -275,11 +329,20 @@ def spin():
                     fortune_charm_triggered = True
                 bonus_earned = base_bonus
 
-                # Jackpot: 2% chance to multiply wins by 50
-                if 'jackpot' in owned and random.random() < 0.01:
+                # Jackpot echo: trigger from previous spin's echo flag
+                if jackpot_echo_pending:
+                    jackpot_echo_triggered = True
                     jackpot_hit = True
-                    new_wins += (win_mult + bonus_earned) * 50
-                    bonus_earned = (win_mult + bonus_earned) * 50 - win_mult  # show inflated bonus
+                    new_wins += (win_mult + bonus_earned) * 25
+                    bonus_earned = (win_mult + bonus_earned) * 25 - win_mult
+                # Jackpot: 1% chance to multiply wins by 25
+                elif 'jackpot' in owned and random.random() < 0.01:
+                    jackpot_hit = True
+                    new_wins += (win_mult + bonus_earned) * 25
+                    bonus_earned = (win_mult + bonus_earned) * 25 - win_mult
+                    # Jackpot Echo: 5% chance to trigger jackpot again next spin
+                    if random.random() < 0.05:
+                        new_jackpot_echo_next = True
                 else:
                     # Win echo: 20% chance to double wins earned
                     if 'win_echo' in owned and random.random() < 0.20:
@@ -314,12 +377,17 @@ def spin():
                        SET wins = %s, losses = %s, streak = %s, best_streak = %s,
                            shield_charges = %s, regen_recharge_wins = %s,
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
-                           fish_clicks = %s, active_cosmetics = %s
+                           fish_clicks = %s, active_cosmetics = %s,
+                           dice_charges = %s, dice_last_recharge = %s,
+                           jackpot_echo_next = %s
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak, new_best_streak,
                      shield_charges, regen_recharge_wins,
                      new_owned, new_spin_count, new_win_count, new_loss_count,
-                     fish_clicks, active_cosmetics, current_user.id),
+                     fish_clicks, active_cosmetics,
+                     dice_charges, last_recharge,
+                     new_jackpot_echo_next,
+                     current_user.id),
                 )
             conn.commit()
 
@@ -338,14 +406,18 @@ def spin():
             'guard_triggered':    guard_triggered,
             'guard_blocked':      guard_blocked,
             'bonus_earned':       bonus_earned,
-            'echo_triggered':          echo_triggered,
-            'jackpot_hit':             jackpot_hit,
-            'resilience_triggered':    resilience_triggered,
-            'lucky_seven_triggered':   lucky_seven_triggered,
-            'fortune_charm_triggered': fortune_charm_triggered,
-            'active_cosmetics':       active_cosmetics,
-            'auto_guard_failed':      auto_guard_failed,
-            'new_spin_count':         new_spin_count,
+            'echo_triggered':           echo_triggered,
+            'jackpot_hit':              jackpot_hit,
+            'jackpot_echo_triggered':   jackpot_echo_triggered,
+            'jackpot_echo_next':        new_jackpot_echo_next,
+            'resilience_triggered':     resilience_triggered,
+            'lucky_seven_triggered':    lucky_seven_triggered,
+            'fortune_charm_triggered':  fortune_charm_triggered,
+            'active_cosmetics':        active_cosmetics,
+            'auto_guard_failed':       auto_guard_failed,
+            'new_spin_count':          new_spin_count,
+            'dice_charges':            dice_charges,
+            'dice_last_recharge':      last_recharge.isoformat(),
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -363,52 +435,69 @@ def roll_dice():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT wins, losses, streak, best_streak FROM game_state WHERE user_id = %s FOR UPDATE',
+                    '''SELECT wins, losses, streak, best_streak, owned_items,
+                              dice_charges, dice_last_recharge
+                       FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
             wins        = int(gs['wins'])
-            losses      = int(gs['losses'])
             streak      = gs['streak']
             best_streak = gs['best_streak']
-            cost        = losses
+            owned       = list(gs['owned_items'])
+            now_utc     = dt.datetime.now(timezone.utc)
 
-            if losses < 1:
-                return jsonify({'error': 'Not enough losses to roll'}), 400
-            if streak == 0:
-                return jsonify({'error': 'No active streak to amplify'}), 400
+            # Recharge dice charges
+            dice_charges  = gs['dice_charges']
+            last_recharge = gs['dice_last_recharge']
+            if last_recharge.tzinfo is None:
+                last_recharge = last_recharge.replace(tzinfo=timezone.utc)
+            max_charges = dice_max_charges(owned)
+            elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
+            if elapsed_charges > 0 and dice_charges < max_charges:
+                dice_charges  = min(dice_charges + elapsed_charges, max_charges)
+                last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+
+            # Season 5: dice requires win streak >= 3 (no loss streak amplification)
+            if streak < 3:
+                return jsonify({'error': 'Need a win streak of 3 or more to roll'}), 400
+            if dice_charges < 1:
+                return jsonify({'error': 'No dice charges available'}), 400
 
             die1     = random.randint(1, 6)
             die2     = random.randint(1, 6)
             dice_sum = die1 + die2
 
-            # Amplify whichever streak the player is currently on
-            if streak > 0:
-                new_streak = streak + dice_sum
+            # Snake eyes (1,1): lose half the win streak — cursed roll!
+            cursed = (die1 == 1 and die2 == 1)
+            if cursed:
+                new_streak = max(0, streak // 2)
             else:
-                new_streak = streak - dice_sum
+                new_streak = streak + dice_sum
 
-            new_best    = max(best_streak, new_streak) if new_streak > 0 else best_streak
-            new_losses  = 0
+            new_best      = max(best_streak, new_streak) if new_streak > 0 else best_streak
+            new_charges   = dice_charges - 1
 
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET losses = %s, streak = %s, best_streak = %s
+                       SET streak = %s, best_streak = %s,
+                           dice_charges = %s, dice_last_recharge = %s
                        WHERE user_id = %s''',
-                    (new_losses, new_streak, new_best, current_user.id),
+                    (new_streak, new_best, new_charges, last_recharge, current_user.id),
                 )
             conn.commit()
 
         return jsonify({
-            'die1':     die1,
-            'die2':     die2,
-            'dice_sum': dice_sum,
-            'cost':     cost,
-            'losses':   new_losses,
-            'wins':     wins,
-            'streak':   new_streak,
+            'die1':              die1,
+            'die2':              die2,
+            'dice_sum':          dice_sum,
+            'cursed':            cursed,
+            'streak':            new_streak,
+            'wins':              wins,
+            'dice_charges':      new_charges,
+            'dice_last_recharge': last_recharge.isoformat(),
         })
     except Exception:
         log.exception('ROLL_DICE_ERROR  user_id=%s', current_user.id)
@@ -436,7 +525,8 @@ def buy():
                     cur.execute(
                         f'''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
                                    regen_recharge_wins, active_cosmetics,
-                                   winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
+                                   winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
+                                   streak_armor_level
                             FROM game_state WHERE user_id = %s FOR UPDATE''',
                         (current_user.id,),
                     )
@@ -444,6 +534,15 @@ def buy():
 
                 owned     = list(gs['owned_items'])
                 cur_level = gs[col]
+
+                # streak_armor_inf: requires resilience, hard cap at max_level
+                if item_id == 'streak_armor_inf':
+                    if 'resilience' not in owned:
+                        return jsonify({'error': 'Requires Resilience'}), 400
+                    max_level = inf.get('max_level', 999)
+                    if cur_level >= max_level:
+                        return jsonify({'error': 'Maximum level reached'}), 400
+
                 cost      = inf_upgrade_cost(item_id, cur_level)
 
                 if int(gs['wins']) < cost:
@@ -467,9 +566,10 @@ def buy():
                 'shield_charges':      gs['shield_charges'],
                 'regen_recharge_wins': gs['regen_recharge_wins'],
                 'active_cosmetics':    list(gs['active_cosmetics']),
-                'winmult_inf_level':   new_level if col == 'winmult_inf_level'   else gs['winmult_inf_level'],
-                'bonusmult_inf_level': new_level if col == 'bonusmult_inf_level' else gs['bonusmult_inf_level'],
-                'clickmult_inf_level': new_level if col == 'clickmult_inf_level' else gs['clickmult_inf_level'],
+                'winmult_inf_level':    new_level if col == 'winmult_inf_level'    else gs['winmult_inf_level'],
+                'bonusmult_inf_level':  new_level if col == 'bonusmult_inf_level'  else gs['bonusmult_inf_level'],
+                'clickmult_inf_level':  new_level if col == 'clickmult_inf_level'  else gs['clickmult_inf_level'],
+                'streak_armor_level':   new_level if col == 'streak_armor_level'   else gs['streak_armor_level'],
             })
         except Exception:
             log.exception('BUY_INF_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
@@ -489,7 +589,8 @@ def buy():
                 cur.execute(
                     '''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
                               regen_recharge_wins, active_cosmetics,
-                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level
+                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
+                              streak_armor_level, win_count
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -501,6 +602,13 @@ def buy():
                 return jsonify({'error': 'Already owned'}), 409
             if requires and requires not in owned:
                 return jsonify({'error': 'Prerequisite not met'}), 400
+
+            # Season 5: tier gating — check win_count threshold
+            tier = item_tier(item_id)
+            if tier > 1:
+                threshold = UPGRADE_TIER_THRESHOLDS[tier]
+                if gs['win_count'] < threshold:
+                    return jsonify({'error': f'Unlocks at {threshold:,} total wins'}), 403
 
             # Currency-specific balance check
             if currency == 'wins':
@@ -573,21 +681,21 @@ def community_pot_state():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute('SELECT total_contributed, target, fib_prev, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
+                cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
         if not pot:
-            return jsonify({'total_contributed': 0, 'target': 10_000, 'filled': False, 'active': False, 'win_chance_pct': 51})
-        pot_active = bool(
+            return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0})
+        # 5-minute celebration window
+        pot_celebrate = bool(
             pot['filled'] and pot['filled_at'] and
-            pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1)
+            pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(minutes=5)
         )
         return jsonify({
             'total_contributed': pot['total_contributed'],
             'target':            pot['target'],
             'filled':            pot['filled'],
-            'active':            pot_active,
-            'filled_at':         pot['filled_at'].isoformat() if pot['filled_at'] else None,
-            'win_chance_pct':    pot['win_chance_pct'],
+            'active':            pot_celebrate,
+            'win_chance_pct':    float(pot['win_chance_pct']),
         })
     except Exception:
         log.exception('COMMUNITY_POT_STATE_ERROR')
@@ -602,7 +710,7 @@ def community_pot_contribute():
     if err:
         return err
     data        = request.get_json(silent=True) or {}
-    amount_type = data.get('amount', 'all')  # '10000' or 'all'
+    amount_type = data.get('amount', 'all')  # '10pct' or 'all'
 
     try:
         with db_connection() as conn:
@@ -612,35 +720,50 @@ def community_pot_contribute():
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
-                cur.execute('SELECT total_contributed, target, fib_prev, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1 FOR UPDATE')
+                cur.execute(
+                    'SELECT total_contributed, target, win_chance_pct, filled, filled_at, last_decay_check FROM community_pot WHERE id = 1 FOR UPDATE'
+                )
                 pot = cur.fetchone()
 
             if not pot:
                 return jsonify({'error': 'Pot not found'}), 500
+
+            now_utc = dt.datetime.now(timezone.utc)
+
+            # Season 5: pot resets immediately on fill — no waiting period.
+            # If filled and celebration window expired, just clear the flag.
             if pot['filled']:
-                pot_expired = not (pot['filled_at'] and
-                    pot['filled_at'] > dt.datetime.now(timezone.utc) - dt.timedelta(hours=1))
-                if not pot_expired:
-                    return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
-                # Expired: reset here so contributions can continue
+                pot_celebrate_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(minutes=5)
+                if pot_celebrate_active:
+                    # Pot just filled — the in-memory state has total_contributed=0, new target.
+                    # Allow contributions to the next pot immediately (filled=True just for celebration).
+                    # total_contributed was reset on fill, so remaining = target - 0 = target.
+                    pass
+                else:
+                    with conn.cursor() as cur2:
+                        cur2.execute('UPDATE community_pot SET filled = false WHERE id = 1')
+
+            # Apply decay if 12+ hours since last check
+            last_decay = pot['last_decay_check']
+            if last_decay.tzinfo is None:
+                last_decay = last_decay.replace(tzinfo=timezone.utc)
+            decay_periods = int((now_utc - last_decay).total_seconds() / (12 * 3600))
+            effective_target = int(pot['target'])
+            if decay_periods > 0:
+                for _ in range(decay_periods):
+                    effective_target = max(500, int(effective_target * 0.8))
+                if pot['total_contributed'] > 0:
+                    effective_target = max(effective_target, int(pot['total_contributed']) + 1)
+                new_decay_ts = last_decay + timedelta(hours=12 * decay_periods)
                 with conn.cursor() as cur2:
                     cur2.execute(
-                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
-                           fib_prev = target, target = target + fib_prev,
-                           win_chance_pct = LEAST(win_chance_pct + 1, 75)
-                           WHERE id = 1'''
+                        'UPDATE community_pot SET target = %s, last_decay_check = %s WHERE id = 1',
+                        (effective_target, new_decay_ts)
                     )
-                old_target = pot['target']
-                old_fib_prev = pot['fib_prev']
-                pot = dict(pot)
-                pot['filled'] = False
-                pot['target'] = old_target + old_fib_prev
-                pot['fib_prev'] = old_target
-                pot['win_chance_pct'] = min(pot['win_chance_pct'] + 1, 75)
 
             fish_clicks = gs['fish_clicks']
             if amount_type == '10pct':
-                contribute = min(max(1, pot['target'] // 10), fish_clicks)
+                contribute = min(max(1, effective_target // 10), fish_clicks)
             else:
                 contribute = fish_clicks
 
@@ -648,10 +771,12 @@ def community_pot_contribute():
                 return jsonify({'error': 'No fish clicks to contribute'}), 400
 
             # Cap at remaining target
-            remaining  = pot['target'] - pot['total_contributed']
-            contribute = min(contribute, remaining)
-            new_total  = pot['total_contributed'] + contribute
-            newly_filled = new_total >= pot['target']
+            remaining    = effective_target - int(pot['total_contributed'])
+            contribute   = min(contribute, max(0, remaining))
+            if contribute <= 0:
+                return jsonify({'error': 'Pot already full — wait for next cycle'}), 400
+            new_total    = int(pot['total_contributed']) + contribute
+            newly_filled = new_total >= effective_target
 
             with conn.cursor() as cur:
                 cur.execute(
@@ -659,10 +784,18 @@ def community_pot_contribute():
                     (contribute, current_user.id),
                 )
                 if newly_filled:
+                    # Season 5: immediate reset — +0.5% win chance (cap 60%), advance target by 50%
+                    new_pct    = min(float(pot['win_chance_pct']) + 0.5, 60.0)
+                    new_target = min(int(effective_target * 1.5), 10_000)
+                    new_target = max(new_target, 1)
                     cur.execute(
-                        '''UPDATE community_pot SET total_contributed = %s, filled = true,
-                           filled_at = now() WHERE id = 1''',
-                        (new_total,),
+                        '''UPDATE community_pot
+                           SET total_contributed = 0,
+                               filled = true, filled_at = now(),
+                               win_chance_pct = %s,
+                               target = %s
+                           WHERE id = 1''',
+                        (new_pct, new_target),
                     )
                 else:
                     cur.execute(
@@ -671,16 +804,23 @@ def community_pot_contribute():
                     )
             conn.commit()
 
-        filled_at_iso = dt.datetime.now(timezone.utc).isoformat() if newly_filled else None
+        if newly_filled:
+            ret_total  = 0
+            ret_target = new_target
+            ret_pct    = new_pct
+        else:
+            ret_total  = new_total
+            ret_target = effective_target
+            ret_pct    = float(pot['win_chance_pct'])
+
         return jsonify({
             'fish_clicks':   fish_clicks - contribute,
             'contributed':   contribute,
-            'pot_total':     new_total,
-            'pot_target':      pot['target'],
-            'pot_filled':      newly_filled,
-            'pot_active':      newly_filled,
-            'filled_at':       filled_at_iso,
-            'win_chance_pct':  pot['win_chance_pct'],
+            'pot_total':     ret_total,
+            'pot_target':    ret_target,
+            'pot_filled':    newly_filled,
+            'pot_active':    newly_filled,
+            'win_chance_pct': ret_pct,
         })
     except Exception:
         log.exception('CONTRIBUTE_POT_ERROR  user_id=%s', current_user.id)

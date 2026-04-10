@@ -2487,6 +2487,12 @@ body.page-season2 .mobile-toolbar-btn.active { color: #00C864; border-color: #00
   animation: diceResultPop 0.35s ease-out forwards;
 }
 
+.dice-recharge-timer {
+  font-size: 10px;
+  color: #c4a0e0;
+  margin-left: 4px;
+}
+
 .dice-roll-btn {
   background: linear-gradient(135deg, #3a005c 0%, #1a002e 100%);
   border: 1.5px solid #AA00FF;
@@ -2585,3 +2591,176 @@ body.page-season3 .season-info { color: #AA00FF; }
 body.page-season3 .season-countdown { color: #FF6600; background: rgba(255,102,0,0.1); border-color: rgba(255,102,0,0.25); }
 body.page-season3 .mobile-toolbar { border-top-color: rgba(170,0,255,0.25); }
 body.page-season3 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA00FF; background: rgba(170,0,255,0.1); }
+
+/* ── Season 5: Bioluminescence ───────────────────────────────────────────── */
+/* Deep ocean black + glowing cyan primary + coral accent                    */
+body.page-season5 { background: radial-gradient(ellipse at center, #000d14 0%, #000509 70%); }
+body.page-season5::before { border-image: linear-gradient(90deg, #00E5FF, #FF6B6B, #00E5FF, #FF6B6B) 1; }
+body.page-season5 .casino-title { color: #00E5FF; text-shadow: 0 0 10px #00E5FF, 0 0 30px #00B4D8, 0 0 60px #0077A8; }
+body.page-season5 .subtitle { color: #FF6B6B; }
+body.page-season5 .wheel-wrapper::before { box-shadow: 0 0 30px 12px rgba(0,229,255,0.4), 0 0 70px 20px rgba(255,107,107,0.2), inset 0 0 20px rgba(0,229,255,0.1); }
+body.page-season5 .pointer { border-top-color: #00E5FF; filter: drop-shadow(0 0 10px #00E5FF) drop-shadow(0 0 20px #00B4D8); }
+body.page-season5 .center-hub { background: radial-gradient(circle, #00E5FF, #006080); border-color: #ccf9ff; box-shadow: 0 0 20px #00E5FF, 0 0 40px #00B4D8; }
+body.page-season5 .spin-prompt { color: #00E5FF; text-shadow: 0 0 10px #00E5FF; }
+body.page-season5 .autospin-label { color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
+body.page-season5 .autospin-row input[type="checkbox"] { border-color: #00E5FF; background: rgba(0,229,255,0.08); }
+body.page-season5 .autospin-row input[type="checkbox"]:checked { background: #00E5FF; box-shadow: 0 0 12px #00E5FF; }
+body.page-season5 .bulb:nth-child(odd)  { background: #00E5FF; box-shadow: 0 0 8px #00E5FF; }
+body.page-season5 .bulb:nth-child(even) { background: #FF6B6B; box-shadow: 0 0 8px #FF6B6B; }
+body.page-season5 .result-text.win { color: #00E5FF; border-color: #00E5FF; text-shadow: 0 0 20px #00E5FF, 0 0 50px #80F2FF; box-shadow: 0 0 40px #00E5FF, inset 0 0 20px rgba(0,229,255,0.1); }
+body.page-season5 .spin-again-btn { background: linear-gradient(135deg, #006080, #00E5FF); box-shadow: 0 0 20px rgba(0,229,255,0.5); }
+body.page-season5 .spin-again-btn:hover { box-shadow: 0 0 40px rgba(0,229,255,0.8); }
+body.page-season5 .score-box.wins-box { border-color: #00E5FF; background: rgba(0,229,255,0.06); box-shadow: 0 0 16px rgba(0,229,255,0.2); }
+body.page-season5 .score-box.wins-box .score-label { color: #00E5FF; }
+body.page-season5 .score-box.wins-box .score-value { color: #00E5FF; text-shadow: 0 0 12px #00E5FF; }
+body.page-season5 .streak-panel.win-streak .streak-count { color: #00E5FF; text-shadow: 0 0 16px #00E5FF, 0 0 40px #00B4D8; }
+body.page-season5 .streak-panel.win-streak .streak-label { color: #00E5FF; }
+body.page-season5 .streak-panel.win-streak .streak-bonus { background: #00E5FF; box-shadow: 0 0 12px #00E5FF; }
+body.page-season5 .bonus-line { color: #00E5FF; text-shadow: 0 0 12px #00E5FF; }
+body.page-season5 .shop-panel { background: rgba(0,9,18,0.96); border-color: #00E5FF; box-shadow: 0 0 30px rgba(0,229,255,0.2), inset 0 0 20px rgba(0,0,0,0.5); }
+body.page-season5 .shop-header { border-bottom-color: rgba(0,229,255,0.2); }
+body.page-season5 .shop-title { color: #00E5FF; text-shadow: 0 0 10px #00E5FF; }
+body.page-season5 .shop-balance span { color: #00E5FF; }
+body.page-season5 .shop-tabs { border-bottom-color: rgba(0,229,255,0.2); }
+body.page-season5 .shop-tab.active { color: #00E5FF; border-bottom-color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.5); }
+body.page-season5 .shop-tab-content { scrollbar-color: #00E5FF #050f1a; }
+body.page-season5 .shop-item { background: rgba(0,229,255,0.03); border-color: rgba(0,229,255,0.12); }
+body.page-season5 .shop-item.owned { border-color: rgba(0,229,255,0.4); background: rgba(0,229,255,0.07); }
+body.page-season5 .shop-item.equipped { border-color: #00E5FF; background: rgba(0,229,255,0.12); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+body.page-season5 .shop-item-cost { color: #00E5FF; }
+body.page-season5 .shop-buy-btn.can-afford { background: linear-gradient(135deg, #006080, #00E5FF); box-shadow: 0 0 8px rgba(0,229,255,0.4); }
+body.page-season5 .shop-equip-btn { border-color: #00E5FF; color: #00E5FF; }
+body.page-season5 .shop-equip-btn:hover { background: rgba(0,229,255,0.15); }
+body.page-season5 .shop-equipped-badge { color: #00E5FF; border-color: #00E5FF; }
+body.page-season5 .shop-item-desc[data-tooltip]:hover::after { border-color: #00E5FF; }
+body.page-season5 .auth-card { background: rgba(0,8,18,0.97); border-color: #00E5FF; box-shadow: 0 0 60px rgba(0,229,255,0.3), inset 0 0 30px rgba(0,0,0,0.5); }
+body.page-season5 .auth-title { color: #00E5FF; text-shadow: 0 0 16px #00E5FF; }
+body.page-season5 .auth-input { background: rgba(0,229,255,0.05); border-color: rgba(0,229,255,0.3); color: #00E5FF; }
+body.page-season5 .auth-input:focus { border-color: #00E5FF; box-shadow: 0 0 12px rgba(0,229,255,0.3); }
+body.page-season5 .auth-submit-btn { background: linear-gradient(135deg, #006080, #00E5FF); box-shadow: 0 0 20px rgba(0,229,255,0.4); }
+body.page-season5 .auth-submit-btn:hover { box-shadow: 0 0 30px rgba(0,229,255,0.7); }
+body.page-season5 .auth-toggle a { color: #00E5FF; }
+body.page-season5 .user-bar { border-bottom-color: rgba(0,229,255,0.1); }
+body.page-season5 .stats-card { background: rgba(0,8,18,0.97); border-color: rgba(0,229,255,0.4); box-shadow: 0 0 40px rgba(0,229,255,0.15); }
+body.page-season5 .stats-title { color: #00E5FF; text-shadow: 0 0 10px rgba(0,229,255,0.5); }
+body.page-season5 .stats-row span:last-child { color: #00E5FF; }
+body.page-season5 .stats-btn:hover { color: #00E5FF; border-color: #00E5FF; }
+body.page-season5 .leaderboard-panel { background: rgba(0,8,18,0.95); border-color: rgba(0,180,216,0.25); box-shadow: 0 0 16px rgba(0,229,255,0.08); }
+body.page-season5 .leaderboard-panel-title { color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.5); }
+body.page-season5 .lb-rank.gold { color: #00E5FF; text-shadow: 0 0 6px #00E5FF; }
+body.page-season5 .lb-name.is-you { color: #00E5FF; }
+body.page-season5 .lb-wins { color: #00E5FF; }
+body.page-season5 .chat-panel { background: rgba(0,6,14,0.92); border-color: #006080; box-shadow: 0 0 18px rgba(0,229,255,0.18), 0 2px 12px rgba(0,0,0,0.7); }
+body.page-season5 .chat-panel-title { color: #00E5FF; }
+body.page-season5 .lb-winners-title { color: #00E5FF; }
+body.page-season5 .sw-gold { color: #00E5FF; text-shadow: 0 0 6px rgba(0,229,255,0.6); }
+body.page-season5 .season-info { color: #00E5FF; }
+body.page-season5 .season-countdown { color: #FF6B6B; background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.25); }
+body.page-season5 .mobile-toolbar { border-top-color: rgba(0,229,255,0.25); }
+body.page-season5 .mobile-toolbar-btn.active { color: #00E5FF; border-color: #00E5FF; background: rgba(0,229,255,0.1); }
+/* Community pot */
+body.page-season5 .community-pot-fill { background: linear-gradient(90deg, #006080, #00E5FF); }
+body.page-season5 .community-pot-active .community-pot-fill { background: linear-gradient(90deg, #00E5FF, #80FFE0); }
+body.page-season5 .community-pot-bonus { color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.7); }
+body.page-season5 .community-pot-countdown { color: #00E5FF; }
+body.page-season5 .community-pot-buttons button { background: rgba(0,180,216,0.12); border-color: rgba(0,180,216,0.35); color: #00E5FF; }
+body.page-season5 .community-pot-buttons button:hover:not(:disabled) { background: rgba(0,180,216,0.28); border-color: rgba(0,180,216,0.6); }
+/* Dice panel */
+body.page-season5 .dice-panel { border-top-color: rgba(0,229,255,0.15); }
+body.page-season5 .dice-panel-label { color: #80EEFF; }
+body.page-season5 .dice-panel-desc { color: #3399AA; }
+body.page-season5 .dice-recharge-timer { color: #80EEFF; }
+body.page-season5 .dice-tooltip { border-color: #00E5FF; }
+body.page-season5 .die { border-color: #00E5FF; box-shadow: 0 0 10px rgba(0,229,255,0.35), inset 0 0 8px rgba(0,229,255,0.08); background: #001a24; }
+body.page-season5 .pip { background: #00E5FF; box-shadow: 0 0 5px rgba(0,229,255,0.8); }
+body.page-season5 .dice-result-text { color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.7); }
+body.page-season5 .dice-roll-btn { background: linear-gradient(135deg, #003a4d 0%, #001c26 100%); border-color: #00E5FF; color: #00E5FF; box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+body.page-season5 .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(0,229,255,0.5); }
+/* Loss colors — coral */
+body.page-season5 .result-text.lose { color: #FF6B6B; border-color: #FF6B6B; text-shadow: 0 0 20px #FF6B6B, 0 0 50px #FF9999; box-shadow: 0 0 40px #FF6B6B, inset 0 0 20px rgba(255,107,107,0.1); }
+body.page-season5 .score-box.losses-box { border-color: #FF6B6B; background: rgba(255,107,107,0.06); box-shadow: 0 0 16px rgba(255,107,107,0.2); }
+body.page-season5 .score-box.losses-box .score-label { color: #FF6B6B; }
+body.page-season5 .score-box.losses-box .score-value { color: #FF6B6B; text-shadow: 0 0 12px #FF6B6B; }
+body.page-season5 .streak-panel.lose-streak .streak-count { color: #FF6B6B; text-shadow: 0 0 16px #FF6B6B, 0 0 40px #CC4444; }
+body.page-season5 .streak-panel.lose-streak .streak-label { color: #FF6B6B; }
+body.page-season5 .streak-panel.lose-streak .streak-bonus { background: #FF6B6B; box-shadow: 0 0 12px #FF6B6B; }
+/* Chat */
+body.page-season5 .chat-msg-name { color: #00E5FF; }
+body.page-season5 .chat-input { border-color: rgba(0,229,255,0.3); }
+body.page-season5 .chat-input:focus { border-color: #00E5FF; box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+body.page-season5 .chat-send-btn { background: rgba(0,180,216,0.18); border-color: rgba(0,229,255,0.4); color: #00E5FF; }
+body.page-season5 .chat-send-btn:hover:not(:disabled) { background: rgba(0,180,216,0.35); }
+/* Leaderboard tabs */
+body.page-season5 .leaderboard-tabs { border-bottom-color: rgba(0,229,255,0.2); }
+body.page-season5 .leaderboard-tab.active { color: #00E5FF; border-bottom-color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.5); }
+/* Stats */
+body.page-season5 .stats-podium { color: #00E5FF !important; }
+/* Shop active cosmetic toggle */
+body.page-season5 .shop-equip-btn.active-cosmetic { background: linear-gradient(135deg, #003a4d, #006080); color: #00E5FF; border-color: #00E5FF; }
+
+/* ── Season 4 Theme (cosmetic override) ─────────────────────────────────── */
+/* The classic purple — identical to the default base theme                  */
+body.page-season4 { background: radial-gradient(ellipse at center, #0d001a 0%, #08000f 70%); }
+body.page-season4::before { border-image: linear-gradient(90deg, #AA00FF, #FF6600, #AA00FF, #FF6600) 1; }
+body.page-season4 .casino-title { color: #AA00FF; text-shadow: 0 0 10px #AA00FF, 0 0 30px #7700CC, 0 0 60px #5500AA; }
+body.page-season4 .subtitle { color: #FF6600; }
+body.page-season4 .wheel-wrapper::before { box-shadow: 0 0 30px 12px rgba(170,0,255,0.4), 0 0 70px 20px rgba(255,102,0,0.25), inset 0 0 20px rgba(170,0,255,0.1); }
+body.page-season4 .pointer { border-top-color: #AA00FF; filter: drop-shadow(0 0 10px #AA00FF) drop-shadow(0 0 20px #7700CC); }
+body.page-season4 .center-hub { background: radial-gradient(circle, #AA00FF, #550088); border-color: #eeccff; box-shadow: 0 0 20px #AA00FF, 0 0 40px #7700CC; }
+body.page-season4 .spin-prompt { color: #AA00FF; text-shadow: 0 0 10px #AA00FF; }
+body.page-season4 .autospin-label { color: #AA00FF; text-shadow: 0 0 8px rgba(170,0,255,0.4); }
+body.page-season4 .autospin-row input[type="checkbox"] { border-color: #AA00FF; background: rgba(170,0,255,0.08); }
+body.page-season4 .autospin-row input[type="checkbox"]:checked { background: #AA00FF; box-shadow: 0 0 12px #AA00FF; }
+body.page-season4 .bulb:nth-child(odd)  { background: #AA00FF; box-shadow: 0 0 8px #AA00FF; }
+body.page-season4 .bulb:nth-child(even) { background: #FF4500; box-shadow: 0 0 8px #FF4500; }
+body.page-season4 .result-text.win { color: #AA00FF; border-color: #AA00FF; text-shadow: 0 0 20px #AA00FF, 0 0 50px #CC44FF; box-shadow: 0 0 40px #AA00FF, inset 0 0 20px rgba(170,0,255,0.1); }
+body.page-season4 .spin-again-btn { background: linear-gradient(135deg, #550088, #AA00FF); box-shadow: 0 0 20px rgba(170,0,255,0.5); }
+body.page-season4 .spin-again-btn:hover { box-shadow: 0 0 40px rgba(170,0,255,0.8); }
+body.page-season4 .score-box.wins-box { border-color: #AA00FF; background: rgba(170,0,255,0.08); box-shadow: 0 0 16px rgba(170,0,255,0.2); }
+body.page-season4 .score-box.wins-box .score-label { color: #AA00FF; }
+body.page-season4 .score-box.wins-box .score-value { color: #AA00FF; text-shadow: 0 0 12px #AA00FF; }
+body.page-season4 .streak-panel.win-streak .streak-count { color: #AA00FF; text-shadow: 0 0 16px #AA00FF, 0 0 40px #7700CC; }
+body.page-season4 .streak-panel.win-streak .streak-label { color: #AA00FF; }
+body.page-season4 .streak-panel.win-streak .streak-bonus { background: #AA00FF; box-shadow: 0 0 12px #AA00FF; }
+body.page-season4 .bonus-line { color: #AA00FF; text-shadow: 0 0 12px #AA00FF; }
+body.page-season4 .shop-panel { background: rgba(8,0,15,0.96); border-color: #AA00FF; box-shadow: 0 0 30px rgba(170,0,255,0.2), inset 0 0 20px rgba(0,0,0,0.5); }
+body.page-season4 .shop-header { border-bottom-color: rgba(170,0,255,0.2); }
+body.page-season4 .shop-title { color: #AA00FF; text-shadow: 0 0 10px #AA00FF; }
+body.page-season4 .shop-balance span { color: #AA00FF; }
+body.page-season4 .shop-tabs { border-bottom-color: rgba(170,0,255,0.2); }
+body.page-season4 .shop-tab.active { color: #AA00FF; border-bottom-color: #AA00FF; text-shadow: 0 0 8px rgba(170,0,255,0.5); }
+body.page-season4 .shop-tab-content { scrollbar-color: #AA00FF #111; }
+body.page-season4 .shop-item { background: rgba(170,0,255,0.03); border-color: rgba(170,0,255,0.12); }
+body.page-season4 .shop-item.owned { border-color: rgba(170,0,255,0.4); background: rgba(170,0,255,0.07); }
+body.page-season4 .shop-item.equipped { border-color: #AA00FF; background: rgba(170,0,255,0.12); box-shadow: 0 0 8px rgba(170,0,255,0.2); }
+body.page-season4 .shop-item-cost { color: #AA00FF; }
+body.page-season4 .shop-buy-btn.can-afford { background: linear-gradient(135deg, #550088, #AA00FF); box-shadow: 0 0 8px rgba(170,0,255,0.4); }
+body.page-season4 .shop-equip-btn { border-color: #AA00FF; color: #AA00FF; }
+body.page-season4 .shop-equip-btn:hover { background: rgba(170,0,255,0.15); }
+body.page-season4 .shop-equipped-badge { color: #AA00FF; border-color: #AA00FF; }
+body.page-season4 .shop-item-desc[data-tooltip]:hover::after { border-color: #AA00FF; }
+body.page-season4 .auth-card { background: rgba(8,0,15,0.97); border-color: #AA00FF; box-shadow: 0 0 60px rgba(170,0,255,0.3), inset 0 0 30px rgba(0,0,0,0.5); }
+body.page-season4 .auth-title { color: #AA00FF; text-shadow: 0 0 16px #AA00FF; }
+body.page-season4 .auth-input { background: rgba(170,0,255,0.05); border-color: rgba(170,0,255,0.3); color: #AA00FF; }
+body.page-season4 .auth-input:focus { border-color: #AA00FF; box-shadow: 0 0 12px rgba(170,0,255,0.3); }
+body.page-season4 .auth-submit-btn { background: linear-gradient(135deg, #550088, #AA00FF); box-shadow: 0 0 20px rgba(170,0,255,0.4); }
+body.page-season4 .auth-submit-btn:hover { box-shadow: 0 0 30px rgba(170,0,255,0.7); }
+body.page-season4 .auth-toggle a { color: #AA00FF; }
+body.page-season4 .user-bar { border-bottom-color: rgba(170,0,255,0.1); }
+body.page-season4 .stats-card { background: rgba(8,0,15,0.97); border-color: rgba(170,0,255,0.4); box-shadow: 0 0 40px rgba(170,0,255,0.15); }
+body.page-season4 .stats-title { color: #AA00FF; text-shadow: 0 0 10px rgba(170,0,255,0.5); }
+body.page-season4 .stats-row span:last-child { color: #AA00FF; }
+body.page-season4 .stats-btn:hover { color: #AA00FF; border-color: #AA00FF; }
+body.page-season4 .leaderboard-panel { background: rgba(8,0,15,0.95); border-color: rgba(119,0,204,0.25); box-shadow: 0 0 16px rgba(170,0,255,0.08); }
+body.page-season4 .leaderboard-panel-title { color: #AA00FF; text-shadow: 0 0 8px rgba(170,0,255,0.5); }
+body.page-season4 .lb-rank.gold { color: #AA00FF; text-shadow: 0 0 6px #AA00FF; }
+body.page-season4 .lb-name.is-you { color: #AA00FF; }
+body.page-season4 .lb-wins { color: #AA00FF; }
+body.page-season4 .chat-panel { background: rgba(8,0,10,0.92); border-color: #7700CC; box-shadow: 0 0 18px rgba(170,0,255,0.18), 0 2px 12px rgba(0,0,0,0.7); }
+body.page-season4 .chat-panel-title { color: #AA00FF; }
+body.page-season4 .lb-winners-title { color: #AA00FF; }
+body.page-season4 .sw-gold { color: #AA00FF; text-shadow: 0 0 6px rgba(170,0,255,0.6); }
+body.page-season4 .season-info { color: #AA00FF; }
+body.page-season4 .season-countdown { color: #FF6600; background: rgba(255,102,0,0.1); border-color: rgba(255,102,0,0.25); }
+body.page-season4 .mobile-toolbar { border-top-color: rgba(170,0,255,0.25); }
+body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA00FF; background: rgba(170,0,255,0.1); }
