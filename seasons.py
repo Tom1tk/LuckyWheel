@@ -116,22 +116,24 @@ def _perform_rollover(conn, season):
                     (pos, row['user_id'], current_number),
                 )
 
-        # Reset all game_state rows to defaults
-        with conn.cursor() as cur:
-            cur.execute(
-                """UPDATE game_state SET
-                       wins = 0, losses = 0, fish_clicks = 0, streak = 0, best_streak = 0,
-                       owned_items = '{}', equipped_fish = 'default',
-                       shield_charges = 0, regen_recharge_wins = 0,
-                       active_cosmetics = '{}', spin_count = 0, win_count = 0, loss_count = 0,
-                       total_fish_clicks = 0,
-                       winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0"""
-            )
-
         # Advance season
         next_number = current_number + 1
         next_starts = ends_at
         next_ends = ends_at + timedelta(days=7)
+
+        # Reset all game_state rows; auto-grant the new season's page theme
+        new_theme = f'page_season{next_number}'
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE game_state SET
+                       wins = 0, losses = 0, fish_clicks = 0, streak = 0, best_streak = 0,
+                       owned_items = %s, equipped_fish = 'default',
+                       shield_charges = 0, regen_recharge_wins = 0,
+                       active_cosmetics = %s, spin_count = 0, win_count = 0, loss_count = 0,
+                       total_fish_clicks = 0,
+                       winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0""",
+                ([new_theme], [new_theme]),
+            )
 
         with conn.cursor() as cur:
             cur.execute(
