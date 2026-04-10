@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import timedelta
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 log = logging.getLogger('wheel')
@@ -48,19 +48,30 @@ def create_app() -> Flask:
     app.register_blueprint(game_bp)
     app.register_blueprint(chat_bp)
 
+    _SEABED_PATHS = {'/static/seabed-animated.html', '/static/seabed-static.html'}
+
     # Security headers on every response
     @app.after_request
     def add_security_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
-        resp.headers['X-Frame-Options'] = 'DENY'
-        resp.headers['Content-Security-Policy'] = (
-            "default-src 'self'; "
-            "script-src 'self' https://unpkg.com; "
-            "style-src 'self' https://fonts.googleapis.com; "
-            "font-src https://fonts.gstatic.com; "
-            "img-src 'self' data:; "
-            "connect-src 'self';"
-        )
+        if request.path in _SEABED_PATHS:
+            # These files are embedded as same-origin iframes; they use only
+            # inline CSS and no external resources.
+            resp.headers['X-Frame-Options'] = 'SAMEORIGIN'
+            resp.headers['Content-Security-Policy'] = (
+                "default-src 'none'; "
+                "style-src 'unsafe-inline';"
+            )
+        else:
+            resp.headers['X-Frame-Options'] = 'DENY'
+            resp.headers['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                "script-src 'self' https://unpkg.com; "
+                "style-src 'self' https://fonts.googleapis.com; "
+                "font-src https://fonts.gstatic.com; "
+                "img-src 'self' data:; "
+                "connect-src 'self';"
+            )
         return resp
 
     # JSON error handler for uncaught exceptions (avoids Flask's HTML error pages)

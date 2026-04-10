@@ -1,12 +1,34 @@
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
+/* Seabed background iframe — full-screen, behind everything */
+#seabed-bg {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  border: none;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Translucent ocean tint between seabed and game UI for readability */
+#seabed-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(4, 32, 51, 0.52);
+  z-index: 1;
+  pointer-events: none;
+}
+
 /* Fire canvas (appended to #root) sits at z-index:1 inside #root's stacking context.
    All game UI elements (z-index 45+) paint above it; fire shows as a background
    glow over the transparent page areas. */
 #root { position: relative; z-index: 2; }
 
 body {
-  background: radial-gradient(ellipse at center, #0d001a 0%, #08000f 70%);
+  background: #042033;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -16,7 +38,7 @@ body {
 }
 
 /* Background themes */
-body.bg-ocean   { background: radial-gradient(ellipse at center, #1a003a 0%, #0d001f 70%); }
+body.bg-ocean   { background: transparent; }
 body.bg-royal   { background: radial-gradient(ellipse at center, #1a0033 0%, #0d0022 70%); }
 body.bg-inferno { background: radial-gradient(ellipse at center, #3a0000 0%, #1a0000 70%); }
 
@@ -69,7 +91,7 @@ body::before {
   position: fixed;
   inset: 0;
   border: 6px solid;
-  border-image: linear-gradient(90deg, #AA00FF, #FF6600, #AA00FF, #FF6600) 1;
+  border-image: linear-gradient(90deg, #00C4E8, #0077A8, #00C4E8, #0077A8) 1;
   pointer-events: none;
   z-index: 100;
 }
@@ -1037,7 +1059,7 @@ body::before {
 }
 
 /* ── Background themes ─────────────────────────────────────────────────── */
-body.bg-ocean   { background: radial-gradient(ellipse at center, #15002e 0%, #000a1a 70%); }
+body.bg-ocean   { background: transparent; }
 body.bg-royal   { background: radial-gradient(ellipse at center, #1a0033 0%, #0a0018 70%); }
 body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #150000 70%); }
 
@@ -1088,15 +1110,16 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   align-items: center;
   justify-content: center;
   z-index: 300;
+  background: rgba(4, 32, 51, 0.35);
 }
 
 .auth-card {
-  background: rgba(0, 5, 15, 0.97);
-  border: 2px solid #AA00FF;
+  background: rgba(2, 14, 24, 0.97);
+  border: 2px solid #00C4E8;
   border-radius: 10px;
   padding: 40px 48px;
   width: 380px;
-  box-shadow: 0 0 60px rgba(170,0,255,0.3), inset 0 0 30px rgba(0,0,0,0.5);
+  box-shadow: 0 0 60px rgba(0,196,232,0.25), inset 0 0 30px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -1111,8 +1134,8 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .auth-title {
   font-size: 1.8rem;
   letter-spacing: 5px;
-  color: #AA00FF;
-  text-shadow: 0 0 16px #AA00FF;
+  color: #00C4E8;
+  text-shadow: 0 0 16px #00C4E8, 0 0 40px #0077A8;
   text-transform: uppercase;
   text-align: center;
 }
@@ -1129,10 +1152,10 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .auth-input {
   width: 100%;
   padding: 12px 16px;
-  background: rgba(170,0,255,0.05);
-  border: 1px solid rgba(170,0,255,0.3);
+  background: rgba(0,196,232,0.05);
+  border: 1px solid rgba(0,196,232,0.3);
   border-radius: 4px;
-  color: #AA00FF;
+  color: #00C4E8;
   font-family: 'Oswald', sans-serif;
   font-size: 1rem;
   letter-spacing: 2px;
@@ -1144,8 +1167,8 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   font-family: 'Oswald', sans-serif;
 }
 .auth-input:focus {
-  border-color: #AA00FF;
-  box-shadow: 0 0 12px rgba(170,0,255,0.3);
+  border-color: #00C4E8;
+  box-shadow: 0 0 12px rgba(0,196,232,0.3);
 }
 
 .auth-submit-btn {
@@ -1153,16 +1176,16 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   font-size: 1.1rem;
   letter-spacing: 3px;
   padding: 14px;
-  background: linear-gradient(135deg, #6600BB, #AA00FF);
+  background: linear-gradient(135deg, #005f7a, #00C4E8);
   color: #000;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   text-transform: uppercase;
-  box-shadow: 0 0 20px rgba(170,0,255,0.4);
+  box-shadow: 0 0 20px rgba(0,196,232,0.4);
   transition: transform 0.1s, box-shadow 0.1s;
 }
-.auth-submit-btn:hover { transform: scale(1.03); box-shadow: 0 0 30px rgba(170,0,255,0.7); }
+.auth-submit-btn:hover { transform: scale(1.03); box-shadow: 0 0 30px rgba(0,196,232,0.7); }
 .auth-submit-btn:active { transform: scale(0.98); }
 .auth-submit-btn:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; transform: none; }
 
@@ -1174,7 +1197,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   text-transform: uppercase;
 }
 .auth-toggle a {
-  color: #AA00FF;
+  color: #00C4E8;
   cursor: pointer;
   text-decoration: underline;
 }
@@ -1433,12 +1456,12 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   position: relative;
   font-size: 0.65rem;
   letter-spacing: 2px;
-  color: #8844FF;
+  color: #00D4D4;
   text-transform: uppercase;
-  text-shadow: 0 0 8px #8844FF;
+  text-shadow: 0 0 8px #00D4D4;
   padding: 6px 10px;
-  background: rgba(136,68,255,0.08);
-  border: 1px solid rgba(136,68,255,0.3);
+  background: rgba(0,212,212,0.08);
+  border: 1px solid rgba(0,212,212,0.3);
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -2073,11 +2096,11 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  background: rgba(8, 4, 20, 0.97);
-  border: 2px solid #8844FF;
+  background: rgba(4, 18, 20, 0.97);
+  border: 2px solid #00C8C8;
   border-radius: 14px;
   padding: 28px 36px;
-  box-shadow: 0 0 50px rgba(136, 68, 255, 0.4);
+  box-shadow: 0 0 50px rgba(0, 200, 200, 0.4);
   animation: guardCardIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -2090,8 +2113,8 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
   font-size: 1rem;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: #AA88FF;
-  text-shadow: 0 0 10px #8844FF;
+  color: #55E8E8;
+  text-shadow: 0 0 10px #00C8C8;
 }
 
 .guard-wheel-wrap {
@@ -2136,11 +2159,11 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
 }
 
 .guard-result.blocked {
-  color: #88FF88;
-  border: 2px solid #8844BB;
-  background: rgba(50, 0, 80, 0.4);
+  color: #88FFEE;
+  border: 2px solid #00C8C8;
+  background: rgba(0, 40, 50, 0.4);
   text-shadow: 0 0 16px #00DDFF;
-  box-shadow: 0 0 20px rgba(0, 255, 68, 0.3);
+  box-shadow: 0 0 20px rgba(0, 200, 200, 0.4);
 }
 
 .guard-result.failed {
@@ -2487,6 +2510,16 @@ body.page-season2 .mobile-toolbar-btn.active { color: #00C864; border-color: #00
   animation: diceResultPop 0.35s ease-out forwards;
 }
 
+.dice-result-text.dice-cursed {
+  color: #ff4444;
+  text-shadow: 0 0 8px rgba(255,68,68,0.7);
+}
+
+.dice-result-text.dice-blessed {
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.9);
+}
+
 .dice-recharge-timer {
   font-size: 10px;
   color: #c4a0e0;
@@ -2594,9 +2627,15 @@ body.page-season3 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
 
 /* ── Season 5: Bioluminescence ───────────────────────────────────────────── */
 /* Deep ocean black + glowing cyan primary + coral accent                    */
+@keyframes titleFlickerS5 {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    text-shadow: 0 0 10px #00E5FF, 0 0 30px #00B4D8, 0 0 60px #0077A8;
+  }
+  20%, 24%, 55% { text-shadow: none; }
+}
 body.page-season5 { background: radial-gradient(ellipse at center, #000d14 0%, #000509 70%); }
 body.page-season5::before { border-image: linear-gradient(90deg, #00E5FF, #FF6B6B, #00E5FF, #FF6B6B) 1; }
-body.page-season5 .casino-title { color: #00E5FF; text-shadow: 0 0 10px #00E5FF, 0 0 30px #00B4D8, 0 0 60px #0077A8; }
+body.page-season5 .casino-title { color: #00E5FF; text-shadow: 0 0 10px #00E5FF, 0 0 30px #00B4D8, 0 0 60px #0077A8; animation-name: titleFlickerS5; }
 body.page-season5 .subtitle { color: #FF6B6B; }
 body.page-season5 .wheel-wrapper::before { box-shadow: 0 0 30px 12px rgba(0,229,255,0.4), 0 0 70px 20px rgba(255,107,107,0.2), inset 0 0 20px rgba(0,229,255,0.1); }
 body.page-season5 .pointer { border-top-color: #00E5FF; filter: drop-shadow(0 0 10px #00E5FF) drop-shadow(0 0 20px #00B4D8); }
@@ -2674,6 +2713,8 @@ body.page-season5 .dice-tooltip { border-color: #00E5FF; }
 body.page-season5 .die { border-color: #00E5FF; box-shadow: 0 0 10px rgba(0,229,255,0.35), inset 0 0 8px rgba(0,229,255,0.08); background: #001a24; }
 body.page-season5 .pip { background: #00E5FF; box-shadow: 0 0 5px rgba(0,229,255,0.8); }
 body.page-season5 .dice-result-text { color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.7); }
+body.page-season5 .dice-result-text.dice-cursed { color: #ff4444; text-shadow: 0 0 8px rgba(255,68,68,0.7); }
+body.page-season5 .dice-result-text.dice-blessed { color: #FFD700; text-shadow: 0 0 10px rgba(255,215,0,0.9); }
 body.page-season5 .dice-roll-btn { background: linear-gradient(135deg, #003a4d 0%, #001c26 100%); border-color: #00E5FF; color: #00E5FF; box-shadow: 0 0 8px rgba(0,229,255,0.2); }
 body.page-season5 .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(0,229,255,0.5); }
 /* Loss colors — coral */
@@ -2695,8 +2736,55 @@ body.page-season5 .leaderboard-tabs { border-bottom-color: rgba(0,229,255,0.2); 
 body.page-season5 .leaderboard-tab.active { color: #00E5FF; border-bottom-color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.5); }
 /* Stats */
 body.page-season5 .stats-podium { color: #00E5FF !important; }
-/* Shop active cosmetic toggle */
-body.page-season5 .shop-equip-btn.active-cosmetic { background: linear-gradient(135deg, #003a4d, #006080); color: #00E5FF; border-color: #00E5FF; }
+/* Shop active cosmetic toggle — functional tab (cyan) */
+body.page-season5 .shop-equip-btn.active-cosmetic { background: linear-gradient(135deg, #003a4d, #006080) !important; color: #00E5FF !important; border: 1.5px solid #00E5FF !important; }
+body.page-season5 .shop-equip-btn.active-cosmetic:hover { background: linear-gradient(135deg, #004d66, #008099) !important; }
+/* Shop cost currency colours */
+body.page-season5 .shop-item-cost.cost-wins        { color: #00E5FF; }
+body.page-season5 .shop-item-cost.cost-losses      { color: #FF6B6B; }
+body.page-season5 .shop-item-cost.cost-fish_clicks { color: #ffffff; }
+/* Shop header balance */
+body.page-season5 .shop-balance .balance-losses { color: #FF6B6B; }
+body.page-season5 .shop-balance .balance-clicks { color: #ffffff; }
+/* Community pot text */
+body.page-season5 .community-pot-label { color: rgba(0,229,255,0.45); }
+body.page-season5 .community-pot-count { color: rgba(0,229,255,0.5); }
+body.page-season5 .community-pot-winrate { color: rgba(0,229,255,0.7); }
+/* Shop collapse button */
+body.page-season5 .shop-collapse-btn:hover { color: #00E5FF; border-color: #00E5FF; }
+/* Lucky Seven counter */
+body.page-season5 .lucky-seven-counter { border-color: rgba(0,229,255,0.2); }
+body.page-season5 .lucky-seven-pip { border-color: rgba(0,229,255,0.5); }
+body.page-season5 .lucky-seven-pip.filled { background: #00E5FF; border-color: #80F2FF; box-shadow: 0 0 6px rgba(0,229,255,0.7); }
+/* Bonus lines */
+body.page-season5 .bonus-line.lose-bonus { color: #FF6B6B; text-shadow: 0 0 12px #FF6B6B; }
+/* Fish sad label */
+body.page-season5 .fish-label.sad { color: #FF6B6B; }
+/* Autospin checked label */
+body.page-season5 .autospin-row input:checked ~ .autospin-label { text-shadow: 0 0 14px #00E5FF; }
+/* Season winners title */
+body.page-season5 .season-winners-title { color: #00E5FF; }
+/* Low-spec: keep S5 colours instead of reverting to purple */
+body.page-season5.low-spec .casino-title { color: #00E5FF !important; }
+body.page-season5.low-spec .pointer { border-top-color: #00E5FF !important; }
+/* ── Cosmetic tab — coral theming (costs losses) ──────────────────────────── */
+body.page-season5 .shop-tab--cosmetic.active { color: #FF6B6B !important; border-bottom-color: #FF6B6B !important; text-shadow: 0 0 8px rgba(255,107,107,0.5) !important; }
+body.page-season5 .shop-tab-content--cosmetic .shop-item { background: rgba(255,107,107,0.03); border-color: rgba(255,107,107,0.12); }
+body.page-season5 .shop-tab-content--cosmetic .shop-item.owned { border-color: rgba(255,107,107,0.4); background: rgba(255,107,107,0.07); }
+body.page-season5 .shop-tab-content--cosmetic .shop-item.equipped { border-color: #FF6B6B; background: rgba(255,107,107,0.12); box-shadow: 0 0 8px rgba(255,107,107,0.2); }
+body.page-season5 .shop-tab-content--cosmetic .shop-buy-btn.can-afford { background: linear-gradient(135deg, #4d1020, #FF6B6B); box-shadow: 0 0 8px rgba(255,107,107,0.4); }
+body.page-season5 .shop-tab-content--cosmetic .shop-buy-btn.can-afford:hover { box-shadow: 0 0 14px rgba(255,107,107,0.7); }
+body.page-season5 .shop-tab-content--cosmetic .shop-equip-btn { border-color: #FF6B6B !important; color: #FF6B6B !important; }
+body.page-season5 .shop-tab-content--cosmetic .shop-equip-btn:hover { background: rgba(255,107,107,0.15) !important; }
+body.page-season5 .shop-tab-content--cosmetic .shop-equip-btn.active-cosmetic { background: linear-gradient(135deg, #4d1020, #7a2030) !important; color: #FF6B6B !important; border: 1.5px solid #FF6B6B !important; }
+body.page-season5 .shop-tab-content--cosmetic .shop-equipped-badge { color: #FF6B6B; border-color: #FF6B6B; }
+body.page-season5 .shop-tab-content--cosmetic .shop-item-cost { color: #FF6B6B; }
+/* shop-active-badge — functional owned items ("Active" label) — was #DD44FF, missed by earlier grep */
+body.page-season5 .shop-active-badge { color: #00E5FF !important; border-color: #00E5FF !important; }
+/* Fortune charm bonus flash */
+body.page-season5 .bonus-line.fortune-charm-line { color: #00E5FF; text-shadow: 0 0 12px rgba(0,229,255,0.7); }
+/* Chat scrollbar */
+body.page-season5 .chat-messages { scrollbar-color: #006080 #000509; }
 
 /* ── Season 4 Theme (cosmetic override) ─────────────────────────────────── */
 /* The classic purple — identical to the default base theme                  */

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seabed Background – Static</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width:100%;height:100vh;overflow:hidden;background:#042033;font-family:sans-serif; }
+
+  #ocean {
+    position:relative;width:100%;height:100%;
+    background:radial-gradient(ellipse 90% 65% at 50% 5%,
+        #62d0e0 0%,#28a0b8 20%,#0d6688 48%,#063d58 75%,#042033 100%);
+    overflow:hidden;
+  }
+  #ocean::before {
+    content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(ellipse 180px 80px at 18% 12%,rgba(255,255,255,0.05) 0%,transparent 100%),
+      radial-gradient(ellipse 100px 50px at 55% 7%, rgba(255,255,255,0.06) 0%,transparent 100%),
+      radial-gradient(ellipse 160px 75px at 82% 18%,rgba(255,255,255,0.04) 0%,transparent 100%);
+    pointer-events:none;
+  }
+  #terrain { position:absolute;bottom:0;left:0;width:100%;height:62%; }
+
+  .bubble {
+    position:absolute;border-radius:50%;pointer-events:none;
+    background:rgba(255,255,255,0.14);
+    border:1px solid rgba(255,255,255,0.24);
+  }
+  .swimmer {
+    position:absolute;white-space:nowrap;line-height:1;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+    transform:scaleX(-1);
+  }
+  .swimmer.rtl { transform:scaleX(1); }
+  .school { position:absolute;pointer-events:none;transform:scaleX(-1);line-height:1; }
+  .school.rtl { transform:scaleX(1); }
+  .school span { display:inline-block;font-size:0.85rem;margin-right:3px;opacity:0.8; }
+  .ghost {
+    position:absolute;opacity:0.13;line-height:1;
+    filter:blur(1.5px) grayscale(1);transform:scaleX(-1);
+  }
+  .ghost.rtl { transform:scaleX(1); }
+  .plant { position:absolute;bottom:0;transform-origin:bottom center;line-height:1; }
+  .plant.lean-r { transform:rotate(3deg) scaleY(1.02); }
+  .plant.lean-l { transform:rotate(-3deg) scaleY(1.02); }
+  .deco { position:absolute;pointer-events:none;line-height:1;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.35)); }
+  .deco-mid { position:absolute;pointer-events:none;line-height:1;opacity:0.42;filter:blur(0.8px) grayscale(0.2) drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+  .deco-far { position:absolute;pointer-events:none;line-height:1;opacity:0.18;filter:blur(2.2px) grayscale(0.5) drop-shadow(0 1px 3px rgba(0,0,0,0.4)); }
+  .squid { position:absolute;pointer-events:none;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3));transform:rotate(-3deg); }
+</style>
+</head>
+<body>
+<div id="ocean">
+
+<svg id="terrain" viewBox="0 0 1400 430" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,430 L0,200 C60,165 110,180 160,155 C220,128 270,170 340,148 C420,122 470,90 540,105 C620,122 665,80 730,88 C800,96 850,120 930,100 C1010,78 1060,55 1140,72 C1200,85 1260,110 1320,95 C1365,84 1390,100 1400,108 L1400,430 Z" fill="#082c40" opacity="0.95"/>
+  <path d="M0,430 L0,275 C50,248 100,262 160,240 C230,215 280,250 360,228 C440,205 490,232 570,218 C650,203 700,240 780,225 C860,210 910,248 1000,230 C1080,213 1130,252 1210,235 C1270,222 1330,255 1400,245 L1400,430 Z" fill="#0b3f58" opacity="0.92"/>
+  <ellipse cx="145" cy="345" rx="105" ry="70" fill="#1e2e36" opacity="0.92"/>
+  <ellipse cx="105" cy="330" rx="72"  ry="52" fill="#263840"/>
+  <ellipse cx="192" cy="318" rx="60"  ry="44" fill="#1a2c36"/>
+  <ellipse cx="100" cy="310" rx="68"  ry="13" fill="#2e4a58" opacity="0.38"/>
+  <ellipse cx="58"  cy="366" rx="32"  ry="20" fill="#1e2e36"/>
+  <ellipse cx="252" cy="358" rx="28"  ry="18" fill="#263840"/>
+  <ellipse cx="820" cy="352" rx="90"  ry="60" fill="#1e2e36" opacity="0.92"/>
+  <ellipse cx="780" cy="338" rx="60"  ry="45" fill="#263840"/>
+  <ellipse cx="868" cy="330" rx="52"  ry="38" fill="#1a2c36"/>
+  <ellipse cx="775" cy="325" rx="55"  ry="12" fill="#2e4a58" opacity="0.35"/>
+  <ellipse cx="730" cy="367" rx="28"  ry="17" fill="#1e2e36"/>
+  <ellipse cx="928" cy="362" rx="34"  ry="22" fill="#263840"/>
+  <ellipse cx="1242" cy="348" rx="80" ry="55" fill="#1e2e36" opacity="0.92"/>
+  <ellipse cx="1200" cy="334" rx="55" ry="42" fill="#263840"/>
+  <ellipse cx="1288" cy="325" rx="48" ry="36" fill="#1a2c36"/>
+  <ellipse cx="1295" cy="362" rx="30" ry="18" fill="#263840"/>
+  <path d="M0,430 L0,355 C80,330 150,348 240,335 C330,320 400,345 490,330 C580,314 650,340 740,325 C830,310 900,338 990,322 C1080,306 1150,335 1240,318 C1310,305 1360,325 1400,318 L1400,430 Z" fill="#ba9050"/>
+  <path d="M0,430 L0,372 C70,355 140,368 220,358 C310,346 380,365 460,355 C550,343 620,362 710,350 C800,337 870,358 960,346 C1050,333 1120,355 1200,343 C1280,330 1340,350 1400,342 L1400,430 Z" fill="#c9a060"/>
+  <path d="M0,430 L0,388 C100,378 200,390 320,382 C440,373 540,386 660,378 C780,369 880,383 1000,374 C1100,366 1200,380 1300,372 C1350,368 1380,375 1400,372 L1400,430 Z" fill="#d4ad6c"/>
+  <g opacity="0.18" stroke="#8a6830" stroke-width="1.2" fill="none">
+    <path d="M30,415 Q120,408 220,415 Q320,422 420,415"/>
+    <path d="M200,420 Q310,413 420,420 Q530,427 640,420"/>
+    <path d="M480,416 Q590,409 700,416 Q810,423 920,416"/>
+    <path d="M700,421 Q820,414 940,421 Q1060,428 1180,421"/>
+    <path d="M980,417 Q1090,410 1200,417 Q1300,424 1400,418"/>
+  </g>
+</svg>
+
+<!-- Static bubbles -->
+<div class="bubble" style="width:5px;height:5px;left:5%; bottom:22%"></div>
+<div class="bubble" style="width:3px;height:3px;left:18%;bottom:20%"></div>
+<div class="bubble" style="width:6px;height:6px;left:35%;bottom:16%"></div>
+<div class="bubble" style="width:4px;height:4px;left:46%;bottom:32%"></div>
+<div class="bubble" style="width:5px;height:5px;left:58%;bottom:18%"></div>
+<div class="bubble" style="width:3px;height:3px;left:72%;bottom:24%"></div>
+<div class="bubble" style="width:4px;height:4px;left:85%;bottom:15%"></div>
+<div class="bubble" style="width:3px;height:3px;left:93%;bottom:28%"></div>
+<div class="bubble" style="width:4px;height:4px;left:27%;bottom:40%"></div>
+<div class="bubble" style="width:3px;height:3px;left:62%;bottom:38%"></div>
+
+<!-- Ghost silhouettes -->
+<span class="ghost"     style="font-size:1.2rem;top:10%;left:8%">🐟</span>
+<span class="ghost"     style="font-size:2.8rem;top:16%;left:35%">🐋</span>
+<span class="ghost rtl" style="font-size:1.6rem;top:23%;left:70%">🐬</span>
+<span class="ghost"     style="font-size:1rem;  top:9%; left:82%">🐟</span>
+<span class="ghost rtl" style="font-size:2rem;  top:32%;left:50%">🦈</span>
+<span class="ghost"     style="font-size:1rem;  top:20%;left:20%">🐟</span>
+
+<!-- Fish schools — frozen mid-transit -->
+<div class="school"     style="top:13%;left:15%"><span>🐟</span><span>🐟</span><span>🐟</span><span>🐟</span><span>🐟</span></div>
+<div class="school rtl" style="top:26%;left:55%;opacity:0.65"><span>🐟</span><span>🐟</span><span>🐟</span><span>🐟</span></div>
+<div class="school"     style="top:37%;left:72%"><span>🐠</span><span>🐠</span><span>🐠</span><span>🐠</span><span>🐠</span></div>
+
+<!-- Main creatures — spread across scene, no overlap -->
+<span class="swimmer"     style="font-size:5.5rem;top:15%;left:12%">🐋</span>
+<span class="swimmer rtl" style="font-size:2.8rem;top:27%;left:68%">🐬</span>
+<span class="swimmer"     style="font-size:4rem;  top:40%;left:22%">🦈</span>
+<span class="swimmer rtl" style="font-size:3.8rem;top:49%;left:60%">🦈</span>
+<span class="swimmer rtl" style="font-size:2.4rem;top:33%;left:84%">🐡</span>
+<span class="swimmer"     style="font-size:2.6rem;top:54%;left:42%">🐢</span>
+<span class="swimmer"     style="font-size:2.2rem;top:44%;left:32%">🐠</span>
+<span class="swimmer rtl" style="font-size:2rem;  top:57%;left:76%">🐠</span>
+<span class="swimmer"     style="font-size:2rem;  top:43%;left:54%">🐟</span>
+
+<!-- Far tier -->
+<span class="deco-far" style="font-size:1rem;  left:8%; bottom:42%">🪸</span>
+<span class="deco-far" style="font-size:0.9rem;left:24%;bottom:40%">🪸</span>
+<span class="deco-far" style="font-size:1.1rem;left:43%;bottom:38%">🪸</span>
+<span class="deco-far" style="font-size:1rem;  left:62%;bottom:40%">🌿</span>
+<span class="deco-far" style="font-size:1rem;  left:80%;bottom:39%">🪸</span>
+<span class="deco-far" style="font-size:0.9rem;right:5%;bottom:41%">🪸</span>
+
+<!-- Mid tier -->
+<span class="deco-mid" style="font-size:1.5rem;left:4%; bottom:28%">🪸</span>
+<span class="deco-mid" style="font-size:1.3rem;left:18%;bottom:26%">🪸</span>
+<span class="deco-mid" style="font-size:1.4rem;left:28%;bottom:24%">🌺</span>
+<span class="deco-mid" style="font-size:1.6rem;left:38%;bottom:25%">🪸</span>
+<span class="deco-mid" style="font-size:1.3rem;left:49%;bottom:23%">🌿</span>
+<span class="deco-mid" style="font-size:1.4rem;left:68%;bottom:25%">🪸</span>
+<span class="deco-mid" style="font-size:1.5rem;left:80%;bottom:24%">🌺</span>
+<span class="deco-mid" style="font-size:1.3rem;right:5%;bottom:27%">🪸</span>
+<span class="deco-mid" style="font-size:1.8rem;left:7%; bottom:22%">🦀</span>
+<span class="deco-mid" style="font-size:1.8rem;left:58%;bottom:20%">🦀</span>
+<span class="deco-mid" style="font-size:1.8rem;right:11%;bottom:20%">🦀</span>
+<span class="deco-mid" style="font-size:1.4rem;left:13%;bottom:24%">⭐</span>
+<span class="deco-mid" style="font-size:1.4rem;left:62%;bottom:22%">⭐</span>
+<span class="deco-mid" style="font-size:1.4rem;right:7%;bottom:21%">⭐</span>
+
+<!-- Squids — static tilt -->
+<span class="squid" style="font-size:2.2rem;left:22%; bottom:17%">🦑</span>
+<span class="squid" style="font-size:2rem;  left:50%; bottom:19%;transform:rotate(3deg)">🦑</span>
+<span class="squid" style="font-size:2.4rem;right:16%;bottom:16%">🦑</span>
+
+<!-- Plants — static lean -->
+<div class="plant lean-l" style="font-size:2.4rem;left:1%">🌿</div>
+<div class="plant lean-r" style="font-size:2.8rem;left:4%">🌿</div>
+<div class="plant lean-l" style="font-size:1.8rem;left:16%">🌱</div>
+<div class="plant lean-r" style="font-size:2.6rem;left:30%">🌿</div>
+<div class="plant lean-l" style="font-size:2.2rem;left:46%">🌿</div>
+<div class="plant lean-r" style="font-size:2.4rem;left:62%">🌿</div>
+<div class="plant lean-l" style="font-size:1.8rem;right:16%">🌱</div>
+<div class="plant lean-r" style="font-size:2.6rem;right:8%">🌿</div>
+<div class="plant lean-l" style="font-size:2rem;  right:1%">🌿</div>
+
+<!-- Foreground tier -->
+<span class="deco" style="font-size:3.4rem;left:0%;  bottom:2%">🪸</span>
+<span class="deco" style="font-size:2.8rem;left:4%;  bottom:5%">🪸</span>
+<span class="deco" style="font-size:2.2rem;left:1%;  bottom:0%">🐚</span>
+<span class="deco" style="font-size:2rem;  left:18%; bottom:2%">🌸</span>
+<span class="deco" style="font-size:1.8rem;left:20%; bottom:0%">🐚</span>
+<span class="deco" style="font-size:2.6rem;left:32%; bottom:3%">🪸</span>
+<span class="deco" style="font-size:2rem;  left:46%; bottom:0%">🐚</span>
+<span class="deco" style="font-size:2.8rem;left:54%; bottom:3%">🐙</span>
+<span class="deco" style="font-size:2.4rem;left:68%; bottom:4%">🪸</span>
+<span class="deco" style="font-size:1.8rem;left:73%; bottom:0%">🐚</span>
+<span class="deco" style="font-size:2rem;  right:18%;bottom:2%">🌺</span>
+<span class="deco" style="font-size:2.8rem;right:8%; bottom:5%">🪸</span>
+<span class="deco" style="font-size:3.4rem;right:3%; bottom:2%">🪸</span>
+<span class="deco" style="font-size:2rem;  right:1%; bottom:0%">🐚</span>
+
+</div>
+</body>
+</html>
