@@ -19,7 +19,7 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - **Streak panel** — appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Streak persistence** — streak is saved server-side (refresh-to-reset exploit patched)
 - **Stats popup** — 📊 button shows total spins, wins, losses, win rate, lifetime fish taps, spendable balance, and **complete Season History**
-- **Community Pot** — All players can contribute Fish Clicks to a global pot. When the target is reached, the server-wide **base win rate permanently increases by +0.5%** (stacking each fill). The pot resets with a 50%-higher target. Win rate is always visible; a brief celebration banner shows on each fill. Target decays 20% every 12 hours if unfilled.
+- **Community Pot** — All players can contribute Fish Clicks to a global pot. When the target is reached, a **30-minute win rate boost** activates for all players. Each fill permanently stacks +0.5% onto the boost rate (capped at 75%), so every window is stronger than the last. Between fills the game returns to 50/50. After the window expires, the pot resets with a 50%-higher target. Target decays 20% every 12 hours if unfilled.
 - **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice to add the sum (2–12) to your current win streak. Requires a win streak of 3+. Snake eyes (1+1) halves your streak instead. Charges recharge every 10 minutes (max 1–3, upgradeable in the shop).
 
 ### Authentication

@@ -23,16 +23,16 @@ The Dice Roll mechanic has been overhauled. It no longer costs Losses — instea
 - **Snake Eyes (1+1)**: cursed roll — your win streak is **halved**. High risk at high streaks!
 - **New upgrades** in the shop let you increase your maximum charge capacity (see below).
 
-### Community Pot: Permanent Win Rate Stacking
+### Community Pot: 30-Minute Win Rate Windows
 The Community Pot has been completely reworked for Season 5.
 
-- **Permanent win chance**: the pot now permanently raises the server-wide win rate instead of granting a 1-hour boost. Each time the pot is filled, the base win chance increases by **+0.5%** and stacks indefinitely.
-- **Starting rate**: Season 5 resets the win rate to **50.0%**. Every pot fill nudges it upward (50.0% → 50.5% → 51.0% → …).
-- **Target scaling**: the target now scales by **50% per fill** (instead of the old ×10 Fibonacci escalation), keeping contributions meaningful throughout the season.
+- **30-minute win rate boost**: filling the pot activates a **30-minute server-wide win rate boost** for all players. The boosted rate is shown in the Community Pot panel during the window, along with a countdown timer.
+- **Stacking rate**: each fill permanently increases the boost rate by **+0.5%** (50.0% → 50.5% → 51.0% → …), capped at **75%**. The accumulated rate carries forward between fills, so each window is stronger than the last.
+- **Between fills**: win rate returns to the standard 50/50 until the pot is filled again. The pot display shows what rate the next fill will grant.
+- **Target scaling**: the target now scales by **50% per fill** (instead of the old ×10 Fibonacci escalation). There is no ceiling — targets grow as long as the community keeps filling.
 - **Season reset**: the pot target resets to 1,000 at the start of Season 5.
-- **12-hour decay**: if the pot goes unfilled for 12 hours, the target shrinks by 20% (floored at 500) — preventing stagnation.
-- **Celebration window**: a 5-minute celebration banner appears when the pot fills; after it expires the pot silently resets for the next round.
-- The current win rate is always visible on the Community Pot display, even between fills.
+- **12-hour decay**: if the pot goes unfilled for 12 hours, the target shrinks by 20% (floored at 500) — pulling it back when community activity drops.
+- **Window expiry**: once the 30-minute window closes, the pot advances to the next (50% larger) target and resets for the next round.
 
 ### Upgrade Tier Gating
 Functional upgrades are now gated behind total win milestones to create a clearer early/mid/late-game progression.
