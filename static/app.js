@@ -2829,7 +2829,7 @@ function GameApp({
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
     setFishClicks(c => c + clickAmount);
-    clickBufferRef.current += 1;
+    clickBufferRef.current += clickAmount;
     if (clickBufferRef.current >= 10) flushClicks();
   }, [clickAmount, flushClicks, activeCosmetics]);
 

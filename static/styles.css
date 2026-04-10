@@ -1619,17 +1619,13 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 
 /* ── Mobile / narrow screens ───────────────────────────────────────────── */
 @media (max-width: 1100px) {
+  /* Sidebar stays at default 160px so dice (2×65+10gap=140px) are never clipped */
   .game-right { width: min(500px, 42vw); }
-  .game-right-sidebar { width: 120px; }
-  /* Dice shrink to fit the 120px sidebar (2×52px + 10px gap = 114px) */
-  .die { width: 52px; height: 52px; padding: 6px; }
-  .pip { width: 9px; height: 9px; }
 }
 
 @media (max-width: 900px) {
   .game-left { width: 80px; min-width: 70px; padding: 10px 4px; }
   .game-right { width: min(420px, 42vw); }
-  .game-right-sidebar { width: 120px; }
   .fish-counter-value { font-size: 1rem; }
 }
 
