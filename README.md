@@ -15,11 +15,12 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 ### Core Gameplay
 - **Spinning wheel** — WIN or LOSE, styled as a neon casino wheel with smooth CSS rotation
 - **Win/loss counter** — persisted in PostgreSQL across sessions and devices
-- **Win-streak multiplier** — 3+ consecutive wins or losses triggers an exponentially scaling bonus (2× per additional streak step)
+- **Win-streak multiplier** — 3+ consecutive wins or losses triggers a scaling bonus. Exponential (×2 per step) up to streak 15, then soft-capped via cubic and linear growth beyond that
 - **Streak panel** — appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Streak persistence** — streak is saved server-side (refresh-to-reset exploit patched)
 - **Stats popup** — 📊 button shows total spins, wins, losses, win rate, lifetime fish taps, spendable balance, and **complete Season History**
-- **Community Pot (Season 3)** — All players can contribute Fish Clicks to a global pot. When the target is reached, a **1-hour 75% Win Rate Boost** is activated for everyone. Once the boost ends, the pot resets with a 10× higher target.
+- **Community Pot** — All players can contribute Fish Clicks to a global pot. When the target is reached, the server-wide **base win rate permanently increases by +0.5%** (stacking each fill). The pot resets with a 50%-higher target. Win rate is always visible; a brief celebration banner shows on each fill. Target decays 20% every 12 hours if unfilled.
+- **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice to add the sum (2–12) to your current win streak. Requires a win streak of 3+. Snake eyes (1+1) halves your streak instead. Charges recharge every 10 minutes (max 1–3, upgradeable in the shop).
 
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
@@ -78,10 +79,18 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 The shop is always visible as a two-column panel on the right side of the screen (cosmetics on the left, functional upgrades on the right). **Locked tiers are hidden until the prerequisite is owned** — items unlock progressively. All purchases persist server-side. Hover over any item description to see the full tooltip.
 
 ### Currencies
-Season 3 introduces a multi-currency shop to balance progression:
 - **Wins**: Used for all functional upgrades and gameplay boosts.
 - **Losses**: Used for all cosmetic items (skins, trails, themes, backgrounds).
 - **Fish Clicks**: Used exclusively for The Singularity.
+
+### Tier Gating (Season 5)
+Functional upgrades are gated behind total win milestones. Locked items appear greyed out with the required win count shown.
+
+| Tier | Unlocks at | Example items |
+|------|------------|---------------|
+| Tier 1 | Always available | Speed upgrades, Guard, Click Frenzy I–IV, Win/Bonus/Click Power |
+| Tier 2 | 1,000 total wins | Regenerating Shield, Auto-Guard, Final Frenzy, Extra Dice Charge |
+| Tier 3 | 10,000 total wins | Fortune Charm, Lucky Seven, Win Echo, Jackpot, Resilience, Max Dice Charge |
 
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
@@ -215,6 +224,8 @@ Changes the canvas colour palette of the wheel.
 | Season 1 | 1,000 | Classic gold & orange |
 | Season 2 | 1,000 | Green & red |
 | Season 3 | 1,000 | Purple & orange |
+| Season 4 | 1,000 | Deep violet |
+| Season 5 | 1,000 | Bioluminescent cyan & coral (current season default) |
 
 #### Confetti
 | Tier | Cost | Count |
@@ -224,14 +235,23 @@ Changes the canvas colour palette of the wheel.
 | Confetti MAX | 1,200 | ×15 |
 | Party Mode | 150 | Confetti on every result |
 
+### 🎲 Dice Charges (Costs Wins)
+| Item | Cost | Effect | Tier |
+|------|------|--------|------|
+| Extra Charge | 2,000 | Max dice charges: 1 → 2 | Tier 2 (1k wins) |
+| Max Charge | 15,000 | Max dice charges: 2 → 3 | Tier 3 (10k wins) |
+
 ### 🎲 Special Upgrades (Costs Wins)
+All Special Upgrades require Tier 3 (10,000 total wins) to unlock.
+
 | Item | Cost | Effect |
 |------|------|--------|
 | 🍀 Fortune Charm | 50,000 | All streak bonuses are increased by 25% |
 | 7️⃣ Lucky Seven | 100,000 | Every 7th spin is guaranteed to win |
 | 🔊 Win Echo | 75,000 | 20% chance each win is doubled |
-| 💪 Resilience | 5,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% chance) |
-| 🎰 Jackpot | 300,000 | 2% chance each spin multiplies all gains by 50× |
+| 💪 Resilience | 5,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% base chance) |
+| 🎰 Jackpot | 300,000 | 1% chance each win multiplies all gains by 25×. 5% chance for Jackpot Echo (triggers again next spin) |
+| 🛡️ Streak Armor | 500–50,000 | Infinite upgrade (10 levels). Requires Resilience. +1% to Resilience save chance per level (50% → 60% max) |
 
 ### 🌌 Legendary (Costs Fish Clicks)
 | Item | Cost | Effect |

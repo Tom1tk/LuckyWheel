@@ -2,6 +2,94 @@
 
 ---
 
+## Season 5 — 10 Apr 2026
+
+### Streak Bonus: Soft Cap
+The streak bonus formula has been soft-capped to keep late-game streaks rewarding without becoming infinite.
+
+- **Streaks 1–15**: identical to before — exponential growth (×2 per step, up to 4,096 at streak 15).
+- **Streaks 16–35**: cubic growth — still large but tapering off (up to ~12,096 at streak 35).
+- **Streaks 36–75**: linear growth at +500 per streak step.
+- **Streak 76+**: slow linear growth at +200 per streak step.
+
+Existing strategies are unchanged for the majority of players; the cap only affects streaks beyond 15.
+
+### Dice Roll Rework: Charge System
+The Dice Roll mechanic has been overhauled. It no longer costs Losses — instead it uses a charge-based system.
+
+- **Charges**: you start with 1 maximum charge. Each charge replenishes every **10 minutes** automatically. A countdown timer shows when the next charge arrives.
+- **Requirement**: you must have a **win streak of 3 or more** to roll. The dice can no longer be used on a loss streak.
+- **Effect**: the sum of both dice (2–12) is added directly to your win streak.
+- **Snake Eyes (1+1)**: cursed roll — your win streak is **halved**. High risk at high streaks!
+- **New upgrades** in the shop let you increase your maximum charge capacity (see below).
+
+### Community Pot: Permanent Win Rate Stacking
+The Community Pot has been completely reworked for Season 5.
+
+- **Permanent win chance**: the pot now permanently raises the server-wide win rate instead of granting a 1-hour boost. Each time the pot is filled, the base win chance increases by **+0.5%** and stacks indefinitely.
+- **Starting rate**: Season 5 resets the win rate to **50.0%**. Every pot fill nudges it upward (50.0% → 50.5% → 51.0% → …).
+- **Target scaling**: the target now scales by **50% per fill** (instead of the old ×10 Fibonacci escalation), keeping contributions meaningful throughout the season.
+- **Season reset**: the pot target resets to 1,000 at the start of Season 5.
+- **12-hour decay**: if the pot goes unfilled for 12 hours, the target shrinks by 20% (floored at 500) — preventing stagnation.
+- **Celebration window**: a 5-minute celebration banner appears when the pot fills; after it expires the pot silently resets for the next round.
+- The current win rate is always visible on the Community Pot display, even between fills.
+
+### Upgrade Tier Gating
+Functional upgrades are now gated behind total win milestones to create a clearer early/mid/late-game progression.
+
+| Tier | Unlocks at | Items unlocked |
+|------|------------|----------------|
+| Tier 1 | Always | Speed upgrades, Guard, basic Frenzy, Win/Bonus/Click Power, etc. |
+| Tier 2 | 1,000 wins | Regenerating Shield, Auto-Guard, Final Frenzy, Extra Dice Charge |
+| Tier 3 | 10,000 wins | Fortune Charm, Lucky Seven, Win Echo, Jackpot, Resilience, Max Dice Charge |
+
+Locked items appear in the shop as greyed-out entries showing the required win count.
+
+### New Upgrades
+
+#### 🎲 Dice Charges
+Two new upgrades extend your maximum dice charge capacity:
+
+| Upgrade | Cost | Effect |
+|---------|------|--------|
+| Extra Charge | 2,000 wins (Tier 2) | Max charges: 1 → 2 |
+| Max Charge | 15,000 wins (Tier 3, requires Extra Charge) | Max charges: 2 → 3 |
+
+#### 🛡️ Streak Armor (Infinite Upgrade)
+Requires **Resilience**. Each level adds **+1%** to the Resilience save chance, which starts at 50% and is hard-capped at 60% (10 levels max).
+
+| Level | Cost | Save Chance |
+|-------|------|-------------|
+| 1 | 500 wins | 51% |
+| 2 | 2,000 wins | 52% |
+| 3 | 4,500 wins | 53% |
+| … | … | … |
+| 10 | 50,000 wins | 60% (MAX) |
+
+### Jackpot Rebalanced
+- **Multiplier reduced**: ×50 → **×25**.
+- **Trigger chance reduced**: 2% → **1%** per win.
+- **New — Jackpot Echo**: after a Jackpot hit there is a **5% chance** the next spin also triggers a Jackpot (×25). The echo can only chain once per spin.
+
+### Season 5 Bioluminescence Theme
+A new page theme — **Bioluminescence** — is the default look for Season 5. Cyan and coral accents replace the previous season's palette, covering the wheel, chat, leaderboard, and all UI chrome. It is also available as a purchasable cosmetic (1,000 Losses) for players who switch to another theme and want to return.
+
+The **Season 4 Theme** (deep violet) is now available in the Page Theme shop for 1,000 Losses.
+
+### Dice Roll: Blessed Roll & Spin Gate
+Two additional dice mechanics added:
+
+- **Double Sixes (6+6)**: blessed roll — your win streak is **doubled**. The rarest outcome and the highest reward.
+- **Spin gate**: you must spin at least once between dice rolls. Rolling twice in a row without spinning in between is blocked. This prevents using the dice to repeatedly stack the streak without playing.
+
+### Mobile: Dice Panel on Main Page
+The Dice Roll panel is now visible on the main page on mobile, matching the desktop layout. It was previously not shown on small screens.
+
+### Ocean Casino: Animated Seabed Background
+The Ocean Casino background theme now features an animated seabed scene rendered in an iframe behind the main UI. A static fallback is used automatically in Low-Spec Mode.
+
+---
+
 ## Latest — 4 Apr 2026
 
 ### Mobile Responsiveness
