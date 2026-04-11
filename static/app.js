@@ -3034,6 +3034,7 @@ function GameApp({
     className: "user-bar-name"
   }, "\uD83D\uDC64 ", username), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
+    title: "Stats",
     onClick: () => setShowStats(true)
   }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
@@ -3049,7 +3050,16 @@ function GameApp({
     style: {
       opacity: showChat ? 1 : 0.5
     }
-  }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("a", {
+    className: "stats-btn",
+    href: "https://github.com/Tom1tk/fishspin/wiki/Patch-Notes",
+    target: "_blank",
+    rel: "noopener noreferrer",
+    title: "Patch Notes",
+    style: {
+      textDecoration: 'none'
+    }
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
     className: "logout-btn",
     onClick: handleLogout
   }, "Logout"), /*#__PURE__*/React.createElement(CommunityPot, {

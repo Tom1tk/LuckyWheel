@@ -2195,7 +2195,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
-        <button className="stats-btn" onClick={() => setShowStats(true)}>📊</button>
+        <button className="stats-btn" title="Stats" onClick={() => setShowStats(true)}>📊</button>
         <button
           className="stats-btn"
           onClick={() => setLowSpec(v => !v)}
@@ -2210,6 +2210,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             style={{ opacity: showChat ? 1 : 0.5 }}
           >💬</button>
         )}
+        <a
+          className="stats-btn"
+          href="https://github.com/Tom1tk/fishspin/wiki/Patch-Notes"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Patch Notes"
+          style={{ textDecoration: 'none' }}
+        >📋</a>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         <CommunityPot
           pot={communityPot}
