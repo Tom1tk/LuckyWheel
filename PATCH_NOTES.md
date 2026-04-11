@@ -2,6 +2,33 @@
 
 ---
 
+## Balance Hotfix — 11 Apr 2026
+
+### Click Power Rebalanced
+The Click Power infinite upgrade formula has been changed to grow more gradually, preventing compounding click/frenzy income from scaling out of control at higher levels.
+
+- **New formula**: each level adds **+0.25× multiplier** (was +1× per level).
+  - Lv 1: ×1.25 (was ×2), Lv 4: ×2.0 (was ×5), Lv 8: ×3.0 (was ×9)
+- **Tier costs lowered** to reflect the reduced per-level value:
+  - Lv 1–5: 75 / 250 / 600 / 1,400 / 3,000 wins (was 100 / 400 / 900 / 2,000 / 4,500)
+- Infinite levels beyond Lv 5 are unchanged (10,000 × 1.5^n). The upgrade still scales without limit.
+- Frenzy passive ticks continue to scale with Click Power.
+
+### Win Power & Bonus Power: Post-Tier Costs Reduced
+The infinite levels beyond the fixed tier ladders were prohibitively expensive relative to their gains following the Season 5 streak bonus soft-cap. Both have been brought down:
+
+**Win Power** (levels 8+):
+- Base cost: 1,000,000 → **500,000** wins
+- Scaling: ×1.4 → **×1.25** per level
+
+**Bonus Power** (levels 7+):
+- Base cost: 500,000 → **250,000** wins
+- Scaling: ×1.4 → **×1.25** per level
+
+Fixed tier ladders and multiplier values are unchanged.
+
+---
+
 ## Season 5 — 10 Apr 2026
 
 ### Streak Bonus: Soft Cap

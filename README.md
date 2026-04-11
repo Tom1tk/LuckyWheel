@@ -135,7 +135,7 @@ Multiplies each win's score contribution. Single item purchased repeatedly — n
 | Level range | Cost per level | Multiplier |
 |-------------|----------------|-----------|
 | Lv 1–7 | 200 / 800 / 3,200 / 12,800 / 51,200 / 204,800 / 819,200 | ×2 → ×128 |
-| Lv 8+ | 1,000,000 × 1.4^(level−8) | +16 per level (×144, ×160, …) |
+| Lv 8+ | 500,000 × 1.25^(level−8) | +16 per level (×144, ×160, …) |
 
 The shop card shows current level and next multiplier: **Lv3 · ×8 → ×16**.
 
@@ -145,7 +145,7 @@ Multiplies streak bonus payouts — for both win streaks **and** loss streaks. �
 | Level range | Cost per level | Multiplier |
 |-------------|----------------|-----------|
 | Lv 1–6 | 300 / 1,200 / 4,800 / 20,000 / 80,000 / 300,000 | ×2 → ×100 |
-| Lv 7+ | 500,000 × 1.4^(level−7) | +10 per level (×110, ×120, …) |
+| Lv 7+ | 250,000 × 1.25^(level−7) | +10 per level (×110, ×120, …) |
 
 ### Fish Size (Costs Losses)
 | Tier | Cost | Fish Size |
@@ -170,8 +170,8 @@ Each fish click counts as more clicks server-side. Also scales all Frenzy passiv
 
 | Level range | Cost per level | Multiplier |
 |-------------|----------------|-----------|
-| Lv 1–5 | 100 / 400 / 900 / 2,000 / 4,500 | ×2 → ×6 |
-| Lv 6+ | 10,000 × 1.5^(level−6) | +1 per level (×7, ×8, …) |
+| Lv 1–5 | 75 / 250 / 600 / 1,400 / 3,000 | ×1.25 → ×2.25 |
+| Lv 6+ | 10,000 × 1.5^(level−6) | +0.25 per level (×2.5, ×2.75, …) |
 
 ### Click Frenzy (Costs Wins)
 Passive income — server ticks fish clicks automatically. All Frenzy amounts are multiplied by your Click Power level.
