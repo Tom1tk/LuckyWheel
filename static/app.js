@@ -1575,7 +1575,7 @@ const SHOP_SECTIONS = [{
     emoji: '👆',
     name: 'Click Power',
     cost: 0,
-    desc: 'Multiplies fish clicks per tap (also scales frenzy)',
+    desc: '+0.25× per level — scales manual clicks and frenzy',
     infinite: true
   }, {
     id: 'clickfrenzy_1',
@@ -1892,16 +1892,16 @@ const SHOP_SECTIONS = [{
 const INF_UPGRADE_CFG = {
   winmult_inf: {
     tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200],
-    infBase: 1_000_000,
-    infScale: 1.4
+    infBase: 500_000,
+    infScale: 1.25
   },
   bonusmult_inf: {
     tierCosts: [300, 1200, 4800, 20000, 80000, 300000],
-    infBase: 500_000,
-    infScale: 1.4
+    infBase: 250_000,
+    infScale: 1.25
   },
   clickmult_inf: {
-    tierCosts: [100, 400, 900, 2000, 4500],
+    tierCosts: [75, 250, 600, 1400, 3000],
     infBase: 10_000,
     infScale: 1.5
   },
@@ -1935,7 +1935,7 @@ function infMultiplier(id, level) {
     if (level <= 6) return fixed[level];
     return 100 + (level - 6) * 10;
   }
-  if (id === 'clickmult_inf') return level <= 0 ? 1 : level + 1;
+  if (id === 'clickmult_inf') return 1 + level * 0.25;
   return 1;
 }
 const DEFAULT_FISH = {
@@ -2828,7 +2828,7 @@ function GameApp({
   }, [diceRolling, spinning, streak, lowSpec, showToast]);
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
-    const clickMult = infLevels.clickmult_inf <= 0 ? 1 : infLevels.clickmult_inf + 1;
+    const clickMult = 1 + infLevels.clickmult_inf * 0.25;
     setFishClicks(c => c + clickAmount * clickMult);
     clickBufferRef.current += clickAmount;
     if (clickBufferRef.current >= 10) flushClicks();

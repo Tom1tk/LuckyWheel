@@ -1140,7 +1140,7 @@ const SHOP_SECTIONS = [
     { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 70000, desc: 'Cosmic void aura',       requires: 'trail_5' },
   ]},
   { label: '🖱️ Click Power', items: [
-    { id: 'clickmult_inf', emoji: '👆', name: 'Click Power', cost: 0, desc: 'Multiplies fish clicks per tap (also scales frenzy)', infinite: true },
+    { id: 'clickmult_inf', emoji: '👆', name: 'Click Power', cost: 0, desc: '+0.25× per level — scales manual clicks and frenzy', infinite: true },
     { id: 'clickfrenzy_1',  emoji: '🖱️', name: 'Frenzy I',    cost: 300,       desc: '+1 passive click/5s (scales with click upgrades)' },
     { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 3000,      desc: '+5 passive clicks/5s (scales with click upgrades)',  requires: 'clickfrenzy_1' },
     { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 30000,     desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
@@ -1205,9 +1205,9 @@ const SHOP_SECTIONS = [
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 const INF_UPGRADE_CFG = {
-  winmult_inf:      { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 1_000_000, infScale: 1.4 },
-  bonusmult_inf:    { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 500_000,   infScale: 1.4 },
-  clickmult_inf:    { tierCosts: [100, 400, 900, 2000, 4500],                    infBase: 10_000,    infScale: 1.5 },
+  winmult_inf:      { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 500_000,   infScale: 1.25 },
+  bonusmult_inf:    { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 250_000,   infScale: 1.25 },
+  clickmult_inf:    { tierCosts: [75, 250, 600, 1400, 3000],                     infBase: 10_000,    infScale: 1.5 },
   streak_armor_inf: { tierCosts: [500, 2000, 4500, 8000, 12500, 18000, 24500, 32000, 40500, 50000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
 };
 function infCost(id, level) {
@@ -1229,7 +1229,7 @@ function infMultiplier(id, level) {
     if (level <= 6) return fixed[level];
     return 100 + (level - 6) * 10;
   }
-  if (id === 'clickmult_inf') return level <= 0 ? 1 : level + 1;
+  if (id === 'clickmult_inf') return 1 + level * 0.25;
   return 1;
 }
 
@@ -1990,7 +1990,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   const handleFishClick = useCallback(() => {
     if (activeCosmetics.includes('final_frenzy')) return;
-    const clickMult = infLevels.clickmult_inf <= 0 ? 1 : infLevels.clickmult_inf + 1;
+    const clickMult = 1 + infLevels.clickmult_inf * 0.25;
     setFishClicks(c => c + clickAmount * clickMult);
     clickBufferRef.current += clickAmount;
     if (clickBufferRef.current >= 10) flushClicks();

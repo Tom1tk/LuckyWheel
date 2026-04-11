@@ -188,18 +188,18 @@ INFINITE_UPGRADES = {
     'winmult_inf': {
         'db_column':    'winmult_inf_level',
         'tier_costs':   [200, 800, 3200, 12800, 51200, 204800, 819200],
-        'inf_base_cost': 1_000_000,
-        'inf_scale':     1.4,
+        'inf_base_cost': 500_000,
+        'inf_scale':     1.25,
     },
     'bonusmult_inf': {
         'db_column':    'bonusmult_inf_level',
         'tier_costs':   [300, 1200, 4800, 20000, 80000, 300000],
-        'inf_base_cost': 500_000,
-        'inf_scale':     1.4,
+        'inf_base_cost': 250_000,
+        'inf_scale':     1.25,
     },
     'clickmult_inf': {
         'db_column':    'clickmult_inf_level',
-        'tier_costs':   [100, 400, 900, 2000, 4500],
+        'tier_costs':   [75, 250, 600, 1400, 3000],
         'inf_base_cost': 10_000,
         'inf_scale':     1.5,
     },
@@ -240,7 +240,7 @@ def bonus_mult_from_level(level):
 
 def click_mult_from_level(level):
     if level <= 0: return 1
-    return level + 1                           # 2, 3, 4, 5, 6, 7, 8, …
+    return 1 + level * 0.25                    # 1.25, 1.5, 1.75, 2.0, 2.25, …
 
 def streak_bonus(count):
     """Season 5 soft-capped streak bonus formula.
