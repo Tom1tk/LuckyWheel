@@ -1616,8 +1616,8 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
         <span className="community-pot-count">{fmt(total)} / {fmt(target)}</span>
         {justFilled ? (
           <>
-            <span className="community-pot-bonus">🎉 Pot filled! Win Rate → {winRate}%</span>
-            <span className="community-pot-countdown">{fmtCountdown(countdown)}</span>
+            <span className="community-pot-bonus">🎉 Win Rate {winRate}%</span>
+            <span className="season-countdown">{fmtCountdown(countdown)}</span>
           </>
         ) : (
           <>

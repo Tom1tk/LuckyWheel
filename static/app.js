@@ -2424,8 +2424,8 @@ function CommunityPot({
     className: "community-pot-count"
   }, fmt(total), " / ", fmt(target)), justFilled ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "community-pot-bonus"
-  }, "\uD83C\uDF89 Pot filled! Win Rate \u2192 ", winRate, "%"), /*#__PURE__*/React.createElement("span", {
-    className: "community-pot-countdown"
+  }, "\uD83C\uDF89 Win Rate ", winRate, "%"), /*#__PURE__*/React.createElement("span", {
+    className: "season-countdown"
   }, fmtCountdown(countdown))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "community-pot-buttons"
   }, /*#__PURE__*/React.createElement("button", {
