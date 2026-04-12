@@ -1260,6 +1260,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   flex-shrink: 0;
 }
 .community-pot-progress {
+  position: relative;
   flex: 1;
   height: 6px;
   background: rgba(255,255,255,0.06);
@@ -1267,11 +1268,26 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   overflow: hidden;
   min-width: 60px;
 }
-.community-pot-fill {
+.community-pot-fill,
+.community-pot-ghost-user,
+.community-pot-ghost-all {
+  position: absolute;
+  left: 0; top: 0;
   height: 100%;
-  background: linear-gradient(90deg, #6600BB, #aa00ff);
   border-radius: 3px;
   transition: width 0.6s ease;
+}
+.community-pot-fill {
+  background: linear-gradient(90deg, #6600BB, #aa00ff);
+  z-index: 3;
+}
+.community-pot-ghost-user {
+  background: rgba(170, 0, 255, 0.40);
+  z-index: 2;
+}
+.community-pot-ghost-all {
+  background: rgba(255, 190, 30, 0.45);
+  z-index: 1;
 }
 .community-pot-active .community-pot-fill {
   background: linear-gradient(90deg, #aa00ff, #88ffaa);
@@ -2699,6 +2715,8 @@ body.page-season5 .mobile-toolbar-btn.active { color: #00E5FF; border-color: #00
 /* Community pot */
 body.page-season5 .community-pot-fill { background: linear-gradient(90deg, #006080, #00E5FF); }
 body.page-season5 .community-pot-active .community-pot-fill { background: linear-gradient(90deg, #00E5FF, #80FFE0); }
+body.page-season5 .community-pot-ghost-user { background: rgba(0, 200, 230, 0.38); }
+body.page-season5 .community-pot-ghost-all  { background: rgba(40, 255, 180, 0.38); }
 body.page-season5 .community-pot-bonus { color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.7); }
 body.page-season5 .community-pot-countdown { color: #00E5FF; }
 body.page-season5 .community-pot-buttons button { background: rgba(0,180,216,0.12); border-color: rgba(0,180,216,0.35); color: #00E5FF; }

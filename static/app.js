@@ -2389,14 +2389,15 @@ function CommunityPot({
       })
     });
     if (ok) {
-      setLocalPot({
+      setLocalPot(prev => ({
+        ...prev,
         total_contributed: data.pot_total,
         target: data.pot_target,
         filled: data.pot_filled,
         active: data.pot_active,
         filled_at: data.filled_at,
         win_chance_pct: data.win_chance_pct
-      });
+      }));
       onContribute(data.fish_clicks);
       setJustFilled(!!data.pot_active);
     }
@@ -2407,6 +2408,12 @@ function CommunityPot({
   const winRate = (localPot.win_chance_pct || 50.0).toFixed(1);
   const active = localPot.active;
   const countdown = usePotCountdown(localPot.filled_at, active);
+
+  // Ghost bars: how far the bar would extend if clicks were contributed now
+  const userClicks = fishClicks || 0;
+  const allPendingClicks = localPot.total_pending_clicks || 0;
+  const userGhostPct = active ? 0 : Math.min(100, (total + userClicks) / target * 100);
+  const allGhostPct = active ? 0 : Math.min(100, (total + allPendingClicks) / target * 100);
   return /*#__PURE__*/React.createElement("div", {
     className: `community-pot-bar${justFilled ? ' community-pot-active' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2415,11 +2422,24 @@ function CommunityPot({
     className: "community-pot-label"
   }, "\uD83C\uDFA3 Community Pot"), /*#__PURE__*/React.createElement("div", {
     className: "community-pot-progress"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, allGhostPct > pct && /*#__PURE__*/React.createElement("div", {
+    className: "community-pot-ghost-all",
+    style: {
+      width: allGhostPct + '%'
+    },
+    title: "All players contributing their clicks"
+  }), userGhostPct > pct && /*#__PURE__*/React.createElement("div", {
+    className: "community-pot-ghost-user",
+    style: {
+      width: userGhostPct + '%'
+    },
+    title: "Your clicks contributed"
+  }), /*#__PURE__*/React.createElement("div", {
     className: "community-pot-fill",
     style: {
       width: pct + '%'
-    }
+    },
+    title: "Current pot total"
   })), /*#__PURE__*/React.createElement("span", {
     className: "community-pot-count"
   }, fmt(total), " / ", fmt(target)), justFilled ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {

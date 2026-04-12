@@ -1593,7 +1593,7 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
       body: JSON.stringify({ amount }),
     });
     if (ok) {
-      setLocalPot({ total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, filled_at: data.filled_at, win_chance_pct: data.win_chance_pct });
+      setLocalPot(prev => ({ ...prev, total_contributed: data.pot_total, target: data.pot_target, filled: data.pot_filled, active: data.pot_active, filled_at: data.filled_at, win_chance_pct: data.win_chance_pct }));
       onContribute(data.fish_clicks);
       setJustFilled(!!data.pot_active);
     }
@@ -1606,12 +1606,20 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
   const active   = localPot.active;
   const countdown = usePotCountdown(localPot.filled_at, active);
 
+  // Ghost bars: how far the bar would extend if clicks were contributed now
+  const userClicks = fishClicks || 0;
+  const allPendingClicks = localPot.total_pending_clicks || 0;
+  const userGhostPct = active ? 0 : Math.min(100, ((total + userClicks) / target) * 100);
+  const allGhostPct  = active ? 0 : Math.min(100, ((total + allPendingClicks) / target) * 100);
+
   return (
     <div className={`community-pot-bar${justFilled ? ' community-pot-active' : ''}`}>
       <div className="community-pot-inner">
         <span className="community-pot-label">🎣 Community Pot</span>
         <div className="community-pot-progress">
-          <div className="community-pot-fill" style={{ width: pct + '%' }} />
+          {allGhostPct > pct && <div className="community-pot-ghost-all" style={{ width: allGhostPct + '%' }} title="All players contributing their clicks" />}
+          {userGhostPct > pct && <div className="community-pot-ghost-user" style={{ width: userGhostPct + '%' }} title="Your clicks contributed" />}
+          <div className="community-pot-fill" style={{ width: pct + '%' }} title="Current pot total" />
         </div>
         <span className="community-pot-count">{fmt(total)} / {fmt(target)}</span>
         {justFilled ? (

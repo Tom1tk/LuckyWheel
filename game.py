@@ -72,6 +72,9 @@ def get_state():
                 gs = cur.fetchone()
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at, last_decay_check FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
+                cur.execute('SELECT COALESCE(SUM(fish_clicks), 0) AS total FROM game_state')
+                pending_row = cur.fetchone()
+        total_pending_clicks = int(pending_row['total']) if pending_row else 0
         now_utc = dt.datetime.now(timezone.utc)
         # Brief 30-minute celebration window after a fill (UI only)
         pot_celebrate = bool(
@@ -114,11 +117,12 @@ def get_state():
             'jackpot_echo_next':      gs['jackpot_echo_next'],
             'dice_rolled_since_spin': bool(gs['dice_rolled_since_spin']),
             'community_pot': {
-                'total_contributed': pot['total_contributed'] if pot else 0,
-                'target':            pot['target']            if pot else 1_000,
-                'filled':            pot['filled']            if pot else False,
-                'active':            pot_celebrate,
-                'win_chance_pct':    float(pot['win_chance_pct']) if pot else 50.0,
+                'total_contributed':  pot['total_contributed'] if pot else 0,
+                'target':             pot['target']            if pot else 1_000,
+                'filled':             pot['filled']            if pot else False,
+                'active':             pot_celebrate,
+                'win_chance_pct':     float(pot['win_chance_pct']) if pot else 50.0,
+                'total_pending_clicks': total_pending_clicks,
             } if pot else None,
         })
     except Exception:
@@ -705,8 +709,11 @@ def community_pot_state():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
+                cur.execute('SELECT COALESCE(SUM(fish_clicks), 0) AS total FROM game_state')
+                pending_row = cur.fetchone()
+            total_pending_clicks = int(pending_row['total']) if pending_row else 0
             if not pot:
-                return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0})
+                return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0, 'total_pending_clicks': total_pending_clicks})
             now_utc = dt.datetime.now(timezone.utc)
             pot_active = bool(
                 pot['filled'] and pot['filled_at'] and
@@ -728,12 +735,13 @@ def community_pot_state():
                 pot['total_contributed'] = 0
                 pot['target'] = new_pot_target
         return jsonify({
-            'total_contributed': pot['total_contributed'],
-            'target':            pot['target'],
-            'filled':            pot['filled'],
-            'active':            pot_active,
-            'win_chance_pct':    float(pot['win_chance_pct']),
-            'filled_at':         pot['filled_at'].isoformat() if pot['filled_at'] else None,
+            'total_contributed':   pot['total_contributed'],
+            'target':              pot['target'],
+            'filled':              pot['filled'],
+            'active':              pot_active,
+            'win_chance_pct':      float(pot['win_chance_pct']),
+            'filled_at':           pot['filled_at'].isoformat() if pot['filled_at'] else None,
+            'total_pending_clicks': total_pending_clicks,
         })
     except Exception:
         log.exception('COMMUNITY_POT_STATE_ERROR')
