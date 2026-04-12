@@ -804,13 +804,22 @@ const LuckySevenCounter = React.memo(function LuckySevenCounter({
 });
 
 // ── Streak Panel ──────────────────────────────────────────────────────────
+// Must match models.py bonus_mult_from_level()
+function bonusMultFromLevel(level) {
+  const fixed = [1, 2, 5, 10, 20, 50, 100];
+  if (level <= 6) return fixed[level] || 1;
+  return 100 + (level - 6) * 10;
+}
 const StreakPanel = React.memo(function StreakPanel({
-  streak
+  streak,
+  bonusmultLevel
 }) {
   if (Math.abs(streak) < 2) return null;
   const isWin = streak > 0;
   const count = Math.abs(streak);
-  const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
+  // Season 5 soft-capped formula — must match models.py streak_bonus()
+  const baseBonus = count < 3 ? 0 : count <= 15 ? 1 << count - 3 : count <= 35 ? 4096 + Math.pow(count - 15, 3) : count <= 75 ? 12096 + (count - 35) * 500 : 32096 + (count - 75) * 200;
+  const bonus = baseBonus * bonusMultFromLevel(bonusmultLevel || 0);
   return /*#__PURE__*/React.createElement("div", {
     className: `streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`
   }, /*#__PURE__*/React.createElement("span", {
@@ -3235,7 +3244,8 @@ function GameApp({
   }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
     spinCount: spinCount
   }), /*#__PURE__*/React.createElement(StreakPanel, {
-    streak: streak
+    streak: streak,
+    bonusmultLevel: infLevels.bonusmult_inf
   }), /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,
     onRoll: handleDiceRoll,

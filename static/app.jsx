@@ -654,11 +654,24 @@ const LuckySevenCounter = React.memo(function LuckySevenCounter({ spinCount }) {
 });
 
 // ── Streak Panel ──────────────────────────────────────────────────────────
-const StreakPanel = React.memo(function StreakPanel({ streak }) {
+// Must match models.py bonus_mult_from_level()
+function bonusMultFromLevel(level) {
+  const fixed = [1, 2, 5, 10, 20, 50, 100];
+  if (level <= 6) return fixed[level] || 1;
+  return 100 + (level - 6) * 10;
+}
+
+const StreakPanel = React.memo(function StreakPanel({ streak, bonusmultLevel }) {
   if (Math.abs(streak) < 2) return null;
   const isWin = streak > 0;
   const count = Math.abs(streak);
-  const bonus = count >= 3 ? Math.pow(2, count - 3) : 0;
+  // Season 5 soft-capped formula — must match models.py streak_bonus()
+  const baseBonus = count < 3 ? 0
+    : count <= 15 ? (1 << (count - 3))
+    : count <= 35 ? 4096 + Math.pow(count - 15, 3)
+    : count <= 75 ? 12096 + (count - 35) * 500
+    : 32096 + (count - 75) * 200;
+  const bonus = baseBonus * bonusMultFromLevel(bonusmultLevel || 0);
   return (
     <div className={`streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`}>
       <span className="streak-fire">{isWin ? '🔥' : '💀'}</span>
@@ -2395,7 +2408,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             {ownedItems.includes('lucky_seven') && (
               <LuckySevenCounter spinCount={spinCount} />
             )}
-            <StreakPanel streak={streak} />
+            <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
             <DicePanel
               streak={streak}
               onRoll={handleDiceRoll}
