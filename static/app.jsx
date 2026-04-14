@@ -891,7 +891,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
         .catch(() => {});
     };
     load();
-    const id = setInterval(load, 5000);
+    const id = setInterval(load, 15000);
     return () => { clearInterval(id); ctrl.abort(); };
   }, []);
 
@@ -989,7 +989,7 @@ function ChatPanel({ extraClass = '' }) {
         .catch(() => {});
     };
     load();
-    const id = setInterval(load, 3000);
+    const id = setInterval(load, 5000);
     return () => { clearInterval(id); ctrl.abort(); };
   }, []);
 
