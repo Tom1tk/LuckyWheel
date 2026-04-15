@@ -147,6 +147,10 @@ def _perform_rollover(conn, season):
         current_number = next_number
         ends_at = next_ends
 
+    # Force WAL flush for this critical once-per-week transaction.
+    # All other commits use the server-level synchronous_commit=off for performance.
+    with conn.cursor() as cur:
+        cur.execute("SET LOCAL synchronous_commit = on")
     conn.commit()
 
 

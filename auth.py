@@ -116,6 +116,10 @@ def register():
                 cur.execute('INSERT INTO game_state (user_id) VALUES (%s)', (user_id,))
 
             issue_session_token(conn, user_id)
+            # Force WAL flush: a lost registration commit causes a confusing
+            # "logged in but immediately kicked out" experience.
+            with conn.cursor() as cur:
+                cur.execute("SET LOCAL synchronous_commit = on")
             conn.commit()
 
         user_obj = User(user_id, username)
@@ -224,6 +228,8 @@ def logout():
                         'UPDATE users SET session_token = NULL WHERE id = %s',
                         (current_user.id,),
                     )
+                with conn.cursor() as cur:
+                    cur.execute("SET LOCAL synchronous_commit = on")
                 conn.commit()
         except Exception:
             log.exception('LOGOUT_ERROR  user_id=%s', current_user.id)
