@@ -29,7 +29,7 @@ COSMETIC_SLOTS = {
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
     'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
-    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme', 'page_season4': 'page_theme', 'page_season5': 'page_theme',
+    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme', 'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme',
     'final_frenzy': 'frenzy_mode',
     'auto_guard':   'auto_guard',
 }

@@ -11,7 +11,7 @@
     width: 100%;
     height: 100vh;
     overflow: hidden;
-    background: #042033;
+    background: #020810;
     font-family: sans-serif;
   }
 
@@ -19,26 +19,28 @@
     position: relative;
     width: 100%;
     height: 100%;
-    background: radial-gradient(ellipse 90% 65% at 50% 5%,
-        #62d0e0 0%, #28a0b8 20%, #0d6688 48%, #063d58 75%, #042033 100%);
+    background:
+      radial-gradient(ellipse 80% 18% at 50% 0%, rgba(160,130,255,0.06) 0%, transparent 100%),
+      radial-gradient(ellipse 90% 65% at 50% 5%,
+        #07081e 0%, #060918 20%, #04071a 48%, #030610 75%, #020508 100%);
     overflow: hidden;
   }
 
-  /* Caustic light shimmer */
+  /* Moonlight shimmer — dim silver-blue instead of sunlight */
   #ocean::before {
     content: '';
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(ellipse 180px 80px  at 18% 12%, rgba(255,255,255,0.05) 0%, transparent 100%),
-      radial-gradient(ellipse 100px 50px  at 55% 7%,  rgba(255,255,255,0.06) 0%, transparent 100%),
-      radial-gradient(ellipse 160px 75px  at 82% 18%, rgba(255,255,255,0.04) 0%, transparent 100%);
-    animation: caustics 9s ease-in-out infinite alternate;
+      radial-gradient(ellipse 180px 80px  at 18% 12%, rgba(180,190,255,0.025) 0%, transparent 100%),
+      radial-gradient(ellipse 100px 50px  at 55% 7%,  rgba(180,190,255,0.03)  0%, transparent 100%),
+      radial-gradient(ellipse 160px 75px  at 82% 18%, rgba(180,190,255,0.02)  0%, transparent 100%);
+    animation: caustics 12s ease-in-out infinite alternate;
     pointer-events: none;
   }
   @keyframes caustics {
-    0%   { opacity: 0.4; transform: scale(1)    translateX(0px); }
-    100% { opacity: 1.0; transform: scale(1.06) translateX(18px); }
+    0%   { opacity: 0.3; transform: scale(1)    translateX(0px); }
+    100% { opacity: 0.7; transform: scale(1.05) translateX(14px); }
   }
 
   #terrain { position: absolute; bottom: 0; left: 0; width: 100%; height: 62%; }
@@ -197,7 +199,7 @@
     C1200,85 1260,110 1320,95
     C1365,84 1390,100 1400,108
     L1400,430 Z"
-    fill="#082c40" opacity="0.95"/>
+    fill="#050c18" opacity="0.95"/>
 
   <!-- 2. Mid undulating hills -->
   <path d="M0,430 L0,275
@@ -209,29 +211,29 @@
     C1080,213 1130,252 1210,235
     C1270,222 1330,255 1400,245
     L1400,430 Z"
-    fill="#0b3f58" opacity="0.92"/>
+    fill="#07101e" opacity="0.92"/>
 
   <!-- 3a. Left boulder cluster -->
-  <ellipse cx="145" cy="345" rx="105" ry="70" fill="#1e2e36" opacity="0.92"/>
-  <ellipse cx="105" cy="330" rx="72"  ry="52" fill="#263840"/>
-  <ellipse cx="192" cy="318" rx="60"  ry="44" fill="#1a2c36"/>
-  <ellipse cx="100" cy="310" rx="68"  ry="13" fill="#2e4a58" opacity="0.38"/>
-  <ellipse cx="58"  cy="366" rx="32"  ry="20" fill="#1e2e36"/>
-  <ellipse cx="252" cy="358" rx="28"  ry="18" fill="#263840"/>
+  <ellipse cx="145" cy="345" rx="105" ry="70" fill="#131820" opacity="0.92"/>
+  <ellipse cx="105" cy="330" rx="72"  ry="52" fill="#181e28"/>
+  <ellipse cx="192" cy="318" rx="60"  ry="44" fill="#10161e"/>
+  <ellipse cx="100" cy="310" rx="68"  ry="13" fill="#1c2a36" opacity="0.38"/>
+  <ellipse cx="58"  cy="366" rx="32"  ry="20" fill="#131820"/>
+  <ellipse cx="252" cy="358" rx="28"  ry="18" fill="#181e28"/>
 
   <!-- 3b. Centre-right boulder cluster -->
-  <ellipse cx="820" cy="352" rx="90"  ry="60" fill="#1e2e36" opacity="0.92"/>
-  <ellipse cx="780" cy="338" rx="60"  ry="45" fill="#263840"/>
-  <ellipse cx="868" cy="330" rx="52"  ry="38" fill="#1a2c36"/>
-  <ellipse cx="775" cy="325" rx="55"  ry="12" fill="#2e4a58" opacity="0.35"/>
-  <ellipse cx="730" cy="367" rx="28"  ry="17" fill="#1e2e36"/>
-  <ellipse cx="928" cy="362" rx="34"  ry="22" fill="#263840"/>
+  <ellipse cx="820" cy="352" rx="90"  ry="60" fill="#131820" opacity="0.92"/>
+  <ellipse cx="780" cy="338" rx="60"  ry="45" fill="#181e28"/>
+  <ellipse cx="868" cy="330" rx="52"  ry="38" fill="#10161e"/>
+  <ellipse cx="775" cy="325" rx="55"  ry="12" fill="#1c2a36" opacity="0.35"/>
+  <ellipse cx="730" cy="367" rx="28"  ry="17" fill="#131820"/>
+  <ellipse cx="928" cy="362" rx="34"  ry="22" fill="#181e28"/>
 
   <!-- 3c. Far-right boulder cluster -->
-  <ellipse cx="1242" cy="348" rx="80" ry="55" fill="#1e2e36" opacity="0.92"/>
-  <ellipse cx="1200" cy="334" rx="55" ry="42" fill="#263840"/>
-  <ellipse cx="1288" cy="325" rx="48" ry="36" fill="#1a2c36"/>
-  <ellipse cx="1295" cy="362" rx="30" ry="18" fill="#263840"/>
+  <ellipse cx="1242" cy="348" rx="80" ry="55" fill="#131820" opacity="0.92"/>
+  <ellipse cx="1200" cy="334" rx="55" ry="42" fill="#181e28"/>
+  <ellipse cx="1288" cy="325" rx="48" ry="36" fill="#10161e"/>
+  <ellipse cx="1295" cy="362" rx="30" ry="18" fill="#181e28"/>
 
   <!-- 4. Foreground sandy dune – deeper wave -->
   <path d="M0,430 L0,355
@@ -242,7 +244,7 @@
     C1080,306 1150,335 1240,318
     C1310,305 1360,325 1400,318
     L1400,430 Z"
-    fill="#ba9050"/>
+    fill="#3a3022"/>
 
   <!-- 5. Dune surface crest -->
   <path d="M0,430 L0,372
@@ -253,7 +255,7 @@
     C1050,333 1120,355 1200,343
     C1280,330 1340,350 1400,342
     L1400,430 Z"
-    fill="#c9a060"/>
+    fill="#46382a"/>
 
   <!-- 6. Top sand layer -->
   <path d="M0,430 L0,388
@@ -263,10 +265,10 @@
     C1100,366 1200,380 1300,372
     C1350,368 1380,375 1400,372
     L1400,430 Z"
-    fill="#d4ad6c"/>
+    fill="#524232"/>
 
   <!-- Sand ripples -->
-  <g opacity="0.18" stroke="#8a6830" stroke-width="1.2" fill="none">
+  <g opacity="0.18" stroke="#2e2618" stroke-width="1.2" fill="none">
     <path d="M30,415  Q120,408 220,415 Q320,422 420,415"/>
     <path d="M200,420 Q310,413 420,420 Q530,427 640,420"/>
     <path d="M480,416 Q590,409 700,416 Q810,423 920,416"/>

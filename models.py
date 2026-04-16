@@ -181,6 +181,7 @@ SHOP_ITEMS = {
     'page_season3':   {'cost': 1_000,        'requires': None},
     'page_season4':   {'cost': 1_000,        'requires': None},
     'page_season5':   {'cost': 1_000,        'requires': None},
+    'page_season6':   {'cost': 1_000,        'requires': None},
     'party_mode':     {'cost': 150,          'requires': None},
     'confetti_1':     {'cost': 75,           'requires': None},
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
@@ -265,7 +266,7 @@ _COSMETIC_ITEM_IDS = {
     'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold',
     'golden_wheel',
     # Page themes
-    'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5',
+    'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6',
     # Party / confetti
     'party_mode', 'confetti_1', 'confetti_2', 'confetti_3',
     # Backgrounds

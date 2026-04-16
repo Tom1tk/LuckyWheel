@@ -386,14 +386,14 @@ function drawWheel(canvas, theme = 'default') {
   const THEMES = {
     default: [{
       label: 'WIN',
-      color: '#550088',
-      bright: '#AA00FF',
+      color: '#110077',
+      bright: '#5533FF',
       start: -Math.PI / 2,
       end: Math.PI / 2
     }, {
       label: 'LOSE',
-      color: '#7a3300',
-      bright: '#FF6600',
+      color: '#440011',
+      bright: '#CC2244',
       start: Math.PI / 2,
       end: Math.PI * 1.5
     }],
@@ -528,7 +528,7 @@ function drawWheel(canvas, theme = 'default') {
   });
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = '#FFD700';
+  ctx.strokeStyle = segments[0].bright;
   ctx.lineWidth = 6;
   ctx.stroke();
   ctx.beginPath();
@@ -563,10 +563,10 @@ function drawGuardWheel(canvas) {
   ctx.fillStyle = gFail;
   ctx.fill();
 
-  // WIN segment (cyan)
+  // WIN segment (primary)
   const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#55EEEE');
-  gWin.addColorStop(1, '#006666');
+  gWin.addColorStop(0, '#7755FF');
+  gWin.addColorStop(1, '#110077');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -2337,6 +2337,12 @@ const SHOP_SECTIONS = [{
     name: 'Season 5 Theme',
     cost: 1000,
     desc: 'Bioluminescent deep ocean theme (S5).'
+  }, {
+    id: 'page_season6',
+    emoji: '🌑',
+    name: 'Season 6 Theme',
+    cost: 1000,
+    desc: 'Night ocean deep blue theme (S6).'
   }]
 }, {
   label: '🎲 Dice Charges',
@@ -2473,10 +2479,10 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
@@ -3132,6 +3138,7 @@ function GameApp({
     if (activeCosmetics.includes('theme_ice')) return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
+    if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     return 'default';
   }, [activeCosmetics]);
   const bgClass = useMemo(() => {
@@ -3153,11 +3160,12 @@ function GameApp({
     return '';
   }, [activeCosmetics]);
   const pageThemeClass = useMemo(() => {
-    if (activeCosmetics.includes('page_season1')) return 'page-season1';
-    if (activeCosmetics.includes('page_season2')) return 'page-season2';
-    if (activeCosmetics.includes('page_season3')) return 'page-season3';
-    if (activeCosmetics.includes('page_season4')) return 'page-season4';
+    if (activeCosmetics.includes('page_season6')) return 'page-season6';
     if (activeCosmetics.includes('page_season5')) return 'page-season5';
+    if (activeCosmetics.includes('page_season4')) return 'page-season4';
+    if (activeCosmetics.includes('page_season3')) return 'page-season3';
+    if (activeCosmetics.includes('page_season2')) return 'page-season2';
+    if (activeCosmetics.includes('page_season1')) return 'page-season1';
     return '';
   }, [activeCosmetics]);
   const currentRotationRef = useRef(0);
