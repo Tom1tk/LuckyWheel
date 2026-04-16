@@ -2,6 +2,80 @@
 
 ---
 
+## Season 6 — Cast & Reel Fishing Minigame — 16 Apr 2026
+
+The passive fish-clicking mechanic has been replaced with an active, timing-based **Cast & Reel** minigame. Active players now clearly outpace AFK/bot play at every upgrade tier.
+
+### Cast & Reel Loop
+- Click **🎣 CAST** to drop your line. Shadow fish appear in the water as you wait.
+- A bobber animates in the water. When the fish bites, it flashes and a **bite bar** begins depleting.
+- **Click to reel** before the bar empties to catch the fish. Click too early (before the bite) and it's an instant miss.
+- The server holds all timing — bite window, catch validation, and value calculation are anti-cheat authoritative.
+
+### Fish Catalog — 13 Species
+Each catch awards Fish Bucks (formerly "Fish Clicks" — DB column unchanged). Species range from common scraps to legendary hauls:
+
+| Tier | Species | Value |
+|------|---------|-------|
+| Common | 🐟 Minnow, 🦐 Shrimp, 🐠 Clownfish, 🐡 Pufferfish | 1–3 🐟 |
+| Uncommon | 🦀 Crab, 🦑 Squid, 🐙 Octopus | 8–12 🐟 |
+| Rare | 🦞 Lobster, 🐬 Dolphin, 🦈 Shark | 20–40 🐟 |
+| Legendary | 🐋 Blue Whale, 🧜 Mermaid, ⭐ Lucky Fish | 75–120 🐟 |
+
+**Lucky Fish** — catching a ⭐ sets a flag that doubles the value of your *next* successful catch.
+
+### Fish Encyclopaedia
+- New **📖 Fish Encyclopaedia** button (top-left). Shows all 13 species.
+- Undiscovered entries appear as silhouettes with `???` name, value, and rarity.
+- Entries unlock permanently on first catch. Progress counter shown.
+- Completing the Encyclopaedia (all 13 species) unlocks the Master Lure and Master Auto-Fisher upgrades.
+
+### 🎣 Fishing Gear — New Shop Section
+All items cost Wins. Lure and Auto-Fisher chains replace the retired Click Frenzy items.
+
+**Lure Upgrades** — reduce bite wait time and multiply catch value:
+| Upgrade | Cost | Bite Speed | Value Multiplier |
+|---------|------|-----------|-----------------|
+| Lure I | 100 | 10% faster | 1.5× |
+| Lure II | 500 | 20% faster | 2× |
+| Lure III | 2,500 | 35% faster | 5× |
+| Lure IV | 15,000 | 50% faster | 10× |
+| ⭐ Master Lure | 500,000 | 65% faster | 20× + +1% legendary chance each |
+
+Master Lure requires completing the Encyclopaedia. It also increases each legendary species' catch weight by +1 percentage point (Whale: 0.5% → 1.5%, Mermaid: 0.2% → 1.2%, Lucky: 0.3% → 1.3%).
+
+**Auto-Cast** (1,000 wins) — automatically re-casts when idle. You still tap the bite window manually.
+
+**Auto-Fisher Upgrades** — unlock the Auto-Fish tickbox; handle cast and reel automatically:
+| Upgrade | Cost | Catch Rate | Pool |
+|---------|------|-----------|------|
+| Auto-Fisher I | 300 | 45% | Common + Uncommon |
+| Auto-Fisher II | 2,000 | 55% | Common + Uncommon |
+| Auto-Fisher III | 12,000 | 65% | Common + Uncommon |
+| 🤖 Master Auto-Fisher | 500,000 | 75% | Common + Uncommon + **Rare** |
+
+Master Auto-Fisher requires the Encyclopaedia. Auto-Fish never catches Whale, Mermaid, or Lucky Fish at any level. Auto-Fish fires every 6 seconds; rate-limited server-side.
+
+**Precise Angler Upgrades** — reward fast reflexes with a catch value multiplier. Tier 2 (1,000 wins) required. Multipliers are exclusive — the highest gate hit wins:
+| Upgrade | Cost | Threshold | Multiplier |
+|---------|------|-----------|-----------|
+| Precise Angler | 50,000 | ≤ 50% through bar | 1.2× |
+| Precise Angler II | 100,000 | ≤ 20% through bar | 1.5× |
+| 🎯 Master Angler | 500,000 | ≤ 15% through bar | 2× |
+
+Master Angler requires the Encyclopaedia. All Precise Angler multipliers stack independently with Lure and Lucky Fish multipliers.
+
+The catch popup and last-caught line both show the precise multiplier and percentage when a bonus triggers (e.g. `🎯 1.5x @ 17.2%`).
+
+### Stats: Fastest Catch
+The Stats panel now shows a **Fastest Catch** row (under Season Fish Bucks) tracking the player's best (lowest) precise percentage from manual fishing.
+
+### Chat Window Improvements
+- The chat panel is now **resizable** from the bottom-right corner (drag handle shown). Size persists across sessions via `localStorage`.
+- A small **✕** close button added to the top-right of the chat panel. Re-open via the 💬 button in the top-left user bar.
+
+---
+
 ## Balance Hotfix — 11 Apr 2026
 
 ### Click Power Rebalanced

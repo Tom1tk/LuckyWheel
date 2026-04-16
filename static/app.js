@@ -1073,7 +1073,9 @@ function FishingPanel({
         value: data.value,
         isNew: !!data.first_catch,
         isLucky: data.species === 'lucky',
-        doubled: !!data.was_doubled
+        doubled: !!data.was_doubled,
+        preciseMult: data.precise_bonus ? data.precise_mult : null,
+        precisePct: data.precise_pct != null ? data.precise_pct : null
       });
       onFishBucksUpdate(data.fish_clicks);
       if (data.first_catch) onCaughtSpeciesUpdate(data.species);
@@ -1132,13 +1134,13 @@ function FishingPanel({
     }
   })), phase === 'bite' && /*#__PURE__*/React.createElement("div", {
     className: "bite-hint"
-  }, "TAP TO REEL!"), phase === 'success' && lastCatch && /*#__PURE__*/React.createElement("div", {
+  }, "CLICK TO REEL!"), phase === 'success' && lastCatch && /*#__PURE__*/React.createElement("div", {
     className: "catch-popup"
   }, /*#__PURE__*/React.createElement("span", {
     className: "catch-emoji"
   }, lastCatch.emoji), /*#__PURE__*/React.createElement("span", {
     className: "catch-value"
-  }, "+", lastCatch.value, " \uD83D\uDC1F", lastCatch.doubled ? ' (2x!)' : ''), lastCatch.isNew && /*#__PURE__*/React.createElement("span", {
+  }, "+", lastCatch.value, " \uD83D\uDC1F", lastCatch.doubled ? ' (2x!)' : '', lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''), lastCatch.isNew && /*#__PURE__*/React.createElement("span", {
     className: "catch-new"
   }, "NEW!"), lastCatch.isLucky && /*#__PURE__*/React.createElement("span", {
     className: "catch-lucky"
@@ -1190,7 +1192,7 @@ function FishingPanel({
     className: "fishing-toggle-text"
   }, "Auto-Fish")))), lastCatch && /*#__PURE__*/React.createElement("div", {
     className: "fishing-last-catch"
-  }, "Last: ", lastCatch.emoji, " ", lastCatch.name, " +", lastCatch.value, " \uD83D\uDC1F"));
+  }, "Last: ", lastCatch.emoji, " ", lastCatch.name, " +", lastCatch.value, " \uD83D\uDC1F", lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''));
 }
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────
@@ -1552,17 +1554,61 @@ function fmtChatTime(iso) {
   h = h % 12 || 12;
   return `${h}:${m}${ampm}`;
 }
+const CHAT_DEFAULT_SIZE = {
+  w: 231,
+  h: 224
+};
+const CHAT_MIN_W = 180,
+  CHAT_MIN_H = 150,
+  CHAT_MAX_W = 620,
+  CHAT_MAX_H = 620;
 function ChatPanel({
-  extraClass = ''
+  extraClass = '',
+  onClose
 }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [timeoutSecs, setTimeoutSecs] = useState(0);
+  const [size, setSize] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('chat_panel_size'));
+      if (s && s.w >= CHAT_MIN_W && s.h >= CHAT_MIN_H) return s;
+    } catch {}
+    return CHAT_DEFAULT_SIZE;
+  });
+  const panelRef = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollRef = useRef(null);
   const atBottomRef = useRef(true);
   const timeoutTimerRef = useRef(null);
+
+  // Persist size to localStorage whenever it changes (covers drag, close/reopen, refresh)
+  useEffect(() => {
+    localStorage.setItem('chat_panel_size', JSON.stringify(size));
+  }, [size]);
+  const onResizeMouseDown = useCallback(e => {
+    e.preventDefault();
+    const rect = panelRef.current ? panelRef.current.getBoundingClientRect() : CHAT_DEFAULT_SIZE;
+    const startW = rect.width,
+      startH = rect.height;
+    const startX = e.clientX,
+      startY = e.clientY;
+    const onMove = ev => {
+      const newW = Math.min(CHAT_MAX_W, Math.max(CHAT_MIN_W, startW + (ev.clientX - startX)));
+      const newH = Math.min(CHAT_MAX_H, Math.max(CHAT_MIN_H, startH + (ev.clientY - startY)));
+      setSize({
+        w: newW,
+        h: newH
+      });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
 
   // Poll for new messages
   useEffect(() => {
@@ -1644,11 +1690,23 @@ function ChatPanel({
     }
   };
   const isDisabled = timeoutSecs > 0;
+  const panelStyle = extraClass === 'mobile-full' ? {} : {
+    width: size.w,
+    height: size.h
+  };
   return /*#__PURE__*/React.createElement("div", {
-    className: `chat-panel${extraClass ? ' ' + extraClass : ''}`
+    ref: panelRef,
+    className: `chat-panel${extraClass ? ' ' + extraClass : ''}`,
+    style: panelStyle
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "chat-panel-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "chat-panel-title"
-  }, "\uD83D\uDCAC Chat"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCAC Chat"), onClose && /*#__PURE__*/React.createElement("button", {
+    className: "chat-close-btn",
+    onClick: onClose,
+    title: "Close Chat"
+  }, "\u2715")), /*#__PURE__*/React.createElement("div", {
     className: "chat-messages",
     ref: scrollRef,
     onScroll: handleScroll
@@ -1680,7 +1738,11 @@ function ChatPanel({
     className: "chat-send-btn",
     onClick: sendMessage,
     disabled: isDisabled
-  }, "\u2191")));
+  }, "\u2191")), extraClass !== 'mobile-full' && /*#__PURE__*/React.createElement("div", {
+    className: "chat-resize-handle",
+    onMouseDown: onResizeMouseDown,
+    title: "Drag to resize"
+  }));
 }
 
 // ── Shop catalogue ────────────────────────────────────────────────────────
@@ -1995,34 +2057,34 @@ const SHOP_SECTIONS = [{
     emoji: '🎣',
     name: 'Lure I',
     cost: 100,
-    desc: '10% faster bite times + +1 Fish Buck per catch'
+    desc: '10% faster bite times + 1.5× catch value'
   }, {
     id: 'lure_2',
     emoji: '🎣',
     name: 'Lure II',
     cost: 500,
-    desc: '20% faster bite times + +2 Fish Bucks per catch',
+    desc: '20% faster bite times + 2× catch value',
     requires: 'lure_1'
   }, {
     id: 'lure_3',
     emoji: '🎣',
     name: 'Lure III',
     cost: 2500,
-    desc: '35% faster bite times + +5 Fish Bucks per catch',
+    desc: '35% faster bite times + 5× catch value',
     requires: 'lure_2'
   }, {
     id: 'lure_4',
     emoji: '🎣',
     name: 'Lure IV',
     cost: 15000,
-    desc: '50% faster bite times + +10 Fish Bucks per catch',
+    desc: '50% faster bite times + 10× catch value',
     requires: 'lure_3'
   }, {
     id: 'lure_5',
     emoji: '⭐',
     name: 'Master Lure',
     cost: 500000,
-    desc: '65% faster bite times + +20 Fish Bucks per catch — requires complete Encyclopaedia',
+    desc: '65% faster bite times + 20× catch value + +1% chance per legendary species — requires complete Encyclopaedia',
     requires: 'lure_4',
     encyclopaediaLocked: true
   }, {
@@ -2058,6 +2120,28 @@ const SHOP_SECTIONS = [{
     cost: 500000,
     desc: 'Auto-Fisher catch rate: 75% — now catches rare species too — requires complete Encyclopaedia',
     requires: 'autofisher_3',
+    encyclopaediaLocked: true
+  }, {
+    id: 'precise_angler_1',
+    emoji: '🎯',
+    name: 'Precise Angler',
+    cost: 50000,
+    desc: 'Reel within the first 50% of the bite window for 1.2× catch value',
+    tier: 2
+  }, {
+    id: 'precise_angler_2',
+    emoji: '🎯',
+    name: 'Precise Angler II',
+    cost: 100000,
+    desc: 'Also: reel within the first 20% for 1.5× catch value',
+    requires: 'precise_angler_1'
+  }, {
+    id: 'precise_angler_3',
+    emoji: '🎯',
+    name: 'Master Angler',
+    cost: 500000,
+    desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia',
+    requires: 'precise_angler_2',
     encyclopaediaLocked: true
   }]
 }, {
@@ -2700,7 +2784,9 @@ function StatsPanel({
     className: "stats-row"
   }, /*#__PURE__*/React.createElement("span", null, "Win Rate"), /*#__PURE__*/React.createElement("span", null, stats.spin_count > 0 ? (stats.win_count / stats.spin_count * 100).toFixed(1) + '%' : 'N/A')), /*#__PURE__*/React.createElement("div", {
     className: "stats-row"
-  }, /*#__PURE__*/React.createElement("span", null, "Season Fish Bucks"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "Season Fish Bucks"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks))), /*#__PURE__*/React.createElement("div", {
+    className: "stats-row"
+  }, /*#__PURE__*/React.createElement("span", null, "Fastest Catch"), /*#__PURE__*/React.createElement("span", null, stats.fastest_catch_pct != null ? `🎯 ${stats.fastest_catch_pct}%` : '—'))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "stats-season-history"
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-section-title"
@@ -3454,7 +3540,8 @@ function GameApp({
     speedMult: guardSpeedMult,
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
   }), (!isMobile && showChat || isMobile && mobilePanel === 'chat') && /*#__PURE__*/React.createElement(ChatPanel, {
-    extraClass: isMobile ? 'mobile-full' : ''
+    extraClass: isMobile ? 'mobile-full' : '',
+    onClose: isMobile ? null : () => setShowChat(false)
   }), /*#__PURE__*/React.createElement(FireEffect, {
     streak: streak,
     mode: fireMode,

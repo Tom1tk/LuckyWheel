@@ -790,7 +790,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
     if (data.result === 'hit') {
       consecutiveMissesRef.current = 0;
       const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
-      setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled });
+      setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled, preciseMult: data.precise_bonus ? data.precise_mult : null, precisePct: data.precise_pct != null ? data.precise_pct : null });
       onFishBucksUpdate(data.fish_clicks);
       if (data.first_catch) onCaughtSpeciesUpdate(data.species);
       setLuckyNextActive(!!data.lucky_next_active);
@@ -836,11 +836,11 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
           <div className="bite-bar-fill" key={expiresAt} style={{ animationDuration: `${biteWindowMs}ms` }} />
         </div>
       )}
-      {phase === 'bite' && <div className="bite-hint">TAP TO REEL!</div>}
+      {phase === 'bite' && <div className="bite-hint">CLICK TO REEL!</div>}
       {phase === 'success' && lastCatch && (
         <div className="catch-popup">
           <span className="catch-emoji">{lastCatch.emoji}</span>
-          <span className="catch-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' (2x!)' : ''}</span>
+          <span className="catch-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' (2x!)' : ''}{lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''}</span>
           {lastCatch.isNew && <span className="catch-new">NEW!</span>}
           {lastCatch.isLucky && <span className="catch-lucky">⭐ Lucky!</span>}
         </div>
@@ -894,7 +894,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
       </div>
       {lastCatch && (
         <div className="fishing-last-catch">
-          Last: {lastCatch.emoji} {lastCatch.name} +{lastCatch.value} 🐟
+          Last: {lastCatch.emoji} {lastCatch.name} +{lastCatch.value} 🐟{lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''}
         </div>
       )}
     </div>
@@ -1229,15 +1229,50 @@ function fmtChatTime(iso) {
   return `${h}:${m}${ampm}`;
 }
 
-function ChatPanel({ extraClass = '' }) {
+const CHAT_DEFAULT_SIZE = { w: 231, h: 224 };
+const CHAT_MIN_W = 180, CHAT_MIN_H = 150, CHAT_MAX_W = 620, CHAT_MAX_H = 620;
+
+function ChatPanel({ extraClass = '', onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [timeoutSecs, setTimeoutSecs] = useState(0);
+  const [size, setSize] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('chat_panel_size'));
+      if (s && s.w >= CHAT_MIN_W && s.h >= CHAT_MIN_H) return s;
+    } catch {}
+    return CHAT_DEFAULT_SIZE;
+  });
+  const panelRef = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollRef = useRef(null);
   const atBottomRef = useRef(true);
   const timeoutTimerRef = useRef(null);
+
+  // Persist size to localStorage whenever it changes (covers drag, close/reopen, refresh)
+  useEffect(() => {
+    localStorage.setItem('chat_panel_size', JSON.stringify(size));
+  }, [size]);
+
+  const onResizeMouseDown = useCallback((e) => {
+    e.preventDefault();
+    const rect = panelRef.current ? panelRef.current.getBoundingClientRect() : CHAT_DEFAULT_SIZE;
+    const startW = rect.width, startH = rect.height;
+    const startX = e.clientX, startY = e.clientY;
+
+    const onMove = (ev) => {
+      const newW = Math.min(CHAT_MAX_W, Math.max(CHAT_MIN_W, startW + (ev.clientX - startX)));
+      const newH = Math.min(CHAT_MAX_H, Math.max(CHAT_MIN_H, startH + (ev.clientY - startY)));
+      setSize({ w: newW, h: newH });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
 
   // Poll for new messages
   useEffect(() => {
@@ -1312,9 +1347,14 @@ function ChatPanel({ extraClass = '' }) {
 
   const isDisabled = timeoutSecs > 0;
 
+  const panelStyle = extraClass === 'mobile-full' ? {} : { width: size.w, height: size.h };
+
   return (
-    <div className={`chat-panel${extraClass ? ' ' + extraClass : ''}`}>
-      <div className="chat-panel-title">💬 Chat</div>
+    <div ref={panelRef} className={`chat-panel${extraClass ? ' ' + extraClass : ''}`} style={panelStyle}>
+      <div className="chat-panel-header">
+        <div className="chat-panel-title">💬 Chat</div>
+        {onClose && <button className="chat-close-btn" onClick={onClose} title="Close Chat">✕</button>}
+      </div>
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
         {messages.map(m => (
           <div key={m.id} className="chat-msg">
@@ -1343,6 +1383,9 @@ function ChatPanel({ extraClass = '' }) {
           disabled={isDisabled}
         >↑</button>
       </div>
+      {extraClass !== 'mobile-full' && (
+        <div className="chat-resize-handle" onMouseDown={onResizeMouseDown} title="Drag to resize" />
+      )}
     </div>
   );
 }
@@ -1415,16 +1458,19 @@ const SHOP_SECTIONS = [
     { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 70000, desc: 'Cosmic void aura',       requires: 'trail_5' },
   ]},
   { label: '🎣 Fishing Gear', items: [
-    { id: 'lure_1',       emoji: '🎣', name: 'Lure I',         cost: 100,     desc: '10% faster bite times + +1 Fish Buck per catch' },
-    { id: 'lure_2',       emoji: '🎣', name: 'Lure II',        cost: 500,     desc: '20% faster bite times + +2 Fish Bucks per catch', requires: 'lure_1' },
-    { id: 'lure_3',       emoji: '🎣', name: 'Lure III',       cost: 2500,    desc: '35% faster bite times + +5 Fish Bucks per catch', requires: 'lure_2' },
-    { id: 'lure_4',       emoji: '🎣', name: 'Lure IV',        cost: 15000,   desc: '50% faster bite times + +10 Fish Bucks per catch', requires: 'lure_3' },
-    { id: 'lure_5',       emoji: '⭐', name: 'Master Lure',     cost: 500000,  desc: '65% faster bite times + +20 Fish Bucks per catch — requires complete Encyclopaedia', requires: 'lure_4', encyclopaediaLocked: true },
+    { id: 'lure_1',       emoji: '🎣', name: 'Lure I',         cost: 100,     desc: '10% faster bite times + 1.5× catch value' },
+    { id: 'lure_2',       emoji: '🎣', name: 'Lure II',        cost: 500,     desc: '20% faster bite times + 2× catch value', requires: 'lure_1' },
+    { id: 'lure_3',       emoji: '🎣', name: 'Lure III',       cost: 2500,    desc: '35% faster bite times + 5× catch value', requires: 'lure_2' },
+    { id: 'lure_4',       emoji: '🎣', name: 'Lure IV',        cost: 15000,   desc: '50% faster bite times + 10× catch value', requires: 'lure_3' },
+    { id: 'lure_5',       emoji: '⭐', name: 'Master Lure',     cost: 500000,  desc: '65% faster bite times + 20× catch value + +1% chance per legendary species — requires complete Encyclopaedia', requires: 'lure_4', encyclopaediaLocked: true },
     { id: 'auto_cast',    emoji: '⏭️', name: 'Auto-Cast',      cost: 1000,    desc: 'Auto-casts line when idle — you still tap the bite window' },
     { id: 'autofisher_1', emoji: '🤖', name: 'Auto-Fisher I',  cost: 300,     desc: 'Automated fishing at 45% catch rate — common & uncommon only' },
     { id: 'autofisher_2', emoji: '🤖', name: 'Auto-Fisher II', cost: 2000,    desc: 'Auto-Fisher catch rate: 55% — common & uncommon only', requires: 'autofisher_1' },
     { id: 'autofisher_3', emoji: '🤖', name: 'Auto-Fisher III',cost: 12000,   desc: 'Auto-Fisher catch rate: 65% — common & uncommon only', requires: 'autofisher_2' },
     { id: 'autofisher_4', emoji: '🤖', name: 'Master Auto-Fisher', cost: 500000, desc: 'Auto-Fisher catch rate: 75% — now catches rare species too — requires complete Encyclopaedia', requires: 'autofisher_3', encyclopaediaLocked: true },
+    { id: 'precise_angler_1', emoji: '🎯', name: 'Precise Angler',        cost: 50000,  desc: 'Reel within the first 50% of the bite window for 1.2× catch value', tier: 2 },
+    { id: 'precise_angler_2', emoji: '🎯', name: 'Precise Angler II',     cost: 100000, desc: 'Also: reel within the first 20% for 1.5× catch value', requires: 'precise_angler_1' },
+    { id: 'precise_angler_3', emoji: '🎯', name: 'Master Angler',         cost: 500000, desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia', requires: 'precise_angler_2', encyclopaediaLocked: true },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
@@ -1761,6 +1807,7 @@ function StatsPanel({ open, onClose }) {
               <div className="stats-row"><span>Total Losses</span><span>{fmt(stats.loss_count)}</span></div>
               <div className="stats-row"><span>Win Rate</span><span>{stats.spin_count > 0 ? ((stats.win_count / stats.spin_count) * 100).toFixed(1) + '%' : 'N/A'}</span></div>
               <div className="stats-row"><span>Season Fish Bucks</span><span>{fmt(stats.total_fish_clicks)}</span></div>
+              <div className="stats-row"><span>Fastest Catch</span><span>{stats.fastest_catch_pct != null ? `🎯 ${stats.fastest_catch_pct}%` : '—'}</span></div>
             </div>
             {history.length > 0 && (
               <div className="stats-season-history">
@@ -2437,7 +2484,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
 
       {((!isMobile && showChat) || (isMobile && mobilePanel === 'chat')) && (
-        <ChatPanel extraClass={isMobile ? 'mobile-full' : ''} />
+        <ChatPanel extraClass={isMobile ? 'mobile-full' : ''} onClose={isMobile ? null : () => setShowChat(false)} />
       )}
 
       <FireEffect

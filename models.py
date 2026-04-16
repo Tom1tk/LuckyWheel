@@ -45,12 +45,18 @@ _AUTO_RARE_IDS    = [k for k in _ALL_IDS if k not in _AUTO_FISH_LEGENDARY]
 _AUTO_RARE_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_RARE_IDS]
 
 
-def roll_fish(auto_mode: bool, allow_rare: bool = False) -> str:
-    """Return a random fish species ID weighted by rarity."""
+def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False) -> str:
+    """Return a random fish species ID weighted by rarity.
+    master_lure=True adds +1% to each legendary species (whale, mermaid, lucky) — manual only.
+    """
     if auto_mode:
         if allow_rare:
             return random.choices(_AUTO_RARE_IDS, weights=_AUTO_RARE_WEIGHTS, k=1)[0]
         return random.choices(_AUTO_IDS, weights=_AUTO_WEIGHTS, k=1)[0]
+    if master_lure:
+        boosted = [w + (1.0 if k in _AUTO_FISH_LEGENDARY else 0.0)
+                   for k, w in zip(_ALL_IDS, _ALL_WEIGHTS)]
+        return random.choices(_ALL_IDS, weights=boosted, k=1)[0]
     return random.choices(_ALL_IDS, weights=_ALL_WEIGHTS, k=1)[0]
 
 
@@ -65,10 +71,10 @@ def lure_bite_delay_seconds(lure_level: int):
     return (round(base_min * (1 - r), 2), round(base_max * (1 - r), 2))
 
 
-def lure_value_bonus(lure_level: int) -> int:
-    """Flat fish-buck bonus added to every catch at this lure level."""
-    bonuses = {0: 0, 1: 1, 2: 2, 3: 5, 4: 10, 5: 20}
-    return bonuses.get(lure_level, 20)
+def lure_value_multiplier(lure_level: int) -> float:
+    """Multiplier applied to every catch at this lure level."""
+    mults = {0: 1.0, 1: 1.5, 2: 2.0, 3: 5.0, 4: 10.0, 5: 20.0}
+    return mults.get(lure_level, 20.0)
 
 
 def autofisher_catch_rate(autofisher_level: int) -> float:
@@ -78,9 +84,9 @@ def autofisher_catch_rate(autofisher_level: int) -> float:
 
 
 def fish_value(species_id: str, lure_level: int) -> int:
-    """Base catalog value + lure bonus (Lucky Fish doubling applied externally)."""
+    """Base catalog value × lure multiplier (Lucky Fish / Precise Angler doubling applied externally)."""
     base = FISH_CATALOG[species_id]['value']
-    return base + lure_value_bonus(lure_level)
+    return max(1, int(base * lure_value_multiplier(lure_level)))
 
 
 FISH_SKINS = {
@@ -209,6 +215,14 @@ SHOP_ITEMS = {
     'autofisher_2':   {'cost': 2_000,        'requires': 'autofisher_1'},
     'autofisher_3':   {'cost': 12_000,       'requires': 'autofisher_2'},
     'autofisher_4':   {'cost': 500_000,      'requires': 'autofisher_3'},
+    # Precise Angler upgrades: tiered multipliers for early reels.
+    # Level 1: ≤50% → 1.2x  (Tier 2 gate: 1 000 wins)
+    # Level 2: ≤20% → 1.5x  (≤50% still gives 1.2x)
+    # Level 3: ≤15% → 2.0x  (Master Angler — encyclopaedia locked)
+    # Multipliers are exclusive: highest gate hit wins.
+    'precise_angler_1': {'cost':  50_000,    'requires': None},
+    'precise_angler_2': {'cost': 100_000,    'requires': 'precise_angler_1'},
+    'precise_angler_3': {'cost': 500_000,    'requires': 'precise_angler_2'},
 }
 
 # Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
@@ -216,6 +230,7 @@ SHOP_ITEMS = {
 UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 10_000}
 UPGRADE_TIER_2 = {
     'regen_shield', 'auto_guard', 'final_frenzy', 'dice_charge_2',
+    'precise_angler_1',
 }
 UPGRADE_TIER_3 = {
     'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience', 'dice_charge_3',

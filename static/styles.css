@@ -868,7 +868,7 @@ body::before {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -2241,8 +2241,9 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   position: fixed;
   top: 56px;
   left: 12px;
-  width: 231px;
-  height: 224px;
+  /* width/height driven by inline style (user-resizable, persisted in localStorage) */
+  min-width: 180px;
+  min-height: 150px;
   display: flex;
   flex-direction: column;
   background: rgba(0, 5, 15, 0.92);
@@ -2253,15 +2254,72 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   z-index: 200;
 }
 
+.chat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
 .chat-panel-title {
   color: #AA00FF;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: 6px;
   opacity: 0.85;
-  flex-shrink: 0;
+}
+
+.chat-close-btn {
+  background: none;
+  border: none;
+  color: #6600BB;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 1px 3px;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: opacity 0.15s, color 0.15s;
+}
+.chat-close-btn:hover {
+  opacity: 1;
+  color: #AA00FF;
+}
+
+/* Bottom-right resize grip */
+.chat-resize-handle {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+.chat-resize-handle:hover {
+  opacity: 0.8;
+}
+/* Three diagonal dots indicator */
+.chat-resize-handle::before,
+.chat-resize-handle::after {
+  content: '';
+  position: absolute;
+  background: #AA00FF;
+  border-radius: 1px;
+}
+.chat-resize-handle::before {
+  width: 2px; height: 8px;
+  bottom: 1px; right: 5px;
+  transform: rotate(-45deg);
+  transform-origin: bottom right;
+  box-shadow: 4px 0 0 #AA00FF, 8px 0 0 #AA00FF;
+}
+.chat-resize-handle::after {
+  width: 2px; height: 2px;
+  bottom: 1px; right: 1px;
 }
 
 .chat-messages {

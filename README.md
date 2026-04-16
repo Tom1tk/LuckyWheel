@@ -18,8 +18,8 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - **Win-streak multiplier** — 3+ consecutive wins or losses triggers a scaling bonus. Exponential (×2 per step) up to streak 15, then soft-capped via cubic and linear growth beyond that
 - **Streak panel** — appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Streak persistence** — streak is saved server-side (refresh-to-reset exploit patched)
-- **Stats popup** — 📊 button shows total spins, wins, losses, win rate, lifetime fish taps, spendable balance, and **complete Season History**
-- **Community Pot** — All players can contribute Fish Clicks to a global pot. When the target is reached, a **30-minute win rate boost** activates for all players. Each fill permanently stacks +0.5% onto the boost rate (capped at 75%), so every window is stronger than the last. Between fills the game returns to 50/50. After the window expires, the pot resets with a 50%-higher target. Target decays 20% every 12 hours if unfilled.
+- **Stats popup** — 📊 button shows total spins, wins, losses, win rate, season fish bucks, fastest catch percentage, and **complete Season History**
+- **Community Pot** — All players can contribute Fish Bucks to a global pot. When the target is reached, a **30-minute win rate boost** activates for all players. Each fill permanently stacks +0.5% onto the boost rate (capped at 75%), so every window is stronger than the last. Between fills the game returns to 50/50. After the window expires, the pot resets with a 50%-higher target. Target decays 20% every 12 hours if unfilled.
 - **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice to add the sum (2–12) to your current win streak. Requires a win streak of 3+. Snake eyes (1+1) halves your streak instead. Charges recharge every 10 minutes (max 1–3, upgradeable in the shop).
 
 ### Authentication
@@ -30,12 +30,23 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - Brute-force protection: escalating lockouts after 5/10/20 failed attempts per username (1min/5min/1hr)
 - All login and registration attempts are logged with IP, normalised username, User-Agent, and rejection reason
 
-### Fish Mascot
+### Fish Mascot & Cast & Reel Fishing
 - A fish lives on the left side of the screen, centred vertically (desktop); accessible via the 🐟 toolbar button on mobile
 - Reacts to spin results (happy on win, sad on loss, idle otherwise)
 - Shows a fire aura when wins are ahead, a gloom aura when losses are ahead — aura size and intensity scale with the net gap (tight drop-shadow glow on the fish + large ambient blur halo behind it)
 - Trail effects (sparkle/fire/rainbow/frost/thunder/galaxy) and the aura glow coexist independently
-- Clickable — each click earns fish-click currency (server-side), tracked as both a spendable **Balance** and a permanent **Lifetime Taps** counter (never decremented)
+- The equipped fish emoji acts as your fisher — holds a rod and stands at the water's edge
+
+**Cast & Reel** (Season 6) — replaces passive fish clicking with an active timing minigame:
+- Click **🎣 CAST** to drop your line. Shadow fish drift near the bobber while you wait.
+- When the fish bites, a bite bar begins depleting — **click to reel** before it empties.
+- Click too early (before the bite indicator) and it's an instant miss.
+- Catch one of **13 species** across Common, Uncommon, Rare, and Legendary tiers. Each awards **Fish Bucks** scaled by your Lure level.
+- **Lucky Fish (⭐)** — a rare Legendary catch that doubles the value of your next successful reel.
+- **Auto-Cast** — re-casts automatically; you still handle the bite window.
+- **Auto-Fish** — fully automated; catches Common and Uncommon species (Rare unlocked by Master Auto-Fisher). Never catches Legendary fish.
+- **Fish Encyclopaedia** (📖 top-left) — tracks all 13 species. Completing it unlocks Master Lure and Master Auto-Fisher.
+- All timing is server-authoritative — the bite window and catch validation cannot be spoofed client-side.
 
 ### Auto-Spin
 - Checkbox to enable automatic spinning on a configurable delay
@@ -183,6 +194,43 @@ Passive income — server ticks fish clicks automatically. All Frenzy amounts ar
 | Frenzy IV | 300,000 | +50 |
 | Frenzy V | 3,000,000 | +100 |
 | Final Frenzy | 30,000,000 | +500 (requires Frenzy V; toggleable; disables manual clicking while active) |
+
+### 🎣 Fishing Gear (Costs Wins)
+
+**Lure Upgrades** — reduce bite wait time and multiply catch value. Both manual and Auto-Fish benefit.
+
+| Upgrade | Cost | Bite Speed | Value Multiplier |
+|---------|------|-----------|-----------------|
+| Lure I | 100 | 10% faster | 1.5× |
+| Lure II | 500 | 20% faster | 2× |
+| Lure III | 2,500 | 35% faster | 5× |
+| Lure IV | 15,000 | 50% faster | 10× |
+| ⭐ Master Lure | 500,000 | 65% faster | 20× + +1% per legendary |
+
+Master Lure requires completing the Fish Encyclopaedia (all 13 species caught).
+
+**Auto-Cast** (1,000 wins) — automatically re-casts the line when idle. You still handle the bite window.
+
+**Auto-Fisher** — unlock and improve the Auto-Fish tickbox. Auto-Fish fires every 6s, is rate-limited server-side, and never catches Legendary fish at any level.
+
+| Upgrade | Cost | Catch Rate | Species Pool |
+|---------|------|-----------|--------------|
+| Auto-Fisher I | 300 | 45% | Common + Uncommon |
+| Auto-Fisher II | 2,000 | 55% | Common + Uncommon |
+| Auto-Fisher III | 12,000 | 65% | Common + Uncommon |
+| 🤖 Master Auto-Fisher | 500,000 | 75% | Common + Uncommon + Rare |
+
+Master Auto-Fisher requires completing the Fish Encyclopaedia.
+
+**Precise Angler** (Tier 2, 1,000 wins) — rewards fast reflexes. Multipliers are exclusive; highest gate hit wins.
+
+| Upgrade | Cost | Threshold | Multiplier |
+|---------|------|-----------|-----------|
+| Precise Angler | 50,000 | ≤ 50% through bar | 1.2× |
+| Precise Angler II | 100,000 | ≤ 20% through bar | 1.5× |
+| 🎯 Master Angler | 500,000 | ≤ 15% through bar | 2× |
+
+Master Angler requires completing the Fish Encyclopaedia. Precise Angler multipliers stack with Lure and Lucky Fish multipliers independently.
 
 ### Protection (Costs Wins)
 | Item | Cost | Behaviour |
@@ -415,11 +463,14 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/equip` | POST | — | Equip a fish skin |
 | `/api/equip-cosmetic` | POST | — | Toggle a cosmetic item on/off |
 | `/api/community-pot/state` | GET | — | Current pot progress and target |
-| `/api/community-pot/contribute` | POST | 5/sec | Contribute fish clicks to the global pot |
-| `/api/fish-click` | POST | 5/sec | Increment fish clicks (DB-enforced budget: 75 raw clicks per 5s window) |
-| `/api/click-frenzy` | POST | 1/sec | Passive click income tick (DB-enforced 2s cooldown) |
+| `/api/community-pot/contribute` | POST | 5/sec | Contribute Fish Bucks to the global pot |
+| `/api/fish-click` | POST | 5/sec | Legacy endpoint — no-op (returns current state) |
+| `/api/click-frenzy` | POST | 1/sec | Legacy endpoint — no-op (returns current state) |
+| `/api/cast` | POST | 5/sec | Start a fishing session — returns `{bite_at, expires_at}` |
+| `/api/reel` | POST | 5/sec | Attempt a reel — server validates timing, returns catch result |
+| `/api/auto-fish-tick` | POST | 1/5sec | One automated catch cycle (requires Auto-Fisher I+) |
 | `/api/settings` | POST | — | Persist user preferences (e.g. `low_spec_mode`) |
-| `/api/stats` | GET | — | Personal stats (including Season History) |
+| `/api/stats` | GET | — | Personal stats (including Season History and fastest catch %) |
 | `/api/leaderboard` | GET | — | Public — top 10 players |
 
 `/api/spin` response:
@@ -471,7 +522,9 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `App` | Root: checks `/api/me`, renders `AuthPage` or `GameApp` |
 | `AuthPage` | Login/register form with error handling |
 | `GameApp` | Main game: wheel, fish, shop, all API calls |
-| `Fish` | Left-side mascot — aura, mood, trail effects, click animation |
+| `Fish` | Left-side mascot — aura, mood, trail effects |
+| `FishingPanel` | Cast & Reel minigame — bobber, bite bar, shadow fish, Auto-Cast/Auto-Fish toggles |
+| `FishEncyclopedia` | Modal showing all 13 catchable species (silhouettes until discovered) |
 | `GuardWheel` | Mini canvas wheel overlay for guard activation (50/50 animation) |
 | `StreakPanel` | Sidebar streak display (only shown at streak ≥ 2) |
 | `ShopPanel` | Two-column shop (cosmetics left, functional right); collapsible via a pinned `›`/`‹` toggle button |

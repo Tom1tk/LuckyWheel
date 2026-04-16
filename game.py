@@ -652,8 +652,8 @@ def buy():
             if requires and requires not in owned:
                 return jsonify({'error': 'Prerequisite not met'}), 400
 
-            # Master upgrades (lure_5, autofisher_4) require all 13 species caught
-            if item_id in ('lure_5', 'autofisher_4'):
+            # Master upgrades require all 13 species caught (complete Encyclopaedia)
+            if item_id in ('lure_5', 'autofisher_4', 'precise_angler_3'):
                 caught = set(gs['caught_species'])
                 all_species = set(FISH_CATALOG.keys())
                 if caught < all_species:
@@ -1019,7 +1019,8 @@ def reel_line():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT owned_items, fishing_cast_at, fishing_bite_at,
-                              fishing_lucky_next, caught_species, fish_clicks
+                              fishing_lucky_next, caught_species, fish_clicks,
+                              fastest_catch_pct
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -1053,14 +1054,31 @@ def reel_line():
             # Successful catch!
             owned          = list(gs['owned_items'])
             lure_level     = _lure_level(owned)
-            species_id     = roll_fish(auto_mode=False)
+            species_id     = roll_fish(auto_mode=False, master_lure=(lure_level >= 5))
             species        = FISH_CATALOG[species_id]
             value          = fish_value(species_id, lure_level)
             lucky_next     = bool(gs['fishing_lucky_next'])
             caught_species = list(gs['caught_species'])
+            was_doubled    = False
 
             if lucky_next:
                 value *= 2
+                was_doubled = True
+
+            # Precise Angler: tiered multiplier for early reels (exclusive — highest gate wins).
+            window_total_s = REEL_WINDOW_SECONDS
+            elapsed_s      = (now_utc - bite_at).total_seconds()
+            precise_pct    = round((elapsed_s / window_total_s) * 100, 1) if window_total_s > 0 else 100.0
+            precise_mult   = 1.0
+            if 'precise_angler_3' in owned and precise_pct <= 15.0:
+                precise_mult = 2.0
+            elif 'precise_angler_2' in owned and precise_pct <= 20.0:
+                precise_mult = 1.5
+            elif 'precise_angler_1' in owned and precise_pct <= 50.0:
+                precise_mult = 1.2
+            precise_bonus = precise_mult > 1.0
+            if precise_bonus:
+                value = int(value * precise_mult)
 
             new_lucky_next = (species_id == 'lucky')
             first_catch    = species_id not in caught_species
@@ -1069,12 +1087,17 @@ def reel_line():
 
             new_fish_clicks = int(gs['fish_clicks']) + value
 
+            # Track personal best (lowest = fastest) precise catch percentage
+            old_best = gs['fastest_catch_pct']
+            new_best = precise_pct if (old_best is None or precise_pct < old_best) else old_best
+
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s
+                       SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
+                           fastest_catch_pct = %s
                        WHERE user_id = %s''',
-                    (new_fish_clicks, new_lucky_next, caught_species, current_user.id),
+                    (new_fish_clicks, new_lucky_next, caught_species, new_best, current_user.id),
                 )
             conn.commit()
 
@@ -1085,6 +1108,10 @@ def reel_line():
             'species_name':     species['name'],
             'value':            value,
             'first_catch':      first_catch,
+            'was_doubled':      was_doubled,
+            'precise_bonus':    precise_bonus,
+            'precise_mult':     precise_mult,
+            'precise_pct':      precise_pct,
             'lucky_next_active': new_lucky_next,
             'fish_clicks':      new_fish_clicks,
         })
@@ -1241,7 +1268,7 @@ def stats():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT spin_count, win_count, loss_count, fish_clicks, total_fish_clicks FROM game_state WHERE user_id = %s',
+                    'SELECT spin_count, win_count, loss_count, fish_clicks, total_fish_clicks, fastest_catch_pct FROM game_state WHERE user_id = %s',
                     (current_user.id,)
                 )
                 row = cur.fetchone()
@@ -1270,12 +1297,13 @@ def stats():
             })
 
         return jsonify({
-            'spin_count':        row['spin_count'],
-            'win_count':         row['win_count'],
-            'loss_count':        row['loss_count'],
-            'fish_clicks':       row['fish_clicks'],
-            'total_fish_clicks': row['total_fish_clicks'],
-            'season_history':    season_history,
+            'spin_count':         row['spin_count'],
+            'win_count':          row['win_count'],
+            'loss_count':         row['loss_count'],
+            'fish_clicks':        row['fish_clicks'],
+            'total_fish_clicks':  row['total_fish_clicks'],
+            'fastest_catch_pct':  row['fastest_catch_pct'],
+            'season_history':     season_history,
         })
     except Exception:
         log.exception('STATS_ERROR  user_id=%s', current_user.id)
