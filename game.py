@@ -652,8 +652,8 @@ def buy():
             if requires and requires not in owned:
                 return jsonify({'error': 'Prerequisite not met'}), 400
 
-            # Master Lure (lure_5) requires all 13 species caught
-            if item_id == 'lure_5':
+            # Master upgrades (lure_5, autofisher_4) require all 13 species caught
+            if item_id in ('lure_5', 'autofisher_4'):
                 caught = set(gs['caught_species'])
                 all_species = set(FISH_CATALOG.keys())
                 if caught < all_species:

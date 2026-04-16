@@ -2021,7 +2021,7 @@ const SHOP_SECTIONS = [{
     id: 'lure_5',
     emoji: '⭐',
     name: 'Master Lure',
-    cost: 100000,
+    cost: 500000,
     desc: '65% faster bite times + +20 Fish Bucks per catch — requires complete Encyclopaedia',
     requires: 'lure_4',
     encyclopaediaLocked: true
@@ -2055,9 +2055,10 @@ const SHOP_SECTIONS = [{
     id: 'autofisher_4',
     emoji: '🤖',
     name: 'Master Auto-Fisher',
-    cost: 75000,
-    desc: 'Auto-Fisher catch rate: 75% — now catches rare species too',
-    requires: 'autofisher_3'
+    cost: 500000,
+    desc: 'Auto-Fisher catch rate: 75% — now catches rare species too — requires complete Encyclopaedia',
+    requires: 'autofisher_3',
+    encyclopaediaLocked: true
   }]
 }, {
   label: '🛡️ Protection',

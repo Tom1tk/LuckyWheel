@@ -202,13 +202,13 @@ SHOP_ITEMS = {
     'lure_2':         {'cost': 500,          'requires': 'lure_1'},
     'lure_3':         {'cost': 2_500,        'requires': 'lure_2'},
     'lure_4':         {'cost': 15_000,       'requires': 'lure_3'},
-    'lure_5':         {'cost': 100_000,      'requires': 'lure_4'},
+    'lure_5':         {'cost': 500_000,      'requires': 'lure_4'},
     # Auto-Fisher upgrades: unlock Auto-Fish tickbox; improve auto catch rate.
     # Auto-Fish NEVER catches whale/mermaid/lucky at any level.
     'autofisher_1':   {'cost': 300,          'requires': None},
     'autofisher_2':   {'cost': 2_000,        'requires': 'autofisher_1'},
     'autofisher_3':   {'cost': 12_000,       'requires': 'autofisher_2'},
-    'autofisher_4':   {'cost': 75_000,       'requires': 'autofisher_3'},
+    'autofisher_4':   {'cost': 500_000,      'requires': 'autofisher_3'},
 }
 
 # Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
