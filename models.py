@@ -113,6 +113,9 @@ SHOP_ITEMS = {
     # Dice charge upgrades (unlocked via tier gating)
     'dice_charge_2':  {'cost': 2_000,        'requires': None},
     'dice_charge_3':  {'cost': 15_000,       'requires': 'dice_charge_2'},
+    'dice_charge_4':  {'cost': 100_000,      'requires': 'dice_charge_3'},
+    # Extra Die — roll 3 dice; requires Tier 3 + dice_charge_3
+    'dice_extra':     {'cost': 1_000_000,    'requires': 'dice_charge_3'},
     'turbo_spin':     {'cost': 1_000,        'requires': 'speed_boost'},
     'hyperspin':      {'cost': 10_000,       'requires': 'turbo_spin'},
     'ultraspin':      {'cost': 100_000,      'requires': 'hyperspin'},
@@ -121,21 +124,21 @@ SHOP_ITEMS = {
     'autospeed_1':    {'cost': 200,          'requires': None},
     'autospeed_2':    {'cost': 10_000,       'requires': 'autospeed_1'},
     'autospeed_3':    {'cost': 1_000_000,    'requires': 'autospeed_2'},
-    # Win power
+    # Win power (Season 6: shallower scaling — matches winmult_inf tier_costs)
     'winmult_1':      {'cost': 200,         'requires': None},
-    'winmult_2':      {'cost': 800,         'requires': 'winmult_1'},
-    'winmult_3':      {'cost': 3200,        'requires': 'winmult_2'},
-    'winmult_4':      {'cost': 12800,       'requires': 'winmult_3'},
-    'winmult_5':      {'cost': 51200,       'requires': 'winmult_4'},
-    'winmult_6':      {'cost': 204800,      'requires': 'winmult_5'},
-    'winmult_7':      {'cost': 819200,      'requires': 'winmult_6'},
-    # Bonus power
+    'winmult_2':      {'cost': 600,         'requires': 'winmult_1'},
+    'winmult_3':      {'cost': 2000,        'requires': 'winmult_2'},
+    'winmult_4':      {'cost': 6400,        'requires': 'winmult_3'},
+    'winmult_5':      {'cost': 20000,       'requires': 'winmult_4'},
+    'winmult_6':      {'cost': 64000,       'requires': 'winmult_5'},
+    'winmult_7':      {'cost': 200000,      'requires': 'winmult_6'},
+    # Bonus power (Season 6: shallower scaling — matches bonusmult_inf tier_costs)
     'bonusmult_1':    {'cost': 300,         'requires': None},
-    'bonusmult_2':    {'cost': 1200,        'requires': 'bonusmult_1'},
-    'bonusmult_3':    {'cost': 4800,        'requires': 'bonusmult_2'},
-    'bonusmult_4':    {'cost': 20000,       'requires': 'bonusmult_3'},
-    'bonusmult_5':    {'cost': 80000,       'requires': 'bonusmult_4'},
-    'bonusmult_6':    {'cost': 300000,      'requires': 'bonusmult_5'},
+    'bonusmult_2':    {'cost': 900,         'requires': 'bonusmult_1'},
+    'bonusmult_3':    {'cost': 2800,        'requires': 'bonusmult_2'},
+    'bonusmult_4':    {'cost': 8500,        'requires': 'bonusmult_3'},
+    'bonusmult_5':    {'cost': 26000,       'requires': 'bonusmult_4'},
+    'bonusmult_6':    {'cost': 80000,       'requires': 'bonusmult_5'},
     # Fish size (cosmetic — controls fishing panel scale; all 1 loss as accessibility features)
     'fishsize_small': {'cost': 1,            'requires': None},
     'fishsize_1':     {'cost': 1,            'requires': None},
@@ -228,13 +231,14 @@ SHOP_ITEMS = {
 
 # Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
 # Thresholds are based on win_count (total wins earned all-time this season)
-UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 10_000}
+UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 5_000}
 UPGRADE_TIER_2 = {
     'regen_shield', 'auto_guard', 'final_frenzy', 'dice_charge_2',
     'precise_angler_1',
 }
 UPGRADE_TIER_3 = {
-    'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience', 'dice_charge_3',
+    'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience',
+    'dice_charge_3', 'dice_charge_4', 'dice_extra',
 }
 
 def item_tier(item_id):
@@ -296,15 +300,15 @@ INFINITE_UPGRADE_CURRENCY = {
 INFINITE_UPGRADES = {
     'winmult_inf': {
         'db_column':    'winmult_inf_level',
-        'tier_costs':   [200, 800, 3200, 12800, 51200, 204800, 819200],
-        'inf_base_cost': 500_000,
-        'inf_scale':     1.25,
+        'tier_costs':   [200, 600, 2000, 6400, 20000, 64000, 200000],
+        'inf_base_cost': 400_000,
+        'inf_scale':     1.18,
     },
     'bonusmult_inf': {
         'db_column':    'bonusmult_inf_level',
-        'tier_costs':   [300, 1200, 4800, 20000, 80000, 300000],
-        'inf_base_cost': 250_000,
-        'inf_scale':     1.25,
+        'tier_costs':   [300, 900, 2800, 8500, 26000, 80000],
+        'inf_base_cost': 200_000,
+        'inf_scale':     1.18,
     },
     'clickmult_inf': {
         'db_column':    'clickmult_inf_level',
@@ -352,19 +356,21 @@ def click_mult_from_level(level):
     return 1 + level * 0.25                    # 1.25, 1.5, 1.75, 2.0, 2.25, …
 
 def streak_bonus(count):
-    """Season 5 soft-capped streak bonus formula.
-    Keeps exponential growth through streak 15, then cubic to 35, then linear.
-    Streak 1-15: identical to old formula (2^(count-3)).
+    """Season 6 streak bonus formula.
+    Keeps exponential through streak 15, then buffs mid/high range.
+    Hard cap at streak 150 to prevent runaway numbers.
     """
     if count < 3:
         return 0
     if count <= 15:
-        return 1 << (count - 3)          # exponential: 1 to 4096 (identical to old)
+        return 1 << (count - 3)                      # exponential: 1 → 4096 (unchanged)
     if count <= 35:
-        return 4096 + (count - 15) ** 3  # cubic: 4096 to 12096
+        return 4096 + (count - 15) ** 3 * 2          # cubic ×2: 4096 → 20,096
     if count <= 75:
-        return 12096 + (count - 35) * 500  # linear: 12096 to 32096
-    return 32096 + (count - 75) * 200      # slow linear
+        return 20096 + (count - 35) * 1200           # linear 1.2k/step: 20,096 → 68,096
+    if count <= 150:
+        return 68096 + (count - 75) * 600            # slower linear: 68,096 → 113,096
+    return 113096                                     # hard cap
 
 
 # Dice roll constants (Season 5)
@@ -374,6 +380,8 @@ DICE_MAX_CHARGES_BASE = 1     # default max without upgrades
 
 def dice_max_charges(owned_items):
     """Return the maximum dice charges based on owned upgrades."""
+    if 'dice_charge_4' in owned_items:
+        return 4
     if 'dice_charge_3' in owned_items:
         return 3
     if 'dice_charge_2' in owned_items:

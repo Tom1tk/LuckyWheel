@@ -15,12 +15,12 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 ### Core Gameplay
 - **Spinning wheel** — WIN or LOSE, styled as a neon casino wheel with smooth CSS rotation
 - **Win/loss counter** — persisted in PostgreSQL across sessions and devices
-- **Win-streak multiplier** — 3+ consecutive wins or losses triggers a scaling bonus. Exponential (×2 per step) up to streak 15, then soft-capped via cubic and linear growth beyond that
+- **Win-streak multiplier** — 3+ consecutive wins or losses triggers a scaling bonus. Exponential (×2 per step) up to streak 15, then buffed cubic and linear growth, with a hard cap at streak 150 (~113,096 raw bonus)
 - **Streak panel** — appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Streak persistence** — streak is saved server-side (refresh-to-reset exploit patched)
 - **Stats popup** — 📊 button shows total spins, wins, losses, win rate, season fish bucks, fastest catch percentage, and **complete Season History**
-- **Community Pot** — All players can contribute Fish Bucks to a global pot. When the target is reached, a **30-minute win rate boost** activates for all players. Each fill permanently stacks +0.5% onto the boost rate (capped at 75%), so every window is stronger than the last. Between fills the game returns to 50/50. After the window expires, the pot resets with a 50%-higher target. Target decays 20% every 12 hours if unfilled.
-- **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice to add the sum (2–12) to your current win streak. Requires a win streak of 3+. Snake eyes (1+1) halves your streak instead. Charges recharge every 10 minutes (max 1–3, upgradeable in the shop).
+- **Community Pot** — All players can contribute Fish Bucks to a global pot. When the target is reached, a **30-minute win rate boost** activates for all players. Each fill permanently stacks +0.5% onto the boost rate (capped at 75%), so every window is stronger than the last. Between fills the game returns to 50/50. After the window expires, the pot resets with a **25%-higher target** (×1.25). Target decays 20% every 12 hours if unfilled.
+- **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice (or three with the Extra Die upgrade) to add the sum (2–18) to your current win streak. Requires a win streak of 3+. Snake eyes halves your streak; a pair of sixes doubles it. With three dice: triple 1s ÷3, triple 6s ×3. Charges recharge every 10 minutes (max 1–4, upgradeable in the shop).
 
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
@@ -101,7 +101,7 @@ Functional upgrades are gated behind total win milestones. Locked items appear g
 |------|------------|---------------|
 | Tier 1 | Always available | Speed upgrades, Guard, Click Frenzy I–IV, Win/Bonus/Click Power |
 | Tier 2 | 1,000 total wins | Regenerating Shield, Auto-Guard, Final Frenzy, Extra Dice Charge |
-| Tier 3 | 10,000 total wins | Fortune Charm, Lucky Seven, Win Echo, Jackpot, Resilience, Max Dice Charge |
+| Tier 3 | 5,000 total wins | Fortune Charm, Lucky Seven, Win Echo, Jackpot, Resilience, Max Dice Charge, Overcharge, Extra Die |
 
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
@@ -145,8 +145,8 @@ Multiplies each win's score contribution. Single item purchased repeatedly — n
 
 | Level range | Cost per level | Multiplier |
 |-------------|----------------|-----------|
-| Lv 1–7 | 200 / 800 / 3,200 / 12,800 / 51,200 / 204,800 / 819,200 | ×2 → ×128 |
-| Lv 8+ | 500,000 × 1.25^(level−8) | +16 per level (×144, ×160, …) |
+| Lv 1–7 | 200 / 600 / 2,000 / 6,400 / 20,000 / 64,000 / 200,000 | ×2 → ×128 |
+| Lv 8+ | 400,000 × 1.18^(level−8) | +16 per level (×144, ×160, …) |
 
 The shop card shows current level and next multiplier: **Lv3 · ×8 → ×16**.
 
@@ -155,8 +155,8 @@ Multiplies streak bonus payouts — for both win streaks **and** loss streaks. �
 
 | Level range | Cost per level | Multiplier |
 |-------------|----------------|-----------|
-| Lv 1–6 | 300 / 1,200 / 4,800 / 20,000 / 80,000 / 300,000 | ×2 → ×100 |
-| Lv 7+ | 250,000 × 1.25^(level−7) | +10 per level (×110, ×120, …) |
+| Lv 1–6 | 300 / 900 / 2,800 / 8,500 / 26,000 / 80,000 | ×2 → ×100 |
+| Lv 7+ | 200,000 × 1.18^(level−7) | +10 per level (×110, ×120, …) |
 
 ### Fish Size (Costs Losses)
 | Tier | Cost | Fish Size |
@@ -289,10 +289,12 @@ Ocean Casino is the **default background** for all players in Season 5 (animated
 | Item | Cost | Effect | Tier |
 |------|------|--------|------|
 | Extra Charge | 2,000 | Max dice charges: 1 → 2 | Tier 2 (1k wins) |
-| Max Charge | 15,000 | Max dice charges: 2 → 3 | Tier 3 (10k wins) |
+| Max Charge | 15,000 | Max dice charges: 2 → 3 | Tier 3 (5k wins) |
+| 🎲 Overcharge | 100,000 | Max dice charges: 3 → 4 | Tier 3 (5k wins) |
+| 🎲 Extra Die | 1,000,000 | Roll 3 dice. Triple 6s ×3, Triple 1s ÷3 | Tier 3 (5k wins) |
 
 ### 🎲 Special Upgrades (Costs Wins)
-All Special Upgrades require Tier 3 (10,000 total wins) to unlock.
+All Special Upgrades require Tier 3 (5,000 total wins) to unlock.
 
 | Item | Cost | Effect |
 |------|------|--------|

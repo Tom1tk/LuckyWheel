@@ -74,6 +74,52 @@ The Stats panel now shows a **Fastest Catch** row (under Season Fish Bucks) trac
 - The chat panel is now **resizable** from the bottom-right corner (drag handle shown). Size persists across sessions via `localStorage`.
 - A small **✕** close button added to the top-right of the chat panel. Re-open via the 💬 button in the top-left user bar.
 
+### Season 6 Rebalance — 17 Apr 2026
+
+A round of balance changes focused on rewarding active play over passive AFK spinning.
+
+#### Streak Bonus: Buffed Mid/High Range + Hard Cap
+High streaks now pay significantly more. The soft-cap introduced in Season 5 was too aggressive — the mid and late curve segments have been boosted, and a hard cap replaces the old unbounded slow linear tail.
+
+| Streak | S5 Bonus | S6 Bonus | Change |
+|--------|---------|---------|--------|
+| 15 | 4,096 | 4,096 | unchanged |
+| 35 | 12,096 | 20,096 | +66% |
+| 50 | 19,596 | 38,096 | +94% |
+| 75 | 32,096 | 68,096 | +112% |
+| 100 | 37,096 | 83,096 | +124% |
+| 150 | 47,096 | **113,096** (cap) | +140% |
+
+These are raw bonus values before Win Multiplier, Bonus Multiplier, Win Echo, and Fortune Charm — the effective multiplied payouts remain within hundreds of billions.
+
+#### Tier 3 Gate Lowered: 10,000 → 5,000 Wins
+Tier 3 upgrades (Win Echo, Jackpot, Fortune Charm, Lucky Seven, Resilience, Dice upgrades) now unlock at **5,000 wins** instead of 10,000. Mid-week players can reach the endgame upgrade loop before the scoreboard locks.
+
+#### Upgrade Pacing: Cheaper Infinite Scaling
+Win Power and Bonus Power infinite levels now scale more gently:
+
+| Upgrade | Old Base | Old Scale | New Base | New Scale |
+|---------|---------|---------|---------|---------|
+| Win Power (inf) | 500,000 | ×1.25/lvl | 400,000 | ×1.18/lvl |
+| Bonus Power (inf) | 250,000 | ×1.25/lvl | 200,000 | ×1.18/lvl |
+
+The fixed-tier step costs are also shallower — active reinvestors will consistently afford the next level rather than being priced out in the mid-week.
+
+#### New Dice Upgrades
+Two new Tier 3 dice upgrades:
+
+- **🎲 Overcharge** (100,000 wins) — raises max dice charges from 3 → **4**. More rolls per session for active players.
+- **🎲 Extra Die** (1,000,000 wins) — roll **3 dice** instead of 2. Range expands to 3–18. New triple outcomes:
+  - **Triple 6s (6,6,6)**: streak **×3** (Blessed Triple!)
+  - **Triple 1s (1,1,1)**: streak **÷3** (Cursed Triple!)
+  - Pair of 6s: streak ×2 (unchanged)
+  - Pair of 1s: streak ÷2 (unchanged)
+
+Extra Die requires owning Dice Charge III. Both upgrades are Tier 3 (5,000 wins gate).
+
+#### Community Pot: Slower Cap Growth
+The pot target now grows by **×1.25** per fill instead of ×1.5. After 10 fills the target is ~9,300 instead of ~57,700. Late-week pot fills should be achievable again for groups of active fishers.
+
 ---
 
 ## Balance Hotfix — 11 Apr 2026

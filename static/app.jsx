@@ -988,9 +988,10 @@ function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
   return secsToNext;
 }
 
-function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge }) {
+function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, hasDiceExtra }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
+  const [animDie3, setAnimDie3] = React.useState(1);
   const [landed, setLanded]     = React.useState(false);
   const [showResult, setShowResult] = React.useState(false);
   const [tipVisible, setTipVisible] = React.useState(false);
@@ -1007,6 +1008,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
       intervalRef.current = setInterval(() => {
         setAnimDie1(Math.ceil(Math.random() * 6));
         setAnimDie2(Math.ceil(Math.random() * 6));
+        setAnimDie3(Math.ceil(Math.random() * 6));
       }, 80);
     } else {
       clearInterval(intervalRef.current);
@@ -1018,6 +1020,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
     if (diceResult) {
       setAnimDie1(diceResult.die1);
       setAnimDie2(diceResult.die2);
+      if (diceResult.die3 != null) setAnimDie3(diceResult.die3);
       setLanded(true);
       setShowResult(true);
       const t = setTimeout(() => { setShowResult(false); setLanded(false); }, 3000);
@@ -1029,6 +1032,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
 
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
+  const die3Val = (rolling && !lowSpec) ? animDie3 : (diceResult && diceResult.die3 != null ? diceResult.die3 : animDie3);
 
   const showTip = () => {
     if (spinning || guardSpinning) return;
@@ -1071,10 +1075,15 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
       <div className="dice-row">
         <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
         <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
+        {hasDiceExtra && <Die value={die3Val} rolling={rolling && !lowSpec} landed={landed} />}
       </div>
       {showResult && diceResult && (
         <span className={`dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`}>
-          {diceResult.cursed
+          {diceResult.cursed_triple
+            ? `💀 TRIPLE CURSE! Streak ÷3`
+            : diceResult.blessed_triple
+            ? `🌟 TRIPLE BLESSED! Streak ×3!`
+            : diceResult.cursed
             ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}`
             : `+${diceResult.streak_delta} streak!`}
         </span>
@@ -1512,6 +1521,8 @@ const SHOP_SECTIONS = [
   { label: '🎲 Dice Charges', items: [
     { id: 'dice_charge_2', emoji: '🎲', name: 'Extra Charge',    cost: 2000,    desc: 'Max dice charges: 1 → 2', tier: 2 },
     { id: 'dice_charge_3', emoji: '🎲', name: 'Max Charge',      cost: 15000,   desc: 'Max dice charges: 2 → 3', requires: 'dice_charge_2', tier: 3 },
+    { id: 'dice_charge_4', emoji: '🎲', name: 'Overcharge',      cost: 100000,  desc: 'Max dice charges: 3 → 4', requires: 'dice_charge_3', tier: 3 },
+    { id: 'dice_extra',    emoji: '🎲', name: 'Extra Die',        cost: 1000000, desc: 'Roll 3 dice instead of 2. Triple curses and triple blessings possible.', requires: 'dice_charge_3', tier: 3 },
   ]},
   { label: '🎲 Special Upgrades', items: [
     { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 50000,    desc: '25% chance: +25% to streak bonus payout', tier: 3 },
@@ -2074,6 +2085,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   [ownedItems]);
 
   const diceMaxCharges = useMemo(() => {
+    if (ownedItems.includes('dice_charge_4')) return 4;
     if (ownedItems.includes('dice_charge_3')) return 3;
     if (ownedItems.includes('dice_charge_2')) return 2;
     return 1;
@@ -2285,8 +2297,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setTimeout(() => {
       const streakDelta = data.streak - prevStreak;
       setDiceResult({
-        die1: data.die1, die2: data.die2, dice_sum: data.dice_sum,
-        streak_delta: streakDelta, cursed: data.cursed,
+        die1: data.die1, die2: data.die2, die3: data.die3 ?? null,
+        dice_sum: data.dice_sum,
+        streak_delta: streakDelta, cursed: data.cursed, blessed: data.blessed,
+        cursed_triple: data.cursed_triple ?? false,
+        blessed_triple: data.blessed_triple ?? false,
         streak_before: prevStreak, streak_after: data.streak,
       });
       setStreak(data.streak);
@@ -2669,6 +2684,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             diceCharges={diceCharges}
             maxDiceCharges={diceMaxCharges}
             diceLastRecharge={diceLastRecharge}
+            hasDiceExtra={ownedItems.includes('dice_extra')}
           />
         )}
 

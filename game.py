@@ -214,9 +214,9 @@ def spin():
                 pot_row and pot_row['filled'] and pot_row['filled_at'] and
                 pot_row['filled_at'] > now_utc - dt.timedelta(minutes=30)
             )
-            # Auto-reset expired pot: advance to next target (×1.5), reset contributions
+            # Auto-reset expired pot: advance to next target (×1.25), reset contributions
             if pot_row and pot_row['filled'] and not pot_active:
-                new_pot_target = max(int(pot_row['target'] * 1.5), 1)
+                new_pot_target = max(int(pot_row['target'] * 1.25), 1)
                 with conn.cursor() as cur2:
                     cur2.execute(
                         '''UPDATE community_pot SET filled = false, filled_at = NULL,
@@ -506,15 +506,24 @@ def roll_dice():
             if gs['dice_rolled_since_spin']:
                 return jsonify({'error': 'You must spin once before rolling again'}), 400
 
-            die1     = random.randint(1, 6)
-            die2     = random.randint(1, 6)
-            dice_sum = die1 + die2
+            num_dice = 3 if 'dice_extra' in owned else 2
+            dice     = [random.randint(1, 6) for _ in range(num_dice)]
+            dice_sum = sum(dice)
 
-            # Snake eyes (1,1): lose half the win streak — cursed roll!
-            # Double sixes (6,6): double the win streak — blessed roll!
-            cursed  = (die1 == 1 and die2 == 1)
-            blessed = (die1 == 6 and die2 == 6)
-            if cursed:
+            ones  = dice.count(1)
+            sixes = dice.count(6)
+            # Triple outcomes (3-die only): cursed_triple / blessed_triple take priority
+            cursed_triple  = (num_dice == 3 and ones  == 3)
+            blessed_triple = (num_dice == 3 and sixes == 3)
+            # Pair outcomes: any two 1s or two 6s (includes snake-eyes on 2-die)
+            cursed  = not cursed_triple  and ones  >= 2
+            blessed = not blessed_triple and sixes >= 2
+
+            if cursed_triple:
+                new_streak = max(0, streak // 3)
+            elif blessed_triple:
+                new_streak = streak * 3
+            elif cursed:
                 new_streak = max(0, streak // 2)
             elif blessed:
                 new_streak = streak * 2
@@ -538,14 +547,18 @@ def roll_dice():
             conn.commit()
 
         return jsonify({
-            'die1':              die1,
-            'die2':              die2,
-            'dice_sum':          dice_sum,
-            'cursed':            cursed,
-            'blessed':           blessed,
-            'streak':            new_streak,
-            'wins':              wins,
-            'dice_charges':      new_charges,
+            'die1':               dice[0],
+            'die2':               dice[1],
+            'die3':               dice[2] if len(dice) > 2 else None,
+            'dice':               dice,
+            'dice_sum':           dice_sum,
+            'cursed':             cursed or cursed_triple,
+            'blessed':            blessed or blessed_triple,
+            'cursed_triple':      cursed_triple,
+            'blessed_triple':     blessed_triple,
+            'streak':             new_streak,
+            'wins':               wins,
+            'dice_charges':       new_charges,
             'dice_last_recharge': last_recharge.isoformat(),
         })
     except Exception:
@@ -752,7 +765,7 @@ def community_pot_state():
             )
             # Lazy reset: if window expired, advance target and clear filled state
             if pot['filled'] and not pot_active:
-                new_pot_target = max(int(pot['target'] * 1.5), 1)
+                new_pot_target = max(int(pot['target'] * 1.25), 1)
                 with conn.cursor() as cur2:
                     cur2.execute(
                         '''UPDATE community_pot SET filled = false, filled_at = NULL,
@@ -813,8 +826,8 @@ def community_pot_contribute():
                 pot_window_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
                 if pot_window_active:
                     return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
-                # Window expired: advance to next target (×1.5), reset contributions
-                new_exp_target = max(int(pot['target'] * 1.5), 1)
+                # Window expired: advance to next target (×1.25), reset contributions
+                new_exp_target = max(int(pot['target'] * 1.25), 1)
                 with conn.cursor() as cur2:
                     cur2.execute(
                         '''UPDATE community_pot SET filled = false, filled_at = NULL,

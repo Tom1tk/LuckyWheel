@@ -386,14 +386,14 @@ function drawWheel(canvas, theme = 'default') {
   const THEMES = {
     default: [{
       label: 'WIN',
-      color: '#110077',
-      bright: '#5533FF',
+      color: '#550088',
+      bright: '#AA00FF',
       start: -Math.PI / 2,
       end: Math.PI / 2
     }, {
       label: 'LOSE',
-      color: '#440011',
-      bright: '#CC2244',
+      color: '#7a3300',
+      bright: '#FF6600',
       start: Math.PI / 2,
       end: Math.PI * 1.5
     }],
@@ -528,7 +528,7 @@ function drawWheel(canvas, theme = 'default') {
   });
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = segments[0].bright;
+  ctx.strokeStyle = '#FFD700';
   ctx.lineWidth = 6;
   ctx.stroke();
   ctx.beginPath();
@@ -563,10 +563,10 @@ function drawGuardWheel(canvas) {
   ctx.fillStyle = gFail;
   ctx.fill();
 
-  // WIN segment (primary)
+  // WIN segment (cyan)
   const gWin = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gWin.addColorStop(0, '#7755FF');
-  gWin.addColorStop(1, '#110077');
+  gWin.addColorStop(0, '#55EEEE');
+  gWin.addColorStop(1, '#006666');
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, winStart, winEnd);
@@ -1297,10 +1297,12 @@ function DicePanel({
   lowSpec,
   diceCharges,
   maxDiceCharges,
-  diceLastRecharge
+  diceLastRecharge,
+  hasDiceExtra
 }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
+  const [animDie3, setAnimDie3] = React.useState(1);
   const [landed, setLanded] = React.useState(false);
   const [showResult, setShowResult] = React.useState(false);
   const [tipVisible, setTipVisible] = React.useState(false);
@@ -1318,6 +1320,7 @@ function DicePanel({
       intervalRef.current = setInterval(() => {
         setAnimDie1(Math.ceil(Math.random() * 6));
         setAnimDie2(Math.ceil(Math.random() * 6));
+        setAnimDie3(Math.ceil(Math.random() * 6));
       }, 80);
     } else {
       clearInterval(intervalRef.current);
@@ -1328,6 +1331,7 @@ function DicePanel({
     if (diceResult) {
       setAnimDie1(diceResult.die1);
       setAnimDie2(diceResult.die2);
+      if (diceResult.die3 != null) setAnimDie3(diceResult.die3);
       setLanded(true);
       setShowResult(true);
       const t = setTimeout(() => {
@@ -1340,6 +1344,7 @@ function DicePanel({
   const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning;
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
+  const die3Val = rolling && !lowSpec ? animDie3 : diceResult && diceResult.die3 != null ? diceResult.die3 : animDie3;
   const showTip = () => {
     if (spinning || guardSpinning) return;
     const rect = descRef.current && descRef.current.getBoundingClientRect();
@@ -1395,9 +1400,13 @@ function DicePanel({
     value: die2Val,
     rolling: rolling && !lowSpec,
     landed: landed
+  }), hasDiceExtra && /*#__PURE__*/React.createElement(Die, {
+    value: die3Val,
+    rolling: rolling && !lowSpec,
+    landed: landed
   })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
     className: `dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`
-  }, diceResult.cursed ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}` : `+${diceResult.streak_delta} streak!`), /*#__PURE__*/React.createElement("button", {
+  }, diceResult.cursed_triple ? `💀 TRIPLE CURSE! Streak ÷3` : diceResult.blessed_triple ? `🌟 TRIPLE BLESSED! Streak ×3!` : diceResult.cursed ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}` : `+${diceResult.streak_delta} streak!`), /*#__PURE__*/React.createElement("button", {
     className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
@@ -2337,12 +2346,6 @@ const SHOP_SECTIONS = [{
     name: 'Season 5 Theme',
     cost: 1000,
     desc: 'Bioluminescent deep ocean theme (S5).'
-  }, {
-    id: 'page_season6',
-    emoji: '🌑',
-    name: 'Season 6 Theme',
-    cost: 1000,
-    desc: 'Night ocean deep blue theme (S6).'
   }]
 }, {
   label: '🎲 Dice Charges',
@@ -2360,6 +2363,22 @@ const SHOP_SECTIONS = [{
     cost: 15000,
     desc: 'Max dice charges: 2 → 3',
     requires: 'dice_charge_2',
+    tier: 3
+  }, {
+    id: 'dice_charge_4',
+    emoji: '🎲',
+    name: 'Overcharge',
+    cost: 100000,
+    desc: 'Max dice charges: 3 → 4',
+    requires: 'dice_charge_3',
+    tier: 3
+  }, {
+    id: 'dice_extra',
+    emoji: '🎲',
+    name: 'Extra Die',
+    cost: 1000000,
+    desc: 'Roll 3 dice instead of 2. Triple curses and triple blessings possible.',
+    requires: 'dice_charge_3',
     tier: 3
   }]
 }, {
@@ -2479,10 +2498,10 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
@@ -3123,6 +3142,7 @@ function GameApp({
   }, [ownedItems]);
   const autoSpinDelay = useMemo(() => ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500, [ownedItems]);
   const diceMaxCharges = useMemo(() => {
+    if (ownedItems.includes('dice_charge_4')) return 4;
     if (ownedItems.includes('dice_charge_3')) return 3;
     if (ownedItems.includes('dice_charge_2')) return 2;
     return 1;
@@ -3137,7 +3157,6 @@ function GameApp({
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice')) return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
-    if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     return 'default';
   }, [activeCosmetics]);
@@ -3160,12 +3179,11 @@ function GameApp({
     return '';
   }, [activeCosmetics]);
   const pageThemeClass = useMemo(() => {
-    if (activeCosmetics.includes('page_season6')) return 'page-season6';
-    if (activeCosmetics.includes('page_season5')) return 'page-season5';
-    if (activeCosmetics.includes('page_season4')) return 'page-season4';
-    if (activeCosmetics.includes('page_season3')) return 'page-season3';
-    if (activeCosmetics.includes('page_season2')) return 'page-season2';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
+    if (activeCosmetics.includes('page_season2')) return 'page-season2';
+    if (activeCosmetics.includes('page_season3')) return 'page-season3';
+    if (activeCosmetics.includes('page_season4')) return 'page-season4';
+    if (activeCosmetics.includes('page_season5')) return 'page-season5';
     return '';
   }, [activeCosmetics]);
   const currentRotationRef = useRef(0);
@@ -3346,9 +3364,13 @@ function GameApp({
       setDiceResult({
         die1: data.die1,
         die2: data.die2,
+        die3: data.die3 ?? null,
         dice_sum: data.dice_sum,
         streak_delta: streakDelta,
         cursed: data.cursed,
+        blessed: data.blessed,
+        cursed_triple: data.cursed_triple ?? false,
+        blessed_triple: data.blessed_triple ?? false,
         streak_before: prevStreak,
         streak_after: data.streak
       });
@@ -3727,7 +3749,8 @@ function GameApp({
     lowSpec: lowSpec,
     diceCharges: diceCharges,
     maxDiceCharges: diceMaxCharges,
-    diceLastRecharge: diceLastRecharge
+    diceLastRecharge: diceLastRecharge,
+    hasDiceExtra: ownedItems.includes('dice_extra')
   }), /*#__PURE__*/React.createElement("div", {
     className: "bulbs"
   }, Array.from({
