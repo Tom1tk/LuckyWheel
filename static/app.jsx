@@ -597,48 +597,309 @@ function GuardWheel({ blocked, speedMult = 1.0, onComplete }) {
   );
 }
 
-// ── Fish ──────────────────────────────────────────────────────────────────
-const Fish = React.memo(function Fish({ mood, net, fishClicks, onFishClick, fishData, sizeRem, trailClass, lowSpec }) {
-  const [spinKey, setSpinKey] = useState(0);
-  const [fishSpinning, setFishSpinning] = useState(false);
-  const timerRef = useRef(null);
-  const { emoji, labels } = fishData || DEFAULT_FISH;
+// ── Fish Catalog (client-side mirror of server FISH_CATALOG) ──────────────
+const FISH_CATALOG_CLIENT = [
+  { id: 'minnow',     emoji: '🐟', name: 'Minnow',     value:   1, tier: 'Common'    },
+  { id: 'clownfish',  emoji: '🐠', name: 'Clownfish',  value:   3, tier: 'Common'    },
+  { id: 'pufferfish', emoji: '🐡', name: 'Pufferfish', value:   3, tier: 'Common'    },
+  { id: 'shrimp',     emoji: '🦐', name: 'Shrimp',     value:   2, tier: 'Common'    },
+  { id: 'crab',       emoji: '🦀', name: 'Crab',       value:   8, tier: 'Uncommon'  },
+  { id: 'squid',      emoji: '🦑', name: 'Squid',      value:   8, tier: 'Uncommon'  },
+  { id: 'octopus',    emoji: '🐙', name: 'Octopus',    value:  12, tier: 'Uncommon'  },
+  { id: 'lobster',    emoji: '🦞', name: 'Lobster',    value:  20, tier: 'Rare'      },
+  { id: 'dolphin',    emoji: '🐬', name: 'Dolphin',    value:  30, tier: 'Rare'      },
+  { id: 'shark',      emoji: '🦈', name: 'Shark',      value:  40, tier: 'Rare'      },
+  { id: 'whale',      emoji: '🐋', name: 'Blue Whale', value:  75, tier: 'Legendary' },
+  { id: 'mermaid',    emoji: '🧜', name: 'Mermaid',    value: 120, tier: 'Legendary' },
+  { id: 'lucky',      emoji: '⭐', name: 'Lucky Fish', value: 100, tier: 'Legendary' },
+];
 
-  const handleClick = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setFishSpinning(true);
-    setSpinKey(k => k + 1);
-    timerRef.current = setTimeout(() => setFishSpinning(false), 650);
-    onFishClick();
-  };
-
-  const diff = Math.abs(net);
-  const glowSize  = Math.min(8  + diff * 3, 80);
-  const glowSize2 = Math.min(16 + diff * 6, 160);
-  const glowOpacity = Math.min(0.5 + diff * 0.015, 1.0);
-  const fishFilter = lowSpec ? 'none' : (net > 0
-    ? `drop-shadow(0 0 ${glowSize}px rgba(255,140,0,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(255,80,0,${glowOpacity * 0.6}))`
-    : net < 0
-    ? `drop-shadow(0 0 ${glowSize}px rgba(160,0,255,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(80,0,180,${glowOpacity * 0.6}))`
-    : 'drop-shadow(0 0 8px rgba(255,215,0,0.3))');
-  const auraBlur    = Math.min(80 + diff * 12, 120);
-  const auraOpacity = Math.min(0.3 + diff * 0.008, 0.88);
-  const auraColor   = net > 0 ? 'rgba(255,130,0,0.9)' : 'rgba(150,0,255,0.9)';
-  const auraStyle   = (!lowSpec && diff > 0) ? {
-    background: auraColor,
-    filter: `blur(${auraBlur}px)`,
-    opacity: auraOpacity,
-  } : null;
-  const animClass = fishSpinning ? 'spinning-fish' : mood;
-
+// ── Fish Encyclopaedia ────────────────────────────────────────────────────
+function FishEncyclopedia({ caughtSpecies, onClose }) {
+  const discovered = new Set(caughtSpecies || []);
+  const count = discovered.size;
+  const TIER_ORDER = { Common: 0, Uncommon: 1, Rare: 2, Legendary: 3 };
+  const sorted = [...FISH_CATALOG_CLIENT].sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier]);
   return (
-    <div className={`fish-panel${trailClass ? ' ' + trailClass : ''}`} onClick={handleClick} style={{ filter: fishFilter }} title="Wheeee!">
-      {auraStyle && <div className="fish-aura" style={auraStyle} />}
-      <span className={`fish-body ${animClass}`} key={spinKey || mood} style={{ fontSize: `${sizeRem}rem` }}>{emoji}</span>
-      <span className={`fish-label ${mood}`}>{labels[mood]}</span>
+    <div className="encyclopedia-overlay" onClick={onClose}>
+      <div className="encyclopedia-card" onClick={e => e.stopPropagation()}>
+        <div className="encyclopedia-title">📖 Fish Encyclopaedia</div>
+        <div className="encyclopedia-progress">Discovered: {count} / {FISH_CATALOG_CLIENT.length}</div>
+        <button className="encyclopedia-close-btn" onClick={onClose}>✕</button>
+        <div className="encyclopedia-grid">
+          {sorted.map(fish => {
+            const known = discovered.has(fish.id);
+            return (
+              <div key={fish.id} className={`encyclopedia-entry${known ? ' unlocked' : ' locked'}`}>
+                <span className="encyclopedia-entry-emoji">{known ? fish.emoji : '❓'}</span>
+                <span className="encyclopedia-entry-name">{known ? fish.name : '???'}</span>
+                <span className={`encyclopedia-entry-tier ${fish.tier}`}>{fish.tier}</span>
+                <span className="encyclopedia-entry-value">{known ? `${fish.value} 🐟` : '???'}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
-});
+}
+
+// ── Fishing Panel ─────────────────────────────────────────────────────────
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate }) {
+  const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
+  const [biteAt, setBiteAt]       = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [lastCatch, setLastCatch] = useState(null);
+  const [missReason, setMissReason] = useState('late'); // 'late' | 'early'
+  const [luckyNextActive, setLuckyNextActive] = useState(fishingLuckyNext || false);
+  const [autoCast, setAutoCast]   = useState(false);
+  const [autoFish, setAutoFish]   = useState(false);
+  const [autoFishPopup, setAutoFishPopup] = useState(null); // { key, type:'hit'|'miss', emoji?, value? }
+  const autoFishRef               = useRef(false);
+  const autoCastRef               = useRef(false);
+  const phaseRef                  = useRef('idle');
+  const biteTimerRef              = useRef(null);
+  const missTimerRef              = useRef(null);
+  const autoFishIntervalRef       = useRef(null);
+  const autoFishPopupTimerRef     = useRef(null);
+  const reelInFlightRef           = useRef(false);
+  const consecutiveMissesRef      = useRef(0);
+  const autoFishPopupKeyRef       = useRef(0);
+
+  const hasAutoCast   = ownedItems.includes('auto_cast');
+  const hasAutoFisher = ownedItems.includes('autofisher_1');
+  const { emoji: fisherEmoji } = fishData || { emoji: '🐟' };
+  const scale = fishPanelScale || 1.0;
+
+  useEffect(() => { autoFishRef.current = autoFish;  }, [autoFish]);
+  useEffect(() => { autoCastRef.current = autoCast;  }, [autoCast]);
+  useEffect(() => { phaseRef.current    = phase;     }, [phase]);
+  useEffect(() => { setLuckyNextActive(fishingLuckyNext || false); }, [fishingLuckyNext]);
+
+  const countMiss = useCallback(() => {
+    if (!autoCastRef.current) return;
+    consecutiveMissesRef.current += 1;
+    if (consecutiveMissesRef.current >= 3) {
+      setAutoCast(false);
+      consecutiveMissesRef.current = 0;
+    }
+  }, []);
+
+  const showAutoFishPopup = useCallback((popup) => {
+    if (autoFishPopupTimerRef.current) clearTimeout(autoFishPopupTimerRef.current);
+    autoFishPopupKeyRef.current += 1;
+    setAutoFishPopup({ ...popup, key: autoFishPopupKeyRef.current });
+    const dur = popup.type === 'hit' ? 2000 : 1500;
+    autoFishPopupTimerRef.current = setTimeout(() => setAutoFishPopup(null), dur);
+  }, []);
+
+  // Auto-fish tick loop — fires every 6 s (half-speed vs manual fishing)
+  useEffect(() => {
+    if (!autoFish) {
+      clearInterval(autoFishIntervalRef.current);
+      if (autoFishPopupTimerRef.current) clearTimeout(autoFishPopupTimerRef.current);
+      return;
+    }
+    const tick = async () => {
+      if (!autoFishRef.current) return;
+      const { ok, data } = await apiGame('/api/auto-fish-tick', { method: 'POST', body: '{}' });
+      if (!ok || !data.result) return;
+      if (data.result === 'hit') {
+        const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
+        const emoji = fish ? fish.emoji : '🐟';
+        const name  = fish ? fish.name  : data.species;
+        setLastCatch({ emoji, name, value: data.value, isNew: !!data.first_catch, isLucky: false, doubled: false });
+        onFishBucksUpdate(data.fish_clicks);
+        if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+        showAutoFishPopup({ type: 'hit', emoji, value: data.value, isNew: !!data.first_catch });
+      } else {
+        showAutoFishPopup({ type: 'miss' });
+      }
+    };
+    tick();
+    autoFishIntervalRef.current = setInterval(tick, 6000);
+    return () => clearInterval(autoFishIntervalRef.current);
+  }, [autoFish, showAutoFishPopup]); // eslint-disable-line
+
+  // Auto-cast: trigger cast when idle
+  useEffect(() => {
+    if (!autoCast || autoFish || phase !== 'idle') return;
+    const t = setTimeout(() => {
+      if (autoCastRef.current && !autoFishRef.current && phaseRef.current === 'idle') doCast();
+    }, 600);
+    return () => clearTimeout(t);
+  }, [phase, autoCast, autoFish]); // eslint-disable-line
+
+  const doCast = async () => {
+    if (phaseRef.current !== 'idle') return;
+    const { ok, data } = await apiGame('/api/cast', { method: 'POST', body: '{}' });
+    if (!ok) return;
+    const bite = new Date(data.bite_at).getTime();
+    const exp  = new Date(data.expires_at).getTime();
+    setBiteAt(bite);
+    setExpiresAt(exp);
+    setLastCatch(null);
+    setMissReason('late');
+    setPhase('waiting');
+
+    const now = Date.now();
+    const waitMs  = Math.max(0, bite - now);
+    const totalMs = Math.max(0, exp  - now);
+
+    if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
+    if (missTimerRef.current)  clearTimeout(missTimerRef.current);
+
+    biteTimerRef.current = setTimeout(() => setPhase('bite'), waitMs);
+    missTimerRef.current = setTimeout(() => {
+      if (phaseRef.current === 'bite') {
+        setMissReason('late');
+        setPhase('miss');
+        countMiss();
+        setTimeout(() => setPhase('idle'), 1500);
+      }
+    }, totalMs);
+  };
+
+  const handleCast = useCallback(() => {
+    if (phase !== 'idle') return;
+    doCast();
+  }, [phase]); // eslint-disable-line
+
+  // Clicking the water area while waiting = reel too early → instant miss
+  const handleEarlyReel = useCallback(() => {
+    if (phaseRef.current !== 'waiting') return;
+    if (biteTimerRef.current) { clearTimeout(biteTimerRef.current); biteTimerRef.current = null; }
+    if (missTimerRef.current) { clearTimeout(missTimerRef.current); missTimerRef.current = null; }
+    setMissReason('early');
+    setPhase('miss');
+    countMiss();
+    // Tell server to clear the session (will return miss since before bite window)
+    apiGame('/api/reel', { method: 'POST', body: '{}' });
+    setTimeout(() => setPhase('idle'), 1500);
+  }, [countMiss]); // eslint-disable-line
+
+  const handleReel = useCallback(async () => {
+    if (phase !== 'bite' || reelInFlightRef.current) return;
+    reelInFlightRef.current = true;
+    if (missTimerRef.current) { clearTimeout(missTimerRef.current); missTimerRef.current = null; }
+    if (biteTimerRef.current) { clearTimeout(biteTimerRef.current); biteTimerRef.current = null; }
+    setPhase('reeling');
+    const { ok, data } = await apiGame('/api/reel', { method: 'POST', body: '{}' });
+    reelInFlightRef.current = false;
+    if (!ok) { setPhase('idle'); return; }
+    if (data.result === 'hit') {
+      consecutiveMissesRef.current = 0;
+      const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
+      setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled });
+      onFishBucksUpdate(data.fish_clicks);
+      if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+      setLuckyNextActive(!!data.lucky_next_active);
+      setPhase('success');
+      setTimeout(() => setPhase('idle'), 2000);
+    } else {
+      setMissReason('late');
+      setPhase('miss');
+      countMiss();
+      setTimeout(() => setPhase('idle'), 1500);
+    }
+  }, [phase, countMiss]); // eslint-disable-line
+
+  const biteWindowMs = expiresAt && biteAt ? expiresAt - biteAt : 1800;
+  const inWater = phase === 'waiting' || phase === 'bite' || phase === 'reeling';
+
+  return (
+    <div className="fishing-panel" style={{ transform: `translateY(-50%) scale(${scale})` }} onClick={phase === 'bite' ? handleReel : undefined}>
+      {luckyNextActive && (
+        <div className="fishing-lucky-banner">⭐ Next catch DOUBLED!</div>
+      )}
+      <div className="fishing-fisher">
+        <span className="fishing-fisher-emoji">{fisherEmoji}</span>
+        <span className="fishing-rod">🎣</span>
+      </div>
+      <div className="fishing-water" onClick={e => { if (phaseRef.current === 'waiting') { e.stopPropagation(); handleEarlyReel(); } }}>
+        {(inWater || autoFish) && (
+          <>
+            <span className="shadow-fish shadow-fish-1">🐟</span>
+            <span className="shadow-fish shadow-fish-2">🐡</span>
+            <span className="shadow-fish shadow-fish-3">🐠</span>
+          </>
+        )}
+        {autoFish && (
+          <span className="fishing-bobber bobber-idle">🤖</span>
+        )}
+        {!autoFish && inWater && (
+          <span className={`fishing-bobber${phase === 'bite' ? ' bobber-bite' : ' bobber-idle'}`}>🔴</span>
+        )}
+      </div>
+      {phase === 'bite' && (
+        <div className="bite-bar-container">
+          <div className="bite-bar-fill" key={expiresAt} style={{ animationDuration: `${biteWindowMs}ms` }} />
+        </div>
+      )}
+      {phase === 'bite' && <div className="bite-hint">TAP TO REEL!</div>}
+      {phase === 'success' && lastCatch && (
+        <div className="catch-popup">
+          <span className="catch-emoji">{lastCatch.emoji}</span>
+          <span className="catch-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' (2x!)' : ''}</span>
+          {lastCatch.isNew && <span className="catch-new">NEW!</span>}
+          {lastCatch.isLucky && <span className="catch-lucky">⭐ Lucky!</span>}
+        </div>
+      )}
+      {phase === 'miss' && (
+        <div className="catch-popup catch-popup--miss">
+          {missReason === 'early' ? 'Too early!' : 'Too slow!'}
+        </div>
+      )}
+      {autoFish && autoFishPopup && (
+        autoFishPopup.type === 'hit' ? (
+          <div key={autoFishPopup.key} className="catch-popup">
+            <span className="catch-emoji">{autoFishPopup.emoji}</span>
+            <span className="catch-value">+{autoFishPopup.value} 🐟</span>
+            {autoFishPopup.isNew && <span className="catch-new">NEW!</span>}
+          </div>
+        ) : (
+          <div key={autoFishPopup.key} className="catch-popup catch-popup--miss">No bite</div>
+        )
+      )}
+      <div className="fishing-controls">
+        {!autoFish && (
+          <button className="cast-btn" onClick={handleCast} disabled={phase !== 'idle'}>
+            {phase === 'idle'    ? '🎣 CAST'    :
+             phase === 'waiting' ? 'Waiting…'   :
+             phase === 'bite'    ? 'TAP!'        :
+             phase === 'reeling' ? 'Reeling…'   :
+             phase === 'success' ? '✓ Caught!'  : 'Miss…'}
+          </button>
+        )}
+        <div className="fishing-toggles">
+          {hasAutoCast && !autoFish && (
+            <label className="fishing-toggle-label">
+              <input type="checkbox" checked={autoCast} onChange={e => {
+                setAutoCast(e.target.checked);
+                if (!e.target.checked) consecutiveMissesRef.current = 0;
+              }} />
+              <span className="fishing-toggle-text">Auto-Cast</span>
+            </label>
+          )}
+          {hasAutoFisher && (
+            <label className="fishing-toggle-label">
+              <input type="checkbox" checked={autoFish} onChange={e => {
+                setAutoFish(e.target.checked);
+                if (e.target.checked) { setPhase('idle'); }
+              }} />
+              <span className="fishing-toggle-text">Auto-Fish</span>
+            </label>
+          )}
+        </div>
+      </div>
+      {lastCatch && (
+        <div className="fishing-last-catch">
+          Last: {lastCatch.emoji} {lastCatch.name} +{lastCatch.value} 🐟
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────
 const LuckySevenCounter = React.memo(function LuckySevenCounter({ spinCount }) {
@@ -1139,10 +1400,11 @@ const SHOP_SECTIONS = [
   { label: '⭐ Bonus Power', items: [
     { id: 'bonusmult_inf', emoji: '⭐', name: 'Bonus Power', cost: 0, desc: 'Multiplies streak bonuses — ⚠️ also amplifies loss streaks', infinite: true },
   ]},
-  { label: '🐟 Fish Size', items: [
-    { id: 'fishsize_1',  emoji: '🔎', name: 'Big Fish',     cost: 50,    desc: 'Fish size: XL (20rem)' },
-    { id: 'fishsize_2',  emoji: '🔎', name: 'Giant Fish',   cost: 200,   desc: 'Fish size: XXL (28rem)', requires: 'fishsize_1' },
-    { id: 'fishsize_3',  emoji: '🔎', name: 'Colossal',     cost: 800,   desc: 'Fish size: MEGA (40rem)',requires: 'fishsize_2' },
+  { label: '🐟 Fishing Panel Size', items: [
+    { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
+    { id: 'fishsize_1',     emoji: '🔎', name: 'Big Panel',    cost: 1,    desc: 'Fishing panel: 130% size' },
+    { id: 'fishsize_2',     emoji: '🔎', name: 'Giant Panel',  cost: 1,    desc: 'Fishing panel: 160% size', requires: 'fishsize_1' },
+    { id: 'fishsize_3',     emoji: '🔎', name: 'Colossal',     cost: 1,    desc: 'Fishing panel: 200% size', requires: 'fishsize_2' },
   ]},
   { label: '✨ Fish Trail', items: [
     { id: 'trail_1',     emoji: '✨', name: 'Sparkle Trail', cost: 125,   desc: 'Gold shimmer trail' },
@@ -1152,14 +1414,17 @@ const SHOP_SECTIONS = [
     { id: 'trail_5',     emoji: '⚡', name: 'Thunder Trail', cost: 22000, desc: 'Electric storm aura',    requires: 'trail_4' },
     { id: 'trail_6',     emoji: '🌌', name: 'Galaxy Trail',  cost: 70000, desc: 'Cosmic void aura',       requires: 'trail_5' },
   ]},
-  { label: '🖱️ Click Power', items: [
-    { id: 'clickmult_inf', emoji: '👆', name: 'Click Power', cost: 0, desc: '+0.25× per level — scales manual clicks and frenzy', infinite: true },
-    { id: 'clickfrenzy_1',  emoji: '🖱️', name: 'Frenzy I',    cost: 300,       desc: '+1 passive click/5s (scales with click upgrades)' },
-    { id: 'clickfrenzy_2',  emoji: '🖱️', name: 'Frenzy II',   cost: 3000,      desc: '+5 passive clicks/5s (scales with click upgrades)',  requires: 'clickfrenzy_1' },
-    { id: 'clickfrenzy_3',  emoji: '🖱️', name: 'Frenzy III',  cost: 30000,     desc: '+20 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_2' },
-    { id: 'clickfrenzy_4',  emoji: '🌪️', name: 'Frenzy IV',   cost: 300000,    desc: '+50 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_3' },
-    { id: 'clickfrenzy_5',  emoji: '⚡', name: 'Frenzy V',    cost: 3000000,   desc: '+100 passive clicks/5s (scales with click upgrades)', requires: 'clickfrenzy_4' },
-    { id: 'final_frenzy',   emoji: '🌀', name: 'Final Frenzy', cost: 30000000, desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.', requires: 'clickfrenzy_5', tier: 2 },
+  { label: '🎣 Fishing Gear', items: [
+    { id: 'lure_1',       emoji: '🎣', name: 'Lure I',         cost: 100,     desc: '10% faster bite times + +1 Fish Buck per catch' },
+    { id: 'lure_2',       emoji: '🎣', name: 'Lure II',        cost: 500,     desc: '20% faster bite times + +2 Fish Bucks per catch', requires: 'lure_1' },
+    { id: 'lure_3',       emoji: '🎣', name: 'Lure III',       cost: 2500,    desc: '35% faster bite times + +5 Fish Bucks per catch', requires: 'lure_2' },
+    { id: 'lure_4',       emoji: '🎣', name: 'Lure IV',        cost: 15000,   desc: '50% faster bite times + +10 Fish Bucks per catch', requires: 'lure_3' },
+    { id: 'lure_5',       emoji: '⭐', name: 'Master Lure',     cost: 100000,  desc: '65% faster bite times + +20 Fish Bucks per catch — requires complete Encyclopaedia', requires: 'lure_4', encyclopaediaLocked: true },
+    { id: 'auto_cast',    emoji: '⏭️', name: 'Auto-Cast',      cost: 1000,    desc: 'Auto-casts line when idle — you still tap the bite window' },
+    { id: 'autofisher_1', emoji: '🤖', name: 'Auto-Fisher I',  cost: 300,     desc: 'Automated fishing at 45% catch rate — common & uncommon only' },
+    { id: 'autofisher_2', emoji: '🤖', name: 'Auto-Fisher II', cost: 2000,    desc: 'Auto-Fisher catch rate: 55% — common & uncommon only', requires: 'autofisher_1' },
+    { id: 'autofisher_3', emoji: '🤖', name: 'Auto-Fisher III',cost: 12000,   desc: 'Auto-Fisher catch rate: 65% — common & uncommon only', requires: 'autofisher_2' },
+    { id: 'autofisher_4', emoji: '🤖', name: 'Master Auto-Fisher', cost: 75000, desc: 'Auto-Fisher catch rate: 75% — now catches rare species too', requires: 'autofisher_3' },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
@@ -1254,7 +1519,7 @@ function getFishData(equippedFish) {
 
 const COSMETIC_SECTION_IDS = new Set([
   'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
-  'fishsize_1','fishsize_2','fishsize_3',
+  'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'confetti_1','confetti_2','confetti_3',
   'party_mode',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
@@ -1270,7 +1535,7 @@ const COSMETIC_IDS = new Set([
   'fish_tropical','fish_puffer','fish_octopus','fish_shark','fish_dolphin',
   'fish_squid','fish_turtle','fish_crab','fish_lobster','fish_whale',
   'fish_seal','fish_shrimp','fish_coral','fish_mermaid','fish_croc',
-  'fishsize_1','fishsize_2','fishsize_3',
+  'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
   'page_season1','page_season2','page_season3','page_season4','page_season5','party_mode','confetti_1','confetti_2','confetti_3',
@@ -1335,12 +1600,12 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
   );
 });
 
-const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
+const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
 // Season 5 tier thresholds
 const TIER_THRESHOLDS = { 2: 1000, 3: 10000 };
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed, winCount }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed, winCount, caughtSpecies }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -1383,6 +1648,25 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
         const currency = getItemCurrency(item.id);
         const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
+
+        // Master Lure (lure_5) requires all species caught (complete Encyclopaedia)
+        const encyclopaediaLocked = item.encyclopaediaLocked && !ownedItems.includes(item.id) && (caughtSpecies || []).length < FISH_CATALOG_CLIENT.length;
+        if (encyclopaediaLocked) {
+          const caught = (caughtSpecies || []).length;
+          const total = FISH_CATALOG_CLIENT.length;
+          return (
+            <div key={item.id} className="shop-item shop-item--locked">
+              <span className="shop-item-emoji" style={{ opacity: 0.4 }}>{item.emoji}</span>
+              <div className="shop-item-info">
+                <div className="shop-item-name" style={{ opacity: 0.5 }}>{item.name}</div>
+                <div className="shop-item-desc" style={{ opacity: 0.5 }}>🔒 Complete your Encyclopaedia to unlock ({caught}/{total} species)</div>
+              </div>
+              <div className="shop-item-action">
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)' }}>{caught}/{total}</span>
+              </div>
+            </div>
+          );
+        }
 
         if (tierLocked && !tierUnlocked) {
           return (
@@ -1476,7 +1760,7 @@ function StatsPanel({ open, onClose }) {
               <div className="stats-row"><span>Total Wins</span><span>{fmt(stats.win_count)}</span></div>
               <div className="stats-row"><span>Total Losses</span><span>{fmt(stats.loss_count)}</span></div>
               <div className="stats-row"><span>Win Rate</span><span>{stats.spin_count > 0 ? ((stats.win_count / stats.spin_count) * 100).toFixed(1) + '%' : 'N/A'}</span></div>
-              <div className="stats-row"><span>Season Taps</span><span>{fmt(stats.total_fish_clicks)}</span></div>
+              <div className="stats-row"><span>Season Fish Bucks</span><span>{fmt(stats.total_fish_clicks)}</span></div>
             </div>
             {history.length > 0 && (
               <div className="stats-season-history">
@@ -1671,6 +1955,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [streak, setStreak]           = useState(gameState.streak);
   const [fishMood, setFishMood]       = useState('idle');
   const [fishClicks, setFishClicks]   = useState(gameState.fish_clicks);
+  const [caughtSpecies, setCaughtSpecies]     = useState(gameState.caught_species || []);
+  const [fishingLuckyNext, setFishingLuckyNext] = useState(gameState.fishing_lucky_next || false);
+  const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [bonusEarned, setBonusEarned] = useState(0);
   const [echoTriggered, setEchoTriggered]               = useState(false);
   const [jackpotHit, setJackpotHit]                     = useState(false);
@@ -1745,27 +2032,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return 1;
   }, [ownedItems]);
 
-  const clickAmount = useMemo(() => {
-    if (ownedItems.includes('double_click_5')) return 6;
-    if (ownedItems.includes('double_click_4')) return 5;
-    if (ownedItems.includes('double_click_3')) return 4;
-    if (ownedItems.includes('double_click_2')) return 3;
-    if (ownedItems.includes('double_click')) return 2;
-    return 1;
-  }, [ownedItems]);
-
-  const clickFrenzyRate = useMemo(() => {
-    if (activeCosmetics.includes('final_frenzy'))  return 500;
-    if (ownedItems.includes('clickfrenzy_5')) return 100;
-    if (ownedItems.includes('clickfrenzy_4')) return 50;
-    if (ownedItems.includes('clickfrenzy_3')) return 20;
-    if (ownedItems.includes('clickfrenzy_2')) return 5;
-    if (ownedItems.includes('clickfrenzy_1')) return 1;
-    return 0;
-  }, [ownedItems]);
-
-  const fishSizeRem = useMemo(() =>
-    activeCosmetics.includes('fishsize_3') ? 40 : activeCosmetics.includes('fishsize_2') ? 28 : activeCosmetics.includes('fishsize_1') ? 20 : 15,
+  // fishPanelScale: controls the CSS transform scale on the fishing panel
+  const fishPanelScale = useMemo(() =>
+    activeCosmetics.includes('fishsize_small') ? 0.5 :
+    activeCosmetics.includes('fishsize_3') ? 2.0 :
+    activeCosmetics.includes('fishsize_2') ? 1.6 :
+    activeCosmetics.includes('fishsize_1') ? 1.3 : 1.0,
   [activeCosmetics]);
 
   const confettiCount = useMemo(() =>
@@ -1820,7 +2092,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const autoSpinDelayRef   = useRef(1500);
   const spinningRef        = useRef(false);
   const showResultRef      = useRef(false);
-  const clickBufferRef     = useRef(0);
   const activeCosmeticsRef = useRef(activeCosmetics);
   const lowSpecRef         = useRef(lowSpec);
 
@@ -1856,15 +2127,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [onSessionExpired]);
 
   useEffect(() => {
-    if (clickFrenzyRate === 0) return;
-    const id = setInterval(async () => {
-      const { ok, data } = await apiGame('/api/click-frenzy', { method: 'POST', body: '{}' });
-      if (ok) setFishClicks(data.fish_clicks);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [clickFrenzyRate]);
-
-  useEffect(() => {
     const currentNumber = season ? season.season_number : null;
     const id = setInterval(async () => {
       const r = await apiFetch('/api/season');
@@ -1888,6 +2150,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             bonusmult_inf: gs.data.bonusmult_inf_level || 0,
             clickmult_inf: gs.data.clickmult_inf_level || 0,
           });
+          if (gs.data.caught_species) setCaughtSpecies(gs.data.caught_species);
+          setFishingLuckyNext(gs.data.fishing_lucky_next || false);
         }
       } else {
         setSeason(r.data);
@@ -1912,29 +2176,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
-
-  const flushClicks = useCallback(async () => {
-    const count = clickBufferRef.current;
-    if (count === 0) return;
-    clickBufferRef.current = 0;
-    const { ok, data } = await apiGame('/api/fish-click', {
-      method: 'POST',
-      body: JSON.stringify({ count }),
-    });
-    if (ok) setFishClicks(data.fish_clicks);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(flushClicks, 500);
-    return () => {
-      clearInterval(id);
-      const count = clickBufferRef.current;
-      if (count > 0) {
-        clickBufferRef.current = 0;
-        apiGame('/api/fish-click', { method: 'POST', body: JSON.stringify({ count }) });
-      }
-    };
-  }, [flushClicks]);
 
   const handleBuy = useCallback(async (id) => {
     const { ok, data } = await apiGame('/api/buy', {
@@ -2007,14 +2248,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
   }, [diceRolling, spinning, streak, lowSpec, showToast]);
-
-  const handleFishClick = useCallback(() => {
-    if (activeCosmetics.includes('final_frenzy')) return;
-    const clickMult = 1 + infLevels.clickmult_inf * 0.25;
-    setFishClicks(c => c + clickAmount * clickMult);
-    clickBufferRef.current += clickAmount;
-    if (clickBufferRef.current >= 10) flushClicks();
-  }, [clickAmount, flushClicks, activeCosmetics, infLevels.clickmult_inf]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
@@ -2216,6 +2449,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
         <button className="stats-btn" title="Stats" onClick={() => setShowStats(true)}>📊</button>
+        <button className="stats-btn" title="Fish Encyclopaedia" onClick={() => setShowEncyclopedia(true)}>📖</button>
         <button
           className="stats-btn"
           onClick={() => setLowSpec(v => !v)}
@@ -2247,30 +2481,37 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         {season && <SeasonInfo seasonNumber={season.season_number} endsAt={season.ends_at} />}
       </div>
 
+      {showEncyclopedia && (
+        <FishEncyclopedia
+          caughtSpecies={caughtSpecies}
+          onClose={() => setShowEncyclopedia(false)}
+        />
+      )}
+
       {!isMobile && (
-        <Fish
-          mood={fishMood}
-          net={wins - losses}
+        <FishingPanel
           fishClicks={fishClicks}
           fishData={getFishData(equippedFish)}
-          sizeRem={fishSizeRem}
-          trailClass={trailClass}
-          lowSpec={lowSpec}
-          onFishClick={handleFishClick}
+          caughtSpecies={caughtSpecies}
+          fishingLuckyNext={fishingLuckyNext}
+          ownedItems={ownedItems}
+          fishPanelScale={fishPanelScale}
+          onFishBucksUpdate={v => setFishClicks(v)}
+          onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
         />
       )}
 
       {isMobile && (
         <div className={`mobile-fish-panel${mobilePanel === 'fish' ? ' mobile-visible' : ''}`}>
-          <Fish
-            mood={fishMood}
-            net={wins - losses}
+          <FishingPanel
             fishClicks={fishClicks}
             fishData={getFishData(equippedFish)}
-            sizeRem={fishSizeRem}
-            trailClass={trailClass}
-            lowSpec={lowSpec}
-            onFishClick={handleFishClick}
+            caughtSpecies={caughtSpecies}
+            fishingLuckyNext={fishingLuckyNext}
+            ownedItems={ownedItems}
+            fishPanelScale={fishPanelScale}
+            onFishBucksUpdate={v => setFishClicks(v)}
+            onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           />
           <CommunityPot
             pot={communityPot}
@@ -2436,6 +2677,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onEquipCosmetic={handleEquipCosmetic}
             collapsed={shopCollapsed}
             winCount={winCount}
+            caughtSpecies={caughtSpecies}
           />
         </div>
       </div>
@@ -2471,8 +2713,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <button
           className={`mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}`}
           onClick={() => toggleMobilePanel('fish')}
-          title="Fish"
-        >🐟</button>
+          title="Fishing"
+        >🎣</button>
         <button
           className={`mobile-toolbar-btn${mobilePanel === 'chat' ? ' active' : ''}`}
           onClick={() => toggleMobilePanel('chat')}

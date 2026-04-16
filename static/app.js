@@ -728,65 +728,470 @@ function GuardWheel({
   }, blocked ? '🛡️ BLOCKED!' : '💔 Guard Failed')));
 }
 
-// ── Fish ──────────────────────────────────────────────────────────────────
-const Fish = React.memo(function Fish({
-  mood,
-  net,
-  fishClicks,
-  onFishClick,
-  fishData,
-  sizeRem,
-  trailClass,
-  lowSpec
+// ── Fish Catalog (client-side mirror of server FISH_CATALOG) ──────────────
+const FISH_CATALOG_CLIENT = [{
+  id: 'minnow',
+  emoji: '🐟',
+  name: 'Minnow',
+  value: 1,
+  tier: 'Common'
+}, {
+  id: 'clownfish',
+  emoji: '🐠',
+  name: 'Clownfish',
+  value: 3,
+  tier: 'Common'
+}, {
+  id: 'pufferfish',
+  emoji: '🐡',
+  name: 'Pufferfish',
+  value: 3,
+  tier: 'Common'
+}, {
+  id: 'shrimp',
+  emoji: '🦐',
+  name: 'Shrimp',
+  value: 2,
+  tier: 'Common'
+}, {
+  id: 'crab',
+  emoji: '🦀',
+  name: 'Crab',
+  value: 8,
+  tier: 'Uncommon'
+}, {
+  id: 'squid',
+  emoji: '🦑',
+  name: 'Squid',
+  value: 8,
+  tier: 'Uncommon'
+}, {
+  id: 'octopus',
+  emoji: '🐙',
+  name: 'Octopus',
+  value: 12,
+  tier: 'Uncommon'
+}, {
+  id: 'lobster',
+  emoji: '🦞',
+  name: 'Lobster',
+  value: 20,
+  tier: 'Rare'
+}, {
+  id: 'dolphin',
+  emoji: '🐬',
+  name: 'Dolphin',
+  value: 30,
+  tier: 'Rare'
+}, {
+  id: 'shark',
+  emoji: '🦈',
+  name: 'Shark',
+  value: 40,
+  tier: 'Rare'
+}, {
+  id: 'whale',
+  emoji: '🐋',
+  name: 'Blue Whale',
+  value: 75,
+  tier: 'Legendary'
+}, {
+  id: 'mermaid',
+  emoji: '🧜',
+  name: 'Mermaid',
+  value: 120,
+  tier: 'Legendary'
+}, {
+  id: 'lucky',
+  emoji: '⭐',
+  name: 'Lucky Fish',
+  value: 100,
+  tier: 'Legendary'
+}];
+
+// ── Fish Encyclopaedia ────────────────────────────────────────────────────
+function FishEncyclopedia({
+  caughtSpecies,
+  onClose
 }) {
-  const [spinKey, setSpinKey] = useState(0);
-  const [fishSpinning, setFishSpinning] = useState(false);
-  const timerRef = useRef(null);
-  const {
-    emoji,
-    labels
-  } = fishData || DEFAULT_FISH;
-  const handleClick = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setFishSpinning(true);
-    setSpinKey(k => k + 1);
-    timerRef.current = setTimeout(() => setFishSpinning(false), 650);
-    onFishClick();
+  const discovered = new Set(caughtSpecies || []);
+  const count = discovered.size;
+  const TIER_ORDER = {
+    Common: 0,
+    Uncommon: 1,
+    Rare: 2,
+    Legendary: 3
   };
-  const diff = Math.abs(net);
-  const glowSize = Math.min(8 + diff * 3, 80);
-  const glowSize2 = Math.min(16 + diff * 6, 160);
-  const glowOpacity = Math.min(0.5 + diff * 0.015, 1.0);
-  const fishFilter = lowSpec ? 'none' : net > 0 ? `drop-shadow(0 0 ${glowSize}px rgba(255,140,0,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(255,80,0,${glowOpacity * 0.6}))` : net < 0 ? `drop-shadow(0 0 ${glowSize}px rgba(160,0,255,${glowOpacity})) drop-shadow(0 0 ${glowSize2}px rgba(80,0,180,${glowOpacity * 0.6}))` : 'drop-shadow(0 0 8px rgba(255,215,0,0.3))';
-  const auraBlur = Math.min(80 + diff * 12, 120);
-  const auraOpacity = Math.min(0.3 + diff * 0.008, 0.88);
-  const auraColor = net > 0 ? 'rgba(255,130,0,0.9)' : 'rgba(150,0,255,0.9)';
-  const auraStyle = !lowSpec && diff > 0 ? {
-    background: auraColor,
-    filter: `blur(${auraBlur}px)`,
-    opacity: auraOpacity
-  } : null;
-  const animClass = fishSpinning ? 'spinning-fish' : mood;
+  const sorted = [...FISH_CATALOG_CLIENT].sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier]);
   return /*#__PURE__*/React.createElement("div", {
-    className: `fish-panel${trailClass ? ' ' + trailClass : ''}`,
-    onClick: handleClick,
-    style: {
-      filter: fishFilter
-    },
-    title: "Wheeee!"
-  }, auraStyle && /*#__PURE__*/React.createElement("div", {
-    className: "fish-aura",
-    style: auraStyle
-  }), /*#__PURE__*/React.createElement("span", {
-    className: `fish-body ${animClass}`,
-    key: spinKey || mood,
-    style: {
-      fontSize: `${sizeRem}rem`
+    className: "encyclopedia-overlay",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "encyclopedia-card",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "encyclopedia-title"
+  }, "\uD83D\uDCD6 Fish Encyclopaedia"), /*#__PURE__*/React.createElement("div", {
+    className: "encyclopedia-progress"
+  }, "Discovered: ", count, " / ", FISH_CATALOG_CLIENT.length), /*#__PURE__*/React.createElement("button", {
+    className: "encyclopedia-close-btn",
+    onClick: onClose
+  }, "\u2715"), /*#__PURE__*/React.createElement("div", {
+    className: "encyclopedia-grid"
+  }, sorted.map(fish => {
+    const known = discovered.has(fish.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: fish.id,
+      className: `encyclopedia-entry${known ? ' unlocked' : ' locked'}`
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "encyclopedia-entry-emoji"
+    }, known ? fish.emoji : '❓'), /*#__PURE__*/React.createElement("span", {
+      className: "encyclopedia-entry-name"
+    }, known ? fish.name : '???'), /*#__PURE__*/React.createElement("span", {
+      className: `encyclopedia-entry-tier ${fish.tier}`
+    }, fish.tier), /*#__PURE__*/React.createElement("span", {
+      className: "encyclopedia-entry-value"
+    }, known ? `${fish.value} 🐟` : '???'));
+  }))));
+}
+
+// ── Fishing Panel ─────────────────────────────────────────────────────────
+function FishingPanel({
+  fishClicks,
+  fishData,
+  caughtSpecies,
+  fishingLuckyNext,
+  ownedItems,
+  fishPanelScale,
+  onFishBucksUpdate,
+  onCaughtSpeciesUpdate
+}) {
+  const [phase, setPhase] = useState('idle'); // idle | waiting | bite | reeling | success | miss
+  const [biteAt, setBiteAt] = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [lastCatch, setLastCatch] = useState(null);
+  const [missReason, setMissReason] = useState('late'); // 'late' | 'early'
+  const [luckyNextActive, setLuckyNextActive] = useState(fishingLuckyNext || false);
+  const [autoCast, setAutoCast] = useState(false);
+  const [autoFish, setAutoFish] = useState(false);
+  const [autoFishPopup, setAutoFishPopup] = useState(null); // { key, type:'hit'|'miss', emoji?, value? }
+  const autoFishRef = useRef(false);
+  const autoCastRef = useRef(false);
+  const phaseRef = useRef('idle');
+  const biteTimerRef = useRef(null);
+  const missTimerRef = useRef(null);
+  const autoFishIntervalRef = useRef(null);
+  const autoFishPopupTimerRef = useRef(null);
+  const reelInFlightRef = useRef(false);
+  const consecutiveMissesRef = useRef(0);
+  const autoFishPopupKeyRef = useRef(0);
+  const hasAutoCast = ownedItems.includes('auto_cast');
+  const hasAutoFisher = ownedItems.includes('autofisher_1');
+  const {
+    emoji: fisherEmoji
+  } = fishData || {
+    emoji: '🐟'
+  };
+  const scale = fishPanelScale || 1.0;
+  useEffect(() => {
+    autoFishRef.current = autoFish;
+  }, [autoFish]);
+  useEffect(() => {
+    autoCastRef.current = autoCast;
+  }, [autoCast]);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+  useEffect(() => {
+    setLuckyNextActive(fishingLuckyNext || false);
+  }, [fishingLuckyNext]);
+  const countMiss = useCallback(() => {
+    if (!autoCastRef.current) return;
+    consecutiveMissesRef.current += 1;
+    if (consecutiveMissesRef.current >= 3) {
+      setAutoCast(false);
+      consecutiveMissesRef.current = 0;
     }
-  }, emoji), /*#__PURE__*/React.createElement("span", {
-    className: `fish-label ${mood}`
-  }, labels[mood]));
-});
+  }, []);
+  const showAutoFishPopup = useCallback(popup => {
+    if (autoFishPopupTimerRef.current) clearTimeout(autoFishPopupTimerRef.current);
+    autoFishPopupKeyRef.current += 1;
+    setAutoFishPopup({
+      ...popup,
+      key: autoFishPopupKeyRef.current
+    });
+    const dur = popup.type === 'hit' ? 2000 : 1500;
+    autoFishPopupTimerRef.current = setTimeout(() => setAutoFishPopup(null), dur);
+  }, []);
+
+  // Auto-fish tick loop — fires every 6 s (half-speed vs manual fishing)
+  useEffect(() => {
+    if (!autoFish) {
+      clearInterval(autoFishIntervalRef.current);
+      if (autoFishPopupTimerRef.current) clearTimeout(autoFishPopupTimerRef.current);
+      return;
+    }
+    const tick = async () => {
+      if (!autoFishRef.current) return;
+      const {
+        ok,
+        data
+      } = await apiGame('/api/auto-fish-tick', {
+        method: 'POST',
+        body: '{}'
+      });
+      if (!ok || !data.result) return;
+      if (data.result === 'hit') {
+        const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
+        const emoji = fish ? fish.emoji : '🐟';
+        const name = fish ? fish.name : data.species;
+        setLastCatch({
+          emoji,
+          name,
+          value: data.value,
+          isNew: !!data.first_catch,
+          isLucky: false,
+          doubled: false
+        });
+        onFishBucksUpdate(data.fish_clicks);
+        if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+        showAutoFishPopup({
+          type: 'hit',
+          emoji,
+          value: data.value,
+          isNew: !!data.first_catch
+        });
+      } else {
+        showAutoFishPopup({
+          type: 'miss'
+        });
+      }
+    };
+    tick();
+    autoFishIntervalRef.current = setInterval(tick, 6000);
+    return () => clearInterval(autoFishIntervalRef.current);
+  }, [autoFish, showAutoFishPopup]); // eslint-disable-line
+
+  // Auto-cast: trigger cast when idle
+  useEffect(() => {
+    if (!autoCast || autoFish || phase !== 'idle') return;
+    const t = setTimeout(() => {
+      if (autoCastRef.current && !autoFishRef.current && phaseRef.current === 'idle') doCast();
+    }, 600);
+    return () => clearTimeout(t);
+  }, [phase, autoCast, autoFish]); // eslint-disable-line
+
+  const doCast = async () => {
+    if (phaseRef.current !== 'idle') return;
+    const {
+      ok,
+      data
+    } = await apiGame('/api/cast', {
+      method: 'POST',
+      body: '{}'
+    });
+    if (!ok) return;
+    const bite = new Date(data.bite_at).getTime();
+    const exp = new Date(data.expires_at).getTime();
+    setBiteAt(bite);
+    setExpiresAt(exp);
+    setLastCatch(null);
+    setMissReason('late');
+    setPhase('waiting');
+    const now = Date.now();
+    const waitMs = Math.max(0, bite - now);
+    const totalMs = Math.max(0, exp - now);
+    if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
+    if (missTimerRef.current) clearTimeout(missTimerRef.current);
+    biteTimerRef.current = setTimeout(() => setPhase('bite'), waitMs);
+    missTimerRef.current = setTimeout(() => {
+      if (phaseRef.current === 'bite') {
+        setMissReason('late');
+        setPhase('miss');
+        countMiss();
+        setTimeout(() => setPhase('idle'), 1500);
+      }
+    }, totalMs);
+  };
+  const handleCast = useCallback(() => {
+    if (phase !== 'idle') return;
+    doCast();
+  }, [phase]); // eslint-disable-line
+
+  // Clicking the water area while waiting = reel too early → instant miss
+  const handleEarlyReel = useCallback(() => {
+    if (phaseRef.current !== 'waiting') return;
+    if (biteTimerRef.current) {
+      clearTimeout(biteTimerRef.current);
+      biteTimerRef.current = null;
+    }
+    if (missTimerRef.current) {
+      clearTimeout(missTimerRef.current);
+      missTimerRef.current = null;
+    }
+    setMissReason('early');
+    setPhase('miss');
+    countMiss();
+    // Tell server to clear the session (will return miss since before bite window)
+    apiGame('/api/reel', {
+      method: 'POST',
+      body: '{}'
+    });
+    setTimeout(() => setPhase('idle'), 1500);
+  }, [countMiss]); // eslint-disable-line
+
+  const handleReel = useCallback(async () => {
+    if (phase !== 'bite' || reelInFlightRef.current) return;
+    reelInFlightRef.current = true;
+    if (missTimerRef.current) {
+      clearTimeout(missTimerRef.current);
+      missTimerRef.current = null;
+    }
+    if (biteTimerRef.current) {
+      clearTimeout(biteTimerRef.current);
+      biteTimerRef.current = null;
+    }
+    setPhase('reeling');
+    const {
+      ok,
+      data
+    } = await apiGame('/api/reel', {
+      method: 'POST',
+      body: '{}'
+    });
+    reelInFlightRef.current = false;
+    if (!ok) {
+      setPhase('idle');
+      return;
+    }
+    if (data.result === 'hit') {
+      consecutiveMissesRef.current = 0;
+      const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
+      setLastCatch({
+        emoji: fish ? fish.emoji : '🐟',
+        name: fish ? fish.name : data.species,
+        value: data.value,
+        isNew: !!data.first_catch,
+        isLucky: data.species === 'lucky',
+        doubled: !!data.was_doubled
+      });
+      onFishBucksUpdate(data.fish_clicks);
+      if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+      setLuckyNextActive(!!data.lucky_next_active);
+      setPhase('success');
+      setTimeout(() => setPhase('idle'), 2000);
+    } else {
+      setMissReason('late');
+      setPhase('miss');
+      countMiss();
+      setTimeout(() => setPhase('idle'), 1500);
+    }
+  }, [phase, countMiss]); // eslint-disable-line
+
+  const biteWindowMs = expiresAt && biteAt ? expiresAt - biteAt : 1800;
+  const inWater = phase === 'waiting' || phase === 'bite' || phase === 'reeling';
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fishing-panel",
+    style: {
+      transform: `translateY(-50%) scale(${scale})`
+    },
+    onClick: phase === 'bite' ? handleReel : undefined
+  }, luckyNextActive && /*#__PURE__*/React.createElement("div", {
+    className: "fishing-lucky-banner"
+  }, "\u2B50 Next catch DOUBLED!"), /*#__PURE__*/React.createElement("div", {
+    className: "fishing-fisher"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "fishing-fisher-emoji"
+  }, fisherEmoji), /*#__PURE__*/React.createElement("span", {
+    className: "fishing-rod"
+  }, "\uD83C\uDFA3")), /*#__PURE__*/React.createElement("div", {
+    className: "fishing-water",
+    onClick: e => {
+      if (phaseRef.current === 'waiting') {
+        e.stopPropagation();
+        handleEarlyReel();
+      }
+    }
+  }, (inWater || autoFish) && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "shadow-fish shadow-fish-1"
+  }, "\uD83D\uDC1F"), /*#__PURE__*/React.createElement("span", {
+    className: "shadow-fish shadow-fish-2"
+  }, "\uD83D\uDC21"), /*#__PURE__*/React.createElement("span", {
+    className: "shadow-fish shadow-fish-3"
+  }, "\uD83D\uDC20")), autoFish && /*#__PURE__*/React.createElement("span", {
+    className: "fishing-bobber bobber-idle"
+  }, "\uD83E\uDD16"), !autoFish && inWater && /*#__PURE__*/React.createElement("span", {
+    className: `fishing-bobber${phase === 'bite' ? ' bobber-bite' : ' bobber-idle'}`
+  }, "\uD83D\uDD34")), phase === 'bite' && /*#__PURE__*/React.createElement("div", {
+    className: "bite-bar-container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bite-bar-fill",
+    key: expiresAt,
+    style: {
+      animationDuration: `${biteWindowMs}ms`
+    }
+  })), phase === 'bite' && /*#__PURE__*/React.createElement("div", {
+    className: "bite-hint"
+  }, "TAP TO REEL!"), phase === 'success' && lastCatch && /*#__PURE__*/React.createElement("div", {
+    className: "catch-popup"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "catch-emoji"
+  }, lastCatch.emoji), /*#__PURE__*/React.createElement("span", {
+    className: "catch-value"
+  }, "+", lastCatch.value, " \uD83D\uDC1F", lastCatch.doubled ? ' (2x!)' : ''), lastCatch.isNew && /*#__PURE__*/React.createElement("span", {
+    className: "catch-new"
+  }, "NEW!"), lastCatch.isLucky && /*#__PURE__*/React.createElement("span", {
+    className: "catch-lucky"
+  }, "\u2B50 Lucky!")), phase === 'miss' && /*#__PURE__*/React.createElement("div", {
+    className: "catch-popup catch-popup--miss"
+  }, missReason === 'early' ? 'Too early!' : 'Too slow!'), autoFish && autoFishPopup && (autoFishPopup.type === 'hit' ? /*#__PURE__*/React.createElement("div", {
+    key: autoFishPopup.key,
+    className: "catch-popup"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "catch-emoji"
+  }, autoFishPopup.emoji), /*#__PURE__*/React.createElement("span", {
+    className: "catch-value"
+  }, "+", autoFishPopup.value, " \uD83D\uDC1F"), autoFishPopup.isNew && /*#__PURE__*/React.createElement("span", {
+    className: "catch-new"
+  }, "NEW!")) : /*#__PURE__*/React.createElement("div", {
+    key: autoFishPopup.key,
+    className: "catch-popup catch-popup--miss"
+  }, "No bite")), /*#__PURE__*/React.createElement("div", {
+    className: "fishing-controls"
+  }, !autoFish && /*#__PURE__*/React.createElement("button", {
+    className: "cast-btn",
+    onClick: handleCast,
+    disabled: phase !== 'idle'
+  }, phase === 'idle' ? '🎣 CAST' : phase === 'waiting' ? 'Waiting…' : phase === 'bite' ? 'TAP!' : phase === 'reeling' ? 'Reeling…' : phase === 'success' ? '✓ Caught!' : 'Miss…'), /*#__PURE__*/React.createElement("div", {
+    className: "fishing-toggles"
+  }, hasAutoCast && !autoFish && /*#__PURE__*/React.createElement("label", {
+    className: "fishing-toggle-label"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: autoCast,
+    onChange: e => {
+      setAutoCast(e.target.checked);
+      if (!e.target.checked) consecutiveMissesRef.current = 0;
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "fishing-toggle-text"
+  }, "Auto-Cast")), hasAutoFisher && /*#__PURE__*/React.createElement("label", {
+    className: "fishing-toggle-label"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: autoFish,
+    onChange: e => {
+      setAutoFish(e.target.checked);
+      if (e.target.checked) {
+        setPhase('idle');
+      }
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "fishing-toggle-text"
+  }, "Auto-Fish")))), lastCatch && /*#__PURE__*/React.createElement("div", {
+    className: "fishing-last-catch"
+  }, "Last: ", lastCatch.emoji, " ", lastCatch.name, " +", lastCatch.value, " \uD83D\uDC1F"));
+}
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────
 const LuckySevenCounter = React.memo(function LuckySevenCounter({
@@ -1511,26 +1916,32 @@ const SHOP_SECTIONS = [{
     infinite: true
   }]
 }, {
-  label: '🐟 Fish Size',
+  label: '🐟 Fishing Panel Size',
   items: [{
+    id: 'fishsize_small',
+    emoji: '🔍',
+    name: 'Compact',
+    cost: 1,
+    desc: 'Fishing panel: 50% size (compact mode)'
+  }, {
     id: 'fishsize_1',
     emoji: '🔎',
-    name: 'Big Fish',
-    cost: 50,
-    desc: 'Fish size: XL (20rem)'
+    name: 'Big Panel',
+    cost: 1,
+    desc: 'Fishing panel: 130% size'
   }, {
     id: 'fishsize_2',
     emoji: '🔎',
-    name: 'Giant Fish',
-    cost: 200,
-    desc: 'Fish size: XXL (28rem)',
+    name: 'Giant Panel',
+    cost: 1,
+    desc: 'Fishing panel: 160% size',
     requires: 'fishsize_1'
   }, {
     id: 'fishsize_3',
     emoji: '🔎',
     name: 'Colossal',
-    cost: 800,
-    desc: 'Fish size: MEGA (40rem)',
+    cost: 1,
+    desc: 'Fishing panel: 200% size',
     requires: 'fishsize_2'
   }]
 }, {
@@ -1578,56 +1989,75 @@ const SHOP_SECTIONS = [{
     requires: 'trail_5'
   }]
 }, {
-  label: '🖱️ Click Power',
+  label: '🎣 Fishing Gear',
   items: [{
-    id: 'clickmult_inf',
-    emoji: '👆',
-    name: 'Click Power',
-    cost: 0,
-    desc: '+0.25× per level — scales manual clicks and frenzy',
-    infinite: true
+    id: 'lure_1',
+    emoji: '🎣',
+    name: 'Lure I',
+    cost: 100,
+    desc: '10% faster bite times + +1 Fish Buck per catch'
   }, {
-    id: 'clickfrenzy_1',
-    emoji: '🖱️',
-    name: 'Frenzy I',
+    id: 'lure_2',
+    emoji: '🎣',
+    name: 'Lure II',
+    cost: 500,
+    desc: '20% faster bite times + +2 Fish Bucks per catch',
+    requires: 'lure_1'
+  }, {
+    id: 'lure_3',
+    emoji: '🎣',
+    name: 'Lure III',
+    cost: 2500,
+    desc: '35% faster bite times + +5 Fish Bucks per catch',
+    requires: 'lure_2'
+  }, {
+    id: 'lure_4',
+    emoji: '🎣',
+    name: 'Lure IV',
+    cost: 15000,
+    desc: '50% faster bite times + +10 Fish Bucks per catch',
+    requires: 'lure_3'
+  }, {
+    id: 'lure_5',
+    emoji: '⭐',
+    name: 'Master Lure',
+    cost: 100000,
+    desc: '65% faster bite times + +20 Fish Bucks per catch — requires complete Encyclopaedia',
+    requires: 'lure_4',
+    encyclopaediaLocked: true
+  }, {
+    id: 'auto_cast',
+    emoji: '⏭️',
+    name: 'Auto-Cast',
+    cost: 1000,
+    desc: 'Auto-casts line when idle — you still tap the bite window'
+  }, {
+    id: 'autofisher_1',
+    emoji: '🤖',
+    name: 'Auto-Fisher I',
     cost: 300,
-    desc: '+1 passive click/5s (scales with click upgrades)'
+    desc: 'Automated fishing at 45% catch rate — common & uncommon only'
   }, {
-    id: 'clickfrenzy_2',
-    emoji: '🖱️',
-    name: 'Frenzy II',
-    cost: 3000,
-    desc: '+5 passive clicks/5s (scales with click upgrades)',
-    requires: 'clickfrenzy_1'
+    id: 'autofisher_2',
+    emoji: '🤖',
+    name: 'Auto-Fisher II',
+    cost: 2000,
+    desc: 'Auto-Fisher catch rate: 55% — common & uncommon only',
+    requires: 'autofisher_1'
   }, {
-    id: 'clickfrenzy_3',
-    emoji: '🖱️',
-    name: 'Frenzy III',
-    cost: 30000,
-    desc: '+20 passive clicks/5s (scales with click upgrades)',
-    requires: 'clickfrenzy_2'
+    id: 'autofisher_3',
+    emoji: '🤖',
+    name: 'Auto-Fisher III',
+    cost: 12000,
+    desc: 'Auto-Fisher catch rate: 65% — common & uncommon only',
+    requires: 'autofisher_2'
   }, {
-    id: 'clickfrenzy_4',
-    emoji: '🌪️',
-    name: 'Frenzy IV',
-    cost: 300000,
-    desc: '+50 passive clicks/5s (scales with click upgrades)',
-    requires: 'clickfrenzy_3'
-  }, {
-    id: 'clickfrenzy_5',
-    emoji: '⚡',
-    name: 'Frenzy V',
-    cost: 3000000,
-    desc: '+100 passive clicks/5s (scales with click upgrades)',
-    requires: 'clickfrenzy_4'
-  }, {
-    id: 'final_frenzy',
-    emoji: '🌀',
-    name: 'Final Frenzy',
-    cost: 30000000,
-    desc: '500 passive clicks/5s (scales with click upgrades) — manual clicking disabled. Toggle to switch back to Frenzy V.',
-    requires: 'clickfrenzy_5',
-    tier: 2
+    id: 'autofisher_4',
+    emoji: '🤖',
+    name: 'Master Auto-Fisher',
+    cost: 75000,
+    desc: 'Auto-Fisher catch rate: 75% — now catches rare species too',
+    requires: 'autofisher_3'
   }]
 }, {
   label: '🛡️ Protection',
@@ -1958,10 +2388,10 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
@@ -2041,7 +2471,7 @@ const ShopItem = React.memo(function ShopItem({
     className: "shop-item-action"
   }, actionEl));
 });
-const COSMETIC_SECTION_LABELS = new Set(['🐟 Fish Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
+const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
 // Season 5 tier thresholds
 const TIER_THRESHOLDS = {
@@ -2060,7 +2490,8 @@ function ShopPanel({
   onEquip,
   onEquipCosmetic,
   collapsed,
-  winCount
+  winCount,
+  caughtSpecies
 }) {
   const [activeTab, setActiveTab] = useState('functional');
   const {
@@ -2112,6 +2543,41 @@ function ShopPanel({
     const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
     const currency = getItemCurrency(item.id);
     const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
+
+    // Master Lure (lure_5) requires all species caught (complete Encyclopaedia)
+    const encyclopaediaLocked = item.encyclopaediaLocked && !ownedItems.includes(item.id) && (caughtSpecies || []).length < FISH_CATALOG_CLIENT.length;
+    if (encyclopaediaLocked) {
+      const caught = (caughtSpecies || []).length;
+      const total = FISH_CATALOG_CLIENT.length;
+      return /*#__PURE__*/React.createElement("div", {
+        key: item.id,
+        className: "shop-item shop-item--locked"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "shop-item-emoji",
+        style: {
+          opacity: 0.4
+        }
+      }, item.emoji), /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-info"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-name",
+        style: {
+          opacity: 0.5
+        }
+      }, item.name), /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-desc",
+        style: {
+          opacity: 0.5
+        }
+      }, "\uD83D\uDD12 Complete your Encyclopaedia to unlock (", caught, "/", total, " species)")), /*#__PURE__*/React.createElement("div", {
+        className: "shop-item-action"
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: '0.7rem',
+          color: 'var(--text-muted, #888)'
+        }
+      }, caught, "/", total)));
+    }
     if (tierLocked && !tierUnlocked) {
       return /*#__PURE__*/React.createElement("div", {
         key: item.id,
@@ -2233,7 +2699,7 @@ function StatsPanel({
     className: "stats-row"
   }, /*#__PURE__*/React.createElement("span", null, "Win Rate"), /*#__PURE__*/React.createElement("span", null, stats.spin_count > 0 ? (stats.win_count / stats.spin_count * 100).toFixed(1) + '%' : 'N/A')), /*#__PURE__*/React.createElement("div", {
     className: "stats-row"
-  }, /*#__PURE__*/React.createElement("span", null, "Season Taps"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "Season Fish Bucks"), /*#__PURE__*/React.createElement("span", null, fmt(stats.total_fish_clicks)))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "stats-season-history"
   }, /*#__PURE__*/React.createElement("div", {
     className: "stats-section-title"
@@ -2492,6 +2958,9 @@ function GameApp({
   const [streak, setStreak] = useState(gameState.streak);
   const [fishMood, setFishMood] = useState('idle');
   const [fishClicks, setFishClicks] = useState(gameState.fish_clicks);
+  const [caughtSpecies, setCaughtSpecies] = useState(gameState.caught_species || []);
+  const [fishingLuckyNext, setFishingLuckyNext] = useState(gameState.fishing_lucky_next || false);
+  const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [bonusEarned, setBonusEarned] = useState(0);
   const [echoTriggered, setEchoTriggered] = useState(false);
   const [jackpotHit, setJackpotHit] = useState(false);
@@ -2565,24 +3034,9 @@ function GameApp({
     if (ownedItems.includes('dice_charge_2')) return 2;
     return 1;
   }, [ownedItems]);
-  const clickAmount = useMemo(() => {
-    if (ownedItems.includes('double_click_5')) return 6;
-    if (ownedItems.includes('double_click_4')) return 5;
-    if (ownedItems.includes('double_click_3')) return 4;
-    if (ownedItems.includes('double_click_2')) return 3;
-    if (ownedItems.includes('double_click')) return 2;
-    return 1;
-  }, [ownedItems]);
-  const clickFrenzyRate = useMemo(() => {
-    if (activeCosmetics.includes('final_frenzy')) return 500;
-    if (ownedItems.includes('clickfrenzy_5')) return 100;
-    if (ownedItems.includes('clickfrenzy_4')) return 50;
-    if (ownedItems.includes('clickfrenzy_3')) return 20;
-    if (ownedItems.includes('clickfrenzy_2')) return 5;
-    if (ownedItems.includes('clickfrenzy_1')) return 1;
-    return 0;
-  }, [ownedItems]);
-  const fishSizeRem = useMemo(() => activeCosmetics.includes('fishsize_3') ? 40 : activeCosmetics.includes('fishsize_2') ? 28 : activeCosmetics.includes('fishsize_1') ? 20 : 15, [activeCosmetics]);
+
+  // fishPanelScale: controls the CSS transform scale on the fishing panel
+  const fishPanelScale = useMemo(() => activeCosmetics.includes('fishsize_small') ? 0.5 : activeCosmetics.includes('fishsize_3') ? 2.0 : activeCosmetics.includes('fishsize_2') ? 1.6 : activeCosmetics.includes('fishsize_1') ? 1.3 : 1.0, [activeCosmetics]);
   const confettiCount = useMemo(() => Math.min(200, 80 * (activeCosmetics.includes('confetti_3') ? 15 : activeCosmetics.includes('confetti_2') ? 5 : activeCosmetics.includes('confetti_1') ? 2 : 1)), [activeCosmetics]);
   const wheelTheme = useMemo(() => {
     if (activeCosmetics.includes('theme_gold')) return 'gold';
@@ -2628,7 +3082,6 @@ function GameApp({
   const autoSpinDelayRef = useRef(1500);
   const spinningRef = useRef(false);
   const showResultRef = useRef(false);
-  const clickBufferRef = useRef(0);
   const activeCosmeticsRef = useRef(activeCosmetics);
   const lowSpecRef = useRef(lowSpec);
   useEffect(() => {
@@ -2673,20 +3126,6 @@ function GameApp({
     return () => setSessionExpiredHandler(null);
   }, [onSessionExpired]);
   useEffect(() => {
-    if (clickFrenzyRate === 0) return;
-    const id = setInterval(async () => {
-      const {
-        ok,
-        data
-      } = await apiGame('/api/click-frenzy', {
-        method: 'POST',
-        body: '{}'
-      });
-      if (ok) setFishClicks(data.fish_clicks);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [clickFrenzyRate]);
-  useEffect(() => {
     const currentNumber = season ? season.season_number : null;
     const id = setInterval(async () => {
       const r = await apiFetch('/api/season');
@@ -2710,6 +3149,8 @@ function GameApp({
             bonusmult_inf: gs.data.bonusmult_inf_level || 0,
             clickmult_inf: gs.data.clickmult_inf_level || 0
           });
+          if (gs.data.caught_species) setCaughtSpecies(gs.data.caught_species);
+          setFishingLuckyNext(gs.data.fishing_lucky_next || false);
         }
       } else {
         setSeason(r.data);
@@ -2734,37 +3175,6 @@ function GameApp({
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
-  const flushClicks = useCallback(async () => {
-    const count = clickBufferRef.current;
-    if (count === 0) return;
-    clickBufferRef.current = 0;
-    const {
-      ok,
-      data
-    } = await apiGame('/api/fish-click', {
-      method: 'POST',
-      body: JSON.stringify({
-        count
-      })
-    });
-    if (ok) setFishClicks(data.fish_clicks);
-  }, []);
-  useEffect(() => {
-    const id = setInterval(flushClicks, 500);
-    return () => {
-      clearInterval(id);
-      const count = clickBufferRef.current;
-      if (count > 0) {
-        clickBufferRef.current = 0;
-        apiGame('/api/fish-click', {
-          method: 'POST',
-          body: JSON.stringify({
-            count
-          })
-        });
-      }
-    };
-  }, [flushClicks]);
   const handleBuy = useCallback(async id => {
     const {
       ok,
@@ -2853,13 +3263,6 @@ function GameApp({
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
   }, [diceRolling, spinning, streak, lowSpec, showToast]);
-  const handleFishClick = useCallback(() => {
-    if (activeCosmetics.includes('final_frenzy')) return;
-    const clickMult = 1 + infLevels.clickmult_inf * 0.25;
-    setFishClicks(c => c + clickAmount * clickMult);
-    clickBufferRef.current += clickAmount;
-    if (clickBufferRef.current >= 10) flushClicks();
-  }, [clickAmount, flushClicks, activeCosmetics, infLevels.clickmult_inf]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback(data => {
@@ -3065,6 +3468,10 @@ function GameApp({
     onClick: () => setShowStats(true)
   }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
+    title: "Fish Encyclopaedia",
+    onClick: () => setShowEncyclopedia(true)
+  }, "\uD83D\uDCD6"), /*#__PURE__*/React.createElement("button", {
+    className: "stats-btn",
     onClick: () => setLowSpec(v => !v),
     title: lowSpec ? 'Low Spec Mode ON — click to restore animations' : 'Low Spec Mode OFF — click to reduce GPU usage',
     style: {
@@ -3096,26 +3503,29 @@ function GameApp({
   }), season && /*#__PURE__*/React.createElement(SeasonInfo, {
     seasonNumber: season.season_number,
     endsAt: season.ends_at
-  })), !isMobile && /*#__PURE__*/React.createElement(Fish, {
-    mood: fishMood,
-    net: wins - losses,
+  })), showEncyclopedia && /*#__PURE__*/React.createElement(FishEncyclopedia, {
+    caughtSpecies: caughtSpecies,
+    onClose: () => setShowEncyclopedia(false)
+  }), !isMobile && /*#__PURE__*/React.createElement(FishingPanel, {
     fishClicks: fishClicks,
     fishData: getFishData(equippedFish),
-    sizeRem: fishSizeRem,
-    trailClass: trailClass,
-    lowSpec: lowSpec,
-    onFishClick: handleFishClick
+    caughtSpecies: caughtSpecies,
+    fishingLuckyNext: fishingLuckyNext,
+    ownedItems: ownedItems,
+    fishPanelScale: fishPanelScale,
+    onFishBucksUpdate: v => setFishClicks(v),
+    onCaughtSpeciesUpdate: id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])
   }), isMobile && /*#__PURE__*/React.createElement("div", {
     className: `mobile-fish-panel${mobilePanel === 'fish' ? ' mobile-visible' : ''}`
-  }, /*#__PURE__*/React.createElement(Fish, {
-    mood: fishMood,
-    net: wins - losses,
+  }, /*#__PURE__*/React.createElement(FishingPanel, {
     fishClicks: fishClicks,
     fishData: getFishData(equippedFish),
-    sizeRem: fishSizeRem,
-    trailClass: trailClass,
-    lowSpec: lowSpec,
-    onFishClick: handleFishClick
+    caughtSpecies: caughtSpecies,
+    fishingLuckyNext: fishingLuckyNext,
+    ownedItems: ownedItems,
+    fishPanelScale: fishPanelScale,
+    onFishBucksUpdate: v => setFishClicks(v),
+    onCaughtSpeciesUpdate: id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])
   }), /*#__PURE__*/React.createElement(CommunityPot, {
     pot: communityPot,
     fishClicks: fishClicks,
@@ -3269,7 +3679,8 @@ function GameApp({
     onEquip: handleEquip,
     onEquipCosmetic: handleEquipCosmetic,
     collapsed: shopCollapsed,
-    winCount: winCount
+    winCount: winCount,
+    caughtSpecies: caughtSpecies
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3299,8 +3710,8 @@ function GameApp({
   }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
     className: `mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}`,
     onClick: () => toggleMobilePanel('fish'),
-    title: "Fish"
-  }, "\uD83D\uDC1F"), /*#__PURE__*/React.createElement("button", {
+    title: "Fishing"
+  }, "\uD83C\uDFA3"), /*#__PURE__*/React.createElement("button", {
     className: `mobile-toolbar-btn${mobilePanel === 'chat' ? ' active' : ''}`,
     onClick: () => toggleMobilePanel('chat'),
     title: "Chat"

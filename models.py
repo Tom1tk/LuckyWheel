@@ -1,3 +1,5 @@
+import random
+
 from flask_login import UserMixin
 
 
@@ -5,6 +7,80 @@ class User(UserMixin):
     def __init__(self, user_id, username):
         self.id = user_id
         self.username = username
+
+
+# ── Fishing minigame catalog ───────────────────────────────────────────────
+# weight values sum to 100; they represent percentage probability of a catch.
+FISH_CATALOG = {
+    'minnow':     {'emoji': '🐟', 'name': 'Minnow',     'value':   1, 'weight': 30.0, 'tier': 'Common'},
+    'shrimp':     {'emoji': '🦐', 'name': 'Shrimp',      'value':   2, 'weight': 12.0, 'tier': 'Common'},
+    'clownfish':  {'emoji': '🐠', 'name': 'Clownfish',   'value':   3, 'weight': 15.0, 'tier': 'Common'},
+    'pufferfish': {'emoji': '🐡', 'name': 'Pufferfish',  'value':   3, 'weight': 12.0, 'tier': 'Common'},
+    'crab':       {'emoji': '🦀', 'name': 'Crab',        'value':   8, 'weight': 10.0, 'tier': 'Uncommon'},
+    'squid':      {'emoji': '🦑', 'name': 'Squid',       'value':   8, 'weight':  8.0, 'tier': 'Uncommon'},
+    'octopus':    {'emoji': '🐙', 'name': 'Octopus',     'value':  12, 'weight':  5.0, 'tier': 'Uncommon'},
+    'lobster':    {'emoji': '🦞', 'name': 'Lobster',     'value':  20, 'weight':  4.0, 'tier': 'Rare'},
+    'dolphin':    {'emoji': '🐬', 'name': 'Dolphin',     'value':  30, 'weight':  2.0, 'tier': 'Rare'},
+    'shark':      {'emoji': '🦈', 'name': 'Shark',       'value':  40, 'weight':  1.5, 'tier': 'Rare'},
+    'whale':      {'emoji': '🐋', 'name': 'Blue Whale',  'value':  75, 'weight':  0.5, 'tier': 'Legendary'},
+    'mermaid':    {'emoji': '🧜', 'name': 'Mermaid',     'value': 120, 'weight':  0.2, 'tier': 'Legendary'},
+    'lucky':      {'emoji': '⭐', 'name': 'Lucky Fish',  'value': 100, 'weight':  0.3, 'tier': 'Legendary', 'doubles_next': True},
+}
+
+# Legendary fish never catchable by auto-fish at any level
+_AUTO_FISH_LEGENDARY = frozenset({'whale', 'mermaid', 'lucky'})
+# Rare fish excluded at autofisher levels 1–3; unlocked by autofisher_4 (Master Auto-Fisher)
+_AUTO_FISH_RARE = frozenset({'lobster', 'dolphin', 'shark'})
+# Combined exclusion for levels 1–3
+AUTO_FISH_EXCLUDED = _AUTO_FISH_LEGENDARY | _AUTO_FISH_RARE
+
+# Pre-built weighted lists for roll_fish()
+_ALL_IDS     = list(FISH_CATALOG.keys())
+_ALL_WEIGHTS = [FISH_CATALOG[k]['weight'] for k in _ALL_IDS]
+# Levels 1–3: common + uncommon only
+_AUTO_IDS    = [k for k in _ALL_IDS if k not in AUTO_FISH_EXCLUDED]
+_AUTO_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_IDS]
+# Level 4 (Master): common + uncommon + rare; still no legendary
+_AUTO_RARE_IDS    = [k for k in _ALL_IDS if k not in _AUTO_FISH_LEGENDARY]
+_AUTO_RARE_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_RARE_IDS]
+
+
+def roll_fish(auto_mode: bool, allow_rare: bool = False) -> str:
+    """Return a random fish species ID weighted by rarity."""
+    if auto_mode:
+        if allow_rare:
+            return random.choices(_AUTO_RARE_IDS, weights=_AUTO_RARE_WEIGHTS, k=1)[0]
+        return random.choices(_AUTO_IDS, weights=_AUTO_WEIGHTS, k=1)[0]
+    return random.choices(_ALL_IDS, weights=_ALL_WEIGHTS, k=1)[0]
+
+
+def lure_bite_delay_seconds(lure_level: int):
+    """Return (min_seconds, max_seconds) wait between cast and bite.
+    Base window is 3–10 s. Each lure tier reduces both bounds by a fixed percentage,
+    making timing harder to bot (wide variance at all levels).
+    """
+    base_min, base_max = 3.0, 10.0
+    reductions = {0: 0.0, 1: 0.10, 2: 0.20, 3: 0.35, 4: 0.50, 5: 0.65}
+    r = reductions.get(min(lure_level, 5), 0.0)
+    return (round(base_min * (1 - r), 2), round(base_max * (1 - r), 2))
+
+
+def lure_value_bonus(lure_level: int) -> int:
+    """Flat fish-buck bonus added to every catch at this lure level."""
+    bonuses = {0: 0, 1: 1, 2: 2, 3: 5, 4: 10, 5: 20}
+    return bonuses.get(lure_level, 20)
+
+
+def autofisher_catch_rate(autofisher_level: int) -> float:
+    """Probability [0,1) of a successful auto-fish tick."""
+    rates = {0: 0.0, 1: 0.45, 2: 0.55, 3: 0.65, 4: 0.75}
+    return rates.get(autofisher_level, 0.0)
+
+
+def fish_value(species_id: str, lure_level: int) -> int:
+    """Base catalog value + lure bonus (Lucky Fish doubling applied externally)."""
+    base = FISH_CATALOG[species_id]['value']
+    return base + lure_value_bonus(lure_level)
 
 
 FISH_SKINS = {
@@ -54,10 +130,11 @@ SHOP_ITEMS = {
     'bonusmult_4':    {'cost': 20000,       'requires': 'bonusmult_3'},
     'bonusmult_5':    {'cost': 80000,       'requires': 'bonusmult_4'},
     'bonusmult_6':    {'cost': 300000,      'requires': 'bonusmult_5'},
-    # Fish size (cosmetic)
-    'fishsize_1':     {'cost': 50,           'requires': None},
-    'fishsize_2':     {'cost': 200,          'requires': 'fishsize_1'},
-    'fishsize_3':     {'cost': 800,          'requires': 'fishsize_2'},
+    # Fish size (cosmetic — controls fishing panel scale; all 1 loss as accessibility features)
+    'fishsize_small': {'cost': 1,            'requires': None},
+    'fishsize_1':     {'cost': 1,            'requires': None},
+    'fishsize_2':     {'cost': 1,            'requires': 'fishsize_1'},
+    'fishsize_3':     {'cost': 1,            'requires': 'fishsize_2'},
     # Trails (cosmetic)
     'trail_1':        {'cost': 125,          'requires': None},
     'trail_2':        {'cost': 500,          'requires': 'trail_1'},
@@ -116,6 +193,22 @@ SHOP_ITEMS = {
     'jackpot':        {'cost': 300_000,      'requires': None},
     # Legendary
     'singularity':    {'cost': int(1e67),    'requires': None},
+    # ── Fishing gear (Season 6) ──────────────────────────────────────────────
+    # auto_cast: auto-casts line; player still taps the bite window manually.
+    'auto_cast':      {'cost': 1_000,        'requires': None},
+    # Lure upgrades: reduce bite wait time and add flat value bonus to every catch.
+    # Both manual and auto-fish benefit.
+    'lure_1':         {'cost': 100,          'requires': None},
+    'lure_2':         {'cost': 500,          'requires': 'lure_1'},
+    'lure_3':         {'cost': 2_500,        'requires': 'lure_2'},
+    'lure_4':         {'cost': 15_000,       'requires': 'lure_3'},
+    'lure_5':         {'cost': 100_000,      'requires': 'lure_4'},
+    # Auto-Fisher upgrades: unlock Auto-Fish tickbox; improve auto catch rate.
+    # Auto-Fish NEVER catches whale/mermaid/lucky at any level.
+    'autofisher_1':   {'cost': 300,          'requires': None},
+    'autofisher_2':   {'cost': 2_000,        'requires': 'autofisher_1'},
+    'autofisher_3':   {'cost': 12_000,       'requires': 'autofisher_2'},
+    'autofisher_4':   {'cost': 75_000,       'requires': 'autofisher_3'},
 }
 
 # Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
@@ -150,7 +243,7 @@ _COSMETIC_ITEM_IDS = {
     'fish_lobster', 'fish_whale',
     'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc',
     # Fish size
-    'fishsize_1', 'fishsize_2', 'fishsize_3',
+    'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3',
     # Trails
     'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6',
     # Wheel themes
