@@ -994,15 +994,14 @@ function FishingPanel({
     return () => clearTimeout(t);
   }, [phase, autoCast, autoFish]); // eslint-disable-line
 
-  // Poll /api/bite-poll every 250 ms until bite detected or window expired.
+  // Poll /api/bite-poll until bite detected or window expired.
+  // Uses recursive setTimeout so each poll fires 250ms AFTER the previous
+  // fetch completes — preventing overlapping requests that would 429.
   // bite_at is not returned by /api/cast so bots cannot pre-time the reel.
   const startBitePolling = useCallback(() => {
-    if (biteTimerRef.current) clearInterval(biteTimerRef.current);
-    biteTimerRef.current = setInterval(async () => {
-      if (phaseRef.current !== 'waiting') {
-        clearInterval(biteTimerRef.current);
-        return;
-      }
+    if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
+    const poll = async () => {
+      if (phaseRef.current !== 'waiting') return;
       const {
         ok,
         data
@@ -1010,33 +1009,36 @@ function FishingPanel({
         method: 'POST',
         body: '{}'
       });
-      if (!ok) return;
-      if (data.expired) {
-        clearInterval(biteTimerRef.current);
-        if (phaseRef.current === 'waiting') {
+      if (phaseRef.current !== 'waiting') return;
+      if (ok) {
+        if (data.expired) {
           setMissReason('late');
           setPhase('miss');
           countMiss();
           setTimeout(() => setPhase('idle'), 1500);
+          return;
+        } else if (data.bite) {
+          // Use remaining_ms from server to drive the bite bar animation.
+          const now = Date.now();
+          setBiteAt(now);
+          setExpiresAt(now + data.remaining_ms);
+          setPhase('bite');
+          if (missTimerRef.current) clearTimeout(missTimerRef.current);
+          missTimerRef.current = setTimeout(() => {
+            if (phaseRef.current === 'bite') {
+              setMissReason('late');
+              setPhase('miss');
+              countMiss();
+              setTimeout(() => setPhase('idle'), 1500);
+            }
+          }, data.remaining_ms);
+          return;
         }
-      } else if (data.bite) {
-        clearInterval(biteTimerRef.current);
-        // Use remaining_ms from server to drive the bite bar animation.
-        const now = Date.now();
-        setBiteAt(now);
-        setExpiresAt(now + data.remaining_ms);
-        setPhase('bite');
-        if (missTimerRef.current) clearTimeout(missTimerRef.current);
-        missTimerRef.current = setTimeout(() => {
-          if (phaseRef.current === 'bite') {
-            setMissReason('late');
-            setPhase('miss');
-            countMiss();
-            setTimeout(() => setPhase('idle'), 1500);
-          }
-        }, data.remaining_ms);
       }
-    }, 250);
+      // Not yet bitten — schedule next poll 250ms after this one completed
+      biteTimerRef.current = setTimeout(poll, 250);
+    };
+    poll();
   }, [countMiss]); // eslint-disable-line
 
   const doCast = async () => {
@@ -1053,7 +1055,7 @@ function FishingPanel({
     setLastCatch(null);
     setMissReason('late');
     setPhase('waiting');
-    if (biteTimerRef.current) clearInterval(biteTimerRef.current);
+    if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
     if (missTimerRef.current) clearTimeout(missTimerRef.current);
     startBitePolling();
   };
@@ -1066,7 +1068,7 @@ function FishingPanel({
   const handleEarlyReel = useCallback(() => {
     if (phaseRef.current !== 'waiting') return;
     if (biteTimerRef.current) {
-      clearInterval(biteTimerRef.current);
+      clearTimeout(biteTimerRef.current);
       biteTimerRef.current = null;
     }
     if (missTimerRef.current) {
