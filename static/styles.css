@@ -2098,12 +2098,50 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .user-bar-name { display: none; }
   .user-bar .community-pot-bar { display: none; }
 
+  /* Main layout row: left sidebar + casino column */
+  .main-layout-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  /* Left sidebar: streak/shield/lucky7/dice alongside the wheel */
+  .mobile-home-sidebar {
+    width: 110px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 4px 6px 4px;
+    max-height: calc(100vh - 44px - 56px);
+    overflow-y: auto;
+  }
+
+  /* Scale down dice inside the narrow left sidebar */
+  .mobile-home-sidebar .die {
+    width: 42px;
+    height: 42px;
+    padding: 5px;
+    border-radius: 7px;
+  }
+  .mobile-home-sidebar .pip { width: 7px; height: 7px; }
+  .mobile-home-sidebar .dice-row { gap: 5px; }
+  .mobile-home-sidebar .dice-panel { flex: none; border-top: none; margin-top: 0; padding-top: 0; }
+  .mobile-home-sidebar .dice-panel-label { font-size: 9px; }
+  .mobile-home-sidebar .dice-panel-desc { font-size: 0.5rem; }
+  .mobile-home-sidebar .dice-roll-btn { font-size: 10px; padding: 5px 6px; width: 100%; box-sizing: border-box; }
+  .mobile-home-sidebar .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
+  .mobile-home-sidebar .streak-panel { padding: 6px 4px; }
+  .mobile-home-sidebar .streak-count { font-size: 1.5rem; }
+  .mobile-home-sidebar .shield-indicator { font-size: 0.55rem; padding: 4px 6px; letter-spacing: 1px; }
+
   /* Wheel — hero of the page */
-  .casino-container { padding: 8px 0 70px 0; width: 100%; }
+  .casino-container { padding: 8px 0 70px 0; flex: 1; min-width: 0; width: auto; }
   .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
   .wheel-wrapper {
-    width:  min(320px, calc(100vw - 40px), calc(100vh - 260px));
-    height: min(320px, calc(100vw - 40px), calc(100vh - 260px));
+    width:  min(300px, calc(100vw - 130px), calc(100vh - 260px));
+    height: min(300px, calc(100vw - 130px), calc(100vh - 260px));
   }
   .bulbs { gap: 8px; }
   .bulb  { width: 10px; height: 10px; }

@@ -3772,6 +3772,29 @@ function GameApp({
     className: "spin-again-btn",
     onClick: handleSpinAgain
   }, "Spin Again")), /*#__PURE__*/React.createElement("div", {
+    className: "main-layout-row"
+  }, isMobile && /*#__PURE__*/React.createElement("div", {
+    className: "mobile-home-sidebar"
+  }, (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {
+    className: "shield-indicator"
+  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
+    spinCount: spinCount
+  }), /*#__PURE__*/React.createElement(StreakPanel, {
+    streak: streak,
+    bonusmultLevel: infLevels.bonusmult_inf
+  }), /*#__PURE__*/React.createElement(DicePanel, {
+    streak: streak,
+    onRoll: handleDiceRoll,
+    rolling: diceRolling,
+    diceResult: diceResult,
+    spinning: spinning,
+    guardSpinning: !!guardState,
+    lowSpec: lowSpec,
+    diceCharges: diceCharges,
+    maxDiceCharges: diceMaxCharges,
+    diceLastRecharge: diceLastRecharge,
+    hasDiceExtra: ownedItems.includes('dice_extra')
+  })), /*#__PURE__*/React.createElement("div", {
     className: "casino-container"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bulbs"
@@ -3818,18 +3841,6 @@ function GameApp({
     wins: wins,
     losses: losses,
     lastResult: result
-  }), isMobile && /*#__PURE__*/React.createElement(DicePanel, {
-    streak: streak,
-    onRoll: handleDiceRoll,
-    rolling: diceRolling,
-    diceResult: diceResult,
-    spinning: spinning,
-    guardSpinning: !!guardState,
-    lowSpec: lowSpec,
-    diceCharges: diceCharges,
-    maxDiceCharges: diceMaxCharges,
-    diceLastRecharge: diceLastRecharge,
-    hasDiceExtra: ownedItems.includes('dice_extra')
   }), /*#__PURE__*/React.createElement("div", {
     className: "bulbs"
   }, Array.from({
@@ -3837,7 +3848,7 @@ function GameApp({
   }, (_, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     className: "bulb"
-  })))), /*#__PURE__*/React.createElement("div", {
+  }))))), /*#__PURE__*/React.createElement("div", {
     className: `game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-collapse-btn",
@@ -3845,7 +3856,7 @@ function GameApp({
     title: shopCollapsed ? 'Expand shop' : 'Collapse shop'
   }, shopCollapsed ? '‹' : '›'), /*#__PURE__*/React.createElement("div", {
     className: `game-right-body${shopCollapsed ? ' shop-collapsed' : ''}`
-  }, /*#__PURE__*/React.createElement("div", {
+  }, !isMobile && /*#__PURE__*/React.createElement("div", {
     className: "game-right-sidebar"
   }, (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {
     className: "shield-indicator"

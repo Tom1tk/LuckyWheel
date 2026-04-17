@@ -2690,72 +2690,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       )}
 
-      <div className="casino-container">
-        <div className="bulbs">
-          {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
-        </div>
-
-        <div className="casino-header">
-          <div className="casino-title">Lucky Wheel</div>
-          <div className="subtitle">Try Your Fortune</div>
-        </div>
-
-        <div
-          className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
-          onClick={!spinning && !autoSpin ? spin : undefined}
-          title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}
-        >
-          <div className={`pointer ${spinning ? 'spinning' : ''}`} />
-          <canvas
-            ref={canvasRef}
-            width={380}
-            height={380}
-            className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
-            style={{ transform: `rotate(${rotation}deg)`, transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
-          />
-          <div className="center-hub">★</div>
-        </div>
-
-        <div className={`spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`} onClick={spin}>
-          {spinning || autoSpin ? '' : '▶ Click to Spin ◀'}
-        </div>
-
-        <label className="autospin-row">
-          <input type="checkbox" checked={autoSpin} onChange={e => setAutoSpin(e.target.checked)} />
-          <span className="autospin-label">Auto Spin</span>
-        </label>
-
-        <Scoreboard wins={wins} losses={losses} lastResult={result} />
-
+      <div className="main-layout-row">
         {isMobile && (
-          <DicePanel
-            streak={streak}
-            onRoll={handleDiceRoll}
-            rolling={diceRolling}
-            diceResult={diceResult}
-            spinning={spinning}
-            guardSpinning={!!guardState}
-            lowSpec={lowSpec}
-            diceCharges={diceCharges}
-            maxDiceCharges={diceMaxCharges}
-            diceLastRecharge={diceLastRecharge}
-            hasDiceExtra={ownedItems.includes('dice_extra')}
-          />
-        )}
-
-        <div className="bulbs">
-          {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
-        </div>
-      </div>
-
-      <div className={`game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`}>
-        <button
-          className="shop-collapse-btn"
-          onClick={() => setShopCollapsed(c => !c)}
-          title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
-        >{shopCollapsed ? '‹' : '›'}</button>
-        <div className={`game-right-body${shopCollapsed ? ' shop-collapsed' : ''}`}>
-          <div className="game-right-sidebar">
+          <div className="mobile-home-sidebar">
             {(hasGuard || hasRegen) && (
               <div className="shield-indicator">
                 {hasGuard && <div>🛡️ Guard ready</div>}
@@ -2782,6 +2719,87 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               hasDiceExtra={ownedItems.includes('dice_extra')}
             />
           </div>
+        )}
+
+        <div className="casino-container">
+          <div className="bulbs">
+            {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+          </div>
+
+          <div className="casino-header">
+            <div className="casino-title">Lucky Wheel</div>
+            <div className="subtitle">Try Your Fortune</div>
+          </div>
+
+          <div
+            className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
+            onClick={!spinning && !autoSpin ? spin : undefined}
+            title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}
+          >
+            <div className={`pointer ${spinning ? 'spinning' : ''}`} />
+            <canvas
+              ref={canvasRef}
+              width={380}
+              height={380}
+              className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
+              style={{ transform: `rotate(${rotation}deg)`, transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
+            />
+            <div className="center-hub">★</div>
+          </div>
+
+          <div className={`spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`} onClick={spin}>
+            {spinning || autoSpin ? '' : '▶ Click to Spin ◀'}
+          </div>
+
+          <label className="autospin-row">
+            <input type="checkbox" checked={autoSpin} onChange={e => setAutoSpin(e.target.checked)} />
+            <span className="autospin-label">Auto Spin</span>
+          </label>
+
+          <Scoreboard wins={wins} losses={losses} lastResult={result} />
+
+          <div className="bulbs">
+            {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
+          </div>
+        </div>
+      </div>
+
+      <div className={`game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`}>
+        <button
+          className="shop-collapse-btn"
+          onClick={() => setShopCollapsed(c => !c)}
+          title={shopCollapsed ? 'Expand shop' : 'Collapse shop'}
+        >{shopCollapsed ? '‹' : '›'}</button>
+        <div className={`game-right-body${shopCollapsed ? ' shop-collapsed' : ''}`}>
+          {!isMobile && (
+            <div className="game-right-sidebar">
+              {(hasGuard || hasRegen) && (
+                <div className="shield-indicator">
+                  {hasGuard && <div>🛡️ Guard ready</div>}
+                  {hasRegen && (
+                    <div>{regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'}</div>
+                  )}
+                </div>
+              )}
+              {ownedItems.includes('lucky_seven') && (
+                <LuckySevenCounter spinCount={spinCount} />
+              )}
+              <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
+              <DicePanel
+                streak={streak}
+                onRoll={handleDiceRoll}
+                rolling={diceRolling}
+                diceResult={diceResult}
+                spinning={spinning}
+                guardSpinning={!!guardState}
+                lowSpec={lowSpec}
+                diceCharges={diceCharges}
+                maxDiceCharges={diceMaxCharges}
+                diceLastRecharge={diceLastRecharge}
+                hasDiceExtra={ownedItems.includes('dice_extra')}
+              />
+            </div>
+          )}
 
           <ShopPanel
             fishClicks={fishClicks}
