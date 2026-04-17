@@ -893,6 +893,7 @@ function FishingPanel({
   const phaseRef = useRef('idle');
   const biteTimerRef = useRef(null);
   const missTimerRef = useRef(null);
+  const pollSessionRef = useRef(0);
   const autoFishIntervalRef = useRef(null);
   const autoFishPopupTimerRef = useRef(null);
   const reelInFlightRef = useRef(false);
@@ -995,47 +996,55 @@ function FishingPanel({
   }, [phase, autoCast, autoFish]); // eslint-disable-line
 
   // Poll /api/bite-poll until bite detected or window expired.
-  // Uses recursive setTimeout so each poll fires 250ms AFTER the previous
-  // fetch completes — preventing overlapping requests that would 429.
-  // bite_at is not returned by /api/cast so bots cannot pre-time the reel.
+  // Uses recursive setTimeout (not setInterval) so each poll fires 250ms
+  // AFTER the previous fetch completes, keeping at most 1 request in-flight.
+  // pollSessionRef is a cancellation token — incremented on each new cast so
+  // any in-flight poll from the previous cast exits cleanly without affecting
+  // the new session. try/catch ensures a network hiccup doesn't silently
+  // break the chain and leave the phase stuck on 'waiting'.
   const startBitePolling = useCallback(() => {
     if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
+    const mySession = ++pollSessionRef.current;
     const poll = async () => {
+      if (pollSessionRef.current !== mySession) return;
       if (phaseRef.current !== 'waiting') return;
-      const {
-        ok,
-        data
-      } = await apiGame('/api/bite-poll', {
-        method: 'POST',
-        body: '{}'
-      });
-      if (phaseRef.current !== 'waiting') return;
-      if (ok) {
-        if (data.expired) {
-          setMissReason('late');
-          setPhase('miss');
-          countMiss();
-          setTimeout(() => setPhase('idle'), 1500);
-          return;
-        } else if (data.bite) {
-          // Use remaining_ms from server to drive the bite bar animation.
-          const now = Date.now();
-          setBiteAt(now);
-          setExpiresAt(now + data.remaining_ms);
-          setPhase('bite');
-          if (missTimerRef.current) clearTimeout(missTimerRef.current);
-          missTimerRef.current = setTimeout(() => {
-            if (phaseRef.current === 'bite') {
-              setMissReason('late');
-              setPhase('miss');
-              countMiss();
-              setTimeout(() => setPhase('idle'), 1500);
-            }
-          }, data.remaining_ms);
-          return;
+      try {
+        const {
+          ok,
+          data
+        } = await apiGame('/api/bite-poll', {
+          method: 'POST',
+          body: '{}'
+        });
+        if (pollSessionRef.current !== mySession) return;
+        if (phaseRef.current !== 'waiting') return;
+        if (ok) {
+          if (data.expired) {
+            setMissReason('late');
+            setPhase('miss');
+            countMiss();
+            setTimeout(() => setPhase('idle'), 1500);
+            return;
+          } else if (data.bite) {
+            // Use remaining_ms from server to drive the bite bar animation.
+            const now = Date.now();
+            setBiteAt(now);
+            setExpiresAt(now + data.remaining_ms);
+            setPhase('bite');
+            if (missTimerRef.current) clearTimeout(missTimerRef.current);
+            missTimerRef.current = setTimeout(() => {
+              if (phaseRef.current === 'bite') {
+                setMissReason('late');
+                setPhase('miss');
+                countMiss();
+                setTimeout(() => setPhase('idle'), 1500);
+              }
+            }, data.remaining_ms);
+            return;
+          }
         }
-      }
-      // Not yet bitten — schedule next poll 250ms after this one completed
+      } catch (_) {/* network error — retry */}
+      if (pollSessionRef.current !== mySession) return;
       biteTimerRef.current = setTimeout(poll, 250);
     };
     poll();
