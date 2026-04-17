@@ -748,7 +748,9 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
 
     const poll = async () => {
       if (pollSessionRef.current !== mySession) return;
-      if (phaseRef.current !== 'waiting') return;
+      // No phaseRef check here — poll() is called immediately after setPhase('waiting')
+      // but before React re-renders, so phaseRef.current is still the previous value.
+      // The post-await check below runs after React has had time to update.
       try {
         const { ok, data } = await apiGame('/api/bite-poll', { method: 'POST', body: '{}' });
         if (pollSessionRef.current !== mySession) return;
