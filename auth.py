@@ -66,9 +66,6 @@ def me():
 @auth_bp.route('/api/register', methods=['POST'])
 @limiter.limit('5 per hour')
 def register():
-    # STAGING: registration temporarily disabled
-    return jsonify({'error': 'Registration is currently disabled on staging'}), 403
-
     err = require_json()
     if err:
         return err
