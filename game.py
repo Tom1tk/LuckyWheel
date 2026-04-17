@@ -45,6 +45,11 @@ game_bp = Blueprint('game', __name__)
 # Server-side reel window: client sees 1.5 s, server grants 0.3 s of network
 # headroom so a tap at the last moment still registers.
 REEL_WINDOW_SECONDS = 1.8
+# Minimum elapsed seconds after bite_at before a reel is accepted. Sub-50ms
+# reels are impossible for real players (poll cadence + network RTT floor).
+REEL_MIN_DELTA_SECONDS = 0.05
+# EWMA smoothing factor for precise_pct telemetry (lower = slower response).
+_EWMA_ALPHA = 0.15
 
 
 def _lure_level(owned: list) -> int:
@@ -1012,15 +1017,56 @@ def cast_line():
                 )
             conn.commit()
 
+        # bite_at is intentionally omitted from this response — the client
+        # must poll /api/bite-poll to detect the bite rather than pre-timing it.
         return jsonify({
-            'cast_at':    now_utc.isoformat(),
-            'bite_at':    new_bite_at.isoformat(),
-            'expires_at': expires_at.isoformat(),
-            'nibble_at':  nibble_at,
+            'cast_at':   now_utc.isoformat(),
+            'nibble_at': nibble_at,
         })
     except Exception:
         log.exception('CAST_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Cast failed'}), 500
+
+
+@game_bp.route('/api/bite-poll', methods=['POST'])
+@login_required
+@limiter.limit('4 per second')
+def bite_poll():
+    err = require_json()
+    if err:
+        return err
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT fishing_bite_at FROM game_state WHERE user_id = %s',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+
+        now_utc = dt.datetime.now(timezone.utc)
+        bite_at = gs['fishing_bite_at']
+
+        if bite_at is None:
+            return jsonify({'bite': False}), 200
+
+        if bite_at.tzinfo is None:
+            bite_at = bite_at.replace(tzinfo=timezone.utc)
+
+        expires_at = bite_at + timedelta(seconds=REEL_WINDOW_SECONDS)
+
+        if now_utc > expires_at:
+            return jsonify({'expired': True}), 200
+
+        if now_utc < bite_at:
+            return jsonify({'bite': False}), 200
+
+        remaining_ms = int((expires_at - now_utc).total_seconds() * 1000)
+        return jsonify({'bite': True, 'remaining_ms': max(0, remaining_ms)}), 200
+
+    except Exception:
+        log.exception('BITE_POLL_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Poll failed'}), 500
 
 
 @game_bp.route('/api/reel', methods=['POST'])
@@ -1036,7 +1082,8 @@ def reel_line():
                 cur.execute(
                     '''SELECT owned_items, fishing_cast_at, fishing_bite_at,
                               fishing_lucky_next, caught_species, fish_clicks,
-                              fastest_catch_pct
+                              fastest_catch_pct,
+                              suspicious_catches, catch_count, catch_pct_ewma
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -1067,6 +1114,14 @@ def reel_line():
                 return jsonify({'result': 'miss', 'reason': 'bad_timing',
                                 'fish_clicks': int(gs['fish_clicks'])}), 200
 
+            elapsed_s = (now_utc - bite_at).total_seconds()
+            if elapsed_s < REEL_MIN_DELTA_SECONDS:
+                conn.commit()
+                log.warning('SUSPICIOUS_REEL_TOO_FAST user_id=%s delta_ms=%.1f',
+                            current_user.id, elapsed_s * 1000)
+                return jsonify({'result': 'miss', 'reason': 'too_fast',
+                                'fish_clicks': int(gs['fish_clicks'])}), 200
+
             # Successful catch!
             owned          = list(gs['owned_items'])
             lure_level     = _lure_level(owned)
@@ -1082,9 +1137,8 @@ def reel_line():
                 was_doubled = True
 
             # Precise Angler: tiered multiplier for early reels (exclusive — highest gate wins).
-            window_total_s = REEL_WINDOW_SECONDS
-            elapsed_s      = (now_utc - bite_at).total_seconds()
-            precise_pct    = round((elapsed_s / window_total_s) * 100, 1) if window_total_s > 0 else 100.0
+            # elapsed_s already computed above (reused from the too_fast check).
+            precise_pct    = round((elapsed_s / REEL_WINDOW_SECONDS) * 100, 1)
             precise_mult   = 1.0
             if 'precise_angler_3' in owned and precise_pct <= 15.0:
                 precise_mult = 2.0
@@ -1107,13 +1161,26 @@ def reel_line():
             old_best = gs['fastest_catch_pct']
             new_best = precise_pct if (old_best is None or precise_pct < old_best) else old_best
 
+            # Telemetry: EWMA of precise_pct and suspicious-catch counter.
+            old_ewma       = gs['catch_pct_ewma']
+            new_ewma       = precise_pct if old_ewma is None else _EWMA_ALPHA * precise_pct + (1 - _EWMA_ALPHA) * old_ewma
+            new_catch_count = int(gs['catch_count']) + 1
+            new_suspicious  = int(gs['suspicious_catches'])
+            if precise_pct < 12.0:
+                new_suspicious += 1
+                if new_suspicious % 10 == 0:
+                    log.warning('SUSPICIOUS_REEL user_id=%s pct=%.1f ewma=%.1f catch_count=%d suspicious=%d',
+                                current_user.id, precise_pct, new_ewma, new_catch_count, new_suspicious)
+
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
                        SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
-                           fastest_catch_pct = %s
+                           fastest_catch_pct = %s,
+                           suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s
                        WHERE user_id = %s''',
-                    (new_fish_clicks, new_lucky_next, caught_species, new_best, current_user.id),
+                    (new_fish_clicks, new_lucky_next, caught_species, new_best,
+                     new_suspicious, new_catch_count, new_ewma, current_user.id),
                 )
             conn.commit()
 
@@ -1147,18 +1214,33 @@ def auto_fish_tick():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT owned_items, fish_clicks, caught_species FROM game_state WHERE user_id = %s FOR UPDATE',
+                    'SELECT owned_items, fish_clicks, caught_species, auto_fish_last_tick FROM game_state WHERE user_id = %s FOR UPDATE',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
+            now_utc        = dt.datetime.now(timezone.utc)
             owned          = list(gs['owned_items'])
             autofisher_lvl = _autofisher_level(owned)
 
             if autofisher_lvl < 1:
                 return jsonify({'error': 'Auto-Fisher not owned'}), 403
 
+            last_tick = gs['auto_fish_last_tick']
+            if last_tick is not None:
+                if last_tick.tzinfo is None:
+                    last_tick = last_tick.replace(tzinfo=timezone.utc)
+                if (now_utc - last_tick).total_seconds() < 5.0:
+                    conn.commit()
+                    return jsonify({'result': 'miss', 'fish_clicks': int(gs['fish_clicks'])}), 200
+
             if random.random() >= autofisher_catch_rate(autofisher_lvl):
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'UPDATE game_state SET auto_fish_last_tick = %s WHERE user_id = %s',
+                        (now_utc, current_user.id),
+                    )
+                conn.commit()
                 return jsonify({'result': 'miss', 'fish_clicks': int(gs['fish_clicks'])}), 200
 
             lure_level     = _lure_level(owned)
@@ -1174,8 +1256,8 @@ def auto_fish_tick():
 
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE game_state SET fish_clicks = %s, caught_species = %s WHERE user_id = %s',
-                    (new_fish_clicks, caught_species, current_user.id),
+                    'UPDATE game_state SET fish_clicks = %s, caught_species = %s, auto_fish_last_tick = %s WHERE user_id = %s',
+                    (new_fish_clicks, caught_species, now_utc, current_user.id),
                 )
             conn.commit()
 

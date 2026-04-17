@@ -734,34 +734,57 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
     return () => clearTimeout(t);
   }, [phase, autoCast, autoFish]); // eslint-disable-line
 
+  // Poll /api/bite-poll every 250 ms until bite detected or window expired.
+  // bite_at is not returned by /api/cast so bots cannot pre-time the reel.
+  const startBitePolling = useCallback(() => {
+    if (biteTimerRef.current) clearInterval(biteTimerRef.current);
+    biteTimerRef.current = setInterval(async () => {
+      if (phaseRef.current !== 'waiting') {
+        clearInterval(biteTimerRef.current);
+        return;
+      }
+      const { ok, data } = await apiGame('/api/bite-poll', { method: 'POST', body: '{}' });
+      if (!ok) return;
+      if (data.expired) {
+        clearInterval(biteTimerRef.current);
+        if (phaseRef.current === 'waiting') {
+          setMissReason('late');
+          setPhase('miss');
+          countMiss();
+          setTimeout(() => setPhase('idle'), 1500);
+        }
+      } else if (data.bite) {
+        clearInterval(biteTimerRef.current);
+        // Use remaining_ms from server to drive the bite bar animation.
+        const now = Date.now();
+        setBiteAt(now);
+        setExpiresAt(now + data.remaining_ms);
+        setPhase('bite');
+        if (missTimerRef.current) clearTimeout(missTimerRef.current);
+        missTimerRef.current = setTimeout(() => {
+          if (phaseRef.current === 'bite') {
+            setMissReason('late');
+            setPhase('miss');
+            countMiss();
+            setTimeout(() => setPhase('idle'), 1500);
+          }
+        }, data.remaining_ms);
+      }
+    }, 250);
+  }, [countMiss]); // eslint-disable-line
+
   const doCast = async () => {
     if (phaseRef.current !== 'idle') return;
-    const { ok, data } = await apiGame('/api/cast', { method: 'POST', body: '{}' });
+    const { ok } = await apiGame('/api/cast', { method: 'POST', body: '{}' });
     if (!ok) return;
-    const bite = new Date(data.bite_at).getTime();
-    const exp  = new Date(data.expires_at).getTime();
-    setBiteAt(bite);
-    setExpiresAt(exp);
+    setBiteAt(null);
+    setExpiresAt(null);
     setLastCatch(null);
     setMissReason('late');
     setPhase('waiting');
-
-    const now = Date.now();
-    const waitMs  = Math.max(0, bite - now);
-    const totalMs = Math.max(0, exp  - now);
-
-    if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
+    if (biteTimerRef.current) clearInterval(biteTimerRef.current);
     if (missTimerRef.current)  clearTimeout(missTimerRef.current);
-
-    biteTimerRef.current = setTimeout(() => setPhase('bite'), waitMs);
-    missTimerRef.current = setTimeout(() => {
-      if (phaseRef.current === 'bite') {
-        setMissReason('late');
-        setPhase('miss');
-        countMiss();
-        setTimeout(() => setPhase('idle'), 1500);
-      }
-    }, totalMs);
+    startBitePolling();
   };
 
   const handleCast = useCallback(() => {
@@ -772,7 +795,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   // Clicking the water area while waiting = reel too early → instant miss
   const handleEarlyReel = useCallback(() => {
     if (phaseRef.current !== 'waiting') return;
-    if (biteTimerRef.current) { clearTimeout(biteTimerRef.current); biteTimerRef.current = null; }
+    if (biteTimerRef.current) { clearInterval(biteTimerRef.current); biteTimerRef.current = null; }
     if (missTimerRef.current) { clearTimeout(missTimerRef.current); missTimerRef.current = null; }
     setMissReason('early');
     setPhase('miss');
