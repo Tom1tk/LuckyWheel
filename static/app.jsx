@@ -359,6 +359,10 @@ function drawWheel(canvas, theme = 'default') {
       { label: 'WIN',  color: '#003a4d', bright: '#00E5FF', start: -Math.PI/2, end: Math.PI/2 },
       { label: 'LOSE', color: '#4d1020', bright: '#FF6B6B', start: Math.PI/2,  end: Math.PI*1.5 },
     ],
+    night_ocean: [
+      { label: 'WIN',  color: '#1a0d4d', bright: '#5533FF', start: -Math.PI/2, end: Math.PI/2 },
+      { label: 'LOSE', color: '#3d0011', bright: '#CC2244', start: Math.PI/2,  end: Math.PI*1.5 },
+    ],
   };
   const segments = THEMES[theme] || THEMES.default;
 
@@ -1072,11 +1076,22 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
           <span className="dice-recharge-timer">+1 in {fmtCountdownSecs(secsToNext)}</span>
         )}
       </div>
-      <div className="dice-row">
-        <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
-        <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
-        {hasDiceExtra && <Die value={die3Val} rolling={rolling && !lowSpec} landed={landed} />}
-      </div>
+      {hasDiceExtra ? (
+        <div className="dice-triangle">
+          <div className="dice-row dice-row-top">
+            <Die value={die3Val} rolling={rolling && !lowSpec} landed={landed} />
+          </div>
+          <div className="dice-row">
+            <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
+            <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
+          </div>
+        </div>
+      ) : (
+        <div className="dice-row">
+          <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
+          <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
+        </div>
+      )}
       {showResult && diceResult && (
         <span className={`dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`}>
           {diceResult.cursed_triple
@@ -1517,6 +1532,7 @@ const SHOP_SECTIONS = [
     { id: 'page_season3', emoji: '🟣', name: 'Season 3 Theme', cost: 1000, desc: 'Purple & orange casino theme (S3).' },
     { id: 'page_season4', emoji: '💜', name: 'Season 4 Theme', cost: 1000, desc: 'Deep violet casino theme (S4).' },
     { id: 'page_season5', emoji: '🌊', name: 'Season 5 Theme', cost: 1000, desc: 'Bioluminescent deep ocean theme (S5).' },
+    { id: 'page_season6', emoji: '🌙', name: 'Season 6 Theme', cost: 1000, desc: 'Night ocean — deep indigo & violet (S6).' },
   ]},
   { label: '🎲 Dice Charges', items: [
     { id: 'dice_charge_2', emoji: '🎲', name: 'Extra Charge',    cost: 2000,    desc: 'Max dice charges: 1 → 2', tier: 2 },
@@ -1582,7 +1598,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
-  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5',
+  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6',
   'final_frenzy',
   'auto_guard',
 ]);
@@ -1595,7 +1611,7 @@ const COSMETIC_IDS = new Set([
   'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
-  'page_season1','page_season2','page_season3','page_season4','page_season5','party_mode','confetti_1','confetti_2','confetti_3',
+  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
@@ -2081,8 +2097,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [ownedItems]);
 
   const autoSpinDelay = useMemo(() =>
-    ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500,
-  [ownedItems]);
+    activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : 1500,
+  [activeCosmetics]);
 
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
@@ -2110,6 +2126,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_ice'))  return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
+    if (activeCosmetics.includes('page_season6')) return 'night_ocean';
     return 'default';
   }, [activeCosmetics]);
 
@@ -2139,6 +2156,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
     if (activeCosmetics.includes('page_season4')) return 'page-season4';
     if (activeCosmetics.includes('page_season5')) return 'page-season5';
+    if (activeCosmetics.includes('page_season6')) return 'page-season6';
     return '';
   }, [activeCosmetics]);
 
@@ -2724,6 +2742,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               diceCharges={diceCharges}
               maxDiceCharges={diceMaxCharges}
               diceLastRecharge={diceLastRecharge}
+              hasDiceExtra={ownedItems.includes('dice_extra')}
             />
           </div>
 

@@ -196,11 +196,11 @@ SHOP_ITEMS = {
     'bg_abyss':       {'cost': 15_000,       'requires': 'bg_forest'},
     'bg_cosmic':      {'cost': 50_000,       'requires': 'bg_abyss'},
     # Bonus functional upgrades
-    'fortune_charm':  {'cost': 50_000,       'requires': None},
-    'lucky_seven':    {'cost': 100_000,      'requires': None},
-    'win_echo':       {'cost': 75_000,       'requires': None},
-    'resilience':     {'cost': 5_000_000,    'requires': None},
-    'jackpot':        {'cost': 300_000,      'requires': None},
+    'fortune_charm':  {'cost': 1_000_000,    'requires': None},
+    'lucky_seven':    {'cost': 7_000_000,    'requires': None},
+    'win_echo':       {'cost': 1_000_000,    'requires': None},
+    'resilience':     {'cost': 10_000_000,   'requires': None},
+    'jackpot':        {'cost': 3_000_000,    'requires': None},
     # Legendary
     'singularity':    {'cost': int(1e67),    'requires': None},
     # ── Fishing gear (Season 6) ──────────────────────────────────────────────
@@ -320,7 +320,7 @@ INFINITE_UPGRADES = {
     # Requires owning 'resilience'.
     'streak_armor_inf': {
         'db_column':    'streak_armor_level',
-        'tier_costs':   [500, 2_000, 4_500, 8_000, 12_500, 18_000, 24_500, 32_000, 40_500, 50_000],
+        'tier_costs':   [500_000, 750_000, 1_000_000, 1_250_000, 1_500_000, 1_750_000, 2_000_000, 2_250_000, 2_500_000, 2_750_000],
         'inf_base_cost': 999_999_999,  # effectively impossible past level 10
         'inf_scale':     1.0,
         'max_level':    10,            # hard cap — checked in buy endpoint

@@ -2,18 +2,23 @@
 
 ---
 
-## Season 6 — Cast & Reel Fishing Minigame — 16 Apr 2026
+## Season 6 — Night Ocean — 17 Apr 2026
+
+Season 6 overhauls fishing, balance, and the UI theme. The passive fish-clicking mechanic is replaced with an active **Cast & Reel** minigame; ability costs are significantly repriced to match the new economy; and the entire colour system is now driven by a CSS palette that carries forward cleanly into future seasons.
+
+### Cast & Reel Fishing Minigame
 
 The passive fish-clicking mechanic has been replaced with an active, timing-based **Cast & Reel** minigame. Active players now clearly outpace AFK/bot play at every upgrade tier.
 
-### Cast & Reel Loop
+**Loop:**
 - Click **🎣 CAST** to drop your line. Shadow fish appear in the water as you wait.
 - A bobber animates in the water. When the fish bites, it flashes and a **bite bar** begins depleting.
 - **Click to reel** before the bar empties to catch the fish. Click too early (before the bite) and it's an instant miss.
 - The server holds all timing — bite window, catch validation, and value calculation are anti-cheat authoritative.
 
-### Fish Catalog — 13 Species
-Each catch awards Fish Bucks (formerly "Fish Clicks" — DB column unchanged). Species range from common scraps to legendary hauls:
+**Fish Catalog — 13 Species**
+
+Each catch awards Fish Bucks (formerly "Fish Clicks" — DB column unchanged):
 
 | Tier | Species | Value |
 |------|---------|-------|
@@ -24,13 +29,14 @@ Each catch awards Fish Bucks (formerly "Fish Clicks" — DB column unchanged). S
 
 **Lucky Fish** — catching a ⭐ sets a flag that doubles the value of your *next* successful catch.
 
-### Fish Encyclopaedia
+**Fish Encyclopaedia:**
 - New **📖 Fish Encyclopaedia** button (top-left). Shows all 13 species.
 - Undiscovered entries appear as silhouettes with `???` name, value, and rarity.
 - Entries unlock permanently on first catch. Progress counter shown.
 - Completing the Encyclopaedia (all 13 species) unlocks the Master Lure and Master Auto-Fisher upgrades.
 
 ### 🎣 Fishing Gear — New Shop Section
+
 All items cost Wins. Lure and Auto-Fisher chains replace the retired Click Frenzy items.
 
 **Lure Upgrades** — reduce bite wait time and multiply catch value:
@@ -67,16 +73,9 @@ Master Angler requires the Encyclopaedia. All Precise Angler multipliers stack i
 
 The catch popup and last-caught line both show the precise multiplier and percentage when a bonus triggers (e.g. `🎯 1.5x @ 17.2%`).
 
-### Stats: Fastest Catch
-The Stats panel now shows a **Fastest Catch** row (under Season Fish Bucks) tracking the player's best (lowest) precise percentage from manual fishing.
+**Stats: Fastest Catch** — the Stats panel now shows a **Fastest Catch** row (under Season Fish Bucks) tracking the player's best (lowest) precise percentage from manual fishing.
 
-### Chat Window Improvements
-- The chat panel is now **resizable** from the bottom-right corner (drag handle shown). Size persists across sessions via `localStorage`.
-- A small **✕** close button added to the top-right of the chat panel. Re-open via the 💬 button in the top-left user bar.
-
-### Season 6 Rebalance — 17 Apr 2026
-
-A round of balance changes focused on rewarding active play over passive AFK spinning.
+### Balance Changes
 
 #### Streak Bonus: Buffed Mid/High Range + Hard Cap
 High streaks now pay significantly more. The soft-cap introduced in Season 5 was too aggressive — the mid and late curve segments have been boosted, and a hard cap replaces the old unbounded slow linear tail.
@@ -90,10 +89,10 @@ High streaks now pay significantly more. The soft-cap introduced in Season 5 was
 | 100 | 37,096 | 83,096 | +124% |
 | 150 | 47,096 | **113,096** (cap) | +140% |
 
-These are raw bonus values before Win Multiplier, Bonus Multiplier, Win Echo, and Fortune Charm — the effective multiplied payouts remain within hundreds of billions.
+These are raw bonus values before Win Multiplier, Bonus Multiplier, Win Echo, and Fortune Charm.
 
 #### Tier 3 Gate Lowered: 10,000 → 5,000 Wins
-Tier 3 upgrades (Win Echo, Jackpot, Fortune Charm, Lucky Seven, Resilience, Dice upgrades) now unlock at **5,000 wins** instead of 10,000. Mid-week players can reach the endgame upgrade loop before the scoreboard locks.
+Tier 3 upgrades (Win Echo, Jackpot, Fortune Charm, Lucky Seven, Resilience, Dice upgrades) now unlock at **5,000 wins** instead of 10,000.
 
 #### Upgrade Pacing: Cheaper Infinite Scaling
 Win Power and Bonus Power infinite levels now scale more gently:
@@ -103,22 +102,50 @@ Win Power and Bonus Power infinite levels now scale more gently:
 | Win Power (inf) | 500,000 | ×1.25/lvl | 400,000 | ×1.18/lvl |
 | Bonus Power (inf) | 250,000 | ×1.25/lvl | 200,000 | ×1.18/lvl |
 
-The fixed-tier step costs are also shallower — active reinvestors will consistently afford the next level rather than being priced out in the mid-week.
+#### Ability Repricing
+Bonus ability costs have been significantly raised to match the richer Season 6 economy. These are now late-game investments rather than early purchases:
+
+| Ability | Old Cost | New Cost |
+|---------|---------|---------|
+| Fortune Charm | 50,000 | 1,000,000 |
+| Lucky Seven | 100,000 | 7,000,000 |
+| Win Echo | 75,000 | 1,000,000 |
+| Resilience | 5,000,000 | 10,000,000 |
+| Jackpot | 300,000 | 3,000,000 |
+
+**Streak Armor Infinite** tier costs have also been raised substantially (Lv 1: 500 → 500,000, scaling to Lv 10: 50,000 → 2,750,000) to reflect its defensive power at high streaks.
 
 #### New Dice Upgrades
 Two new Tier 3 dice upgrades:
 
-- **🎲 Overcharge** (100,000 wins) — raises max dice charges from 3 → **4**. More rolls per session for active players.
-- **🎲 Extra Die** (1,000,000 wins) — roll **3 dice** instead of 2. Range expands to 3–18. New triple outcomes:
+- **🎲 Overcharge** (100,000 wins) — raises max dice charges from 3 → **4**.
+- **🎲 Extra Die** (1,000,000 wins) — roll **3 dice** instead of 2. Range expands to 3–18. When 3 dice are in play they arrange in a triangle layout. New triple outcomes:
   - **Triple 6s (6,6,6)**: streak **×3** (Blessed Triple!)
   - **Triple 1s (1,1,1)**: streak **÷3** (Cursed Triple!)
-  - Pair of 6s: streak ×2 (unchanged)
-  - Pair of 1s: streak ÷2 (unchanged)
+  - Pair of 6s: streak ×2 (unchanged) / Pair of 1s: streak ÷2 (unchanged)
 
-Extra Die requires owning Dice Charge III. Both upgrades are Tier 3 (5,000 wins gate).
+Extra Die requires Dice Charge III. Both upgrades are Tier 3 (5,000 wins gate).
 
 #### Community Pot: Slower Cap Growth
-The pot target now grows by **×1.25** per fill instead of ×1.5. After 10 fills the target is ~9,300 instead of ~57,700. Late-week pot fills should be achievable again for groups of active fishers.
+The pot target now grows by **×1.25** per fill instead of ×1.5. After 10 fills the target is ~9,300 instead of ~57,700.
+
+### Night Ocean Theme
+
+Season 6 ships with a new **CSS palette variable system**. Every colour in the UI — buttons, glows, borders, progress bars, season countdown, active ability highlights — is now driven by a small set of CSS custom properties (`--p`, `--p-lt`, `--p-md`, etc.) set in `:root`. Future seasons override the palette in a single `body.page-seasonN {}` block with no manual per-element changes needed.
+
+**Season 6 palette — Night Ocean:**
+- **Primary**: deep violet-indigo (`#7766FF`) — readable against the dark background (≥4.5:1 contrast)
+- **Primary light**: periwinkle (`#9988FF`) — used for UI text, glows, and active highlights
+- **Secondary**: coral-red (`#CC2244`) — loss accents and the season countdown badge
+- **Background**: near-black navy (`#020810`)
+
+The season countdown timer now uses the secondary (coral) colour across all seasons that don't override it, replacing the leftover orange from Season 4. The community pot label and count text now track the primary palette instead of a hardcoded dark grey. Active ability buttons in the shop now use a palette-driven indigo gradient instead of a hardcoded green.
+
+**🌙 Season 6 Theme** is available in the shop (Cosmetics → Page Themes, 1,000 losses) and is auto-granted to all players on rollover.
+
+### Chat Window Improvements
+- The chat panel is now **resizable** from the bottom-right corner (drag handle shown). Size persists across sessions via `localStorage`.
+- A small **✕** close button added to the top-right of the chat panel. Re-open via the 💬 button in the top-left user bar.
 
 ---
 

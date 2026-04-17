@@ -257,7 +257,7 @@ Changes the canvas colour palette of the wheel.
 ### Atmosphere (Costs Losses)
 
 #### Background Theme
-Ocean Casino is the **default background** for all players in Season 5 (animated seabed scene; static fallback in Low-Spec Mode). Purchasing and equipping a different background overrides it.
+Ocean Casino is the **default background** for all players in Season 6 (animated seabed scene; static fallback in Low-Spec Mode). Purchasing and equipping a different background overrides it.
 
 | Theme | Cost | Look |
 |-------|------|------|
@@ -275,7 +275,8 @@ Ocean Casino is the **default background** for all players in Season 5 (animated
 | Season 2 | 1,000 | Green & red |
 | Season 3 | 1,000 | Purple & orange |
 | Season 4 | 1,000 | Deep violet |
-| Season 5 | 1,000 | Bioluminescent cyan & coral (current season default) |
+| Season 5 | 1,000 | Bioluminescent cyan & coral |
+| Season 6 🌙 | 1,000 | Night ocean — deep indigo & violet (current season default) |
 
 #### Confetti
 | Tier | Cost | Count |
@@ -298,12 +299,12 @@ All Special Upgrades require Tier 3 (5,000 total wins) to unlock.
 
 | Item | Cost | Effect |
 |------|------|--------|
-| 🍀 Fortune Charm | 50,000 | All streak bonuses are increased by 25% |
-| 7️⃣ Lucky Seven | 100,000 | Every 7th spin is guaranteed to win |
-| 🔊 Win Echo | 75,000 | 20% chance each win is doubled |
-| 💪 Resilience | 5,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% base chance) |
-| 🎰 Jackpot | 300,000 | 1% chance each win multiplies all gains by 25×. 5% chance for Jackpot Echo (triggers again next spin) |
-| 🛡️ Streak Armor | 500–50,000 | Infinite upgrade (10 levels). Requires Resilience. +1% to Resilience save chance per level (50% → 60% max) |
+| 🍀 Fortune Charm | 1,000,000 | All streak bonuses are increased by 25% |
+| 7️⃣ Lucky Seven | 7,000,000 | Every 7th spin is guaranteed to win |
+| 🔊 Win Echo | 1,000,000 | 20% chance each win is doubled |
+| 💪 Resilience | 10,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% base chance) |
+| 🎰 Jackpot | 3,000,000 | 1% chance each win multiplies all gains by 25×. 5% chance for Jackpot Echo (triggers again next spin) |
+| 🛡️ Streak Armor | 500,000–2,750,000 | Infinite upgrade (10 levels). Requires Resilience. +1% to Resilience save chance per level (50% → 60% max) |
 
 ### 🌌 Legendary (Costs Fish Clicks)
 | Item | Cost | Effect |

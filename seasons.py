@@ -131,7 +131,13 @@ def _perform_rollover(conn, season):
                        shield_charges = 0, regen_recharge_wins = 0,
                        active_cosmetics = %s, spin_count = 0, win_count = 0, loss_count = 0,
                        total_fish_clicks = 0,
-                       winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0""",
+                       winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0,
+                       streak_armor_level = 0,
+                       dice_charges = 1, dice_last_recharge = NOW(), dice_rolled_since_spin = FALSE,
+                       jackpot_echo_next = FALSE,
+                       fishing_cast_at = NULL, fishing_bite_at = NULL,
+                       fishing_lucky_next = FALSE, caught_species = '{}',
+                       fastest_catch_pct = NULL""",
                 ([new_theme], [new_theme]),
             )
 

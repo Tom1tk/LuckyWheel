@@ -474,6 +474,19 @@ function drawWheel(canvas, theme = 'default') {
       bright: '#FF6B6B',
       start: Math.PI / 2,
       end: Math.PI * 1.5
+    }],
+    night_ocean: [{
+      label: 'WIN',
+      color: '#1a0d4d',
+      bright: '#5533FF',
+      start: -Math.PI / 2,
+      end: Math.PI / 2
+    }, {
+      label: 'LOSE',
+      color: '#3d0011',
+      bright: '#CC2244',
+      start: Math.PI / 2,
+      end: Math.PI * 1.5
     }]
   };
   const segments = THEMES[theme] || THEMES.default;
@@ -1390,7 +1403,15 @@ function DicePanel({
     className: "dice-charges-row"
   }, chargesDots, secsToNext != null && diceCharges < maxDiceCharges && /*#__PURE__*/React.createElement("span", {
     className: "dice-recharge-timer"
-  }, "+1 in ", fmtCountdownSecs(secsToNext))), /*#__PURE__*/React.createElement("div", {
+  }, "+1 in ", fmtCountdownSecs(secsToNext))), hasDiceExtra ? /*#__PURE__*/React.createElement("div", {
+    className: "dice-triangle"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dice-row dice-row-top"
+  }, /*#__PURE__*/React.createElement(Die, {
+    value: die3Val,
+    rolling: rolling && !lowSpec,
+    landed: landed
+  })), /*#__PURE__*/React.createElement("div", {
     className: "dice-row"
   }, /*#__PURE__*/React.createElement(Die, {
     value: die1Val,
@@ -1400,8 +1421,14 @@ function DicePanel({
     value: die2Val,
     rolling: rolling && !lowSpec,
     landed: landed
-  }), hasDiceExtra && /*#__PURE__*/React.createElement(Die, {
-    value: die3Val,
+  }))) : /*#__PURE__*/React.createElement("div", {
+    className: "dice-row"
+  }, /*#__PURE__*/React.createElement(Die, {
+    value: die1Val,
+    rolling: rolling && !lowSpec,
+    landed: landed
+  }), /*#__PURE__*/React.createElement(Die, {
+    value: die2Val,
     rolling: rolling && !lowSpec,
     landed: landed
   })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
@@ -2346,6 +2373,12 @@ const SHOP_SECTIONS = [{
     name: 'Season 5 Theme',
     cost: 1000,
     desc: 'Bioluminescent deep ocean theme (S5).'
+  }, {
+    id: 'page_season6',
+    emoji: '🌙',
+    name: 'Season 6 Theme',
+    cost: 1000,
+    desc: 'Night ocean — deep indigo & violet (S6).'
   }]
 }, {
   label: '🎲 Dice Charges',
@@ -2498,10 +2531,10 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
@@ -3140,7 +3173,7 @@ function GameApp({
     if (ownedItems.includes('guard_speed_1')) return 0.75;
     return 1.0;
   }, [ownedItems]);
-  const autoSpinDelay = useMemo(() => ownedItems.includes('autospeed_3') ? 0 : ownedItems.includes('autospeed_2') ? 500 : ownedItems.includes('autospeed_1') ? 1000 : 1500, [ownedItems]);
+  const autoSpinDelay = useMemo(() => activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : 1500, [activeCosmetics]);
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
     if (ownedItems.includes('dice_charge_3')) return 3;
@@ -3158,6 +3191,7 @@ function GameApp({
     if (activeCosmetics.includes('theme_ice')) return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
+    if (activeCosmetics.includes('page_season6')) return 'night_ocean';
     return 'default';
   }, [activeCosmetics]);
   const bgClass = useMemo(() => {
@@ -3184,6 +3218,7 @@ function GameApp({
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
     if (activeCosmetics.includes('page_season4')) return 'page-season4';
     if (activeCosmetics.includes('page_season5')) return 'page-season5';
+    if (activeCosmetics.includes('page_season6')) return 'page-season6';
     return '';
   }, [activeCosmetics]);
   const currentRotationRef = useRef(0);
@@ -3785,7 +3820,8 @@ function GameApp({
     lowSpec: lowSpec,
     diceCharges: diceCharges,
     maxDiceCharges: diceMaxCharges,
-    diceLastRecharge: diceLastRecharge
+    diceLastRecharge: diceLastRecharge,
+    hasDiceExtra: ownedItems.includes('dice_extra')
   })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,

@@ -32,6 +32,9 @@ COSMETIC_SLOTS = {
     'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme', 'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme',
     'final_frenzy': 'frenzy_mode',
     'auto_guard':   'auto_guard',
+    'autospeed_1':  'autospeed',
+    'autospeed_2':  'autospeed',
+    'autospeed_3':  'autospeed',
 }
 from security import require_json
 
