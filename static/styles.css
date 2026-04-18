@@ -2659,7 +2659,8 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
+  background: radial-gradient(circle 500px at 50% 50%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 80%);
+  pointer-events: none;
   animation: guardOverlayIn 0.25s ease-out;
 }
 
@@ -2679,6 +2680,7 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
   padding: 28px 36px;
   box-shadow: 0 0 50px rgba(var(--p-rgb),0.4);
   animation: guardCardIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: auto;
 }
 
 @keyframes guardCardIn {

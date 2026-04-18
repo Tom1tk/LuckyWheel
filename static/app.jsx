@@ -2511,7 +2511,44 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           applySpinResult(data);
 
           if (autoSpinRef.current) {
-            const delay = Math.max(2000, autoSpinDelayRef.current);
+            if (autoSpinDelayRef.current === 0) {
+              setShowResultSync(false);
+              setResult(null);
+              setShieldFeedback(null);
+              setConfetti(false);
+              spin();
+            } else {
+              const delay = Math.max(2000, autoSpinDelayRef.current);
+              setTimeout(() => {
+                if (autoSpinRef.current) {
+                  setHideResult(true);
+                  setTimeout(() => {
+                    setShowResultSync(false);
+                    setHideResult(false);
+                    setResult(null);
+                    setShieldFeedback(null);
+                    setConfetti(false);
+                    spin();
+                  }, 320);
+                }
+              }, delay);
+            }
+          }
+        };
+      } else {
+        applySpinResult(data);
+
+        if (autoSpinRef.current) {
+          if (autoSpinDelayRef.current === 0) {
+            setShowResultSync(false);
+            setResult(null);
+            setShieldFeedback(null);
+            setConfetti(false);
+            spin();
+          } else {
+            const delay = data.shield_used
+              ? Math.max(2000, autoSpinDelayRef.current)
+              : autoSpinDelayRef.current;
             setTimeout(() => {
               if (autoSpinRef.current) {
                 setHideResult(true);
@@ -2520,33 +2557,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   setHideResult(false);
                   setResult(null);
                   setShieldFeedback(null);
-                  setConfetti(false);
                   spin();
+                  setTimeout(() => setConfetti(false), 3000);
                 }, 320);
               }
             }, delay);
           }
-        };
-      } else {
-        applySpinResult(data);
-
-        if (autoSpinRef.current) {
-          const delay = data.shield_used
-            ? Math.max(2000, autoSpinDelayRef.current)
-            : Math.max(1500, autoSpinDelayRef.current);
-          setTimeout(() => {
-            if (autoSpinRef.current) {
-              setHideResult(true);
-              setTimeout(() => {
-                setShowResultSync(false);
-                setHideResult(false);
-                setResult(null);
-                setShieldFeedback(null);
-                spin();
-                setTimeout(() => setConfetti(false), 3000);
-              }, 320);
-            }
-          }, delay);
         }
       }
     }, spinSpeedRef.current * 1000 + 200);
