@@ -1679,18 +1679,21 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 
 /* ── Community Pot (inline in user-bar) ─────────────────────────────────── */
 .community-pot-bar {
-  flex: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
+  width: min(480px, 40vw);
+  pointer-events: none;
 }
 .community-pot-inner {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 480px;
   width: 100%;
+  pointer-events: auto;
 }
 .community-pot-label {
   font-size: 0.6rem;
