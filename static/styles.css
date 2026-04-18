@@ -2600,6 +2600,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   font-weight: 600;
   letter-spacing: 0.5px;
   opacity: 0.9;
+  margin-left: auto;
 }
 
 .season-countdown {
