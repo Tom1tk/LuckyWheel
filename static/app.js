@@ -2253,28 +2253,28 @@ const SHOP_SECTIONS = [{
     emoji: '⚡',
     name: 'Guard Speed I',
     cost: 2000,
-    desc: 'Guard activates 25% faster.',
+    desc: 'Guard activates 25% faster — toggle on/off after purchase',
     requires: 'guard'
   }, {
     id: 'guard_speed_2',
     emoji: '⚡',
     name: 'Guard Speed II',
     cost: 8000,
-    desc: 'Guard activates 50% faster.',
+    desc: 'Guard activates 50% faster — toggle on/off after purchase',
     requires: 'guard_speed_1'
   }, {
     id: 'guard_speed_3',
     emoji: '⚡',
     name: 'Guard Speed III',
     cost: 30000,
-    desc: 'Guard activates 65% faster.',
+    desc: 'Guard activates 65% faster — toggle on/off after purchase',
     requires: 'guard_speed_2'
   }, {
     id: 'guard_speed_4',
     emoji: '⚡',
     name: 'Guard Speed MAX',
     cost: 100000,
-    desc: 'Guard activates 75% faster — near instant.',
+    desc: 'Guard animation skipped entirely — toggle on/off after purchase',
     requires: 'guard_speed_3'
   }]
 }, {
@@ -2576,7 +2576,7 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard', 'autospeed_1', 'autospeed_2', 'autospeed_3']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard', 'autospeed_1', 'autospeed_2', 'autospeed_3', 'guard_speed_1', 'guard_speed_2', 'guard_speed_3', 'guard_speed_4']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
 const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
@@ -3220,14 +3220,14 @@ function GameApp({
     return 4.5;
   }, [ownedItems]);
 
-  // Guard animation speed multiplier (1.0 = normal, lower = faster)
+  // Guard animation speed multiplier (1.0 = normal, lower = faster, 0 = skip)
   const guardSpeedMult = useMemo(() => {
-    if (ownedItems.includes('guard_speed_4')) return 0.25;
-    if (ownedItems.includes('guard_speed_3')) return 0.35;
-    if (ownedItems.includes('guard_speed_2')) return 0.5;
-    if (ownedItems.includes('guard_speed_1')) return 0.75;
+    if (activeCosmetics.includes('guard_speed_4')) return 0;
+    if (activeCosmetics.includes('guard_speed_3')) return 0.35;
+    if (activeCosmetics.includes('guard_speed_2')) return 0.5;
+    if (activeCosmetics.includes('guard_speed_1')) return 0.75;
     return 1.0;
-  }, [ownedItems]);
+  }, [activeCosmetics]);
   const autoSpinDelay = useMemo(() => activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : Infinity, [activeCosmetics]);
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
@@ -3611,6 +3611,34 @@ function GameApp({
     const resultFireMs = autoSpinRef.current && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered ? autoSpinDelayRef.current : fullAnimMs;
     setTimeout(() => {
       if (data.guard_triggered) {
+        if (activeCosmeticsRef.current.includes('guard_speed_4')) {
+          // Skip guard animation entirely — apply result immediately
+          applySpinResult(data);
+          if (autoSpinRef.current) {
+            if (autoSpinDelayRef.current === 0) {
+              setShowResultSync(false);
+              setResult(null);
+              setShieldFeedback(null);
+              setConfetti(false);
+              spin();
+            } else {
+              setTimeout(() => {
+                if (autoSpinRef.current) {
+                  setHideResult(true);
+                  setTimeout(() => {
+                    setShowResultSync(false);
+                    setHideResult(false);
+                    setResult(null);
+                    setShieldFeedback(null);
+                    setConfetti(false);
+                    spin();
+                  }, 320);
+                }
+              }, 350);
+            }
+          }
+          return;
+        }
         // Show guard wheel; defer result display until guard resolves
         setGuardState({
           blocked: data.guard_blocked

@@ -1539,10 +1539,10 @@ const SHOP_SECTIONS = [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
     { id: 'auto_guard',    emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard', tier: 2 },
     { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
-    { id: 'guard_speed_1', emoji: '⚡', name: 'Guard Speed I',      cost: 2000,   desc: 'Guard activates 25% faster.', requires: 'guard' },
-    { id: 'guard_speed_2', emoji: '⚡', name: 'Guard Speed II',     cost: 8000,   desc: 'Guard activates 50% faster.', requires: 'guard_speed_1' },
-    { id: 'guard_speed_3', emoji: '⚡', name: 'Guard Speed III',    cost: 30000,  desc: 'Guard activates 65% faster.', requires: 'guard_speed_2' },
-    { id: 'guard_speed_4', emoji: '⚡', name: 'Guard Speed MAX',    cost: 100000, desc: 'Guard activates 75% faster — near instant.', requires: 'guard_speed_3' },
+    { id: 'guard_speed_1', emoji: '⚡', name: 'Guard Speed I',      cost: 2000,   desc: 'Guard activates 25% faster — toggle on/off after purchase', requires: 'guard' },
+    { id: 'guard_speed_2', emoji: '⚡', name: 'Guard Speed II',     cost: 8000,   desc: 'Guard activates 50% faster — toggle on/off after purchase', requires: 'guard_speed_1' },
+    { id: 'guard_speed_3', emoji: '⚡', name: 'Guard Speed III',    cost: 30000,  desc: 'Guard activates 65% faster — toggle on/off after purchase', requires: 'guard_speed_2' },
+    { id: 'guard_speed_4', emoji: '⚡', name: 'Guard Speed MAX',    cost: 100000, desc: 'Guard animation skipped entirely — toggle on/off after purchase', requires: 'guard_speed_3' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -1641,6 +1641,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'final_frenzy',
   'auto_guard',
   'autospeed_1', 'autospeed_2', 'autospeed_3',
+  'guard_speed_1', 'guard_speed_2', 'guard_speed_3', 'guard_speed_4',
 ]);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
@@ -2134,14 +2135,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return 4.5;
   }, [ownedItems]);
 
-  // Guard animation speed multiplier (1.0 = normal, lower = faster)
+  // Guard animation speed multiplier (1.0 = normal, lower = faster, 0 = skip)
   const guardSpeedMult = useMemo(() => {
-    if (ownedItems.includes('guard_speed_4')) return 0.25;
-    if (ownedItems.includes('guard_speed_3')) return 0.35;
-    if (ownedItems.includes('guard_speed_2')) return 0.5;
-    if (ownedItems.includes('guard_speed_1')) return 0.75;
+    if (activeCosmetics.includes('guard_speed_4')) return 0;
+    if (activeCosmetics.includes('guard_speed_3')) return 0.35;
+    if (activeCosmetics.includes('guard_speed_2')) return 0.5;
+    if (activeCosmetics.includes('guard_speed_1')) return 0.75;
     return 1.0;
-  }, [ownedItems]);
+  }, [activeCosmetics]);
 
   const autoSpinDelay = useMemo(() =>
     activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : Infinity,
@@ -2512,6 +2513,34 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
     setTimeout(() => {
       if (data.guard_triggered) {
+        if (activeCosmeticsRef.current.includes('guard_speed_4')) {
+          // Skip guard animation entirely — apply result immediately
+          applySpinResult(data);
+          if (autoSpinRef.current) {
+            if (autoSpinDelayRef.current === 0) {
+              setShowResultSync(false);
+              setResult(null);
+              setShieldFeedback(null);
+              setConfetti(false);
+              spin();
+            } else {
+              setTimeout(() => {
+                if (autoSpinRef.current) {
+                  setHideResult(true);
+                  setTimeout(() => {
+                    setShowResultSync(false);
+                    setHideResult(false);
+                    setResult(null);
+                    setShieldFeedback(null);
+                    setConfetti(false);
+                    spin();
+                  }, 320);
+                }
+              }, 350);
+            }
+          }
+          return;
+        }
         // Show guard wheel; defer result display until guard resolves
         setGuardState({ blocked: data.guard_blocked });
         guardCompleteRef.current = () => {

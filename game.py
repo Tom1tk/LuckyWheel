@@ -35,6 +35,10 @@ COSMETIC_SLOTS = {
     'autospeed_1':  'autospeed',
     'autospeed_2':  'autospeed',
     'autospeed_3':  'autospeed',
+    'guard_speed_1': 'guard_speed',
+    'guard_speed_2': 'guard_speed',
+    'guard_speed_3': 'guard_speed',
+    'guard_speed_4': 'guard_speed',
 }
 from security import require_json
 
