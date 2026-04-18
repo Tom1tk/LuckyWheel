@@ -1580,11 +1580,11 @@ const SHOP_SECTIONS = [
     { id: 'dice_extra',    emoji: '🎲', name: 'Extra Die',        cost: 1000000, desc: 'Roll 3 dice instead of 2. Triple curses and triple blessings possible.', requires: 'dice_charge_3', tier: 3 },
   ]},
   { label: '🎲 Special Upgrades', items: [
-    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 50000,    desc: '25% chance: +25% to streak bonus payout', tier: 3 },
-    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 100000,   desc: 'Every 7th spin is guaranteed a win', tier: 3 },
-    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 75000,    desc: '20% chance to double wins earned on any win', tier: 3 },
-    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 5000000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
-    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 300000,   desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
+    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 1000000,  desc: '25% chance: +25% to streak bonus payout', tier: 3 },
+    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 7000000,  desc: 'Every 7th spin is guaranteed a win', tier: 3 },
+    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
+    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 10000000, desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
+    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
     { id: 'streak_armor_inf', emoji: '🛡️', name: 'Streak Armor', cost: 0, desc: '+1% to Resilience save chance per level (base 50%, cap 60%)', infinite: true },
   ]},
   { label: '🌌 Legendary', items: [
@@ -1595,10 +1595,10 @@ const SHOP_SECTIONS = [
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 const INF_UPGRADE_CFG = {
-  winmult_inf:      { tierCosts: [200, 800, 3200, 12800, 51200, 204800, 819200], infBase: 500_000,   infScale: 1.25 },
-  bonusmult_inf:    { tierCosts: [300, 1200, 4800, 20000, 80000, 300000],        infBase: 250_000,   infScale: 1.25 },
+  winmult_inf:      { tierCosts: [200, 600, 2000, 6400, 20000, 64000, 200000],   infBase: 400_000,   infScale: 1.18 },
+  bonusmult_inf:    { tierCosts: [300, 900, 2800, 8500, 26000, 80000],           infBase: 200_000,   infScale: 1.18 },
   clickmult_inf:    { tierCosts: [75, 250, 600, 1400, 3000],                     infBase: 10_000,    infScale: 1.5 },
-  streak_armor_inf: { tierCosts: [500, 2000, 4500, 8000, 12500, 18000, 24500, 32000, 40500, 50000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
+  streak_armor_inf: { tierCosts: [500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000, 2250000, 2500000, 2750000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
 };
 function infCost(id, level) {
   const { tierCosts, infBase, infScale } = INF_UPGRADE_CFG[id];
