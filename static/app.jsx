@@ -2142,9 +2142,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return 1.0;
   }, [ownedItems]);
 
-  const autoSpinDelay = useMemo(() =>
-    activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : 1500,
-  [activeCosmetics]);
+  const autoSpinDelay = useMemo(() => {
+    const has = id => activeCosmetics.includes(id) || ownedItems.includes(id);
+    return has('autospeed_3') ? 0 : has('autospeed_2') ? 500 : has('autospeed_1') ? 1000 : 1500;
+  }, [activeCosmetics, ownedItems]);
 
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
