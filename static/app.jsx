@@ -2730,37 +2730,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
 
       <div className="main-layout-row">
-        {isMobile && (
-          <div className="mobile-home-sidebar">
-            {(hasGuard || hasRegen) && (
-              <div className="shield-indicator">
-                {hasGuard && <div>🛡️ Guard ready</div>}
-                {hasRegen && (
-                  <div>{regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'}</div>
-                )}
-              </div>
-            )}
-            {ownedItems.includes('lucky_seven') && (
-              <LuckySevenCounter spinCount={spinCount} />
-            )}
-            <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
-            <DicePanel
-              streak={streak}
-              onRoll={handleDiceRoll}
-              rolling={diceRolling}
-              diceResult={diceResult}
-              spinning={spinning}
-              guardSpinning={!!guardState}
-              lowSpec={lowSpec}
-              diceCharges={diceCharges}
-              maxDiceCharges={diceMaxCharges}
-              diceLastRecharge={diceLastRecharge}
-              hasDiceExtra={ownedItems.includes('dice_extra')}
-              rolledSinceSpin={diceRolledSinceSpin}
-            />
-          </div>
-        )}
-
         <div className="casino-container">
           <div className="bulbs">
             {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
@@ -2797,6 +2766,26 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           </label>
 
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
+
+          {isMobile && (
+            <div className="mobile-below-wheel">
+              <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
+              <DicePanel
+                streak={streak}
+                onRoll={handleDiceRoll}
+                rolling={diceRolling}
+                diceResult={diceResult}
+                spinning={spinning}
+                guardSpinning={!!guardState}
+                lowSpec={lowSpec}
+                diceCharges={diceCharges}
+                maxDiceCharges={diceMaxCharges}
+                diceLastRecharge={diceLastRecharge}
+                hasDiceExtra={ownedItems.includes('dice_extra')}
+                rolledSinceSpin={diceRolledSinceSpin}
+              />
+            </div>
+          )}
 
           <div className="bulbs">
             {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
