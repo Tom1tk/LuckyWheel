@@ -2110,7 +2110,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   })());
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
-  const [showChat, setShowChat] = useState(true);
+  const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
   const fireMode = 2; // Mix mode
 
   useEffect(() => {
@@ -2593,7 +2593,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
 
       {((!isMobile && showChat) || (isMobile && mobilePanel === 'chat')) && (
-        <ChatPanel extraClass={isMobile ? 'mobile-full' : ''} onClose={isMobile ? null : () => setShowChat(false)} />
+        <ChatPanel extraClass={isMobile ? 'mobile-full' : ''} onClose={isMobile ? null : () => { localStorage.setItem('chat_open', 'false'); setShowChat(false); }} />
       )}
 
       <FireEffect
@@ -2615,7 +2615,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         {!isMobile && (
           <button
             className="stats-btn"
-            onClick={() => setShowChat(v => !v)}
+            onClick={() => setShowChat(v => { localStorage.setItem('chat_open', !v); return !v; })}
             title={showChat ? 'Hide Chat' : 'Show Chat'}
             style={{ opacity: showChat ? 1 : 0.5 }}
           >💬</button>
@@ -2915,7 +2915,6 @@ function App() {
   const [gameState, setGameState]   = useState(null);
   const [sessionMsg, setSessionMsg] = useState('');
 
-  useEffect(() => { localStorage.clear(); }, []);
 
   useEffect(() => {
     (async () => {
