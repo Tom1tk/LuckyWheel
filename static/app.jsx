@@ -1496,9 +1496,9 @@ const SHOP_SECTIONS = [
     { id: 'maxspin',     emoji: '⚡', name: 'Max Spin',     cost: 1000000,   desc: 'Spin time: 0.75s → 0.5s',requires: 'ultraspin' },
   ]},
   { label: '⏩ Auto Speed', items: [
-    { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 200,       desc: 'Auto delay: 1.5s → 1s' },
-    { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 10000,     desc: 'Auto delay: 1s → 0.5s',  requires: 'autospeed_1' },
-    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1000000,   desc: 'Auto delay: 0.5s → 0',   requires: 'autospeed_2' },
+    { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 200,       desc: 'Auto-spin cuts wheel animation at 1s — toggle on/off after purchase' },
+    { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 10000,     desc: 'Auto-spin cuts wheel animation at 0.5s — toggle on/off after purchase', requires: 'autospeed_1' },
+    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1000000,   desc: 'Auto-spin skips wheel animation entirely — toggle on/off after purchase', requires: 'autospeed_2' },
   ]},
   { label: '💰 Win Power', items: [
     { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
@@ -1640,6 +1640,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6',
   'final_frenzy',
   'auto_guard',
+  'autospeed_1', 'autospeed_2', 'autospeed_3',
 ]);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
@@ -2142,10 +2143,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return 1.0;
   }, [ownedItems]);
 
-  const autoSpinDelay = useMemo(() => {
-    const has = id => activeCosmetics.includes(id) || ownedItems.includes(id);
-    return has('autospeed_3') ? 0 : has('autospeed_2') ? 500 : has('autospeed_1') ? 1000 : 1500;
-  }, [activeCosmetics, ownedItems]);
+  const autoSpinDelay = useMemo(() =>
+    activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : Infinity,
+  [activeCosmetics]);
 
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
@@ -2213,7 +2213,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const confettiTimerRef   = useRef(null);
   const autoSpinRef        = useRef(false);
   const spinSpeedRef       = useRef(4.5);
-  const autoSpinDelayRef   = useRef(1500);
+  const autoSpinDelayRef   = useRef(Infinity);
   const spinningRef        = useRef(false);
   const showResultRef      = useRef(false);
   const activeCosmeticsRef = useRef(activeCosmetics);
@@ -2503,6 +2503,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     currentRotationRef.current = newRotation;
     setRotation(newRotation);
 
+    const fullAnimMs = spinSpeedRef.current * 1000 + 200;
+    // Guard needs the full animation so the wheel lands before the guard overlay appears.
+    // Normal spins with autospeed fire early, cutting the animation short.
+    const resultFireMs = (autoSpinRef.current && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered)
+      ? autoSpinDelayRef.current
+      : fullAnimMs;
+
     setTimeout(() => {
       if (data.guard_triggered) {
         // Show guard wheel; defer result display until guard resolves
@@ -2519,7 +2526,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               setConfetti(false);
               spin();
             } else {
-              const delay = Math.max(2000, autoSpinDelayRef.current);
+              // Brief result glimpse then next spin — no artificial hold
               setTimeout(() => {
                 if (autoSpinRef.current) {
                   setHideResult(true);
@@ -2532,7 +2539,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                     spin();
                   }, 320);
                 }
-              }, delay);
+              }, 350);
             }
           }
         };
@@ -2547,9 +2554,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             setConfetti(false);
             spin();
           } else {
-            const delay = data.shield_used
-              ? Math.max(2000, autoSpinDelayRef.current)
-              : autoSpinDelayRef.current;
+            // Brief result glimpse then next spin — no artificial hold
             setTimeout(() => {
               if (autoSpinRef.current) {
                 setHideResult(true);
@@ -2562,11 +2567,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   setTimeout(() => setConfetti(false), 3000);
                 }, 320);
               }
-            }, delay);
+            }, 350);
           }
         }
       }
-    }, spinSpeedRef.current * 1000 + 200);
+    }, resultFireMs);
   }, [applySpinResult]);
 
   const handleSpinAgain = useCallback(() => {
