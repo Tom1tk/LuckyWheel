@@ -1,0 +1,2 @@
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS active_tab_id VARCHAR(64);
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS tab_last_seen TIMESTAMPTZ;

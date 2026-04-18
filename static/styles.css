@@ -2051,6 +2051,23 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   padding: 10px;
 }
 
+/* ── Tab locked banner ─────────────────────────────────────────────────── */
+.tab-locked-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: rgba(180, 20, 20, 0.96);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 14px 20px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
 /* ── Toast notification ────────────────────────────────────────────────── */
 .toast-notification {
   position: fixed;

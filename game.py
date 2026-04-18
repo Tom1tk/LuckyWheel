@@ -113,7 +113,7 @@ def get_state():
         # Recharge dice charges based on elapsed time
         owned_items     = list(gs['owned_items'])
         max_charges     = dice_max_charges(owned_items)
-        dice_charges    = gs['dice_charges']
+        dice_charges    = min(gs['dice_charges'], max_charges)  # cap stale over-limit values
         last_recharge   = gs['dice_last_recharge']
         if last_recharge.tzinfo is None:
             last_recharge = last_recharge.replace(tzinfo=timezone.utc)
@@ -200,7 +200,8 @@ def spin():
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
                               fish_clicks, active_cosmetics,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
-                              dice_rolled_since_spin
+                              dice_rolled_since_spin, last_spin_at,
+                              active_tab_id, tab_last_seen
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -208,6 +209,22 @@ def spin():
 
                 cur.execute('SELECT filled, filled_at, win_chance_pct, last_decay_check, total_contributed, target FROM community_pot WHERE id = 1')
                 pot_row = cur.fetchone()
+
+            # Tab-lock: only one browser tab may spin at a time.
+            # The active tab holds a lock refreshed on each spin and by heartbeats.
+            # A tab that hasn't refreshed in TAB_LOCK_TIMEOUT seconds is considered dead.
+            TAB_LOCK_TIMEOUT = 30
+            req_tab_id = (request.json or {}).get('tab_id', '')
+            if req_tab_id:
+                stored_tab_id  = gs['active_tab_id']
+                tab_last_seen  = gs['tab_last_seen']
+                if stored_tab_id and stored_tab_id != req_tab_id:
+                    if tab_last_seen is not None:
+                        if tab_last_seen.tzinfo is None:
+                            tab_last_seen = tab_last_seen.replace(tzinfo=timezone.utc)
+                        age = (dt.datetime.now(timezone.utc) - tab_last_seen).total_seconds()
+                        if age < TAB_LOCK_TIMEOUT:
+                            return jsonify({'error': 'Another tab is active. Close it to spin here.', 'tab_locked': True}), 423
 
             owned               = list(gs['owned_items'])
             streak              = gs['streak']
@@ -259,6 +276,7 @@ def spin():
             if last_recharge.tzinfo is None:
                 last_recharge = last_recharge.replace(tzinfo=timezone.utc)
             max_charges = dice_max_charges(owned)
+            dice_charges = min(dice_charges, max_charges)  # cap stale over-limit values
             elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
             if elapsed_charges > 0 and dice_charges < max_charges:
                 new_dice_charges  = min(dice_charges + elapsed_charges, max_charges)
@@ -426,7 +444,9 @@ def spin():
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            jackpot_echo_next = %s,
-                           dice_rolled_since_spin = FALSE
+                           dice_rolled_since_spin = FALSE,
+                           last_spin_at = NOW(),
+                           active_tab_id = %s, tab_last_seen = NOW()
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_streak, new_best_streak,
                      shield_charges, regen_recharge_wins,
@@ -434,6 +454,7 @@ def spin():
                      fish_clicks, active_cosmetics,
                      dice_charges, last_recharge,
                      new_jackpot_echo_next,
+                     req_tab_id or gs['active_tab_id'],
                      current_user.id),
                 )
             conn.commit()
@@ -471,6 +492,56 @@ def spin():
         return jsonify({'error': 'Spin failed'}), 500
 
 
+@game_bp.route('/api/tab/heartbeat', methods=['POST'])
+@login_required
+@limiter.limit('30 per minute')
+def tab_heartbeat():
+    err = require_json()
+    if err:
+        return err
+    tab_id = (request.json or {}).get('tab_id', '')
+    if not tab_id:
+        return jsonify({'ok': False}), 400
+
+    TAB_LOCK_TIMEOUT = 30
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT active_tab_id, tab_last_seen FROM game_state WHERE user_id = %s FOR UPDATE',
+                    (current_user.id,)
+                )
+                gs = cur.fetchone()
+
+            if gs is None:
+                return jsonify({'ok': False}), 404
+
+            stored = gs['active_tab_id']
+            last_seen = gs['tab_last_seen']
+            now = dt.datetime.now(timezone.utc)
+
+            if last_seen is not None and last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+
+            stale = (last_seen is None or (now - last_seen).total_seconds() >= TAB_LOCK_TIMEOUT)
+            can_claim = not stored or stored == tab_id or stale
+
+            if can_claim:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'UPDATE game_state SET active_tab_id = %s, tab_last_seen = NOW() WHERE user_id = %s',
+                        (tab_id, current_user.id)
+                    )
+                conn.commit()
+                return jsonify({'ok': True, 'active': True})
+            else:
+                conn.rollback()
+                return jsonify({'ok': True, 'active': False})
+    except Exception:
+        log.exception('TAB_HEARTBEAT_ERROR  user_id=%s', current_user.id)
+        return jsonify({'ok': False}), 500
+
+
 @game_bp.route('/api/roll-dice', methods=['POST'])
 @login_required
 @limiter.limit('3 per second')
@@ -496,11 +567,11 @@ def roll_dice():
             now_utc     = dt.datetime.now(timezone.utc)
 
             # Recharge dice charges
-            dice_charges  = gs['dice_charges']
+            max_charges = dice_max_charges(owned)
+            dice_charges  = min(gs['dice_charges'], max_charges)  # cap stale over-limit values
             last_recharge = gs['dice_last_recharge']
             if last_recharge.tzinfo is None:
                 last_recharge = last_recharge.replace(tzinfo=timezone.utc)
-            max_charges = dice_max_charges(owned)
             elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
             if elapsed_charges > 0 and dice_charges < max_charges:
                 dice_charges  = min(dice_charges + elapsed_charges, max_charges)

@@ -1281,8 +1281,8 @@ const StreakPanel = React.memo(function StreakPanel({
   if (Math.abs(streak) < 2) return null;
   const isWin = streak > 0;
   const count = Math.abs(streak);
-  // Season 5 soft-capped formula — must match models.py streak_bonus()
-  const baseBonus = count < 3 ? 0 : count <= 15 ? 1 << count - 3 : count <= 35 ? 4096 + Math.pow(count - 15, 3) : count <= 75 ? 12096 + (count - 35) * 500 : 32096 + (count - 75) * 200;
+  // Season 6 formula — must match models.py streak_bonus()
+  const baseBonus = count < 3 ? 0 : count <= 15 ? 1 << count - 3 : count <= 35 ? 4096 + Math.pow(count - 15, 3) * 2 : count <= 75 ? 20096 + (count - 35) * 1200 : count <= 150 ? 68096 + (count - 75) * 600 : 113096;
   const bonus = baseBonus * bonusMultFromLevel(bonusmultLevel || 0);
   return /*#__PURE__*/React.createElement("div", {
     className: `streak-panel ${isWin ? 'win-streak' : 'lose-streak'}`
@@ -1355,7 +1355,8 @@ function DicePanel({
   diceCharges,
   maxDiceCharges,
   diceLastRecharge,
-  hasDiceExtra
+  hasDiceExtra,
+  rolledSinceSpin
 }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
@@ -1398,7 +1399,7 @@ function DicePanel({
       return () => clearTimeout(t);
     }
   }, [diceResult]);
-  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning;
+  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning && !rolledSinceSpin;
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
   const die3Val = rolling && !lowSpec ? animDie3 : diceResult && diceResult.die3 != null ? diceResult.die3 : animDie3;
@@ -1427,7 +1428,7 @@ function DicePanel({
     className: `dice-charge-dot${i < diceCharges ? ' charged' : ''}`
   }, "\u25CF"));
   let disabledReason = '';
-  if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';
+  if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';else if (rolledSinceSpin) disabledReason = 'Spin once before rolling again';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
@@ -3186,6 +3187,16 @@ function GameApp({
   const [diceResult, setDiceResult] = useState(null);
   const [diceCharges, setDiceCharges] = useState(gameState.dice_charges ?? 1);
   const [diceLastRecharge, setDiceLastRecharge] = useState(gameState.dice_last_recharge || new Date().toISOString());
+  const [diceRolledSinceSpin, setDiceRolledSinceSpin] = useState(gameState.dice_rolled_since_spin ?? false);
+  const [tabLocked, setTabLocked] = useState(false);
+  const tabIdRef = useRef((() => {
+    let id = sessionStorage.getItem('wheel_tab_id');
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem('wheel_tab_id', id);
+    }
+    return id;
+  })());
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
   const [showChat, setShowChat] = useState(true);
@@ -3292,6 +3303,22 @@ function GameApp({
   useEffect(() => {
     autoSpinDelayRef.current = autoSpinDelay;
   }, [autoSpinDelay]);
+
+  // Tab heartbeat — claim the lock on mount, refresh every 10s
+  useEffect(() => {
+    const tabId = tabIdRef.current;
+    const beat = () => apiGame('/api/tab/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({
+        tab_id: tabId
+      })
+    }).then(r => {
+      if (r.ok) setTabLocked(!r.data.active);
+    });
+    beat();
+    const id = setInterval(beat, 10000);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -3343,6 +3370,9 @@ function GameApp({
           });
           if (gs.data.caught_species) setCaughtSpecies(gs.data.caught_species);
           setFishingLuckyNext(gs.data.fishing_lucky_next || false);
+          if (gs.data.dice_charges != null) setDiceCharges(gs.data.dice_charges);
+          if (gs.data.dice_last_recharge) setDiceLastRecharge(gs.data.dice_last_recharge);
+          setDiceRolledSinceSpin(gs.data.dice_rolled_since_spin ?? false);
         }
       } else {
         setSeason(r.data);
@@ -3456,6 +3486,7 @@ function GameApp({
       setStreak(data.streak);
       if (data.dice_charges != null) setDiceCharges(data.dice_charges);
       if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
+      setDiceRolledSinceSpin(true);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
   }, [diceRolling, spinning, streak, lowSpec, showToast]);
@@ -3488,6 +3519,7 @@ function GameApp({
     if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
+    setDiceRolledSinceSpin(false);
     if (data.wins_delta > 0) setWinCount(prev => prev + 1);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
@@ -3540,16 +3572,24 @@ function GameApp({
     try {
       const res = await apiGame('/api/spin', {
         method: 'POST',
-        body: '{}'
+        body: JSON.stringify({
+          tab_id: tabIdRef.current
+        })
       });
       if (!res.ok) {
         spinningRef.current = false;
         setSpinning(false);
+        if (res.status === 423) {
+          setTabLocked(true);
+          setAutoSpin(false);
+          return;
+        }
         if (autoSpinRef.current) setTimeout(() => {
           if (autoSpinRef.current) spin();
         }, 1000);
         return;
       }
+      setTabLocked(false);
       data = res.data;
     } catch (e) {
       spinningRef.current = false;
@@ -3639,7 +3679,9 @@ function GameApp({
     onClose: () => setShowStats(false)
   }), toast && /*#__PURE__*/React.createElement("div", {
     className: "toast-notification"
-  }, toast), /*#__PURE__*/React.createElement(Confetti, {
+  }, toast), tabLocked && /*#__PURE__*/React.createElement("div", {
+    className: "tab-locked-banner"
+  }, "This tab is locked \u2014 another tab is already active. Close it or wait 30s for the lock to expire."), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), /*#__PURE__*/React.createElement("div", {
@@ -3793,7 +3835,8 @@ function GameApp({
     diceCharges: diceCharges,
     maxDiceCharges: diceMaxCharges,
     diceLastRecharge: diceLastRecharge,
-    hasDiceExtra: ownedItems.includes('dice_extra')
+    hasDiceExtra: ownedItems.includes('dice_extra'),
+    rolledSinceSpin: diceRolledSinceSpin
   })), /*#__PURE__*/React.createElement("div", {
     className: "casino-container"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3876,7 +3919,8 @@ function GameApp({
     diceCharges: diceCharges,
     maxDiceCharges: diceMaxCharges,
     diceLastRecharge: diceLastRecharge,
-    hasDiceExtra: ownedItems.includes('dice_extra')
+    hasDiceExtra: ownedItems.includes('dice_extra'),
+    rolledSinceSpin: diceRolledSinceSpin
   })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
