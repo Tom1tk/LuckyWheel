@@ -1498,7 +1498,7 @@ const SHOP_SECTIONS = [
   { label: '⏩ Auto Speed', items: [
     { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 200,       desc: 'Auto-spin cuts wheel animation at 1s — toggle on/off after purchase' },
     { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 10000,     desc: 'Auto-spin cuts wheel animation at 0.5s — toggle on/off after purchase', requires: 'autospeed_1' },
-    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1000000,   desc: 'Auto-spin skips wheel animation entirely — toggle on/off after purchase', requires: 'autospeed_2' },
+    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1000000,   desc: 'Auto-spin skips result banner — wheel animation plays in full — toggle on/off after purchase', requires: 'autospeed_2' },
   ]},
   { label: '💰 Win Power', items: [
     { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
@@ -2505,9 +2505,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setRotation(newRotation);
 
     const fullAnimMs = spinSpeedRef.current * 1000 + 200;
-    // Guard needs the full animation so the wheel lands before the guard overlay appears.
-    // Normal spins with autospeed fire early, cutting the animation short.
-    const resultFireMs = (autoSpinRef.current && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered)
+    // delay=0 (Instant Auto) lets the wheel finish then skips the result banner — don't cut anim.
+    // delay>0 upgrades cut into the animation at that ms mark.
+    // Guard always waits for full animation.
+    const resultFireMs = (autoSpinRef.current && autoSpinDelayRef.current > 0 && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered)
       ? autoSpinDelayRef.current
       : fullAnimMs;
 

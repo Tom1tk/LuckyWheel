@@ -2036,7 +2036,7 @@ const SHOP_SECTIONS = [{
     emoji: '⏩',
     name: 'Instant Auto',
     cost: 1000000,
-    desc: 'Auto-spin skips wheel animation entirely — toggle on/off after purchase',
+    desc: 'Auto-spin skips result banner — wheel animation plays in full — toggle on/off after purchase',
     requires: 'autospeed_2'
   }]
 }, {
@@ -3607,9 +3607,10 @@ function GameApp({
     currentRotationRef.current = newRotation;
     setRotation(newRotation);
     const fullAnimMs = spinSpeedRef.current * 1000 + 200;
-    // Guard needs the full animation so the wheel lands before the guard overlay appears.
-    // Normal spins with autospeed fire early, cutting the animation short.
-    const resultFireMs = autoSpinRef.current && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered ? autoSpinDelayRef.current : fullAnimMs;
+    // delay=0 (Instant Auto) lets the wheel finish then skips the result banner — don't cut anim.
+    // delay>0 upgrades cut into the animation at that ms mark.
+    // Guard always waits for full animation.
+    const resultFireMs = autoSpinRef.current && autoSpinDelayRef.current > 0 && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered ? autoSpinDelayRef.current : fullAnimMs;
     setTimeout(() => {
       if (data.guard_triggered) {
         if (activeCosmeticsRef.current.includes('guard_speed_4')) {
