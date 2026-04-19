@@ -496,10 +496,10 @@ function drawGuardWheel(canvas) {
 function fmt(n) {
   if (!isFinite(n) || isNaN(n)) return '???';
   if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
-  if (n >= 1e12) return (n / 1e12).toFixed(n >= 10e12 ? 2 : 3).replace(/\.?0+$/, '') + 'T';
-  if (n >= 1e9)  return (n / 1e9) .toFixed(n >= 10e9  ? 2 : 3).replace(/\.?0+$/, '') + 'B';
-  if (n >= 1e6)  return (n / 1e6) .toFixed(n >= 10e6  ? 2 : 3).replace(/\.?0+$/, '') + 'M';
-  if (n >= 10e3) return (n >= 100e3 ? Math.round(n / 1e3) : (n / 1e3).toFixed(1).replace(/\.0$/, '')) + 'K';
+  if (n >= 1e12) return (n / 1e12).toFixed(2).replace(/\.?0+$/, '') + 'T';
+  if (n >= 1e9)  return (n / 1e9) .toFixed(2).replace(/\.?0+$/, '') + 'B';
+  if (n >= 1e6)  return (n / 1e6) .toFixed(2).replace(/\.?0+$/, '') + 'M';
+  if (n >= 10e3) return (n / 1e3) .toFixed(2).replace(/\.?0+$/, '') + 'K';
   return String(n);
 }
 
