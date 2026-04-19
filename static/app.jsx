@@ -549,7 +549,7 @@ function Confetti({ active, count = 80 }) {
 }
 
 // ── Guard Mini-Wheel ──────────────────────────────────────────────────────
-function GuardWheel({ blocked, speedMult = 1.0, onComplete }) {
+function GuardWheel({ blocked, speedMult = 1.0, onComplete, contained = false }) {
   const canvasRef = useRef(null);
   const [guardRotation, setGuardRotation] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -575,7 +575,7 @@ function GuardWheel({ blocked, speedMult = 1.0, onComplete }) {
   }, []); // eslint-disable-line
 
   return (
-    <div className="guard-overlay">
+    <div className={contained ? 'guard-overlay guard-overlay--contained' : 'guard-overlay'}>
       <div className="guard-card">
         <div className="guard-title">🛡️ Guard Activating…</div>
         <div className="guard-wheel-wrap">
@@ -2635,7 +2635,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <Confetti active={confetti} count={confettiCount} />
       <div className={`overlay ${showResult ? 'active' : ''}`} />
 
-      {guardState && (
+      {!isMobile && guardState && (
         <GuardWheel
           blocked={guardState.blocked}
           speedMult={guardSpeedMult}
@@ -2841,6 +2841,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <div className="bulbs">
             {Array.from({length: 16}, (_, i) => <div key={i} className="bulb" />)}
           </div>
+
+          {isMobile && guardState && (
+            <GuardWheel
+              blocked={guardState.blocked}
+              speedMult={guardSpeedMult}
+              onComplete={() => guardCompleteRef.current && guardCompleteRef.current()}
+              contained
+            />
+          )}
         </div>
       </div>
 

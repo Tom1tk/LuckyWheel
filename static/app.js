@@ -689,7 +689,8 @@ function Confetti({
 function GuardWheel({
   blocked,
   speedMult = 1.0,
-  onComplete
+  onComplete,
+  contained = false
 }) {
   const canvasRef = useRef(null);
   const [guardRotation, setGuardRotation] = useState(0);
@@ -718,7 +719,7 @@ function GuardWheel({
   }, []); // eslint-disable-line
 
   return /*#__PURE__*/React.createElement("div", {
-    className: "guard-overlay"
+    className: contained ? 'guard-overlay guard-overlay--contained' : 'guard-overlay'
   }, /*#__PURE__*/React.createElement("div", {
     className: "guard-card"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3734,7 +3735,7 @@ function GameApp({
     count: confettiCount
   }), /*#__PURE__*/React.createElement("div", {
     className: `overlay ${showResult ? 'active' : ''}`
-  }), guardState && /*#__PURE__*/React.createElement(GuardWheel, {
+  }), !isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
     speedMult: guardSpeedMult,
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
@@ -3941,7 +3942,12 @@ function GameApp({
   }, (_, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     className: "bulb"
-  }))))), /*#__PURE__*/React.createElement("div", {
+  }))), isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
+    blocked: guardState.blocked,
+    speedMult: guardSpeedMult,
+    onComplete: () => guardCompleteRef.current && guardCompleteRef.current(),
+    contained: true
+  }))), /*#__PURE__*/React.createElement("div", {
     className: `game-right${isMobile && mobilePanel === 'shop' ? ' mobile-open' : ''}`
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-collapse-btn",

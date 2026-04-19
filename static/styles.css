@@ -2664,6 +2664,11 @@ body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040
   animation: guardOverlayIn 0.25s ease-out;
 }
 
+.guard-overlay--contained {
+  position: absolute;
+  background: radial-gradient(circle 60% at 50% 50%, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 55%, transparent 80%);
+}
+
 @keyframes guardOverlayIn {
   from { opacity: 0; }
   to   { opacity: 1; }
