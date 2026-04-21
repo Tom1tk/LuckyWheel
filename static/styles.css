@@ -727,14 +727,15 @@ body::before {
   pointer-events: none;
 }
 
-/* Catch/miss popup: overlays water area — no layout shift */
-.fishing-water-area > .catch-popup {
-  position: absolute;
-  top: 25%;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  pointer-events: none;
+/* Fixed-height slot: always reserves space so controls never shift */
+.fishing-popup-slot {
+  width: 100%;
+  min-height: 65px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .fishing-water {

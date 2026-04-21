@@ -1194,7 +1194,9 @@ function FishingPanel({
     }
   })), phase === 'bite' && /*#__PURE__*/React.createElement("div", {
     className: "bite-hint"
-  }, "CLICK TO REEL!"), phase === 'success' && lastCatch && /*#__PURE__*/React.createElement("div", {
+  }, "CLICK TO REEL!")), /*#__PURE__*/React.createElement("div", {
+    className: "fishing-popup-slot"
+  }, phase === 'success' && lastCatch && /*#__PURE__*/React.createElement("div", {
     className: "catch-popup"
   }, /*#__PURE__*/React.createElement("span", {
     className: "catch-emoji"

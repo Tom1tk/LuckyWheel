@@ -879,6 +879,8 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
           </div>
         )}
         {phase === 'bite' && <div className="bite-hint">CLICK TO REEL!</div>}
+      </div>
+      <div className="fishing-popup-slot">
         {phase === 'success' && lastCatch && (
           <div className="catch-popup">
             <span className="catch-emoji">{lastCatch.emoji}</span>
