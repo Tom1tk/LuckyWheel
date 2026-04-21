@@ -1195,32 +1195,6 @@ function FishingPanel({
   })), phase === 'bite' && /*#__PURE__*/React.createElement("div", {
     className: "bite-hint"
   }, "CLICK TO REEL!")), /*#__PURE__*/React.createElement("div", {
-    className: "fishing-popup-slot"
-  }, phase === 'success' && lastCatch && /*#__PURE__*/React.createElement("div", {
-    className: "catch-popup"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "catch-emoji"
-  }, lastCatch.emoji), /*#__PURE__*/React.createElement("span", {
-    className: "catch-value"
-  }, "+", lastCatch.value, " \uD83D\uDC1F", lastCatch.doubled ? ' (2x!)' : '', lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''), lastCatch.isNew && /*#__PURE__*/React.createElement("span", {
-    className: "catch-new"
-  }, "NEW!"), lastCatch.isLucky && /*#__PURE__*/React.createElement("span", {
-    className: "catch-lucky"
-  }, "\u2B50 Lucky!")), phase === 'miss' && /*#__PURE__*/React.createElement("div", {
-    className: "catch-popup catch-popup--miss"
-  }, missReason === 'early' ? 'Too early!' : 'Too slow!'), autoFish && autoFishPopup && (autoFishPopup.type === 'hit' ? /*#__PURE__*/React.createElement("div", {
-    key: autoFishPopup.key,
-    className: "catch-popup"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "catch-emoji"
-  }, autoFishPopup.emoji), /*#__PURE__*/React.createElement("span", {
-    className: "catch-value"
-  }, "+", autoFishPopup.value, " \uD83D\uDC1F"), autoFishPopup.isNew && /*#__PURE__*/React.createElement("span", {
-    className: "catch-new"
-  }, "NEW!")) : /*#__PURE__*/React.createElement("div", {
-    key: autoFishPopup.key,
-    className: "catch-popup catch-popup--miss"
-  }, "No bite"))), /*#__PURE__*/React.createElement("div", {
     className: "fishing-controls"
   }, !autoFish && /*#__PURE__*/React.createElement("button", {
     className: "cast-btn",
@@ -1252,9 +1226,37 @@ function FishingPanel({
     }
   }), /*#__PURE__*/React.createElement("span", {
     className: "fishing-toggle-text"
-  }, "Auto-Fish")))), lastCatch && /*#__PURE__*/React.createElement("div", {
-    className: "fishing-last-catch"
-  }, "Last: ", lastCatch.emoji, " ", lastCatch.name, " +", lastCatch.value, " \uD83D\uDC1F", lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''));
+  }, "Auto-Fish")))), /*#__PURE__*/React.createElement("div", {
+    className: "catch-side-info"
+  }, phase === 'success' && lastCatch ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-emoji"
+  }, lastCatch.emoji), /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-value"
+  }, "+", lastCatch.value, " \uD83D\uDC1F", lastCatch.doubled ? ' 2x!' : ''), lastCatch.preciseMult && /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-precise"
+  }, "\uD83C\uDFAF ", lastCatch.preciseMult, "x @ ", lastCatch.precisePct, "%"), lastCatch.isNew && /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-tag catch-side-new"
+  }, "NEW!"), lastCatch.isLucky && /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-tag catch-side-lucky"
+  }, "\u2B50 Lucky!")) : phase === 'miss' ? /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-miss"
+  }, missReason === 'early' ? 'Too early!' : 'Too slow!') : autoFish && autoFishPopup ? autoFishPopup.type === 'hit' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-emoji"
+  }, autoFishPopup.emoji), /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-value"
+  }, "+", autoFishPopup.value, " \uD83D\uDC1F"), autoFishPopup.isNew && /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-tag catch-side-new"
+  }, "NEW!")) : /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-miss"
+  }, "No bite") : lastCatch ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-label"
+  }, "Last"), /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-emoji"
+  }, lastCatch.emoji), /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-value"
+  }, "+", lastCatch.value, " \uD83D\uDC1F"), lastCatch.preciseMult && /*#__PURE__*/React.createElement("span", {
+    className: "catch-side-precise"
+  }, "\uD83C\uDFAF ", lastCatch.preciseMult, "x @ ", lastCatch.precisePct, "%")) : null));
 }
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────

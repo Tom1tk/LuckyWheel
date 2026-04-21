@@ -880,32 +880,6 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
         )}
         {phase === 'bite' && <div className="bite-hint">CLICK TO REEL!</div>}
       </div>
-      <div className="fishing-popup-slot">
-        {phase === 'success' && lastCatch && (
-          <div className="catch-popup">
-            <span className="catch-emoji">{lastCatch.emoji}</span>
-            <span className="catch-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' (2x!)' : ''}{lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''}</span>
-            {lastCatch.isNew && <span className="catch-new">NEW!</span>}
-            {lastCatch.isLucky && <span className="catch-lucky">⭐ Lucky!</span>}
-          </div>
-        )}
-        {phase === 'miss' && (
-          <div className="catch-popup catch-popup--miss">
-            {missReason === 'early' ? 'Too early!' : 'Too slow!'}
-          </div>
-        )}
-        {autoFish && autoFishPopup && (
-          autoFishPopup.type === 'hit' ? (
-            <div key={autoFishPopup.key} className="catch-popup">
-              <span className="catch-emoji">{autoFishPopup.emoji}</span>
-              <span className="catch-value">+{autoFishPopup.value} 🐟</span>
-              {autoFishPopup.isNew && <span className="catch-new">NEW!</span>}
-            </div>
-          ) : (
-            <div key={autoFishPopup.key} className="catch-popup catch-popup--miss">No bite</div>
-          )
-        )}
-      </div>
       <div className="fishing-controls">
         {!autoFish && (
           <button className="cast-btn" onClick={handleCast} disabled={phase !== 'idle'}>
@@ -937,11 +911,37 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
           )}
         </div>
       </div>
-      {lastCatch && (
-        <div className="fishing-last-catch">
-          Last: {lastCatch.emoji} {lastCatch.name} +{lastCatch.value} 🐟{lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''}
-        </div>
-      )}
+      {/* Catch info: absolutely positioned to the right — never shifts main layout */}
+      <div className="catch-side-info">
+        {phase === 'success' && lastCatch ? (
+          <>
+            <span className="catch-side-emoji">{lastCatch.emoji}</span>
+            <span className="catch-side-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' 2x!' : ''}</span>
+            {lastCatch.preciseMult && <span className="catch-side-precise">🎯 {lastCatch.preciseMult}x @ {lastCatch.precisePct}%</span>}
+            {lastCatch.isNew && <span className="catch-side-tag catch-side-new">NEW!</span>}
+            {lastCatch.isLucky && <span className="catch-side-tag catch-side-lucky">⭐ Lucky!</span>}
+          </>
+        ) : phase === 'miss' ? (
+          <span className="catch-side-miss">{missReason === 'early' ? 'Too early!' : 'Too slow!'}</span>
+        ) : autoFish && autoFishPopup ? (
+          autoFishPopup.type === 'hit' ? (
+            <>
+              <span className="catch-side-emoji">{autoFishPopup.emoji}</span>
+              <span className="catch-side-value">+{autoFishPopup.value} 🐟</span>
+              {autoFishPopup.isNew && <span className="catch-side-tag catch-side-new">NEW!</span>}
+            </>
+          ) : (
+            <span className="catch-side-miss">No bite</span>
+          )
+        ) : lastCatch ? (
+          <>
+            <span className="catch-side-label">Last</span>
+            <span className="catch-side-emoji">{lastCatch.emoji}</span>
+            <span className="catch-side-value">+{lastCatch.value} 🐟</span>
+            {lastCatch.preciseMult && <span className="catch-side-precise">🎯 {lastCatch.preciseMult}x @ {lastCatch.precisePct}%</span>}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
