@@ -702,6 +702,41 @@ body::before {
   border-radius: 1px;
 }
 
+.fishing-water-area {
+  position: relative;
+  width: 100%;
+}
+
+/* Bite bar: overlays bottom of water area — no layout shift */
+.fishing-water-area > .bite-bar-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Bite hint: overlays center of water area — no layout shift */
+.fishing-water-area > .bite-hint {
+  position: absolute;
+  top: calc(50% - 12px);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Catch/miss popup: overlays water area — no layout shift */
+.fishing-water-area > .catch-popup {
+  position: absolute;
+  top: 25%;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
 .fishing-water {
   width: 100%;
   background: rgba(var(--p-rgb), 0.06);

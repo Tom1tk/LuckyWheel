@@ -857,51 +857,53 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
         <span className="fishing-fisher-emoji">{fisherEmoji}</span>
         <span className="fishing-rod">🎣</span>
       </div>
-      <div className="fishing-water" onClick={e => { if (phaseRef.current === 'waiting') { e.stopPropagation(); handleEarlyReel(); } }}>
-        {(inWater || autoFish) && (
-          <>
-            <span className="shadow-fish shadow-fish-1">🐟</span>
-            <span className="shadow-fish shadow-fish-2">🐡</span>
-            <span className="shadow-fish shadow-fish-3">🐠</span>
-          </>
+      <div className="fishing-water-area">
+        <div className="fishing-water" onClick={e => { if (phaseRef.current === 'waiting') { e.stopPropagation(); handleEarlyReel(); } }}>
+          {(inWater || autoFish) && (
+            <>
+              <span className="shadow-fish shadow-fish-1">🐟</span>
+              <span className="shadow-fish shadow-fish-2">🐡</span>
+              <span className="shadow-fish shadow-fish-3">🐠</span>
+            </>
+          )}
+          {autoFish && (
+            <span className="fishing-bobber bobber-idle">🤖</span>
+          )}
+          {!autoFish && inWater && (
+            <span className={`fishing-bobber${phase === 'bite' ? ' bobber-bite' : ' bobber-idle'}`}>🔴</span>
+          )}
+        </div>
+        {phase === 'bite' && (
+          <div className="bite-bar-container">
+            <div className="bite-bar-fill" key={expiresAt} style={{ animationDuration: `${biteWindowMs}ms` }} />
+          </div>
         )}
-        {autoFish && (
-          <span className="fishing-bobber bobber-idle">🤖</span>
+        {phase === 'bite' && <div className="bite-hint">CLICK TO REEL!</div>}
+        {phase === 'success' && lastCatch && (
+          <div className="catch-popup">
+            <span className="catch-emoji">{lastCatch.emoji}</span>
+            <span className="catch-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' (2x!)' : ''}{lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''}</span>
+            {lastCatch.isNew && <span className="catch-new">NEW!</span>}
+            {lastCatch.isLucky && <span className="catch-lucky">⭐ Lucky!</span>}
+          </div>
         )}
-        {!autoFish && inWater && (
-          <span className={`fishing-bobber${phase === 'bite' ? ' bobber-bite' : ' bobber-idle'}`}>🔴</span>
+        {phase === 'miss' && (
+          <div className="catch-popup catch-popup--miss">
+            {missReason === 'early' ? 'Too early!' : 'Too slow!'}
+          </div>
+        )}
+        {autoFish && autoFishPopup && (
+          autoFishPopup.type === 'hit' ? (
+            <div key={autoFishPopup.key} className="catch-popup">
+              <span className="catch-emoji">{autoFishPopup.emoji}</span>
+              <span className="catch-value">+{autoFishPopup.value} 🐟</span>
+              {autoFishPopup.isNew && <span className="catch-new">NEW!</span>}
+            </div>
+          ) : (
+            <div key={autoFishPopup.key} className="catch-popup catch-popup--miss">No bite</div>
+          )
         )}
       </div>
-      {phase === 'bite' && (
-        <div className="bite-bar-container">
-          <div className="bite-bar-fill" key={expiresAt} style={{ animationDuration: `${biteWindowMs}ms` }} />
-        </div>
-      )}
-      {phase === 'bite' && <div className="bite-hint">CLICK TO REEL!</div>}
-      {phase === 'success' && lastCatch && (
-        <div className="catch-popup">
-          <span className="catch-emoji">{lastCatch.emoji}</span>
-          <span className="catch-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' (2x!)' : ''}{lastCatch.preciseMult ? ` 🎯 ${lastCatch.preciseMult}x @ ${lastCatch.precisePct}%` : ''}</span>
-          {lastCatch.isNew && <span className="catch-new">NEW!</span>}
-          {lastCatch.isLucky && <span className="catch-lucky">⭐ Lucky!</span>}
-        </div>
-      )}
-      {phase === 'miss' && (
-        <div className="catch-popup catch-popup--miss">
-          {missReason === 'early' ? 'Too early!' : 'Too slow!'}
-        </div>
-      )}
-      {autoFish && autoFishPopup && (
-        autoFishPopup.type === 'hit' ? (
-          <div key={autoFishPopup.key} className="catch-popup">
-            <span className="catch-emoji">{autoFishPopup.emoji}</span>
-            <span className="catch-value">+{autoFishPopup.value} 🐟</span>
-            {autoFishPopup.isNew && <span className="catch-new">NEW!</span>}
-          </div>
-        ) : (
-          <div key={autoFishPopup.key} className="catch-popup catch-popup--miss">No bite</div>
-        )
-      )}
       <div className="fishing-controls">
         {!autoFish && (
           <button className="cast-btn" onClick={handleCast} disabled={phase !== 'idle'}>

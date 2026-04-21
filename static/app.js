@@ -1165,6 +1165,8 @@ function FishingPanel({
   }, fisherEmoji), /*#__PURE__*/React.createElement("span", {
     className: "fishing-rod"
   }, "\uD83C\uDFA3")), /*#__PURE__*/React.createElement("div", {
+    className: "fishing-water-area"
+  }, /*#__PURE__*/React.createElement("div", {
     className: "fishing-water",
     onClick: e => {
       if (phaseRef.current === 'waiting') {
@@ -1216,7 +1218,7 @@ function FishingPanel({
   }, "NEW!")) : /*#__PURE__*/React.createElement("div", {
     key: autoFishPopup.key,
     className: "catch-popup catch-popup--miss"
-  }, "No bite")), /*#__PURE__*/React.createElement("div", {
+  }, "No bite"))), /*#__PURE__*/React.createElement("div", {
     className: "fishing-controls"
   }, !autoFish && /*#__PURE__*/React.createElement("button", {
     className: "cast-btn",
