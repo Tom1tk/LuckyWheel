@@ -1282,38 +1282,32 @@ function HiatusWheel() {
   const spinningRef = useRef(false);
   const rotationRef = useRef(0);
   const autoSpinRef = useRef(false);
-  const tabId       = useRef('hiatus-' + Math.random().toString(36).slice(2, 8));
-  const SPEED       = 4.5; // seconds — original slow speed
+  const SPEED       = 4.5;
 
   useEffect(() => { autoSpinRef.current = autoSpin; }, [autoSpin]);
   useEffect(() => { if (canvasRef.current) drawWheel(canvasRef.current, 'default'); }, []);
 
-  const spin = useCallback(async () => {
+  const spin = useCallback(() => {
     if (spinningRef.current) return;
     spinningRef.current = true;
     setSpinning(true);
-    try {
-      const res = await apiGame('/api/spin', { method: 'POST', body: JSON.stringify({ tab_id: tabId.current }) });
-      if (!res.ok) {
-        spinningRef.current = false; setSpinning(false);
-        if (autoSpinRef.current) setTimeout(spin, 1500);
-        return;
-      }
-      const data = res.data;
-      const base = rotationRef.current;
-      const seg  = data.angle % 360;
-      const next = Math.ceil((base + 5 * 360 - seg) / 360) * 360 + seg;
-      rotationRef.current = next;
-      setRotation(next);
-      setTimeout(() => {
-        if (data.result === 'win') setWins(w => w + 1); else setLosses(l => l + 1);
-        spinningRef.current = false; setSpinning(false);
-        if (autoSpinRef.current) setTimeout(spin, 1500);
-      }, SPEED * 1000 + 200);
-    } catch {
-      spinningRef.current = false; setSpinning(false);
+
+    // Client-side only — no API call needed for fun spins
+    const isWin = Math.random() < 0.5;
+    // WIN segment: top half (angles near 0°/360°); LOSE: bottom half (near 180°)
+    const segCenter = isWin ? 0 : 180;
+    const angle = segCenter + (Math.random() * 140 - 70); // ±70° within segment
+    const base = rotationRef.current;
+    const next = Math.ceil((base + 5 * 360 - angle) / 360) * 360 + angle;
+    rotationRef.current = next;
+    setRotation(next);
+
+    setTimeout(() => {
+      if (isWin) setWins(w => w + 1); else setLosses(l => l + 1);
+      spinningRef.current = false;
+      setSpinning(false);
       if (autoSpinRef.current) setTimeout(spin, 1500);
-    }
+    }, SPEED * 1000 + 200);
   }, []);
 
   useEffect(() => { if (autoSpin && !spinningRef.current) spin(); }, [autoSpin, spin]);
@@ -1334,9 +1328,9 @@ function HiatusWheel() {
         <span className="hiatus-wscore hiatus-wscore-w">✓ {wins}W</span>
         <span className="hiatus-wscore hiatus-wscore-l">✗ {losses}L</span>
       </div>
-      <div className={`spin-prompt${spinning ? '' : ' spin-prompt-active'}`} onClick={() => !spinning && spin()}>
-        {spinning ? '● ● ●' : '▶ Click to Spin ◀'}
-      </div>
+      <button className="hiatus-spin-btn" onClick={spin} disabled={spinning}>
+        {spinning ? '● ● ●' : '▶ Spin ◀'}
+      </button>
       <label className="hiatus-autospin-label">
         <input type="checkbox" checked={autoSpin} onChange={e => setAutoSpin(e.target.checked)} />
         <span>Auto Spin</span>
