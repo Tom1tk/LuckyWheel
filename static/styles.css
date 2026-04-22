@@ -3566,6 +3566,8 @@ body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
   margin-bottom: 4px;
 }
 
+.hiatus-col-heading--sub { margin-top: 18px; }
+
 .hiatus-empty {
   font-size: 0.75rem;
   color: #444;
@@ -3641,7 +3643,111 @@ body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
   text-shadow: 0 0 12px rgba(var(--p-rgb, 179,136,255), 0.4);
 }
 
+/* Mini wheel inside hiatus */
+.hiatus-wheel-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.hiatus-wheel-container {
+  position: relative;
+  display: inline-block;
+}
+
+.hiatus-wheel-pointer {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FFD700;
+  font-size: 1.1rem;
+  z-index: 2;
+  text-shadow: 0 0 6px rgba(255,215,0,0.6);
+  pointer-events: none;
+}
+
+.hiatus-wheel-container .center-hub {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #AA00FF, #550088);
+  border: 2px solid #eeccff;
+  box-shadow: 0 0 10px #AA00FF;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem; color: #fff;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hiatus-wheel-score {
+  display: flex;
+  gap: 18px;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.hiatus-wscore-w { color: #44ff88; }
+.hiatus-wscore-l { color: #ff6644; }
+
+/* Reuse .spin-prompt from main game but scoped to hiatus wheel wrap */
+.hiatus-wheel-wrap .spin-prompt {
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  cursor: default;
+  color: #555;
+  padding: 6px 14px;
+}
+
+.hiatus-wheel-wrap .spin-prompt.spin-prompt-active {
+  color: var(--p-lt, #b388ff);
+  cursor: pointer;
+  text-shadow: 0 0 8px rgba(var(--p-rgb, 179,136,255), 0.5);
+}
+
+.hiatus-autospin-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hiatus-autospin-label input[type="checkbox"] {
+  appearance: none;
+  width: 14px; height: 14px;
+  border: 1.5px solid rgba(var(--p-rgb, 179,136,255), 0.4);
+  border-radius: 3px;
+  background: rgba(5,5,30,0.6);
+  position: relative;
+  cursor: pointer;
+}
+
+.hiatus-autospin-label input[type="checkbox"]:checked {
+  background: var(--p-dk, #6600cc);
+  border-color: var(--p, #8833ff);
+}
+
+/* Leaderboard inside hiatus — override fixed positioning */
+.hiatus-lb.leaderboard-panel {
+  position: relative !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  max-width: 220px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 0.8em;
+}
+
 @media (max-width: 600px) {
   .hiatus-body { flex-direction: column; align-items: center; padding: 24px 16px; gap: 24px; }
-  .hiatus-col  { min-width: unset; width: 100%; max-width: 300px; }
+  .hiatus-col  { min-width: unset; width: 100%; max-width: 320px; }
+  .hiatus-lb.leaderboard-panel { max-width: 100%; }
 }
