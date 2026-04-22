@@ -625,6 +625,7 @@ function fmt(n) {
 // ── Hiatus mode — set to false to re-enable the full game ─────────────────
 const HIATUS_MODE = true;
 const HIATUS_END = new Date('2026-05-01T23:59:59'); // Next Friday 11:59 pm
+const HIATUS_PAST_SEASON = 6; // season that just ended
 
 // ── Scoreboard ────────────────────────────────────────────────────────────
 const Scoreboard = React.memo(function Scoreboard({
@@ -1625,13 +1626,103 @@ function HiatusDice() {
     disabled: rolling
   }, rolling ? 'Rolling…' : 'Roll'));
 }
+function HiatusWheel() {
+  const canvasRef = useRef(null);
+  const [rotation, setRotation] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [wins, setWins] = useState(0);
+  const [losses, setLosses] = useState(0);
+  const [autoSpin, setAutoSpin] = useState(false);
+  const spinningRef = useRef(false);
+  const rotationRef = useRef(0);
+  const autoSpinRef = useRef(false);
+  const tabId = useRef('hiatus-' + Math.random().toString(36).slice(2, 8));
+  const SPEED = 4.5; // seconds — original slow speed
+
+  useEffect(() => {
+    autoSpinRef.current = autoSpin;
+  }, [autoSpin]);
+  useEffect(() => {
+    if (canvasRef.current) drawWheel(canvasRef.current, 'default');
+  }, []);
+  const spin = useCallback(async () => {
+    if (spinningRef.current) return;
+    spinningRef.current = true;
+    setSpinning(true);
+    try {
+      const res = await apiGame('/api/spin', {
+        method: 'POST',
+        body: JSON.stringify({
+          tab_id: tabId.current
+        })
+      });
+      if (!res.ok) {
+        spinningRef.current = false;
+        setSpinning(false);
+        if (autoSpinRef.current) setTimeout(spin, 1500);
+        return;
+      }
+      const data = res.data;
+      const base = rotationRef.current;
+      const seg = data.angle % 360;
+      const next = Math.ceil((base + 5 * 360 - seg) / 360) * 360 + seg;
+      rotationRef.current = next;
+      setRotation(next);
+      setTimeout(() => {
+        if (data.result === 'win') setWins(w => w + 1);else setLosses(l => l + 1);
+        spinningRef.current = false;
+        setSpinning(false);
+        if (autoSpinRef.current) setTimeout(spin, 1500);
+      }, SPEED * 1000 + 200);
+    } catch {
+      spinningRef.current = false;
+      setSpinning(false);
+      if (autoSpinRef.current) setTimeout(spin, 1500);
+    }
+  }, []);
+  useEffect(() => {
+    if (autoSpin && !spinningRef.current) spin();
+  }, [autoSpin, spin]);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-wheel-wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-wheel-container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-wheel-pointer"
+  }, "\u25BC"), /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    width: 180,
+    height: 180,
+    className: `wheel-canvas${spinning ? ' spinning' : ''}`,
+    style: {
+      transform: `rotate(${rotation}deg)`,
+      transition: `transform ${SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "center-hub"
+  }, "\u2605")), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-wheel-score"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-wscore hiatus-wscore-w"
+  }, "\u2713 ", wins, "W"), /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-wscore hiatus-wscore-l"
+  }, "\u2717 ", losses, "L")), /*#__PURE__*/React.createElement("div", {
+    className: `spin-prompt${spinning ? '' : ' spin-prompt-active'}`,
+    onClick: () => !spinning && spin()
+  }, spinning ? '● ● ●' : '▶ Click to Spin ◀'), /*#__PURE__*/React.createElement("label", {
+    className: "hiatus-autospin-label"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: autoSpin,
+    onChange: e => setAutoSpin(e.target.checked)
+  }), /*#__PURE__*/React.createElement("span", null, "Auto Spin")));
+}
 function HiatusScreen({
   season,
   username,
   onLogout
 }) {
   const winners = season && season.latest_winners;
-  const seasonNum = season && season.season_number - 1;
   return /*#__PURE__*/React.createElement("div", {
     className: "hiatus-screen"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1646,18 +1737,23 @@ function HiatusScreen({
   }, "Logout")), /*#__PURE__*/React.createElement("div", {
     className: "hiatus-body"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "hiatus-col hiatus-col-winners"
+    className: "hiatus-col hiatus-col-left"
   }, /*#__PURE__*/React.createElement("div", {
     className: "hiatus-col-heading"
-  }, "Season ", seasonNum, " Winners"), winners && winners.length > 0 ? /*#__PURE__*/React.createElement(SeasonWinners, {
+  }, "Season ", HIATUS_PAST_SEASON, " Winners"), winners && winners.length > 0 ? /*#__PURE__*/React.createElement(SeasonWinners, {
     winners: winners,
-    seasonNumber: seasonNum
+    seasonNumber: HIATUS_PAST_SEASON
   }) : /*#__PURE__*/React.createElement("div", {
     className: "hiatus-empty"
-  }, "No season data yet")), /*#__PURE__*/React.createElement("div", {
-    className: "hiatus-col hiatus-col-dice"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "hiatus-col-heading"
+  }, "No season data yet"), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col-heading hiatus-col-heading--sub"
+  }, "Mid-Season 6.7"), /*#__PURE__*/React.createElement(Leaderboard, {
+    currentUser: username,
+    extraClass: "hiatus-lb"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col hiatus-col-center"
+  }, /*#__PURE__*/React.createElement(HiatusWheel, null), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col-heading hiatus-col-heading--sub"
   }, "\uD83C\uDFB2 Roll for fun"), /*#__PURE__*/React.createElement(HiatusDice, null), /*#__PURE__*/React.createElement("span", {
     className: "hiatus-dice-note"
   }, "No game effect \u2014 just for fun!")), /*#__PURE__*/React.createElement("div", {
@@ -1668,11 +1764,11 @@ function HiatusScreen({
     className: "hiatus-message-title"
   }, "\u23F8 Taking a Break"), /*#__PURE__*/React.createElement("p", {
     className: "hiatus-message-body"
-  }, "The wheel is on hiatus this week \u2014 thank you for playing Season ", seasonNum, "! We'll be back next Friday with Season 7."), /*#__PURE__*/React.createElement("div", {
+  }, "The wheel is on hiatus this week \u2014 thank you for playing Season ", HIATUS_PAST_SEASON, "! We'll be back next Friday with Season7\uFE0F\u20E3."), /*#__PURE__*/React.createElement("div", {
     className: "hiatus-countdown-row"
   }, /*#__PURE__*/React.createElement("span", {
     className: "hiatus-countdown-label"
-  }, "Season 7 begins in"), /*#__PURE__*/React.createElement(HiatusCountdown, null))))));
+  }, "Season7\uFE0F\u20E3 begins in"), /*#__PURE__*/React.createElement(HiatusCountdown, null))))));
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
