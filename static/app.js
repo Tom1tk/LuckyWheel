@@ -622,6 +622,10 @@ function fmt(n) {
   return String(n);
 }
 
+// ── Hiatus mode — set to false to re-enable the full game ─────────────────
+const HIATUS_MODE = true;
+const HIATUS_END = new Date('2026-05-01T23:59:59'); // Next Friday 11:59 pm
+
 // ── Scoreboard ────────────────────────────────────────────────────────────
 const Scoreboard = React.memo(function Scoreboard({
   wins,
@@ -1546,6 +1550,129 @@ function SeasonInfo({
   }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonNumber, " ends:"), timeLeft && /*#__PURE__*/React.createElement("span", {
     className: "season-countdown"
   }, timeLeft));
+}
+
+// ── Hiatus Screen ────────────────────────────────────────────────────────
+function HiatusCountdown() {
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    const update = () => {
+      const diff = HIATUS_END - Date.now();
+      if (diff <= 0) {
+        setTimeLeft('Starting now!');
+        return;
+      }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor(diff % 86400000 / 3600000);
+      const m = Math.floor(diff % 3600000 / 60000);
+      const s = Math.floor(diff % 60000 / 1000);
+      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-countdown"
+  }, timeLeft);
+}
+function HiatusDice() {
+  const [rolling, setRolling] = useState(false);
+  const [vals, setVals] = useState([1, 1, 1]);
+  const [anim, setAnim] = useState([1, 1, 1]);
+  const [landed, setLanded] = useState(false);
+  const itvRef = useRef(null);
+  const roll = () => {
+    if (rolling) return;
+    setRolling(true);
+    setLanded(false);
+    itvRef.current = setInterval(() => {
+      setAnim([Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)]);
+    }, 80);
+    setTimeout(() => {
+      clearInterval(itvRef.current);
+      const r = [Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)];
+      setVals(r);
+      setAnim(r);
+      setLanded(true);
+      setRolling(false);
+    }, 800);
+  };
+  const d = rolling ? anim : vals;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-dice-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dice-triangle"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dice-row dice-row-top"
+  }, /*#__PURE__*/React.createElement(Die, {
+    value: d[2],
+    rolling: rolling,
+    landed: landed
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "dice-row"
+  }, /*#__PURE__*/React.createElement(Die, {
+    value: d[0],
+    rolling: rolling,
+    landed: landed
+  }), /*#__PURE__*/React.createElement(Die, {
+    value: d[1],
+    rolling: rolling,
+    landed: landed
+  }))), /*#__PURE__*/React.createElement("button", {
+    className: "dice-roll-btn",
+    onClick: roll,
+    disabled: rolling
+  }, rolling ? 'Rolling…' : 'Roll'));
+}
+function HiatusScreen({
+  season,
+  username,
+  onLogout
+}) {
+  const winners = season && season.latest_winners;
+  const seasonNum = season && season.season_number - 1;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-screen"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-topbar"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-topbar-title"
+  }, "\uD83C\uDFA1 Wheel Hiatus"), /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-topbar-user"
+  }, "\uD83D\uDC64 ", username), /*#__PURE__*/React.createElement("button", {
+    className: "logout-btn",
+    onClick: onLogout
+  }, "Logout")), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-body"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col hiatus-col-winners"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col-heading"
+  }, "Season ", seasonNum, " Winners"), winners && winners.length > 0 ? /*#__PURE__*/React.createElement(SeasonWinners, {
+    winners: winners,
+    seasonNumber: seasonNum
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-empty"
+  }, "No season data yet")), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col hiatus-col-dice"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col-heading"
+  }, "\uD83C\uDFB2 Roll for fun"), /*#__PURE__*/React.createElement(HiatusDice, null), /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-dice-note"
+  }, "No game effect \u2014 just for fun!")), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-col hiatus-col-message"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-message-box"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-message-title"
+  }, "\u23F8 Taking a Break"), /*#__PURE__*/React.createElement("p", {
+    className: "hiatus-message-body"
+  }, "The wheel is on hiatus this week \u2014 thank you for playing Season ", seasonNum, "! We'll be back next Friday with Season 7."), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-countdown-row"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "hiatus-countdown-label"
+  }, "Season 7 begins in"), /*#__PURE__*/React.createElement(HiatusCountdown, null))))));
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
@@ -3728,6 +3855,17 @@ function GameApp({
   };
   const hasGuard = ownedItems.includes('guard');
   const hasRegen = ownedItems.includes('regen_shield');
+
+  // ── HIATUS MODE — comment out or set HIATUS_MODE=false to re-enable game ──
+  if (HIATUS_MODE) {
+    return /*#__PURE__*/React.createElement(HiatusScreen, {
+      season: season,
+      username: username,
+      onLogout: handleLogout
+    });
+  }
+  // ── END HIATUS MODE ────────────────────────────────────────────────────────
+
   return /*#__PURE__*/React.createElement("div", {
     className: lowSpec ? 'low-spec' : ''
   }, /*#__PURE__*/React.createElement(StatsPanel, {
