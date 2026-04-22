@@ -3693,20 +3693,20 @@ body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
 .hiatus-wscore-w { color: #44ff88; }
 .hiatus-wscore-l { color: #ff6644; }
 
-/* Reuse .spin-prompt from main game but scoped to hiatus wheel wrap */
-.hiatus-wheel-wrap .spin-prompt {
+.hiatus-spin-btn {
+  background: none;
+  border: 1px solid var(--p-lt, #b388ff);
+  color: var(--p-lt, #b388ff);
   font-size: 0.75rem;
   letter-spacing: 2px;
-  cursor: default;
-  color: #555;
-  padding: 6px 14px;
-}
-
-.hiatus-wheel-wrap .spin-prompt.spin-prompt-active {
-  color: var(--p-lt, #b388ff);
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 4px;
   cursor: pointer;
-  text-shadow: 0 0 8px rgba(var(--p-rgb, 179,136,255), 0.5);
+  transition: opacity 0.15s;
 }
+.hiatus-spin-btn:hover:not(:disabled) { opacity: 0.8; }
+.hiatus-spin-btn:disabled { opacity: 0.4; cursor: default; }
 
 .hiatus-autospin-label {
   display: flex;
