@@ -3500,3 +3500,148 @@ body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
 
 
 /* ── Season 6 = base CSS defaults. To override, set vars in body.page-season6 { } */
+
+/* ── Hiatus Screen ────────────────────────────────────────────────────────── */
+.hiatus-screen {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 30%, rgba(20,10,40,1) 0%, rgba(5,5,15,1) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #ccc;
+  font-family: 'Oswald', sans-serif;
+}
+
+.hiatus-topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.3);
+}
+
+.hiatus-topbar-title {
+  font-size: 1.2rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--p-lt, #b388ff);
+  flex: 1;
+}
+
+.hiatus-topbar-user {
+  font-size: 0.85rem;
+  color: #777;
+  letter-spacing: 1px;
+}
+
+.hiatus-body {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  padding: 48px 32px;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  flex-wrap: wrap;
+}
+
+.hiatus-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.hiatus-col-heading {
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.hiatus-empty {
+  font-size: 0.75rem;
+  color: #444;
+  letter-spacing: 1px;
+}
+
+/* Dice panel inside hiatus — no charges row, just dice + button */
+.hiatus-dice-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.hiatus-dice-note {
+  font-size: 0.6rem;
+  color: #444;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Message box */
+.hiatus-message-box {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 260px;
+  text-align: center;
+}
+
+.hiatus-message-title {
+  font-size: 1rem;
+  letter-spacing: 2px;
+  color: var(--p-lt, #b388ff);
+  text-transform: uppercase;
+}
+
+.hiatus-message-body {
+  font-size: 0.8rem;
+  color: #888;
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+  margin: 0;
+  font-family: inherit;
+}
+
+.hiatus-countdown-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 14px;
+}
+
+.hiatus-countdown-label {
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.hiatus-countdown {
+  font-size: 1.3rem;
+  letter-spacing: 3px;
+  color: var(--p-lt, #b388ff);
+  font-family: 'Oswald', sans-serif;
+  text-shadow: 0 0 12px rgba(var(--p-rgb, 179,136,255), 0.4);
+}
+
+@media (max-width: 600px) {
+  .hiatus-body { flex-direction: column; align-items: center; padding: 24px 16px; gap: 24px; }
+  .hiatus-col  { min-width: unset; width: 100%; max-width: 300px; }
+}

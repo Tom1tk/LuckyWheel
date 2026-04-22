@@ -503,6 +503,10 @@ function fmt(n) {
   return String(n);
 }
 
+// ── Hiatus mode — set to false to re-enable the full game ─────────────────
+const HIATUS_MODE = true;
+const HIATUS_END  = new Date('2026-05-01T23:59:59'); // Next Friday 11:59 pm
+
 // ── Scoreboard ────────────────────────────────────────────────────────────
 const Scoreboard = React.memo(function Scoreboard({ wins, losses, lastResult }) {
   return (
@@ -1200,6 +1204,115 @@ function SeasonInfo({ seasonNumber, endsAt }) {
     <div className="season-info">
       <span>Season {seasonNumber} ends:</span>
       {timeLeft && <span className="season-countdown">{timeLeft}</span>}
+    </div>
+  );
+}
+
+// ── Hiatus Screen ────────────────────────────────────────────────────────
+function HiatusCountdown() {
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    const update = () => {
+      const diff = HIATUS_END - Date.now();
+      if (diff <= 0) { setTimeLeft('Starting now!'); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <span className="hiatus-countdown">{timeLeft}</span>;
+}
+
+function HiatusDice() {
+  const [rolling, setRolling] = useState(false);
+  const [vals, setVals]       = useState([1, 1, 1]);
+  const [anim, setAnim]       = useState([1, 1, 1]);
+  const [landed, setLanded]   = useState(false);
+  const itvRef                = useRef(null);
+
+  const roll = () => {
+    if (rolling) return;
+    setRolling(true);
+    setLanded(false);
+    itvRef.current = setInterval(() => {
+      setAnim([Math.ceil(Math.random()*6), Math.ceil(Math.random()*6), Math.ceil(Math.random()*6)]);
+    }, 80);
+    setTimeout(() => {
+      clearInterval(itvRef.current);
+      const r = [Math.ceil(Math.random()*6), Math.ceil(Math.random()*6), Math.ceil(Math.random()*6)];
+      setVals(r);
+      setAnim(r);
+      setLanded(true);
+      setRolling(false);
+    }, 800);
+  };
+
+  const d = rolling ? anim : vals;
+  return (
+    <div className="hiatus-dice-panel">
+      <div className="dice-triangle">
+        <div className="dice-row dice-row-top">
+          <Die value={d[2]} rolling={rolling} landed={landed} />
+        </div>
+        <div className="dice-row">
+          <Die value={d[0]} rolling={rolling} landed={landed} />
+          <Die value={d[1]} rolling={rolling} landed={landed} />
+        </div>
+      </div>
+      <button className="dice-roll-btn" onClick={roll} disabled={rolling}>
+        {rolling ? 'Rolling…' : 'Roll'}
+      </button>
+    </div>
+  );
+}
+
+function HiatusScreen({ season, username, onLogout }) {
+  const winners   = season && season.latest_winners;
+  const seasonNum = season && (season.season_number - 1);
+
+  return (
+    <div className="hiatus-screen">
+      <div className="hiatus-topbar">
+        <span className="hiatus-topbar-title">🎡 Wheel Hiatus</span>
+        <span className="hiatus-topbar-user">👤 {username}</span>
+        <button className="logout-btn" onClick={onLogout}>Logout</button>
+      </div>
+
+      <div className="hiatus-body">
+        <div className="hiatus-col hiatus-col-winners">
+          <div className="hiatus-col-heading">Season {seasonNum} Winners</div>
+          {winners && winners.length > 0 ? (
+            <SeasonWinners winners={winners} seasonNumber={seasonNum} />
+          ) : (
+            <div className="hiatus-empty">No season data yet</div>
+          )}
+        </div>
+
+        <div className="hiatus-col hiatus-col-dice">
+          <div className="hiatus-col-heading">🎲 Roll for fun</div>
+          <HiatusDice />
+          <span className="hiatus-dice-note">No game effect — just for fun!</span>
+        </div>
+
+        <div className="hiatus-col hiatus-col-message">
+          <div className="hiatus-message-box">
+            <div className="hiatus-message-title">⏸ Taking a Break</div>
+            <p className="hiatus-message-body">
+              The wheel is on hiatus this week — thank you for playing Season {seasonNum}!
+              We'll be back next Friday with Season 7.
+            </p>
+            <div className="hiatus-countdown-row">
+              <span className="hiatus-countdown-label">Season 7 begins in</span>
+              <HiatusCountdown />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2627,6 +2740,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   const hasGuard = ownedItems.includes('guard');
   const hasRegen = ownedItems.includes('regen_shield');
+
+  // ── HIATUS MODE — comment out or set HIATUS_MODE=false to re-enable game ──
+  if (HIATUS_MODE) {
+    return <HiatusScreen season={season} username={username} onLogout={handleLogout} />;
+  }
+  // ── END HIATUS MODE ────────────────────────────────────────────────────────
 
   return (
     <div className={lowSpec ? 'low-spec' : ''}>
