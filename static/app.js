@@ -1636,6 +1636,15 @@ function HiatusWheel() {
   const spinningRef = useRef(false);
   const rotationRef = useRef(0);
   const autoSpinRef = useRef(false);
+  // Use the same sessionStorage key as the main game to avoid tab-lock rejections
+  const tabId = useRef((() => {
+    let id = sessionStorage.getItem('wheel_tab_id');
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem('wheel_tab_id', id);
+    }
+    return id;
+  })());
   const SPEED = 4.5;
   useEffect(() => {
     autoSpinRef.current = autoSpin;
@@ -1643,26 +1652,40 @@ function HiatusWheel() {
   useEffect(() => {
     if (canvasRef.current) drawWheel(canvasRef.current, 'default');
   }, []);
-  const spin = useCallback(() => {
+  const spin = useCallback(async () => {
     if (spinningRef.current) return;
     spinningRef.current = true;
     setSpinning(true);
-
-    // Client-side only — no API call needed for fun spins
-    const isWin = Math.random() < 0.5;
-    // WIN segment: top half (angles near 0°/360°); LOSE: bottom half (near 180°)
-    const segCenter = isWin ? 0 : 180;
-    const angle = segCenter + (Math.random() * 140 - 70); // ±70° within segment
-    const base = rotationRef.current;
-    const next = Math.ceil((base + 5 * 360 - angle) / 360) * 360 + angle;
-    rotationRef.current = next;
-    setRotation(next);
-    setTimeout(() => {
-      if (isWin) setWins(w => w + 1);else setLosses(l => l + 1);
+    try {
+      const res = await apiGame('/api/spin', {
+        method: 'POST',
+        body: JSON.stringify({
+          tab_id: tabId.current
+        })
+      });
+      if (!res.ok) {
+        spinningRef.current = false;
+        setSpinning(false);
+        if (autoSpinRef.current) setTimeout(spin, 1500);
+        return;
+      }
+      const data = res.data;
+      const base = rotationRef.current;
+      const seg = data.angle % 360;
+      const next = Math.ceil((base + 5 * 360 - seg) / 360) * 360 + seg;
+      rotationRef.current = next;
+      setRotation(next);
+      setTimeout(() => {
+        if (data.result === 'win') setWins(w => w + 1);else setLosses(l => l + 1);
+        spinningRef.current = false;
+        setSpinning(false);
+        if (autoSpinRef.current) setTimeout(spin, 1500);
+      }, SPEED * 1000 + 200);
+    } catch {
       spinningRef.current = false;
       setSpinning(false);
       if (autoSpinRef.current) setTimeout(spin, 1500);
-    }, SPEED * 1000 + 200);
+    }
   }, []);
   useEffect(() => {
     if (autoSpin && !spinningRef.current) spin();
