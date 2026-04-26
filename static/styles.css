@@ -181,15 +181,21 @@ body::before {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  cursor: pointer;
+  cursor: default;
   transition: transform 4.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
   position: relative;
   z-index: 2;
   will-change: transform;
 }
 
-.wheel-canvas.spinning {
-  cursor: not-allowed;
+@keyframes wheelAutoSpin {
+  to { transform: rotate(360deg); }
+}
+
+.wheel-canvas.auto-spinning {
+  animation: wheelAutoSpin 1.8s linear infinite;
+  transition: none;
+  cursor: default;
 }
 
 /* Pointer */
@@ -2118,6 +2124,60 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   letter-spacing: 0.5px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.5);
 }
+
+/* ── Happy Hour banner ─────────────────────────────────────────────────── */
+.happy-hour-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9998;
+  background: linear-gradient(90deg, #ff6a00, #ee0979, #ff6a00);
+  background-size: 200% 100%;
+  animation: happyHourSlide 3s linear infinite;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  padding: 10px 20px;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  text-transform: uppercase;
+}
+
+@keyframes happyHourSlide {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* ── Catch-up summary banner ──────────────────────────────────────────── */
+.catchup-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9997;
+  background: rgba(20, 60, 100, 0.95);
+  color: #adf;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 24px;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  max-width: 420px;
+  white-space: nowrap;
+}
+
+/* ── Leaderboard WP/BP columns ─────────────────────────────────────────── */
+.lb-wp-h, .lb-bp-h, .lb-wp, .lb-bp {
+  font-size: 0.72rem;
+  text-align: right;
+  min-width: 36px;
+}
+.lb-wp-h, .lb-bp-h { opacity: 0.7; }
+.lb-wp  { color: #ffd700; }
+.lb-bp  { color: #88ddff; }
 
 /* ── Toast notification ────────────────────────────────────────────────── */
 .toast-notification {

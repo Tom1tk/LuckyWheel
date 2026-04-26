@@ -15,7 +15,9 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
                     UPGRADE_TIER_THRESHOLDS, item_tier,
-                    FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate)
+                    FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
+                    AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
+                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC)
 from seasons import ensure_current_season, get_season_info
 
 COSMETIC_SLOTS = {
@@ -29,17 +31,16 @@ COSMETIC_SLOTS = {
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
     'theme_void': 'wheel', 'theme_gold': 'wheel',
     'golden_wheel': 'golden',
-    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme', 'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme',
+    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
+    'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme',
     'final_frenzy': 'frenzy_mode',
     'auto_guard':   'auto_guard',
-    'autospeed_1':  'autospeed',
-    'autospeed_2':  'autospeed',
-    'autospeed_3':  'autospeed',
-    'guard_speed_1': 'guard_speed',
-    'guard_speed_2': 'guard_speed',
-    'guard_speed_3': 'guard_speed',
-    'guard_speed_4': 'guard_speed',
 }
+
+
+def is_happy_hour(now_utc=None):
+    now = now_utc or dt.datetime.now(timezone.utc)
+    return HAPPY_HOUR_START_UTC <= now.hour < HAPPY_HOUR_END_UTC
 from security import require_json
 
 log = logging.getLogger('wheel')
@@ -98,7 +99,8 @@ def get_state():
                               streak_armor_level, low_spec_mode,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin,
-                              fishing_lucky_next, caught_species
+                              fishing_lucky_next, caught_species,
+                              auto_spin_since, season_registered
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -151,6 +153,9 @@ def get_state():
             'dice_rolled_since_spin': bool(gs['dice_rolled_since_spin']),
             'fishing_lucky_next':  bool(gs['fishing_lucky_next']),
             'caught_species':      list(gs['caught_species']),
+            'auto_spin_since':     gs['auto_spin_since'].isoformat() if gs['auto_spin_since'] else None,
+            'season_registered':   bool(gs['season_registered']),
+            'happy_hour':          is_happy_hour(),
             'community_pot': {
                 'total_contributed':  pot['total_contributed'] if pot else 0,
                 'target':             pot['target']            if pot else 1_000,
@@ -544,6 +549,348 @@ def tab_heartbeat():
     except Exception:
         log.exception('TAB_HEARTBEAT_ERROR  user_id=%s', current_user.id)
         return jsonify({'ok': False}), 500
+
+
+@game_bp.route('/api/register-season', methods=['POST'])
+@login_required
+def register_season():
+    """Mark user as pre-registered for the next season start.
+    Also activates the wheel mid-season if not already started.
+    """
+    try:
+        now_utc = dt.datetime.now(timezone.utc)
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET season_registered = TRUE,
+                           auto_spin_since = CASE WHEN auto_spin_since IS NULL THEN %s ELSE auto_spin_since END,
+                           last_spin_at    = CASE WHEN auto_spin_since IS NULL THEN %s ELSE last_spin_at END
+                       WHERE user_id = %s''',
+                    (now_utc, now_utc, current_user.id),
+                )
+            conn.commit()
+        return jsonify({'ok': True})
+    except Exception:
+        log.exception('REGISTER_SEASON_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Registration failed'}), 500
+
+
+@game_bp.route('/api/tick', methods=['POST'])
+@login_required
+@limiter.limit('30 per minute')
+def tick():
+    """Server-side auto-spin tick. Called every ~3s by the client.
+    Computes all pending spin outcomes since the last tick and returns results.
+    """
+    try:
+        now_utc = dt.datetime.now(timezone.utc)
+        with db_connection() as conn:
+            ensure_current_season(conn)
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges,
+                              regen_recharge_wins, spin_count, win_count, loss_count,
+                              winmult_inf_level, bonusmult_inf_level, streak_armor_level,
+                              fish_clicks, active_cosmetics,
+                              dice_charges, dice_last_recharge, jackpot_echo_next,
+                              dice_rolled_since_spin,
+                              auto_spin_since, last_spin_at
+                       FROM game_state WHERE user_id = %s FOR UPDATE''',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+
+                cur.execute(
+                    'SELECT filled, filled_at, win_chance_pct FROM community_pot WHERE id = 1'
+                )
+                pot_row = cur.fetchone()
+
+            # First tick of the season — start the wheel now
+            if gs['auto_spin_since'] is None:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'UPDATE game_state SET auto_spin_since = %s, last_spin_at = %s WHERE user_id = %s',
+                        (now_utc, now_utc, current_user.id),
+                    )
+                conn.commit()
+                return jsonify({'started': True, 'auto_spin_since': now_utc.isoformat()})
+
+            auto_spin_since = gs['auto_spin_since']
+            if auto_spin_since.tzinfo is None:
+                auto_spin_since = auto_spin_since.replace(tzinfo=timezone.utc)
+
+            last_spin = gs['last_spin_at'] or auto_spin_since
+            if last_spin.tzinfo is None:
+                last_spin = last_spin.replace(tzinfo=timezone.utc)
+            # Never count time before the wheel started this season
+            cursor = max(auto_spin_since, last_spin)
+
+            elapsed = (now_utc - cursor).total_seconds()
+            spins_due = min(int(elapsed // AUTO_SPIN_INTERVAL_SECONDS), MAX_SPINS_PER_TICK)
+
+            if spins_due == 0:
+                return jsonify({'spins': [], 'elapsed_ms': int(elapsed * 1000)})
+
+            is_catch_up = spins_due > CATCH_UP_THRESHOLD
+
+            # Check catch-up bonus: last-place active player gets +5% win rate
+            catchup_bonus_active = False
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    '''SELECT MIN(wins) AS min_wins, COUNT(*) AS active_count
+                       FROM game_state
+                       WHERE wins > 0
+                         AND last_spin_at > NOW() - INTERVAL '24 hours' '''
+                )
+                rank_row = cur.fetchone()
+
+            user_wins_now = int(gs['wins'])
+            if (rank_row and rank_row['active_count'] >= 2
+                    and rank_row['min_wins'] is not None
+                    and user_wins_now > 0
+                    and user_wins_now <= int(rank_row['min_wins'])
+                    and cursor and (now_utc - cursor).total_seconds() < 86400):
+                catchup_bonus_active = True
+
+            pot_active = bool(
+                pot_row and pot_row['filled'] and pot_row['filled_at'] and
+                pot_row['filled_at'] > now_utc - dt.timedelta(minutes=30)
+            )
+            pot_win_pct = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.50
+
+            # Carry-over mutable state
+            owned               = list(gs['owned_items'])
+            streak              = gs['streak']
+            best_streak         = gs['best_streak']
+            shield_charges      = gs['shield_charges']
+            regen_recharge_wins = gs['regen_recharge_wins']
+            current_wins        = int(gs['wins'])
+            current_losses      = gs['losses']
+            jackpot_echo_next   = bool(gs['jackpot_echo_next'])
+            new_spin_count      = gs['spin_count']
+            new_win_count       = gs['win_count']
+            new_loss_count      = gs['loss_count']
+            active_cosmetics    = list(gs['active_cosmetics'])
+            win_mult            = win_mult_from_level(gs['winmult_inf_level'])
+            bonus_mult          = bonus_mult_from_level(gs['bonusmult_inf_level'])
+            resilience_chance   = min(0.50 + gs['streak_armor_level'] * 0.01, 0.60)
+
+            # Dice recharge (computed once per tick from actual elapsed time)
+            dice_charges  = gs['dice_charges']
+            last_recharge = gs['dice_last_recharge']
+            if last_recharge.tzinfo is None:
+                last_recharge = last_recharge.replace(tzinfo=timezone.utc)
+            max_charges = dice_max_charges(owned)
+            dice_charges = min(dice_charges, max_charges)
+            elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
+            if elapsed_charges > 0 and dice_charges < max_charges:
+                dice_charges  = min(dice_charges + elapsed_charges, max_charges)
+                last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+
+            _MAX_WINS = round(9.99e99)
+            spin_results = []
+
+            for _ in range(spins_due):
+                wins_before = current_wins
+                losses_before = current_losses
+
+                # Auto-guard: re-buy guard before each spin if enabled and guard is gone
+                auto_guard_failed = False
+                if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
+                    if current_wins >= 500:
+                        owned = owned + ['guard']
+                        current_wins -= 500
+                    else:
+                        active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
+                        auto_guard_failed = True
+
+                new_spin_count += 1
+
+                # Determine outcome
+                if 'singularity' in owned:
+                    outcome = 'win'
+                    lucky_seven_triggered = False
+                elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
+                    outcome = 'win'
+                    lucky_seven_triggered = True
+                elif pot_active:
+                    outcome = 'win' if random.random() < pot_win_pct else 'lose'
+                    lucky_seven_triggered = False
+                elif catchup_bonus_active:
+                    outcome = 'win' if random.random() < 0.55 else 'lose'
+                    lucky_seven_triggered = False
+                else:
+                    outcome = secrets.choice(['win', 'lose'])
+                    lucky_seven_triggered = False
+
+                jackpot_echo_pending = jackpot_echo_next
+                jackpot_echo_next    = False
+
+                shield_used = False
+                shield_used_type = None
+                guard_triggered = guard_blocked = False
+                echo_triggered = jackpot_hit = jackpot_echo_triggered = False
+                resilience_triggered = fortune_charm_triggered = False
+                bonus_earned = 0
+
+                if outcome == 'lose':
+                    if 'regen_shield' in owned and regen_recharge_wins == 0:
+                        shield_used      = True
+                        shield_used_type = 'regen_shield'
+                        regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
+                        new_streak = streak
+                    elif 'guard' in owned:
+                        guard_triggered = True
+                        if random.random() < 0.50:
+                            guard_blocked = True
+                            owned = [x for x in owned if x != 'guard']
+                            new_streak = streak
+                        else:
+                            if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
+                                resilience_triggered = True
+                                new_streak = max(0, streak - 1)
+                            else:
+                                new_streak = streak - 1 if streak <= 0 else -1
+                            loss_count   = abs(new_streak) if new_streak < 0 else 0
+                            loss_bonus   = streak_bonus(loss_count) * bonus_mult
+                            current_losses += 1 + loss_bonus
+                            bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+                    else:
+                        if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
+                            resilience_triggered = True
+                            new_streak = max(0, streak - 1)
+                        else:
+                            new_streak = streak - 1 if streak <= 0 else -1
+                        loss_count   = abs(new_streak) if new_streak < 0 else 0
+                        loss_bonus   = streak_bonus(loss_count) * bonus_mult
+                        current_losses += 1 + loss_bonus
+                        bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+                else:
+                    new_streak = streak + 1 if streak >= 0 else 1
+                    if regen_recharge_wins > 0:
+                        regen_recharge_wins -= 1
+                    count      = abs(new_streak)
+                    raw_bonus  = streak_bonus(count)
+                    base_bonus = raw_bonus * bonus_mult
+                    if 'fortune_charm' in owned and base_bonus > 0 and random.random() < 0.25:
+                        base_bonus = int(base_bonus * 1.25)
+                        fortune_charm_triggered = True
+                    bonus_earned = base_bonus
+
+                    if jackpot_echo_pending:
+                        jackpot_echo_triggered = True
+                        jackpot_hit = True
+                        current_wins += (win_mult + bonus_earned) * 25
+                        bonus_earned  = (win_mult + bonus_earned) * 25 - win_mult
+                    elif 'jackpot' in owned and random.random() < 0.01:
+                        jackpot_hit = True
+                        current_wins += (win_mult + bonus_earned) * 25
+                        bonus_earned  = (win_mult + bonus_earned) * 25 - win_mult
+                        if random.random() < 0.05:
+                            jackpot_echo_next = True
+                    else:
+                        if 'win_echo' in owned and random.random() < 0.20:
+                            echo_triggered = True
+                            current_wins += (win_mult + bonus_earned) * 2
+                            bonus_earned   = win_mult + bonus_earned
+                        else:
+                            current_wins += win_mult + bonus_earned
+
+                new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
+                current_wins    = min(current_wins, _MAX_WINS)
+                new_win_count  += 1 if outcome == 'win'  else 0
+                new_loss_count += 1 if outcome == 'lose' else 0
+                streak      = new_streak
+                best_streak = new_best_streak
+
+                # Record result for client animation (only kept for non-catch-up)
+                if not is_catch_up:
+                    spin_results.append({
+                        'result':                outcome,
+                        'angle':                 random.uniform(200, 340) if outcome == 'win' else random.uniform(20, 160),
+                        'wins_delta':            int(current_wins) - int(wins_before),
+                        'losses_delta':          current_losses - losses_before,
+                        'streak':                streak,
+                        'owned_items':           owned,
+                        'shield_charges':        shield_charges,
+                        'regen_recharge_wins':   regen_recharge_wins,
+                        'shield_used':           shield_used,
+                        'shield_used_type':      shield_used_type,
+                        'shield_broke':          False,
+                        'guard_triggered':       guard_triggered,
+                        'guard_blocked':         guard_blocked,
+                        'bonus_earned':          bonus_earned,
+                        'echo_triggered':        echo_triggered,
+                        'jackpot_hit':           jackpot_hit,
+                        'jackpot_echo_triggered': jackpot_echo_triggered,
+                        'jackpot_echo_next':     jackpot_echo_next,
+                        'resilience_triggered':  resilience_triggered,
+                        'lucky_seven_triggered': lucky_seven_triggered,
+                        'fortune_charm_triggered': fortune_charm_triggered,
+                        'active_cosmetics':      active_cosmetics,
+                        'auto_guard_failed':     auto_guard_failed,
+                        'new_spin_count':        new_spin_count,
+                        'dice_charges':          dice_charges,
+                        'dice_last_recharge':    last_recharge.isoformat(),
+                    })
+
+            # Advance last_spin_at cursor
+            new_last_spin = cursor + timedelta(seconds=spins_due * AUTO_SPIN_INTERVAL_SECONDS)
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET wins = %s, losses = %s, streak = %s, best_streak = %s,
+                           shield_charges = %s, regen_recharge_wins = %s,
+                           owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
+                           active_cosmetics = %s, jackpot_echo_next = %s,
+                           dice_charges = %s, dice_last_recharge = %s,
+                           dice_rolled_since_spin = FALSE,
+                           last_spin_at = %s
+                       WHERE user_id = %s''',
+                    (current_wins, current_losses, streak, best_streak,
+                     shield_charges, regen_recharge_wins,
+                     owned, new_spin_count, new_win_count, new_loss_count,
+                     active_cosmetics, jackpot_echo_next,
+                     dice_charges, last_recharge,
+                     new_last_spin,
+                     current_user.id),
+                )
+            conn.commit()
+
+        final_state = {
+            'wins':               int(current_wins),
+            'losses':             current_losses,
+            'streak':             streak,
+            'owned_items':        owned,
+            'shield_charges':     shield_charges,
+            'regen_recharge_wins': regen_recharge_wins,
+            'active_cosmetics':   active_cosmetics,
+            'spin_count':         new_spin_count,
+            'win_count':          new_win_count,
+            'dice_charges':       dice_charges,
+            'dice_last_recharge': last_recharge.isoformat(),
+            'jackpot_echo_next':  jackpot_echo_next,
+            'catchup_bonus_active': catchup_bonus_active,
+        }
+
+        if is_catch_up:
+            return jsonify({
+                'catch_up':       True,
+                'spins_processed': spins_due,
+                'elapsed_seconds': elapsed,
+                'state':          final_state,
+            })
+
+        return jsonify({
+            'spins': spin_results,
+            'state': final_state,
+        })
+
+    except Exception:
+        log.exception('TICK_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Tick failed'}), 500
 
 
 @game_bp.route('/api/roll-dice', methods=['POST'])
@@ -941,11 +1288,14 @@ def community_pot_contribute():
                         (effective_target, new_decay_ts)
                     )
 
-            fish_clicks = gs['fish_clicks']
+            fish_clicks  = gs['fish_clicks']
+            happy_hour   = is_happy_hour(now_utc)
             if amount_type == '10pct':
-                contribute = min(max(1, effective_target // 10), fish_clicks)
+                base = min(max(1, effective_target // 10), fish_clicks)
             else:
-                contribute = fish_clicks
+                base = fish_clicks
+            # Happy hour: double contribution value (capped to what the player has)
+            contribute = min(base * 2, fish_clicks) if happy_hour else base
 
             if contribute <= 0:
                 return jsonify({'error': 'No fish bucks to contribute'}), 400
@@ -1200,7 +1550,8 @@ def reel_line():
             # Successful catch!
             owned          = list(gs['owned_items'])
             lure_level     = _lure_level(owned)
-            species_id     = roll_fish(auto_mode=False, master_lure=(lure_level >= 5))
+            species_id     = roll_fish(auto_mode=False, master_lure=(lure_level >= 5),
+                                       happy_hour=is_happy_hour(now_utc))
             species        = FISH_CATALOG[species_id]
             value          = fish_value(species_id, lure_level)
             lucky_next     = bool(gs['fishing_lucky_next'])
@@ -1490,7 +1841,9 @@ def leaderboard():
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak
+                    '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
+                              gs.winmult_inf_level, gs.bonusmult_inf_level,
+                              gs.last_spin_at
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
                        WHERE gs.wins > 0
@@ -1498,16 +1851,24 @@ def leaderboard():
                        LIMIT 10'''
                 )
                 rows = cur.fetchall()
-        return jsonify([
-            {
-                'username':    r['username'],
-                'wins':        int(r['wins']),
-                'losses':      r['losses'],
-                'streak':      r['streak'],
-                'best_streak': r['best_streak'],
-            }
-            for r in rows
-        ])
+        now_utc = dt.datetime.now(timezone.utc)
+        result = []
+        for r in rows:
+            last_spin = r['last_spin_at']
+            if last_spin and last_spin.tzinfo is None:
+                last_spin = last_spin.replace(tzinfo=timezone.utc)
+            active = last_spin and (now_utc - last_spin).total_seconds() < 86400
+            result.append({
+                'username':           r['username'],
+                'wins':               int(r['wins']),
+                'losses':             r['losses'],
+                'streak':             r['streak'],
+                'best_streak':        r['best_streak'],
+                'winmult_inf_level':  r['winmult_inf_level'],
+                'bonusmult_inf_level': r['bonusmult_inf_level'],
+                'active':             bool(active),
+            })
+        return jsonify(result)
     except Exception:
         log.exception('LEADERBOARD_ERROR')
         return jsonify([])
@@ -1520,6 +1881,7 @@ def get_season():
         with db_connection() as conn:
             ensure_current_season(conn)
             info = get_season_info(conn)
+        info['happy_hour'] = is_happy_hour()
         return jsonify(info)
     except Exception:
         log.exception('GET_SEASON_ERROR')

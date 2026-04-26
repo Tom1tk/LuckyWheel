@@ -1360,8 +1360,6 @@ function DicePanel({
   streak,
   onRoll,
   rolling,
-  diceResult,
-  spinning,
   guardSpinning,
   lowSpec,
   diceCharges,
@@ -1411,12 +1409,12 @@ function DicePanel({
       return () => clearTimeout(t);
     }
   }, [diceResult]);
-  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning && !rolledSinceSpin;
+  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !guardSpinning && !rolledSinceSpin;
   const die1Val = rolling && !lowSpec ? animDie1 : diceResult ? diceResult.die1 : animDie1;
   const die2Val = rolling && !lowSpec ? animDie2 : diceResult ? diceResult.die2 : animDie2;
   const die3Val = rolling && !lowSpec ? animDie3 : diceResult && diceResult.die3 != null ? diceResult.die3 : animDie3;
   const showTip = () => {
-    if (spinning || guardSpinning) return;
+    if (guardSpinning) return;
     const rect = descRef.current && descRef.current.getBoundingClientRect();
     if (!rect) return;
     let left = rect.left + rect.width / 2 - DICE_TOOLTIP_W / 2;
@@ -1830,12 +1828,16 @@ function Leaderboard({
   }, "Player"), /*#__PURE__*/React.createElement("span", {
     className: "lb-wins-h"
   }, "W"), /*#__PURE__*/React.createElement("span", {
-    className: "lb-best-h"
-  }, "Best"), /*#__PURE__*/React.createElement("span", {
+    className: "lb-wp-h",
+    title: "Win Power level"
+  }, "WP"), /*#__PURE__*/React.createElement("span", {
+    className: "lb-bp-h",
+    title: "Bonus Power level"
+  }, "BP"), /*#__PURE__*/React.createElement("span", {
     className: "lb-streak-h"
-  }, "Now")), rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD25")), rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
     key: r.username,
-    className: "lb-row"
+    className: `lb-row${r.active ? '' : ' lb-inactive'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: `lb-rank ${rankClass(i)}`
   }, i + 1, "."), /*#__PURE__*/React.createElement("span", {
@@ -1843,8 +1845,10 @@ function Leaderboard({
   }, r.username), /*#__PURE__*/React.createElement("span", {
     className: "lb-wins"
   }, fmt(r.wins)), /*#__PURE__*/React.createElement("span", {
-    className: "lb-best"
-  }, r.best_streak > 0 ? `${r.best_streak}🔥` : '—'), /*#__PURE__*/React.createElement("span", {
+    className: "lb-wp"
+  }, r.winmult_inf_level > 0 ? r.winmult_inf_level : '—'), /*#__PURE__*/React.createElement("span", {
+    className: "lb-bp"
+  }, r.bonusmult_inf_level > 0 ? r.bonusmult_inf_level : '—'), /*#__PURE__*/React.createElement("span", {
     className: `lb-streak ${infernoClass(r.streak)}`
   }, r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0')))), tab === 'winners' && /*#__PURE__*/React.createElement("div", {
     className: "lb-winners-tab"
@@ -2217,66 +2221,6 @@ const FISH_SKINS = [{
   }
 }];
 const SHOP_SECTIONS = [{
-  label: '⚡ Spin Speed',
-  items: [{
-    id: 'speed_boost',
-    emoji: '⚡',
-    name: 'Speed Boost',
-    cost: 100,
-    desc: 'Spin time: 4.5s → 3s'
-  }, {
-    id: 'turbo_spin',
-    emoji: '🚀',
-    name: 'Turbo Spin',
-    cost: 1000,
-    desc: 'Spin time: 3s → 1.5s',
-    requires: 'speed_boost'
-  }, {
-    id: 'hyperspin',
-    emoji: '💨',
-    name: 'Hyper Spin',
-    cost: 10000,
-    desc: 'Spin time: 1.5s → 1s',
-    requires: 'turbo_spin'
-  }, {
-    id: 'ultraspin',
-    emoji: '🌀',
-    name: 'Ultra Spin',
-    cost: 100000,
-    desc: 'Spin time: 1s → 0.75s',
-    requires: 'hyperspin'
-  }, {
-    id: 'maxspin',
-    emoji: '⚡',
-    name: 'Max Spin',
-    cost: 1000000,
-    desc: 'Spin time: 0.75s → 0.5s',
-    requires: 'ultraspin'
-  }]
-}, {
-  label: '⏩ Auto Speed',
-  items: [{
-    id: 'autospeed_1',
-    emoji: '⏩',
-    name: 'Quick Auto',
-    cost: 200,
-    desc: 'Auto-spin cuts wheel animation at 1s — toggle on/off after purchase'
-  }, {
-    id: 'autospeed_2',
-    emoji: '⏩',
-    name: 'Rapid Auto',
-    cost: 10000,
-    desc: 'Auto-spin cuts wheel animation at 0.5s — toggle on/off after purchase',
-    requires: 'autospeed_1'
-  }, {
-    id: 'autospeed_3',
-    emoji: '⏩',
-    name: 'Instant Auto',
-    cost: 1000000,
-    desc: 'Auto-spin skips result banner — wheel animation plays in full — toggle on/off after purchase',
-    requires: 'autospeed_2'
-  }]
-}, {
   label: '💰 Win Power',
   items: [{
     id: 'winmult_inf',
@@ -2486,34 +2430,6 @@ const SHOP_SECTIONS = [{
     cost: 1500,
     desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.',
     tier: 2
-  }, {
-    id: 'guard_speed_1',
-    emoji: '⚡',
-    name: 'Guard Speed I',
-    cost: 2000,
-    desc: 'Guard activates 25% faster — toggle on/off after purchase',
-    requires: 'guard'
-  }, {
-    id: 'guard_speed_2',
-    emoji: '⚡',
-    name: 'Guard Speed II',
-    cost: 8000,
-    desc: 'Guard activates 50% faster — toggle on/off after purchase',
-    requires: 'guard_speed_1'
-  }, {
-    id: 'guard_speed_3',
-    emoji: '⚡',
-    name: 'Guard Speed III',
-    cost: 30000,
-    desc: 'Guard activates 65% faster — toggle on/off after purchase',
-    requires: 'guard_speed_2'
-  }, {
-    id: 'guard_speed_4',
-    emoji: '⚡',
-    name: 'Guard Speed MAX',
-    cost: 100000,
-    desc: 'Guard animation skipped entirely — toggle on/off after purchase',
-    requires: 'guard_speed_3'
   }]
 }, {
   label: '🎡 Wheel Theme',
@@ -2814,7 +2730,7 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard', 'autospeed_1', 'autospeed_2', 'autospeed_3', 'guard_speed_1', 'guard_speed_2', 'guard_speed_3', 'guard_speed_4']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
 const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
@@ -3368,8 +3284,6 @@ function GameApp({
   onSessionExpired
 }) {
   const canvasRef = useRef(null);
-  const [rotation, setRotation] = useState(0);
-  const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const setShowResultSync = v => {
@@ -3397,7 +3311,9 @@ function GameApp({
   const [fortuneCharmTriggered, setFortuneCharmTriggered] = useState(false);
   const [shieldCharges, setShieldCharges] = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
-  const [autoSpin, setAutoSpin] = useState(false);
+  const [catchUpSummary, setCatchUpSummary] = useState(null);
+  const [happyHour, setHappyHour] = useState(gameState.happy_hour || false);
+  const [catchupBonus, setCatchupBonus] = useState(false);
   const [ownedItems, setOwnedItems] = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
@@ -3426,15 +3342,6 @@ function GameApp({
   const [diceCharges, setDiceCharges] = useState(gameState.dice_charges ?? 1);
   const [diceLastRecharge, setDiceLastRecharge] = useState(gameState.dice_last_recharge || new Date().toISOString());
   const [diceRolledSinceSpin, setDiceRolledSinceSpin] = useState(gameState.dice_rolled_since_spin ?? false);
-  const [tabLocked, setTabLocked] = useState(false);
-  const tabIdRef = useRef((() => {
-    let id = sessionStorage.getItem('wheel_tab_id');
-    if (!id) {
-      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      sessionStorage.setItem('wheel_tab_id', id);
-    }
-    return id;
-  })());
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
   const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
@@ -3449,24 +3356,6 @@ function GameApp({
   const toggleMobilePanel = useCallback(panel => {
     setMobilePanel(prev => prev === panel ? null : panel);
   }, []);
-  const spinSpeed = useMemo(() => {
-    if (ownedItems.includes('maxspin')) return 0.5;
-    if (ownedItems.includes('ultraspin')) return 0.75;
-    if (ownedItems.includes('hyperspin')) return 1.0;
-    if (ownedItems.includes('turbo_spin')) return 1.5;
-    if (ownedItems.includes('speed_boost')) return 3.0;
-    return 4.5;
-  }, [ownedItems]);
-
-  // Guard animation speed multiplier (1.0 = normal, lower = faster, 0 = skip)
-  const guardSpeedMult = useMemo(() => {
-    if (activeCosmetics.includes('guard_speed_4')) return 0;
-    if (activeCosmetics.includes('guard_speed_3')) return 0.35;
-    if (activeCosmetics.includes('guard_speed_2')) return 0.5;
-    if (activeCosmetics.includes('guard_speed_1')) return 0.75;
-    return 1.0;
-  }, [activeCosmetics]);
-  const autoSpinDelay = useMemo(() => activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : Infinity, [activeCosmetics]);
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
     if (ownedItems.includes('dice_charge_3')) return 3;
@@ -3514,49 +3403,20 @@ function GameApp({
     if (activeCosmetics.includes('page_season6')) return 'page-season6';
     return '';
   }, [activeCosmetics]);
-  const currentRotationRef = useRef(0);
   const fishTimerRef = useRef(null);
   const toastTimerRef = useRef(null);
   const confettiTimerRef = useRef(null);
-  const autoSpinRef = useRef(false);
-  const spinSpeedRef = useRef(4.5);
-  const autoSpinDelayRef = useRef(Infinity);
-  const spinningRef = useRef(false);
   const showResultRef = useRef(false);
   const activeCosmeticsRef = useRef(activeCosmetics);
   const lowSpecRef = useRef(lowSpec);
+  const tickPendingRef = useRef(false);
+  const resultAutoCloseRef = useRef(null);
   useEffect(() => {
     activeCosmeticsRef.current = activeCosmetics;
   }, [activeCosmetics]);
   useEffect(() => {
     lowSpecRef.current = lowSpec;
   }, [lowSpec]);
-  useEffect(() => {
-    autoSpinRef.current = autoSpin;
-    if (autoSpin && !spinning) spin();
-  }, [autoSpin]); // eslint-disable-line
-  useEffect(() => {
-    spinSpeedRef.current = spinSpeed;
-  }, [spinSpeed]);
-  useEffect(() => {
-    autoSpinDelayRef.current = autoSpinDelay;
-  }, [autoSpinDelay]);
-
-  // Tab heartbeat — claim the lock on mount, refresh every 10s
-  useEffect(() => {
-    const tabId = tabIdRef.current;
-    const beat = () => apiGame('/api/tab/heartbeat', {
-      method: 'POST',
-      body: JSON.stringify({
-        tab_id: tabId
-      })
-    }).then(r => {
-      if (r.ok) setTabLocked(!r.data.active);
-    });
-    beat();
-    const id = setInterval(beat, 10000);
-    return () => clearInterval(id);
-  }, []); // eslint-disable-line
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -3690,7 +3550,7 @@ function GameApp({
     if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
   }, [showToast]);
   const handleDiceRoll = useCallback(async () => {
-    if (diceRolling || spinning) return;
+    if (diceRolling) return;
     setDiceRolling(true);
     setDiceResult(null);
     const prevStreak = streak;
@@ -3727,7 +3587,7 @@ function GameApp({
       setDiceRolledSinceSpin(true);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
-  }, [diceRolling, spinning, streak, lowSpec, showToast]);
+  }, [diceRolling, streak, lowSpec, showToast]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback(data => {
@@ -3783,173 +3643,125 @@ function GameApp({
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
-    spinningRef.current = false;
-    setSpinning(false);
   }, [showToast]);
-  const spin = useCallback(async () => {
-    if (spinningRef.current) return;
-    if (showResultRef.current) {
-      setHideResult(true);
-      setShowResultSync(false);
-      setConfetti(false);
-      setTimeout(() => {
-        setHideResult(false);
-        setResult(null);
-        setShieldFeedback(null);
-      }, 350);
-    }
-    setBonusEarned(0);
-    setEchoTriggered(false);
-    setJackpotHit(false);
-    setResilienceTriggered(false);
-    setLuckySevenTriggered(false);
-    setFortuneCharmTriggered(false);
-    spinningRef.current = true;
-    setSpinning(true);
-    let data;
-    try {
-      const res = await apiGame('/api/spin', {
-        method: 'POST',
-        body: JSON.stringify({
-          tab_id: tabIdRef.current
-        })
-      });
-      if (!res.ok) {
-        spinningRef.current = false;
-        setSpinning(false);
-        if (res.status === 423) {
-          setTabLocked(true);
-          setAutoSpin(false);
-          return;
-        }
-        if (autoSpinRef.current) setTimeout(() => {
-          if (autoSpinRef.current) spin();
-        }, 1000);
-        return;
-      }
-      setTabLocked(false);
-      data = res.data;
-    } catch (e) {
-      spinningRef.current = false;
-      setSpinning(false);
-      if (autoSpinRef.current) setTimeout(() => {
-        if (autoSpinRef.current) spin();
-      }, 1000);
-      return;
-    }
-    const base = currentRotationRef.current;
-    const segmentAngle = data.angle % 360;
-    const minTarget = base + 5 * 360;
-    const newRotation = Math.ceil((minTarget - segmentAngle) / 360) * 360 + segmentAngle;
-    currentRotationRef.current = newRotation;
-    setRotation(newRotation);
-    const fullAnimMs = spinSpeedRef.current * 1000 + 200;
-    // delay=0 (Instant Auto) lets the wheel finish then skips the result banner — don't cut anim.
-    // delay>0 upgrades cut into the animation at that ms mark.
-    // Guard always waits for full animation.
-    const resultFireMs = autoSpinRef.current && autoSpinDelayRef.current > 0 && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered ? autoSpinDelayRef.current : fullAnimMs;
-    setTimeout(() => {
-      if (data.guard_triggered) {
-        if (activeCosmeticsRef.current.includes('guard_speed_4')) {
-          // Skip guard animation entirely — apply result immediately
-          applySpinResult(data);
-          if (autoSpinRef.current) {
-            if (autoSpinDelayRef.current === 0) {
-              setShowResultSync(false);
-              setResult(null);
-              setShieldFeedback(null);
-              setConfetti(false);
-              spin();
-            } else {
-              setTimeout(() => {
-                if (autoSpinRef.current) {
-                  setHideResult(true);
-                  setTimeout(() => {
-                    setShowResultSync(false);
-                    setHideResult(false);
-                    setResult(null);
-                    setShieldFeedback(null);
-                    setConfetti(false);
-                    spin();
-                  }, 320);
-                }
-              }, 350);
-            }
-          }
-          return;
-        }
-        // Show guard wheel; defer result display until guard resolves
-        setGuardState({
-          blocked: data.guard_blocked
-        });
-        guardCompleteRef.current = () => {
-          setGuardState(null);
-          applySpinResult(data);
-          if (autoSpinRef.current) {
-            if (autoSpinDelayRef.current === 0) {
-              setShowResultSync(false);
-              setResult(null);
-              setShieldFeedback(null);
-              setConfetti(false);
-              spin();
-            } else {
-              // Brief result glimpse then next spin — no artificial hold
-              setTimeout(() => {
-                if (autoSpinRef.current) {
-                  setHideResult(true);
-                  setTimeout(() => {
-                    setShowResultSync(false);
-                    setHideResult(false);
-                    setResult(null);
-                    setShieldFeedback(null);
-                    setConfetti(false);
-                    spin();
-                  }, 320);
-                }
-              }, 350);
-            }
-          }
-        };
-      } else {
-        applySpinResult(data);
-        if (autoSpinRef.current) {
-          if (autoSpinDelayRef.current === 0) {
-            setShowResultSync(false);
-            setResult(null);
-            setShieldFeedback(null);
-            setConfetti(false);
-            spin();
-          } else {
-            // Brief result glimpse then next spin — no artificial hold
-            setTimeout(() => {
-              if (autoSpinRef.current) {
-                setHideResult(true);
-                setTimeout(() => {
-                  setShowResultSync(false);
-                  setHideResult(false);
-                  setResult(null);
-                  setShieldFeedback(null);
-                  spin();
-                  setTimeout(() => setConfetti(false), 3000);
-                }, 320);
-              }
-            }, 350);
-          }
-        }
-      }
-    }, resultFireMs);
-  }, [applySpinResult]);
-  const handleSpinAgain = useCallback(() => {
+
+  // Dismiss the result banner smoothly
+  const dismissResult = useCallback(() => {
+    if (!showResultRef.current) return;
     setHideResult(true);
+    setShowResultSync(false);
+    setConfetti(false);
     setTimeout(() => {
-      setShowResultSync(false);
       setHideResult(false);
       setResult(null);
       setShieldFeedback(null);
-      setConfetti(false);
-      spin();
-    }, 320);
-  }, [spin]);
+    }, 350);
+  }, []);
+
+  // Schedule auto-dismissal of the result banner after 2.5s
+  const scheduleResultDismiss = useCallback(() => {
+    if (resultAutoCloseRef.current) clearTimeout(resultAutoCloseRef.current);
+    resultAutoCloseRef.current = setTimeout(dismissResult, 2500);
+  }, [dismissResult]);
+  const tick = useCallback(async () => {
+    if (tickPendingRef.current) return;
+    tickPendingRef.current = true;
+    try {
+      const res = await apiGame('/api/tick', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      if (!res.ok) return;
+      const data = res.data;
+      if (data.happy_hour != null) setHappyHour(data.happy_hour);
+      if (data.started) return; // Wheel just initialised — nothing to animate yet
+
+      if (data.catch_up) {
+        // Many spins processed offline — show summary, update state silently
+        if (data.state) {
+          if (data.state.wins != null) setWins(data.state.wins);
+          if (data.state.losses != null) setLosses(data.state.losses);
+          if (data.state.streak != null) setStreak(data.state.streak);
+          if (data.state.owned_items) setOwnedItems(prev => {
+            const s = new Set(data.state.owned_items);
+            const withoutGuard = prev.filter(id => id !== 'guard');
+            return s.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
+          });
+          if (data.state.shield_charges != null) setShieldCharges(data.state.shield_charges);
+          if (data.state.regen_recharge_wins != null) setRegenRechargeWins(data.state.regen_recharge_wins);
+          if (data.state.active_cosmetics) setActiveCosmetics(data.state.active_cosmetics);
+          if (data.state.spin_count != null) setSpinCount(data.state.spin_count);
+          if (data.state.win_count != null) setWinCount(data.state.win_count);
+          if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
+          if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+          setDiceRolledSinceSpin(false);
+        }
+        const hrs = Math.floor(data.elapsed_seconds / 3600);
+        const mins = Math.floor(data.elapsed_seconds % 3600 / 60);
+        const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+        setCatchUpSummary(`⏰ Away ${timeStr} — ${data.spins_processed} spins processed`);
+        setTimeout(() => setCatchUpSummary(null), 5000);
+        return;
+      }
+      if (!data.spins || data.spins.length === 0) return;
+      const spinResult = data.spins[data.spins.length - 1];
+
+      // Dismiss any lingering result before showing the new one
+      if (showResultRef.current) dismissResult();
+      setBonusEarned(0);
+      setEchoTriggered(false);
+      setJackpotHit(false);
+      setResilienceTriggered(false);
+      setLuckySevenTriggered(false);
+      setFortuneCharmTriggered(false);
+      if (spinResult.guard_triggered) {
+        setGuardState({
+          blocked: spinResult.guard_blocked
+        });
+        guardCompleteRef.current = () => {
+          setGuardState(null);
+          applySpinResult(spinResult);
+          scheduleResultDismiss();
+        };
+      } else {
+        applySpinResult(spinResult);
+        scheduleResultDismiss();
+      }
+      if (data.state) {
+        if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
+        if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+      }
+    } finally {
+      tickPendingRef.current = false;
+    }
+  }, [applySpinResult, dismissResult, scheduleResultDismiss]);
+
+  // Tick every 3 seconds
+  useEffect(() => {
+    let busy = false;
+    const doTick = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        await tick();
+      } finally {
+        busy = false;
+      }
+    };
+    doTick();
+    const id = setInterval(doTick, 3000);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line
+
+  // Poll happy_hour status every minute (in case of time zone changes or missed state update)
+  useEffect(() => {
+    const id = setInterval(() => {
+      apiFetch('/api/season').then(r => {
+        if (r.ok && r.data.happy_hour != null) setHappyHour(r.data.happy_hour);
+      });
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
   const handleLogout = async () => {
     await apiFetch('/api/logout', {
       method: 'POST',
@@ -3977,16 +3789,18 @@ function GameApp({
     onClose: () => setShowStats(false)
   }), toast && /*#__PURE__*/React.createElement("div", {
     className: "toast-notification"
-  }, toast), tabLocked && /*#__PURE__*/React.createElement("div", {
-    className: "tab-locked-banner"
-  }, "This tab is locked \u2014 another tab is already active. Close it or wait 30s for the lock to expire."), /*#__PURE__*/React.createElement(Confetti, {
+  }, toast), happyHour && /*#__PURE__*/React.createElement("div", {
+    className: "happy-hour-banner"
+  }, "\u2B50 Happy Hour! 9\u201310pm \u2014 2\xD7 pot contributions \xB7 boosted legendary fish \u2B50"), catchUpSummary && /*#__PURE__*/React.createElement("div", {
+    className: "catchup-banner"
+  }, catchUpSummary), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), /*#__PURE__*/React.createElement("div", {
     className: `overlay ${showResult ? 'active' : ''}`
   }), !isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
-    speedMult: guardSpeedMult,
+    speedMult: 1.0,
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current()
   }), (!isMobile && showChat || isMobile && mobilePanel === 'chat') && /*#__PURE__*/React.createElement(ChatPanel, {
     extraClass: isMobile ? 'mobile-full' : '',
@@ -4114,10 +3928,7 @@ function GameApp({
     }, name, " Blocked!"), sub && /*#__PURE__*/React.createElement("div", {
       className: "shield-feedback-sub"
     }, sub));
-  })(), /*#__PURE__*/React.createElement("button", {
-    className: "spin-again-btn",
-    onClick: handleSpinAgain
-  }, "Spin Again")), /*#__PURE__*/React.createElement("div", {
+  })()), /*#__PURE__*/React.createElement("div", {
     className: "main-layout-row"
   }, /*#__PURE__*/React.createElement("div", {
     className: "casino-container"
@@ -4135,34 +3946,24 @@ function GameApp({
   }, "Lucky Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, "Try Your Fortune")), /*#__PURE__*/React.createElement("div", {
-    className: `wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`,
-    onClick: !spinning && !autoSpin ? spin : undefined,
-    title: autoSpin ? 'Auto-spin active' : 'Click to spin!'
+    className: `wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: `pointer ${spinning ? 'spinning' : ''}`
+    className: "pointer"
   }), /*#__PURE__*/React.createElement("canvas", {
     ref: canvasRef,
     width: 380,
     height: 380,
-    className: `wheel-canvas ${spinning ? 'spinning' : ''}`,
-    style: {
-      transform: `rotate(${rotation}deg)`,
-      transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
-    }
+    className: "wheel-canvas auto-spinning"
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-hub"
-  }, "\u2605")), /*#__PURE__*/React.createElement("div", {
-    className: `spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`,
-    onClick: spin
-  }, spinning || autoSpin ? '' : '▶ Click to Spin ◀'), /*#__PURE__*/React.createElement("label", {
-    className: "autospin-row"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: autoSpin,
-    onChange: e => setAutoSpin(e.target.checked)
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "autospin-label"
-  }, "Auto Spin")), /*#__PURE__*/React.createElement(Scoreboard, {
+  }, "\u2605")), catchupBonus && /*#__PURE__*/React.createElement("div", {
+    className: "spin-prompt",
+    style: {
+      opacity: 0.7,
+      fontSize: '0.7rem',
+      pointerEvents: 'none'
+    }
+  }, "\uD83D\uDD3C Catch-up bonus active"), /*#__PURE__*/React.createElement(Scoreboard, {
     wins: wins,
     losses: losses,
     lastResult: result
@@ -4176,7 +3977,6 @@ function GameApp({
     onRoll: handleDiceRoll,
     rolling: diceRolling,
     diceResult: diceResult,
-    spinning: spinning,
     guardSpinning: !!guardState,
     lowSpec: lowSpec,
     diceCharges: diceCharges,
@@ -4193,7 +3993,7 @@ function GameApp({
     className: "bulb"
   }))), isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
-    speedMult: guardSpeedMult,
+    speedMult: 1.0,
     onComplete: () => guardCompleteRef.current && guardCompleteRef.current(),
     contained: true
   }))), /*#__PURE__*/React.createElement("div", {
@@ -4218,7 +4018,6 @@ function GameApp({
     onRoll: handleDiceRoll,
     rolling: diceRolling,
     diceResult: diceResult,
-    spinning: spinning,
     guardSpinning: !!guardState,
     lowSpec: lowSpec,
     diceCharges: diceCharges,

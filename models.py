@@ -45,17 +45,23 @@ _AUTO_RARE_IDS    = [k for k in _ALL_IDS if k not in _AUTO_FISH_LEGENDARY]
 _AUTO_RARE_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_RARE_IDS]
 
 
-def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False) -> str:
+def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False,
+              happy_hour: bool = False) -> str:
     """Return a random fish species ID weighted by rarity.
-    master_lure=True adds +1% to each legendary species (whale, mermaid, lucky) — manual only.
+    master_lure=True adds +1% to each legendary species — manual only.
+    happy_hour=True adds +50% weight to legendary species — manual only.
     """
     if auto_mode:
         if allow_rare:
             return random.choices(_AUTO_RARE_IDS, weights=_AUTO_RARE_WEIGHTS, k=1)[0]
         return random.choices(_AUTO_IDS, weights=_AUTO_WEIGHTS, k=1)[0]
-    if master_lure:
-        boosted = [w + (1.0 if k in _AUTO_FISH_LEGENDARY else 0.0)
-                   for k, w in zip(_ALL_IDS, _ALL_WEIGHTS)]
+    if master_lure or happy_hour:
+        legend_bonus = (1.0 if master_lure else 0.0)
+        hh_bonus     = 0.5 if happy_hour else 0.0
+        boosted = [
+            w + (legend_bonus + FISH_CATALOG[k]['weight'] * hh_bonus if k in _AUTO_FISH_LEGENDARY else 0.0)
+            for k, w in zip(_ALL_IDS, _ALL_WEIGHTS)
+        ]
         return random.choices(_ALL_IDS, weights=boosted, k=1)[0]
     return random.choices(_ALL_IDS, weights=_ALL_WEIGHTS, k=1)[0]
 
@@ -108,22 +114,12 @@ FISH_SKINS = {
 }
 
 SHOP_ITEMS = {
-    # Spin speed
-    'speed_boost':    {'cost': 100,          'requires': None},
     # Dice charge upgrades (unlocked via tier gating)
     'dice_charge_2':  {'cost': 2_000,        'requires': None},
     'dice_charge_3':  {'cost': 15_000,       'requires': 'dice_charge_2'},
     'dice_charge_4':  {'cost': 100_000,      'requires': 'dice_charge_3'},
     # Extra Die — roll 3 dice; requires Tier 3 + dice_charge_3
     'dice_extra':     {'cost': 1_000_000,    'requires': 'dice_charge_3'},
-    'turbo_spin':     {'cost': 1_000,        'requires': 'speed_boost'},
-    'hyperspin':      {'cost': 10_000,       'requires': 'turbo_spin'},
-    'ultraspin':      {'cost': 100_000,      'requires': 'hyperspin'},
-    'maxspin':        {'cost': 1_000_000,    'requires': 'ultraspin'},
-    # Auto speed
-    'autospeed_1':    {'cost': 200,          'requires': None},
-    'autospeed_2':    {'cost': 10_000,       'requires': 'autospeed_1'},
-    'autospeed_3':    {'cost': 1_000_000,    'requires': 'autospeed_2'},
     # Win power (Season 6: shallower scaling — matches winmult_inf tier_costs)
     'winmult_1':      {'cost': 200,         'requires': None},
     'winmult_2':      {'cost': 600,         'requires': 'winmult_1'},
@@ -167,10 +163,6 @@ SHOP_ITEMS = {
     'guard':          {'cost': 500,          'requires': None},
     'auto_guard':     {'cost': 50_000,       'requires': 'guard'},
     'regen_shield':   {'cost': 1_500,        'requires': None},
-    'guard_speed_1':  {'cost': 2_000,        'requires': 'guard'},
-    'guard_speed_2':  {'cost': 8_000,        'requires': 'guard_speed_1'},
-    'guard_speed_3':  {'cost': 30_000,       'requires': 'guard_speed_2'},
-    'guard_speed_4':  {'cost': 100_000,      'requires': 'guard_speed_3'},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,          'requires': None},
     'theme_ice':      {'cost': 1_000,        'requires': 'theme_fire'},
@@ -394,6 +386,15 @@ LOCKOUT_RULES = [
     (10, 300),   # 10+ fails → 5 minutes
     (5,  60),    # 5+ fails  → 1 minute
 ]
+
+# Season 7: server-side auto-spinning
+AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
+MAX_SPINS_PER_TICK         = 600   # safety cap per tick (~30 min at 1/3s)
+CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
+
+# Happy Hour: 9pm–10pm BST (20:00–21:00 UTC)
+HAPPY_HOUR_START_UTC = 20
+HAPPY_HOUR_END_UTC   = 21
 
 REGEN_SHIELD_RECHARGE_WINS = 5
 

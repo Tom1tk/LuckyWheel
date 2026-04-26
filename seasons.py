@@ -121,7 +121,8 @@ def _perform_rollover(conn, season):
         next_starts = ends_at
         next_ends = ends_at + timedelta(days=7)
 
-        # Reset all game_state rows; auto-grant the new season's page theme
+        # Reset all game_state rows; auto-grant the new season's page theme.
+        # Registered users start spinning from season start; others must join manually.
         new_theme = f'page_season{next_number}'
         with conn.cursor() as cur:
             cur.execute(
@@ -137,8 +138,11 @@ def _perform_rollover(conn, season):
                        jackpot_echo_next = FALSE,
                        fishing_cast_at = NULL, fishing_bite_at = NULL,
                        fishing_lucky_next = FALSE, caught_species = '{}',
-                       fastest_catch_pct = NULL""",
-                ([new_theme], [new_theme]),
+                       fastest_catch_pct = NULL,
+                       auto_spin_since = CASE WHEN season_registered THEN %s ELSE NULL END,
+                       last_spin_at    = CASE WHEN season_registered THEN %s ELSE NULL END,
+                       season_registered = FALSE""",
+                ([new_theme], [new_theme], next_starts, next_starts),
             )
 
         with conn.cursor() as cur:
