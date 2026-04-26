@@ -1039,7 +1039,7 @@ function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
   return secsToNext;
 }
 
-function DicePanel({ streak, onRoll, rolling, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, hasDiceExtra, rolledSinceSpin }) {
+function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, hasDiceExtra, rolledSinceSpin }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [animDie3, setAnimDie3] = React.useState(1);

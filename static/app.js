@@ -1360,6 +1360,7 @@ function DicePanel({
   streak,
   onRoll,
   rolling,
+  diceResult,
   guardSpinning,
   lowSpec,
   diceCharges,
