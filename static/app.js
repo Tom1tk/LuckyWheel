@@ -623,7 +623,7 @@ function fmt(n) {
 }
 
 // ── Hiatus mode — set to false to re-enable the full game ─────────────────
-const HIATUS_MODE = true;
+const HIATUS_MODE = false;
 const HIATUS_END = new Date('2026-05-01T23:59:59'); // Next Friday 11:59 pm
 const HIATUS_PAST_SEASON = 6; // season that just ended
 
