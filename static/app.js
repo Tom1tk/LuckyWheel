@@ -2552,7 +2552,7 @@ function DicePanel({
     className: `dice-charge-dot${i < diceCharges ? ' charged' : ''}`
   }, "\u25CF"));
   let disabledReason = '';
-  if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';else if (rolledSinceSpin) disabledReason = 'Spin once before rolling again';
+  if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';else if (rolledSinceSpin) disabledReason = 'Dice buffered — applies next spin';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
@@ -2602,7 +2602,9 @@ function DicePanel({
     landed: landed
   })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
     className: `dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`
-  }, diceResult.cursed_triple ? `💀 TRIPLE CURSE! Streak ÷3` : diceResult.blessed_triple ? `🌟 TRIPLE BLESSED! Streak ×3!` : diceResult.cursed ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}` : `+${diceResult.streak_delta} streak!`), /*#__PURE__*/React.createElement("button", {
+  }, diceResult.cursed_triple ? `💀 TRIPLE CURSE! Streak ÷3` : diceResult.blessed_triple ? `🌟 TRIPLE BLESSED! Streak ×3!` : diceResult.cursed ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}` : `+${diceResult.streak_delta} streak!`, diceResult.pending && rolledSinceSpin && /*#__PURE__*/React.createElement("span", {
+    className: "dice-pending-note"
+  }, " \u23F3 next spin")), /*#__PURE__*/React.createElement("button", {
     className: `dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`,
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
@@ -4703,9 +4705,10 @@ function GameApp({
         cursed_triple: data.cursed_triple ?? false,
         blessed_triple: data.blessed_triple ?? false,
         streak_before: prevStreak,
-        streak_after: data.streak
+        streak_after: data.streak,
+        pending: true
       });
-      setStreak(data.streak);
+      // Streak is applied by the next /api/tick, not immediately
       if (data.dice_charges != null) setDiceCharges(data.dice_charges);
       if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
       setDiceRolledSinceSpin(true);
@@ -4854,6 +4857,10 @@ function GameApp({
       if (data.state) {
         if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
         if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+        if (data.state.dice_rolled_since_spin != null) {
+          setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
+          if (!data.state.dice_rolled_since_spin) setDiceResult(null);
+        }
       }
     } finally {
       tickPendingRef.current = false;

@@ -135,6 +135,7 @@ def _perform_rollover(conn, season):
                        winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0,
                        streak_armor_level = 0,
                        dice_charges = 1, dice_last_recharge = NOW(), dice_rolled_since_spin = FALSE,
+                       pending_dice = NULL,
                        jackpot_echo_next = FALSE,
                        fishing_cast_at = NULL, fishing_bite_at = NULL,
                        fishing_lucky_next = FALSE, caught_species = '{}',

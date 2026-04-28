@@ -594,7 +594,7 @@ def tick():
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
                               fish_clicks, active_cosmetics,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
-                              dice_rolled_since_spin,
+                              dice_rolled_since_spin, pending_dice,
                               auto_spin_since, last_spin_at
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
@@ -687,6 +687,12 @@ def tick():
             if elapsed_charges > 0 and dice_charges < max_charges:
                 dice_charges  = min(dice_charges + elapsed_charges, max_charges)
                 last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+
+            # Apply any pending dice roll before processing spins
+            if gs['pending_dice']:
+                pd = gs['pending_dice']
+                streak      = pd['new_streak']
+                best_streak = max(best_streak, streak) if streak > 0 else best_streak
 
             _MAX_WINS = round(9.99e99)
             spin_results = []
@@ -846,7 +852,7 @@ def tick():
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            active_cosmetics = %s, jackpot_echo_next = %s,
                            dice_charges = %s, dice_last_recharge = %s,
-                           dice_rolled_since_spin = FALSE,
+                           dice_rolled_since_spin = FALSE, pending_dice = NULL,
                            last_spin_at = %s
                        WHERE user_id = %s''',
                     (current_wins, current_losses, streak, best_streak,
@@ -860,19 +866,20 @@ def tick():
             conn.commit()
 
         final_state = {
-            'wins':               int(current_wins),
-            'losses':             current_losses,
-            'streak':             streak,
-            'owned_items':        owned,
-            'shield_charges':     shield_charges,
-            'regen_recharge_wins': regen_recharge_wins,
-            'active_cosmetics':   active_cosmetics,
-            'spin_count':         new_spin_count,
-            'win_count':          new_win_count,
-            'dice_charges':       dice_charges,
-            'dice_last_recharge': last_recharge.isoformat(),
-            'jackpot_echo_next':  jackpot_echo_next,
-            'catchup_bonus_active': catchup_bonus_active,
+            'wins':                  int(current_wins),
+            'losses':                current_losses,
+            'streak':                streak,
+            'owned_items':           owned,
+            'shield_charges':        shield_charges,
+            'regen_recharge_wins':   regen_recharge_wins,
+            'active_cosmetics':      active_cosmetics,
+            'spin_count':            new_spin_count,
+            'win_count':             new_win_count,
+            'dice_charges':          dice_charges,
+            'dice_last_recharge':    last_recharge.isoformat(),
+            'jackpot_echo_next':     jackpot_echo_next,
+            'catchup_bonus_active':  catchup_bonus_active,
+            'dice_rolled_since_spin': False,
         }
 
         if is_catch_up:
@@ -960,19 +967,30 @@ def roll_dice():
             else:
                 new_streak = streak + dice_sum
 
-            new_best      = max(best_streak, new_streak) if new_streak > 0 else best_streak
             new_charges   = dice_charges - 1
             # Reset recharge clock from now when a charge is consumed
             new_last_recharge = now_utc if new_charges < max_charges else last_recharge
 
+            # Buffer the result — streak is applied by the next /api/tick, not immediately.
+            pending = {
+                'new_streak':      new_streak,
+                'die1':            dice[0],
+                'die2':            dice[1],
+                'die3':            dice[2] if len(dice) > 2 else None,
+                'dice_sum':        dice_sum,
+                'cursed':          cursed or cursed_triple,
+                'blessed':         blessed or blessed_triple,
+                'cursed_triple':   cursed_triple,
+                'blessed_triple':  blessed_triple,
+            }
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
-                       SET streak = %s, best_streak = %s,
+                       SET pending_dice = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            dice_rolled_since_spin = TRUE
                        WHERE user_id = %s''',
-                    (new_streak, new_best, new_charges, new_last_recharge, current_user.id),
+                    (psycopg2.extras.Json(pending), new_charges, new_last_recharge, current_user.id),
                 )
             conn.commit()
 
@@ -990,6 +1008,7 @@ def roll_dice():
             'wins':               wins,
             'dice_charges':       new_charges,
             'dice_last_recharge': last_recharge.isoformat(),
+            'buffered':           True,
         })
     except Exception:
         log.exception('ROLL_DICE_ERROR  user_id=%s', current_user.id)

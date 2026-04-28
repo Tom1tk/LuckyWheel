@@ -1764,7 +1764,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
   let disabledReason = '';
   if (diceCharges < 1) disabledReason = 'No charges';
   else if (streak < 3) disabledReason = 'Need win streak ≥3';
-  else if (rolledSinceSpin) disabledReason = 'Spin once before rolling again';
+  else if (rolledSinceSpin) disabledReason = 'Dice buffered — applies next spin';
 
   return (
     <div className="dice-panel">
@@ -1804,6 +1804,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
             : diceResult.cursed
             ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}`
             : `+${diceResult.streak_delta} streak!`}
+          {diceResult.pending && rolledSinceSpin && <span className="dice-pending-note"> ⏳ next spin</span>}
         </span>
       )}
       <button
@@ -3181,8 +3182,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         cursed_triple: data.cursed_triple ?? false,
         blessed_triple: data.blessed_triple ?? false,
         streak_before: prevStreak, streak_after: data.streak,
+        pending: true,
       });
-      setStreak(data.streak);
+      // Streak is applied by the next /api/tick, not immediately
       if (data.dice_charges != null) setDiceCharges(data.dice_charges);
       if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
       setDiceRolledSinceSpin(true);
@@ -3328,6 +3330,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       if (data.state) {
         if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
         if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+        if (data.state.dice_rolled_since_spin != null) {
+          setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
+          if (!data.state.dice_rolled_since_spin) setDiceResult(null);
+        }
       }
     } finally {
       tickPendingRef.current = false;
