@@ -375,6 +375,1106 @@ function renderInferno(ctx, w, h, intensity, state) {
   ctx.restore();
 }
 
+// ── Wormhole Background Components ───────────────────────────────────────────
+
+function WormholeBackground({
+  className = "",
+  intensity = 1,
+  speed = 1,
+  starCount = 950,
+  streakCount = 240,
+  nebulaStrength = 0.95,
+  starDriftSpeed = 0.18
+}) {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(0);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", {
+      alpha: true
+    });
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0,
+      height = 0,
+      cx = 0,
+      cy = 0;
+    let lastTime = performance.now(),
+      time = 0;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    const movingStars = [],
+      streaks = [];
+    function createMovingStar(index = 0) {
+      const colourBand = Math.random();
+      return {
+        angle: rand(0, Math.PI * 2),
+        z: Math.random() ** 0.55,
+        speed: rand(0.0012, 0.0045) * speed * starDriftSpeed * (0.75 + intensity * 0.45),
+        size: rand(0.45, 1.7),
+        alpha: rand(0.18, 0.95),
+        twinkle: rand(0.35, 2.1),
+        phase: rand(0, Math.PI * 2),
+        colour: colourBand < 0.48 ? [165, 215, 255] : colourBand < 0.82 ? [255, 240, 255] : [255, 185, 235],
+        seed: index + Math.random() * 1000
+      };
+    }
+    function createStars() {
+      movingStars.length = 0;
+      const total = Math.floor(starCount * intensity);
+      for (let i = 0; i < total; i++) movingStars.push(createMovingStar(i));
+    }
+    function createStreak(index = 0) {
+      const angleJitter = rand(-0.3, 0.3);
+      const baseAngle = Math.atan2(rand(-height * 0.55, height * 0.55), rand(-width * 0.55, width * 0.55));
+      const hueWeight = Math.random();
+      return {
+        angle: baseAngle + angleJitter,
+        z: rand(0.02, 1),
+        speed: rand(0.003, 0.018) * speed * (0.8 + intensity * 0.65),
+        width: rand(0.5, 2.6),
+        length: rand(22, 180),
+        alpha: rand(0.12, 0.85),
+        drift: rand(-0.12, 0.12),
+        pulse: rand(0.5, 2.3),
+        pulseOffset: rand(0, Math.PI * 2),
+        colour: hueWeight < 0.18 ? [255, 255, 255] : hueWeight < 0.39 ? [95, 205, 255] : hueWeight < 0.56 ? [0, 255, 220] : hueWeight < 0.68 ? [120, 255, 160] : hueWeight < 0.84 ? [255, 90, 210] : [165, 110, 255],
+        seed: index + Math.random() * 1000
+      };
+    }
+    function createStreaks() {
+      streaks.length = 0;
+      const total = Math.floor(streakCount * intensity);
+      for (let i = 0; i < total; i++) streaks.push(createStreak(i));
+    }
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width || window.innerWidth));
+      height = Math.max(1, Math.floor(rect.height || window.innerHeight));
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = width * 0.5;
+      cy = height * 0.5;
+      createStars();
+      createStreaks();
+    }
+    function drawBackgroundGradient() {
+      const bg = ctx.createLinearGradient(0, 0, width, height);
+      bg.addColorStop(0, "rgba(2,6,18,1)");
+      bg.addColorStop(0.28, "rgba(5,12,30,1)");
+      bg.addColorStop(0.55, "rgba(9,8,24,1)");
+      bg.addColorStop(0.78, "rgba(20,7,28,1)");
+      bg.addColorStop(1, "rgba(6,2,12,1)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+    }
+    function drawNebulaClouds(t) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const leftGrad = ctx.createRadialGradient(width * 0.18, height * 0.48, 10, width * 0.18, height * 0.48, width * 0.55);
+      leftGrad.addColorStop(0, `rgba(40,140,255,${0.18 * nebulaStrength})`);
+      leftGrad.addColorStop(0.28, `rgba(20,105,230,${0.12 * nebulaStrength})`);
+      leftGrad.addColorStop(0.62, `rgba(8,42,120,${0.09 * nebulaStrength})`);
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(0, 0, width, height);
+      const rightGrad = ctx.createRadialGradient(width * 0.8, height * 0.5, 12, width * 0.8, height * 0.5, width * 0.48);
+      rightGrad.addColorStop(0, `rgba(255,100,230,${0.2 * nebulaStrength})`);
+      rightGrad.addColorStop(0.34, `rgba(175,70,255,${0.14 * nebulaStrength})`);
+      rightGrad.addColorStop(0.7, `rgba(95,25,160,${0.08 * nebulaStrength})`);
+      rightGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(0, 0, width, height);
+      const blobs = [{
+        x: width * 0.16,
+        y: height * 0.33,
+        rx: width * 0.28,
+        ry: height * 0.16,
+        c1: "rgba(80,180,255,0.06)",
+        c2: "rgba(20,40,100,0)"
+      }, {
+        x: width * 0.26,
+        y: height * 0.72,
+        rx: width * 0.24,
+        ry: height * 0.12,
+        c1: "rgba(0,190,255,0.05)",
+        c2: "rgba(0,0,0,0)"
+      }, {
+        x: width * 0.78,
+        y: height * 0.33,
+        rx: width * 0.22,
+        ry: height * 0.14,
+        c1: "rgba(255,90,200,0.07)",
+        c2: "rgba(0,0,0,0)"
+      }, {
+        x: width * 0.86,
+        y: height * 0.66,
+        rx: width * 0.26,
+        ry: height * 0.16,
+        c1: "rgba(180,70,255,0.08)",
+        c2: "rgba(0,0,0,0)"
+      }];
+      blobs.forEach((b, i) => {
+        const driftX = Math.sin(t * 0.00018 + i * 1.7) * 18,
+          driftY = Math.cos(t * 0.00012 + i * 1.3) * 12;
+        const g = ctx.createRadialGradient(b.x + driftX, b.y + driftY, 0, b.x + driftX, b.y + driftY, Math.max(b.rx, b.ry));
+        g.addColorStop(0, b.c1);
+        g.addColorStop(1, b.c2);
+        ctx.save();
+        ctx.translate(b.x + driftX, b.y + driftY);
+        ctx.scale(1, b.ry / b.rx);
+        ctx.beginPath();
+        ctx.arc(0, 0, b.rx, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+    function drawSlowMovingStars(t) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const maxRadius = Math.hypot(width, height) * 0.77;
+      for (let i = 0; i < movingStars.length; i++) {
+        const s = movingStars[i];
+        s.z += s.speed;
+        if (s.z > 1.03) {
+          movingStars[i] = createMovingStar(i + t * 0.001);
+          movingStars[i].z = rand(0.01, 0.08);
+          continue;
+        }
+        const eased = s.z * s.z;
+        const radius = lerp(0, maxRadius, eased);
+        const x = cx + Math.cos(s.angle) * radius,
+          y = cy + Math.sin(s.angle) * radius;
+        if (x < -20 || x > width + 20 || y < -20 || y > height + 20) {
+          movingStars[i] = createMovingStar(i + t * 0.001);
+          movingStars[i].z = rand(0.01, 0.08);
+          continue;
+        }
+        const pulse = 0.78 + 0.22 * Math.sin(t * 0.0012 * s.twinkle + s.phase);
+        const alpha = clamp(s.alpha * (0.35 + eased * 0.95) * pulse, 0.05, 1);
+        const radiusPx = s.size * (0.65 + eased * 1.15);
+        const [r, g, b] = s.colour;
+        ctx.fillStyle = rgba(r, g, b, alpha);
+        ctx.beginPath();
+        ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
+        ctx.fill();
+        if (radiusPx > 1.2) {
+          ctx.strokeStyle = rgba(255, 255, 255, alpha * 0.18);
+          ctx.lineWidth = 0.55;
+          ctx.beginPath();
+          ctx.moveTo(x - radiusPx * 1.8, y);
+          ctx.lineTo(x + radiusPx * 1.8, y);
+          ctx.moveTo(x, y - radiusPx * 1.8);
+          ctx.lineTo(x, y + radiusPx * 1.8);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function drawStreaks(t) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      const maxRadius = Math.hypot(width, height) * 0.75;
+      for (let i = 0; i < streaks.length; i++) {
+        const s = streaks[i];
+        s.z += s.speed;
+        if (s.z > 1.02) {
+          streaks[i] = createStreak(i + t * 0.001);
+          continue;
+        }
+        const eased = s.z * s.z;
+        const radius = lerp(6, maxRadius, eased);
+        const angle = s.angle + Math.sin(t * 0.0004 * s.pulse + s.pulseOffset) * s.drift * 0.18;
+        const x = cx + Math.cos(angle) * radius,
+          y = cy + Math.sin(angle) * radius;
+        const dirX = x - cx,
+          dirY = y - cy,
+          dirLen = Math.max(1, Math.hypot(dirX, dirY));
+        const ux = dirX / dirLen,
+          uy = dirY / dirLen;
+        const trail = s.length * (0.18 + eased * 1.75);
+        const x2 = x - ux * trail,
+          y2 = y - uy * trail;
+        const [r, g, b] = s.colour;
+        const glow = clamp(s.alpha * (0.3 + eased * 1.15), 0.05, 1);
+        const grad = ctx.createLinearGradient(x2, y2, x, y);
+        grad.addColorStop(0, rgba(255, 255, 255, 0));
+        grad.addColorStop(0.45, rgba(r, g, b, glow * 0.33));
+        grad.addColorStop(1, rgba(r, g, b, glow));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = s.width * (0.3 + eased * 1.4);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function buildSparklePath(sizeOuter, sizeInner) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - sizeOuter);
+      ctx.quadraticCurveTo(cx + sizeInner * 0.45, cy - sizeInner * 0.75, cx + sizeOuter, cy);
+      ctx.quadraticCurveTo(cx + sizeInner * 0.75, cy + sizeInner * 0.45, cx, cy + sizeOuter);
+      ctx.quadraticCurveTo(cx - sizeInner * 0.45, cy + sizeInner * 0.75, cx - sizeOuter, cy);
+      ctx.quadraticCurveTo(cx - sizeInner * 0.75, cy - sizeInner * 0.45, cx, cy - sizeOuter);
+      ctx.closePath();
+    }
+    function drawCentreFlare(t) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const pulse = 0.94 + Math.sin(t * 0.0034) * 0.05 + Math.sin(t * 0.0017) * 0.035;
+      const minSide = Math.min(width, height);
+      const outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, minSide * 0.24);
+      outerGlow.addColorStop(0, rgba(255, 255, 255, 0.46 * pulse));
+      outerGlow.addColorStop(0.08, rgba(210, 235, 255, 0.22 * pulse));
+      outerGlow.addColorStop(0.18, rgba(255, 160, 235, 0.16 * pulse));
+      outerGlow.addColorStop(0.28, rgba(120, 180, 255, 0.11 * pulse));
+      outerGlow.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = outerGlow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, minSide * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      const starOuter = clamp(minSide * 0.078 * pulse, 36, 82),
+        starInner = starOuter * 0.34;
+      const starGlowA = ctx.createRadialGradient(cx, cy, 0, cx, cy, starOuter * 1.45);
+      starGlowA.addColorStop(0, rgba(255, 255, 255, 0.78));
+      starGlowA.addColorStop(0.42, rgba(255, 245, 255, 0.28));
+      starGlowA.addColorStop(0.7, rgba(255, 170, 235, 0.16));
+      starGlowA.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = starGlowA;
+      buildSparklePath(starOuter * 1.22, starInner * 1.22);
+      ctx.fill();
+      const starFill = ctx.createRadialGradient(cx, cy, 0, cx, cy, starOuter);
+      starFill.addColorStop(0, rgba(255, 255, 255, 1));
+      starFill.addColorStop(0.28, rgba(255, 255, 255, 0.96));
+      starFill.addColorStop(0.62, rgba(255, 230, 245, 0.82));
+      starFill.addColorStop(0.86, rgba(190, 225, 255, 0.52));
+      starFill.addColorStop(1, rgba(160, 215, 255, 0.18));
+      ctx.fillStyle = starFill;
+      buildSparklePath(starOuter, starInner);
+      ctx.fill();
+      ctx.strokeStyle = rgba(255, 255, 255, 0.28);
+      ctx.lineWidth = 1.1;
+      buildSparklePath(starOuter, starInner);
+      ctx.stroke();
+      const verticalH = Math.min(height * 0.42, 360),
+        verticalW = Math.max(6, Math.min(width * 0.014, 16));
+      const vertFlare = ctx.createLinearGradient(cx, cy - verticalH * 0.5, cx, cy + verticalH * 0.5);
+      vertFlare.addColorStop(0, rgba(255, 255, 255, 0));
+      vertFlare.addColorStop(0.18, rgba(255, 185, 235, 0.22));
+      vertFlare.addColorStop(0.5, rgba(255, 255, 255, 0.78));
+      vertFlare.addColorStop(0.82, rgba(180, 215, 255, 0.22));
+      vertFlare.addColorStop(1, rgba(255, 255, 255, 0));
+      ctx.fillStyle = vertFlare;
+      ctx.fillRect(cx - verticalW * 0.5, cy - verticalH * 0.5, verticalW, verticalH);
+      const horizontalW = width * 0.7;
+      const horizFlare = ctx.createLinearGradient(cx - horizontalW * 0.5, cy, cx + horizontalW * 0.5, cy);
+      horizFlare.addColorStop(0, rgba(255, 255, 255, 0));
+      horizFlare.addColorStop(0.2, rgba(90, 165, 255, 0.05));
+      horizFlare.addColorStop(0.42, rgba(255, 180, 235, 0.12));
+      horizFlare.addColorStop(0.5, rgba(255, 255, 255, 0.34));
+      horizFlare.addColorStop(0.58, rgba(190, 220, 255, 0.12));
+      horizFlare.addColorStop(0.8, rgba(255, 120, 220, 0.05));
+      horizFlare.addColorStop(1, rgba(255, 255, 255, 0));
+      ctx.fillStyle = horizFlare;
+      ctx.fillRect(cx - horizontalW * 0.5, cy - 2.5, horizontalW, 5);
+      const innerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, starOuter * 0.9);
+      innerGlow.addColorStop(0, rgba(255, 255, 255, 0.96));
+      innerGlow.addColorStop(0.35, rgba(255, 255, 255, 0.55));
+      innerGlow.addColorStop(0.8, rgba(180, 225, 255, 0.12));
+      innerGlow.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = innerGlow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, starOuter * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function drawVignette() {
+      const vig = ctx.createRadialGradient(cx, cy, Math.min(width, height) * 0.2, cx, cy, Math.max(width, height) * 0.8);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(0.65, "rgba(0,0,0,0.08)");
+      vig.addColorStop(1, "rgba(0,0,0,0.42)");
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, width, height);
+    }
+    function frame(now) {
+      const dt = Math.min(32, now - lastTime);
+      lastTime = now;
+      time += dt;
+      ctx.clearRect(0, 0, width, height);
+      drawBackgroundGradient();
+      drawNebulaClouds(time);
+      drawSlowMovingStars(time);
+      drawStreaks(time);
+      drawCentreFlare(time);
+      drawVignette();
+      animationRef.current = requestAnimationFrame(frame);
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    window.addEventListener("resize", resize);
+    animationRef.current = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(animationRef.current);
+      ro.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed]);
+  return /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    className: className,
+    "aria-hidden": "true",
+    style: {
+      width: "100%",
+      height: "100%",
+      display: "block",
+      background: "transparent",
+      pointerEvents: "none"
+    }
+  });
+}
+function WormholeBackgroundParallax({
+  className = "",
+  intensity = 1,
+  speed = 1,
+  starCount = 950,
+  streakCount = 240,
+  nebulaStrength = 0.95,
+  starDriftSpeed = 0.18,
+  parallaxStrength = 28,
+  parallaxSmoothing = 0.065
+}) {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(0);
+  const parallaxRef = useRef({
+    currentX: 0,
+    currentY: 0,
+    targetX: 0,
+    targetY: 0
+  });
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", {
+      alpha: true
+    });
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0,
+      height = 0,
+      cx = 0,
+      cy = 0;
+    let lastTime = performance.now(),
+      time = 0;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    const depth = {
+      background: 0.16,
+      vignette: 0.2,
+      focal: 0.12,
+      nebula: 0.3,
+      slowStars: 0.62,
+      streaks: 1.0
+    };
+    const movingStars = [],
+      streaks = [];
+    function createMovingStar(index = 0) {
+      const colourBand = Math.random();
+      return {
+        angle: rand(0, Math.PI * 2),
+        z: Math.random() ** 0.55,
+        speed: rand(0.0012, 0.0045) * speed * starDriftSpeed * (0.75 + intensity * 0.45),
+        size: rand(0.45, 1.7),
+        alpha: rand(0.18, 0.95),
+        twinkle: rand(0.35, 2.1),
+        phase: rand(0, Math.PI * 2),
+        colour: colourBand < 0.48 ? [165, 215, 255] : colourBand < 0.82 ? [255, 240, 255] : [255, 185, 235],
+        seed: index + Math.random() * 1000
+      };
+    }
+    function createStars() {
+      movingStars.length = 0;
+      const total = Math.floor(starCount * intensity);
+      for (let i = 0; i < total; i++) movingStars.push(createMovingStar(i));
+    }
+    function createStreak(index = 0) {
+      const baseAngle = Math.atan2(rand(-height * 0.55, height * 0.55), rand(-width * 0.55, width * 0.55));
+      const hueWeight = Math.random();
+      return {
+        angle: baseAngle + rand(-0.3, 0.3),
+        z: rand(0.02, 1),
+        speed: rand(0.003, 0.018) * speed * (0.8 + intensity * 0.65),
+        width: rand(0.5, 2.6),
+        length: rand(22, 180),
+        alpha: rand(0.12, 0.85),
+        drift: rand(-0.12, 0.12),
+        pulse: rand(0.5, 2.3),
+        pulseOffset: rand(0, Math.PI * 2),
+        colour: hueWeight < 0.18 ? [255, 255, 255] : hueWeight < 0.39 ? [95, 205, 255] : hueWeight < 0.56 ? [0, 255, 220] : hueWeight < 0.68 ? [120, 255, 160] : hueWeight < 0.84 ? [255, 90, 210] : [165, 110, 255],
+        seed: index + Math.random() * 1000
+      };
+    }
+    function createStreaks() {
+      streaks.length = 0;
+      const total = Math.floor(streakCount * intensity);
+      for (let i = 0; i < total; i++) streaks.push(createStreak(i));
+    }
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width || window.innerWidth));
+      height = Math.max(1, Math.floor(rect.height || window.innerHeight));
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = width * 0.5;
+      cy = height * 0.5;
+      createStars();
+      createStreaks();
+    }
+    function onPointerMove(event) {
+      const rect = canvas.getBoundingClientRect();
+      const xNorm = rect.width > 0 ? (event.clientX - rect.left) / rect.width * 2 - 1 : 0;
+      const yNorm = rect.height > 0 ? (event.clientY - rect.top) / rect.height * 2 - 1 : 0;
+      parallaxRef.current.targetX = clamp(xNorm, -1, 1) * parallaxStrength;
+      parallaxRef.current.targetY = clamp(yNorm, -1, 1) * parallaxStrength;
+    }
+    function onPointerLeave() {
+      parallaxRef.current.targetX = 0;
+      parallaxRef.current.targetY = 0;
+    }
+    function updateParallax() {
+      const p = parallaxRef.current;
+      p.currentX = lerp(p.currentX, p.targetX, parallaxSmoothing);
+      p.currentY = lerp(p.currentY, p.targetY, parallaxSmoothing);
+      return p;
+    }
+    function drawBackgroundGradient(p) {
+      const shiftX = p.currentX * depth.background,
+        shiftY = p.currentY * depth.background;
+      const bg = ctx.createLinearGradient(shiftX * 0.8, shiftY * 0.8, width + shiftX * 0.5, height + shiftY * 0.5);
+      bg.addColorStop(0, "rgba(2,6,18,1)");
+      bg.addColorStop(0.28, "rgba(5,12,30,1)");
+      bg.addColorStop(0.55, "rgba(9,8,24,1)");
+      bg.addColorStop(0.78, "rgba(20,7,28,1)");
+      bg.addColorStop(1, "rgba(6,2,12,1)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+    }
+    function drawNebulaClouds(t, p) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const nx = p.currentX * depth.nebula,
+        ny = p.currentY * depth.nebula;
+      const leftGrad = ctx.createRadialGradient(width * 0.18 + nx, height * 0.48 + ny, 10, width * 0.18 + nx, height * 0.48 + ny, width * 0.55);
+      leftGrad.addColorStop(0, `rgba(40,140,255,${0.18 * nebulaStrength})`);
+      leftGrad.addColorStop(0.28, `rgba(20,105,230,${0.12 * nebulaStrength})`);
+      leftGrad.addColorStop(0.62, `rgba(8,42,120,${0.09 * nebulaStrength})`);
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(0, 0, width, height);
+      const rightGrad = ctx.createRadialGradient(width * 0.8 + nx, height * 0.5 + ny, 12, width * 0.8 + nx, height * 0.5 + ny, width * 0.48);
+      rightGrad.addColorStop(0, `rgba(255,100,230,${0.2 * nebulaStrength})`);
+      rightGrad.addColorStop(0.34, `rgba(175,70,255,${0.14 * nebulaStrength})`);
+      rightGrad.addColorStop(0.7, `rgba(95,25,160,${0.08 * nebulaStrength})`);
+      rightGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(0, 0, width, height);
+      const blobs = [{
+        x: width * 0.16,
+        y: height * 0.33,
+        rx: width * 0.28,
+        ry: height * 0.16,
+        c1: "rgba(80,180,255,0.06)",
+        c2: "rgba(20,40,100,0)"
+      }, {
+        x: width * 0.26,
+        y: height * 0.72,
+        rx: width * 0.24,
+        ry: height * 0.12,
+        c1: "rgba(0,190,255,0.05)",
+        c2: "rgba(0,0,0,0)"
+      }, {
+        x: width * 0.78,
+        y: height * 0.33,
+        rx: width * 0.22,
+        ry: height * 0.14,
+        c1: "rgba(255,90,200,0.07)",
+        c2: "rgba(0,0,0,0)"
+      }, {
+        x: width * 0.86,
+        y: height * 0.66,
+        rx: width * 0.26,
+        ry: height * 0.16,
+        c1: "rgba(180,70,255,0.08)",
+        c2: "rgba(0,0,0,0)"
+      }];
+      blobs.forEach((b, i) => {
+        const driftX = Math.sin(t * 0.00018 + i * 1.7) * 18 + nx,
+          driftY = Math.cos(t * 0.00012 + i * 1.3) * 12 + ny;
+        const g = ctx.createRadialGradient(b.x + driftX, b.y + driftY, 0, b.x + driftX, b.y + driftY, Math.max(b.rx, b.ry));
+        g.addColorStop(0, b.c1);
+        g.addColorStop(1, b.c2);
+        ctx.save();
+        ctx.translate(b.x + driftX, b.y + driftY);
+        ctx.scale(1, b.ry / b.rx);
+        ctx.beginPath();
+        ctx.arc(0, 0, b.rx, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+    function drawSlowMovingStars(t, p) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const maxRadius = Math.hypot(width, height) * 0.77;
+      const povX = cx + p.currentX * depth.slowStars,
+        povY = cy + p.currentY * depth.slowStars;
+      for (let i = 0; i < movingStars.length; i++) {
+        const s = movingStars[i];
+        s.z += s.speed;
+        if (s.z > 1.03) {
+          movingStars[i] = createMovingStar(i + t * 0.001);
+          movingStars[i].z = rand(0.01, 0.08);
+          continue;
+        }
+        const eased = s.z * s.z,
+          radius = lerp(0, maxRadius, eased);
+        const x = povX + Math.cos(s.angle) * radius,
+          y = povY + Math.sin(s.angle) * radius;
+        if (x < -20 || x > width + 20 || y < -20 || y > height + 20) {
+          movingStars[i] = createMovingStar(i + t * 0.001);
+          movingStars[i].z = rand(0.01, 0.08);
+          continue;
+        }
+        const pulse = 0.78 + 0.22 * Math.sin(t * 0.0012 * s.twinkle + s.phase);
+        const alpha = clamp(s.alpha * (0.35 + eased * 0.95) * pulse, 0.05, 1);
+        const radiusPx = s.size * (0.65 + eased * 1.15);
+        const [r, g, b] = s.colour;
+        ctx.fillStyle = rgba(r, g, b, alpha);
+        ctx.beginPath();
+        ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
+        ctx.fill();
+        if (radiusPx > 1.2) {
+          ctx.strokeStyle = rgba(255, 255, 255, alpha * 0.18);
+          ctx.lineWidth = 0.55;
+          ctx.beginPath();
+          ctx.moveTo(x - radiusPx * 1.8, y);
+          ctx.lineTo(x + radiusPx * 1.8, y);
+          ctx.moveTo(x, y - radiusPx * 1.8);
+          ctx.lineTo(x, y + radiusPx * 1.8);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function drawStreaks(t, p) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      const maxRadius = Math.hypot(width, height) * 0.75;
+      const povX = cx + p.currentX * depth.streaks,
+        povY = cy + p.currentY * depth.streaks;
+      for (let i = 0; i < streaks.length; i++) {
+        const s = streaks[i];
+        s.z += s.speed;
+        if (s.z > 1.02) {
+          streaks[i] = createStreak(i + t * 0.001);
+          continue;
+        }
+        const eased = s.z * s.z,
+          radius = lerp(6, maxRadius, eased);
+        const angle = s.angle + Math.sin(t * 0.0004 * s.pulse + s.pulseOffset) * s.drift * 0.18;
+        const x = povX + Math.cos(angle) * radius,
+          y = povY + Math.sin(angle) * radius;
+        const dirX = x - povX,
+          dirY = y - povY,
+          dirLen = Math.max(1, Math.hypot(dirX, dirY));
+        const ux = dirX / dirLen,
+          uy = dirY / dirLen;
+        const trail = s.length * (0.18 + eased * 1.75);
+        const x2 = x - ux * trail,
+          y2 = y - uy * trail;
+        const [r, g, b] = s.colour,
+          glow = clamp(s.alpha * (0.3 + eased * 1.15), 0.05, 1);
+        const grad = ctx.createLinearGradient(x2, y2, x, y);
+        grad.addColorStop(0, rgba(255, 255, 255, 0));
+        grad.addColorStop(0.45, rgba(r, g, b, glow * 0.33));
+        grad.addColorStop(1, rgba(r, g, b, glow));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = s.width * (0.3 + eased * 1.4);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function buildSparklePath(x, y, sizeOuter, sizeInner) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - sizeOuter);
+      ctx.quadraticCurveTo(x + sizeInner * 0.45, y - sizeInner * 0.75, x + sizeOuter, y);
+      ctx.quadraticCurveTo(x + sizeInner * 0.75, y + sizeInner * 0.45, x, y + sizeOuter);
+      ctx.quadraticCurveTo(x - sizeInner * 0.45, y + sizeInner * 0.75, x - sizeOuter, y);
+      ctx.quadraticCurveTo(x - sizeInner * 0.75, y - sizeInner * 0.45, x, y - sizeOuter);
+      ctx.closePath();
+    }
+    function drawCentreFlare(t, p) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const focalX = cx + p.currentX * depth.focal,
+        focalY = cy + p.currentY * depth.focal;
+      const pulse = 0.94 + Math.sin(t * 0.0034) * 0.05 + Math.sin(t * 0.0017) * 0.035;
+      const minSide = Math.min(width, height);
+      const outerGlow = ctx.createRadialGradient(focalX, focalY, 0, focalX, focalY, minSide * 0.24);
+      outerGlow.addColorStop(0, rgba(255, 255, 255, 0.46 * pulse));
+      outerGlow.addColorStop(0.08, rgba(210, 235, 255, 0.22 * pulse));
+      outerGlow.addColorStop(0.18, rgba(255, 160, 235, 0.16 * pulse));
+      outerGlow.addColorStop(0.28, rgba(120, 180, 255, 0.11 * pulse));
+      outerGlow.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = outerGlow;
+      ctx.beginPath();
+      ctx.arc(focalX, focalY, minSide * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      const starOuter = clamp(minSide * 0.078 * pulse, 36, 82),
+        starInner = starOuter * 0.34;
+      const starGlowA = ctx.createRadialGradient(focalX, focalY, 0, focalX, focalY, starOuter * 1.45);
+      starGlowA.addColorStop(0, rgba(255, 255, 255, 0.78));
+      starGlowA.addColorStop(0.42, rgba(255, 245, 255, 0.28));
+      starGlowA.addColorStop(0.7, rgba(255, 170, 235, 0.16));
+      starGlowA.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = starGlowA;
+      buildSparklePath(focalX, focalY, starOuter * 1.22, starInner * 1.22);
+      ctx.fill();
+      const starFill = ctx.createRadialGradient(focalX, focalY, 0, focalX, focalY, starOuter);
+      starFill.addColorStop(0, rgba(255, 255, 255, 1));
+      starFill.addColorStop(0.28, rgba(255, 255, 255, 0.96));
+      starFill.addColorStop(0.62, rgba(255, 230, 245, 0.82));
+      starFill.addColorStop(0.86, rgba(190, 225, 255, 0.52));
+      starFill.addColorStop(1, rgba(160, 215, 255, 0.18));
+      ctx.fillStyle = starFill;
+      buildSparklePath(focalX, focalY, starOuter, starInner);
+      ctx.fill();
+      ctx.strokeStyle = rgba(255, 255, 255, 0.28);
+      ctx.lineWidth = 1.1;
+      buildSparklePath(focalX, focalY, starOuter, starInner);
+      ctx.stroke();
+      const verticalH = Math.min(height * 0.42, 360),
+        verticalW = Math.max(6, Math.min(width * 0.014, 16));
+      const vertFlare = ctx.createLinearGradient(focalX, focalY - verticalH * 0.5, focalX, focalY + verticalH * 0.5);
+      vertFlare.addColorStop(0, rgba(255, 255, 255, 0));
+      vertFlare.addColorStop(0.18, rgba(255, 185, 235, 0.22));
+      vertFlare.addColorStop(0.5, rgba(255, 255, 255, 0.78));
+      vertFlare.addColorStop(0.82, rgba(180, 215, 255, 0.22));
+      vertFlare.addColorStop(1, rgba(255, 255, 255, 0));
+      ctx.fillStyle = vertFlare;
+      ctx.fillRect(focalX - verticalW * 0.5, focalY - verticalH * 0.5, verticalW, verticalH);
+      const horizontalW = width * 0.7;
+      const horizFlare = ctx.createLinearGradient(focalX - horizontalW * 0.5, focalY, focalX + horizontalW * 0.5, focalY);
+      horizFlare.addColorStop(0, rgba(255, 255, 255, 0));
+      horizFlare.addColorStop(0.2, rgba(90, 165, 255, 0.05));
+      horizFlare.addColorStop(0.42, rgba(255, 180, 235, 0.12));
+      horizFlare.addColorStop(0.5, rgba(255, 255, 255, 0.34));
+      horizFlare.addColorStop(0.58, rgba(190, 220, 255, 0.12));
+      horizFlare.addColorStop(0.8, rgba(255, 120, 220, 0.05));
+      horizFlare.addColorStop(1, rgba(255, 255, 255, 0));
+      ctx.fillStyle = horizFlare;
+      ctx.fillRect(focalX - horizontalW * 0.5, focalY - 2.5, horizontalW, 5);
+      const innerGlow = ctx.createRadialGradient(focalX, focalY, 0, focalX, focalY, starOuter * 0.9);
+      innerGlow.addColorStop(0, rgba(255, 255, 255, 0.96));
+      innerGlow.addColorStop(0.35, rgba(255, 255, 255, 0.55));
+      innerGlow.addColorStop(0.8, rgba(180, 225, 255, 0.12));
+      innerGlow.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = innerGlow;
+      ctx.beginPath();
+      ctx.arc(focalX, focalY, starOuter * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function drawVignette(p) {
+      const sx = p.currentX * depth.vignette,
+        sy = p.currentY * depth.vignette;
+      const vig = ctx.createRadialGradient(cx + sx, cy + sy, Math.min(width, height) * 0.2, cx + sx, cy + sy, Math.max(width, height) * 0.8);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(0.65, "rgba(0,0,0,0.08)");
+      vig.addColorStop(1, "rgba(0,0,0,0.42)");
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, width, height);
+    }
+    function frame(now) {
+      const dt = Math.min(32, now - lastTime);
+      lastTime = now;
+      time += dt;
+      const p = updateParallax();
+      ctx.clearRect(0, 0, width, height);
+      drawBackgroundGradient(p);
+      drawCentreFlare(time, p);
+      drawNebulaClouds(time, p);
+      drawSlowMovingStars(time, p);
+      drawStreaks(time, p);
+      drawVignette(p);
+      animationRef.current = requestAnimationFrame(frame);
+    }
+    resize();
+    window.addEventListener("pointermove", onPointerMove, {
+      passive: true
+    });
+    window.addEventListener("pointerleave", onPointerLeave);
+    window.addEventListener("blur", onPointerLeave);
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    window.addEventListener("resize", resize);
+    animationRef.current = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(animationRef.current);
+      ro.disconnect();
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("blur", onPointerLeave);
+    };
+  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed, parallaxStrength, parallaxSmoothing]);
+  return /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    className: className,
+    "aria-hidden": "true",
+    style: {
+      width: "100%",
+      height: "100%",
+      display: "block",
+      background: "transparent",
+      pointerEvents: "none"
+    }
+  });
+}
+function WormholeBackgroundStatic({
+  className = "",
+  intensity = 1,
+  starCount = 950,
+  streakCount = 240,
+  nebulaStrength = 0.95,
+  seed = 1337
+}) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", {
+      alpha: true
+    });
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0,
+      height = 0,
+      cx = 0,
+      cy = 0;
+    function mulberry32(a) {
+      return function () {
+        let t = a += 0x6d2b79f5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    let rng = mulberry32(Number(seed) || 1337);
+    const rand = (min, max) => rng() * (max - min) + min;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width || window.innerWidth));
+      height = Math.max(1, Math.floor(rect.height || window.innerHeight));
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = width * 0.5;
+      cy = height * 0.5;
+      draw();
+    }
+    function drawBackgroundGradient() {
+      const bg = ctx.createLinearGradient(0, 0, width, height);
+      bg.addColorStop(0, "rgba(2,6,18,1)");
+      bg.addColorStop(0.28, "rgba(5,12,30,1)");
+      bg.addColorStop(0.55, "rgba(9,8,24,1)");
+      bg.addColorStop(0.78, "rgba(20,7,28,1)");
+      bg.addColorStop(1, "rgba(6,2,12,1)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+    }
+    function drawNebulaClouds() {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const leftGrad = ctx.createRadialGradient(width * 0.18, height * 0.48, 10, width * 0.18, height * 0.48, width * 0.55);
+      leftGrad.addColorStop(0, `rgba(40,140,255,${0.18 * nebulaStrength})`);
+      leftGrad.addColorStop(0.28, `rgba(20,105,230,${0.12 * nebulaStrength})`);
+      leftGrad.addColorStop(0.62, `rgba(8,42,120,${0.09 * nebulaStrength})`);
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(0, 0, width, height);
+      const rightGrad = ctx.createRadialGradient(width * 0.8, height * 0.5, 12, width * 0.8, height * 0.5, width * 0.48);
+      rightGrad.addColorStop(0, `rgba(255,100,230,${0.2 * nebulaStrength})`);
+      rightGrad.addColorStop(0.34, `rgba(175,70,255,${0.14 * nebulaStrength})`);
+      rightGrad.addColorStop(0.7, `rgba(95,25,160,${0.08 * nebulaStrength})`);
+      rightGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(0, 0, width, height);
+      const blobs = [{
+        x: width * 0.16,
+        y: height * 0.33,
+        rx: width * 0.28,
+        ry: height * 0.16,
+        c1: "rgba(80,180,255,0.06)",
+        c2: "rgba(20,40,100,0)"
+      }, {
+        x: width * 0.26,
+        y: height * 0.72,
+        rx: width * 0.24,
+        ry: height * 0.12,
+        c1: "rgba(0,190,255,0.05)",
+        c2: "rgba(0,0,0,0)"
+      }, {
+        x: width * 0.78,
+        y: height * 0.33,
+        rx: width * 0.22,
+        ry: height * 0.14,
+        c1: "rgba(255,90,200,0.07)",
+        c2: "rgba(0,0,0,0)"
+      }, {
+        x: width * 0.86,
+        y: height * 0.66,
+        rx: width * 0.26,
+        ry: height * 0.16,
+        c1: "rgba(180,70,255,0.08)",
+        c2: "rgba(0,0,0,0)"
+      }];
+      blobs.forEach(b => {
+        const driftX = rand(-18, 18),
+          driftY = rand(-12, 12);
+        const g = ctx.createRadialGradient(b.x + driftX, b.y + driftY, 0, b.x + driftX, b.y + driftY, Math.max(b.rx, b.ry));
+        g.addColorStop(0, b.c1);
+        g.addColorStop(1, b.c2);
+        ctx.save();
+        ctx.translate(b.x + driftX, b.y + driftY);
+        ctx.scale(1, b.ry / b.rx);
+        ctx.beginPath();
+        ctx.arc(0, 0, b.rx, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+    function drawStars() {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const total = Math.floor(starCount * intensity);
+      for (let i = 0; i < total; i++) {
+        const sideBias = rng(),
+          x = rand(0, width),
+          y = rand(0, height);
+        const base = rng() ** 1.6,
+          r = rand(0.35, 1.8) * (0.7 + base);
+        const a = rand(0.15, 0.95) * rand(0.82, 1);
+        let tint = "rgba(255,255,255,1)";
+        if (sideBias < 0.46) tint = `rgba(${Math.floor(rand(140, 210))},${Math.floor(rand(190, 240))},255,1)`;else if (sideBias > 0.62) tint = `rgba(255,${Math.floor(rand(150, 205))},${Math.floor(rand(220, 255))},1)`;
+        ctx.fillStyle = tint.replace(/,\s*1\)$/, `,${a})`);
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (r > 1.15) {
+          ctx.strokeStyle = rgba(255, 255, 255, a * 0.2);
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(x - r * 2.1, y);
+          ctx.lineTo(x + r * 2.1, y);
+          ctx.moveTo(x, y - r * 2.1);
+          ctx.lineTo(x, y + r * 2.1);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function drawStreaks() {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      const total = Math.floor(streakCount * intensity);
+      const maxRadius = Math.hypot(width, height) * 0.75;
+      for (let i = 0; i < total; i++) {
+        const hueWeight = rng();
+        const baseAngle = Math.atan2(rand(-height * 0.55, height * 0.55), rand(-width * 0.55, width * 0.55));
+        const angle = baseAngle + rand(-0.3, 0.3);
+        const z = rand(0.04, 1),
+          eased = z * z,
+          radius = lerp(6, maxRadius, eased);
+        const x = cx + Math.cos(angle) * radius,
+          y = cy + Math.sin(angle) * radius;
+        const dirX = x - cx,
+          dirY = y - cy,
+          dirLen = Math.max(1, Math.hypot(dirX, dirY));
+        const ux = dirX / dirLen,
+          uy = dirY / dirLen;
+        const widthPx = rand(0.5, 2.6) * (0.3 + eased * 1.4);
+        const trail = rand(22, 180) * (0.18 + eased * 1.75);
+        const x2 = x - ux * trail,
+          y2 = y - uy * trail;
+        const alpha = clamp(rand(0.12, 0.85) * (0.3 + eased * 1.15), 0.05, 1);
+        let colour = [165, 110, 255];
+        if (hueWeight < 0.18) colour = [255, 255, 255];else if (hueWeight < 0.39) colour = [95, 205, 255];else if (hueWeight < 0.56) colour = [0, 255, 220];else if (hueWeight < 0.68) colour = [120, 255, 160];else if (hueWeight < 0.84) colour = [255, 90, 210];
+        const [r, g, b] = colour;
+        const grad = ctx.createLinearGradient(x2, y2, x, y);
+        grad.addColorStop(0, rgba(255, 255, 255, 0));
+        grad.addColorStop(0.45, rgba(r, g, b, alpha * 0.33));
+        grad.addColorStop(1, rgba(r, g, b, alpha));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = widthPx;
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function buildSparklePath(x, y, sizeOuter, sizeInner) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - sizeOuter);
+      ctx.quadraticCurveTo(x + sizeInner * 0.45, y - sizeInner * 0.75, x + sizeOuter, y);
+      ctx.quadraticCurveTo(x + sizeInner * 0.75, y + sizeInner * 0.45, x, y + sizeOuter);
+      ctx.quadraticCurveTo(x - sizeInner * 0.45, y + sizeInner * 0.75, x - sizeOuter, y);
+      ctx.quadraticCurveTo(x - sizeInner * 0.75, y - sizeInner * 0.45, x, y - sizeOuter);
+      ctx.closePath();
+    }
+    function drawCentreFlare() {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const minSide = Math.min(width, height);
+      const outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, minSide * 0.24);
+      outerGlow.addColorStop(0, rgba(255, 255, 255, 0.46));
+      outerGlow.addColorStop(0.08, rgba(210, 235, 255, 0.22));
+      outerGlow.addColorStop(0.18, rgba(255, 160, 235, 0.16));
+      outerGlow.addColorStop(0.28, rgba(120, 180, 255, 0.11));
+      outerGlow.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = outerGlow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, minSide * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      const starOuter = clamp(minSide * 0.078, 36, 82),
+        starInner = starOuter * 0.34;
+      const starGlowA = ctx.createRadialGradient(cx, cy, 0, cx, cy, starOuter * 1.45);
+      starGlowA.addColorStop(0, rgba(255, 255, 255, 0.78));
+      starGlowA.addColorStop(0.42, rgba(255, 245, 255, 0.28));
+      starGlowA.addColorStop(0.7, rgba(255, 170, 235, 0.16));
+      starGlowA.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = starGlowA;
+      buildSparklePath(cx, cy, starOuter * 1.22, starInner * 1.22);
+      ctx.fill();
+      const starFill = ctx.createRadialGradient(cx, cy, 0, cx, cy, starOuter);
+      starFill.addColorStop(0, rgba(255, 255, 255, 1));
+      starFill.addColorStop(0.28, rgba(255, 255, 255, 0.96));
+      starFill.addColorStop(0.62, rgba(255, 230, 245, 0.82));
+      starFill.addColorStop(0.86, rgba(190, 225, 255, 0.52));
+      starFill.addColorStop(1, rgba(160, 215, 255, 0.18));
+      ctx.fillStyle = starFill;
+      buildSparklePath(cx, cy, starOuter, starInner);
+      ctx.fill();
+      ctx.strokeStyle = rgba(255, 255, 255, 0.28);
+      ctx.lineWidth = 1.1;
+      buildSparklePath(cx, cy, starOuter, starInner);
+      ctx.stroke();
+      const verticalH = Math.min(height * 0.42, 360),
+        verticalW = Math.max(6, Math.min(width * 0.014, 16));
+      const vertFlare = ctx.createLinearGradient(cx, cy - verticalH * 0.5, cx, cy + verticalH * 0.5);
+      vertFlare.addColorStop(0, rgba(255, 255, 255, 0));
+      vertFlare.addColorStop(0.18, rgba(255, 185, 235, 0.22));
+      vertFlare.addColorStop(0.5, rgba(255, 255, 255, 0.78));
+      vertFlare.addColorStop(0.82, rgba(180, 215, 255, 0.22));
+      vertFlare.addColorStop(1, rgba(255, 255, 255, 0));
+      ctx.fillStyle = vertFlare;
+      ctx.fillRect(cx - verticalW * 0.5, cy - verticalH * 0.5, verticalW, verticalH);
+      const horizontalW = width * 0.7;
+      const horizFlare = ctx.createLinearGradient(cx - horizontalW * 0.5, cy, cx + horizontalW * 0.5, cy);
+      horizFlare.addColorStop(0, rgba(255, 255, 255, 0));
+      horizFlare.addColorStop(0.2, rgba(90, 165, 255, 0.05));
+      horizFlare.addColorStop(0.42, rgba(255, 180, 235, 0.12));
+      horizFlare.addColorStop(0.5, rgba(255, 255, 255, 0.34));
+      horizFlare.addColorStop(0.58, rgba(190, 220, 255, 0.12));
+      horizFlare.addColorStop(0.8, rgba(255, 120, 220, 0.05));
+      horizFlare.addColorStop(1, rgba(255, 255, 255, 0));
+      ctx.fillStyle = horizFlare;
+      ctx.fillRect(cx - horizontalW * 0.5, cy - 2.5, horizontalW, 5);
+      const innerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, starOuter * 0.9);
+      innerGlow.addColorStop(0, rgba(255, 255, 255, 0.96));
+      innerGlow.addColorStop(0.35, rgba(255, 255, 255, 0.55));
+      innerGlow.addColorStop(0.8, rgba(180, 225, 255, 0.12));
+      innerGlow.addColorStop(1, rgba(0, 0, 0, 0));
+      ctx.fillStyle = innerGlow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, starOuter * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function drawVignette() {
+      const vig = ctx.createRadialGradient(cx, cy, Math.min(width, height) * 0.2, cx, cy, Math.max(width, height) * 0.8);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(0.65, "rgba(0,0,0,0.08)");
+      vig.addColorStop(1, "rgba(0,0,0,0.42)");
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, width, height);
+    }
+    function draw() {
+      rng = mulberry32(Number(seed) || 1337);
+      ctx.clearRect(0, 0, width, height);
+      drawBackgroundGradient();
+      drawNebulaClouds();
+      drawStars();
+      drawStreaks();
+      drawCentreFlare();
+      drawVignette();
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    window.addEventListener("resize", resize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [intensity, starCount, streakCount, nebulaStrength, seed]);
+  return /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    className: className,
+    "aria-hidden": "true",
+    style: {
+      width: "100%",
+      height: "100%",
+      display: "block",
+      background: "transparent",
+      pointerEvents: "none"
+    }
+  });
+}
+
 // ── Draw main wheel ────────────────────────────────────────────────────────
 function drawWheel(canvas, theme = 'default') {
   const ctx = canvas.getContext('2d');
@@ -2579,6 +3679,12 @@ const SHOP_SECTIONS = [{
     name: 'Season 6 Theme',
     cost: 1000,
     desc: 'Night ocean — deep indigo & violet (S6).'
+  }, {
+    id: 'page_season7',
+    emoji: '🌌',
+    name: 'Season 7 Theme',
+    cost: 1000,
+    desc: 'Sci-fi wormhole — animated star field with parallax (S7).'
   }]
 }, {
   label: '🎲 Dice Charges',
@@ -2731,10 +3837,10 @@ const DEFAULT_FISH = {
 function getFishData(equippedFish) {
   return FISH_SKINS.find(s => s.id === equippedFish) || DEFAULT_FISH;
 }
-const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'final_frenzy', 'auto_guard']);
+const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
@@ -3337,6 +4443,7 @@ function GameApp({
   const [spinCount, setSpinCount] = useState(gameState.spin_count || 0);
   const [winCount, setWinCount] = useState(gameState.win_count || 0);
   const [lowSpec, setLowSpec] = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
+  const [parallaxEnabled, setParallaxEnabled] = useState(() => localStorage.getItem('parallaxEnabled') !== 'false');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling] = useState(false);
   const [diceResult, setDiceResult] = useState(null);
@@ -3396,6 +4503,7 @@ function GameApp({
     return '';
   }, [activeCosmetics]);
   const pageThemeClass = useMemo(() => {
+    if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
@@ -3404,6 +4512,7 @@ function GameApp({
     if (activeCosmetics.includes('page_season6')) return 'page-season6';
     return '';
   }, [activeCosmetics]);
+  const wormholeActive = activeCosmetics.includes('page_season7');
   const fishTimerRef = useRef(null);
   const toastTimerRef = useRef(null);
   const confettiTimerRef = useRef(null);
@@ -3433,12 +4542,12 @@ function GameApp({
     }
   }, [lowSpec]);
   useEffect(() => {
-    const show = bgClass === 'bg-ocean';
+    const show = bgClass === 'bg-ocean' && !wormholeActive;
     const iframe = document.getElementById('seabed-bg');
     const overlay = document.getElementById('seabed-overlay');
     if (iframe) iframe.style.display = show ? 'block' : 'none';
     if (overlay) overlay.style.display = show ? 'block' : 'none';
-  }, [bgClass]);
+  }, [bgClass, wormholeActive]);
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);
     return () => setSessionExpiredHandler(null);
@@ -3797,7 +4906,14 @@ function GameApp({
   }, catchUpSummary), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
-  }), /*#__PURE__*/React.createElement("div", {
+  }), wormholeActive && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 0,
+      pointerEvents: 'none'
+    }
+  }, lowSpec ? /*#__PURE__*/React.createElement(WormholeBackgroundStatic, null) : parallaxEnabled ? /*#__PURE__*/React.createElement(WormholeBackgroundParallax, null) : /*#__PURE__*/React.createElement(WormholeBackground, null)), /*#__PURE__*/React.createElement("div", {
     className: `overlay ${showResult ? 'active' : ''}`
   }), !isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
     blocked: guardState.blocked,
@@ -3832,7 +4948,18 @@ function GameApp({
     style: {
       opacity: lowSpec ? 1 : 0.5
     }
-  }, "\u26A1"), !isMobile && /*#__PURE__*/React.createElement("button", {
+  }, "\u26A1"), wormholeActive && !lowSpec && /*#__PURE__*/React.createElement("button", {
+    className: "stats-btn",
+    onClick: () => setParallaxEnabled(v => {
+      const next = !v;
+      localStorage.setItem('parallaxEnabled', next);
+      return next;
+    }),
+    title: parallaxEnabled ? 'Parallax ON — click to disable cursor tracking' : 'Parallax OFF — click to enable cursor tracking',
+    style: {
+      opacity: parallaxEnabled ? 1 : 0.5
+    }
+  }, "\uD83D\uDDB1\uFE0F"), !isMobile && /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
     onClick: () => setShowChat(v => {
       localStorage.setItem('chat_open', !v);

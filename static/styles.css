@@ -3561,6 +3561,32 @@ body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
 
 /* ── Season 6 = base CSS defaults. To override, set vars in body.page-season6 { } */
 
+/* ── Season 7: Wormhole / Sci-Fi theme ─────────────────────────────────────── */
+body.page-season7 {
+  background: #02060d;
+  --p:        #9966FF;
+  --p-lt:     #BB88FF;
+  --p-md:     #7744CC;
+  --p-dk:     #6633BB;
+  --p-xs:     #4422AA;
+  --p-2x:     #331188;
+  --p-rgb:    153, 102, 255;
+  --p-dk-rgb: 102, 51, 187;
+  --s:        #FF44AA;
+  --s-lt:     #FF66CC;
+  --s-rgb:    255, 68, 170;
+  --bg:       #02060d;
+}
+body.page-season7 .wheel-wrapper::before {
+  box-shadow: 0 0 30px 12px rgba(153,102,255,0.45), 0 0 70px 25px rgba(255,68,170,0.2), inset 0 0 20px rgba(153,102,255,0.1);
+}
+body.page-season7 .pointer { border-top-color: #BB88FF; filter: drop-shadow(0 0 10px #9966FF) drop-shadow(0 0 22px #FF44AA); }
+body.page-season7 .center-hub { background: radial-gradient(circle, #CC99FF, #6633BB); border-color: #EE99FF; box-shadow: 0 0 20px #9966FF, 0 0 45px #FF44AA; }
+body.page-season7 .result-text.win { color: #BB88FF; border-color: #BB88FF; text-shadow: 0 0 20px #9966FF, 0 0 50px #9966FF; box-shadow: 0 0 40px #9966FF, inset 0 0 20px rgba(153,102,255,0.1); }
+body.page-season7 .score-box.wins-box { border-color: #9966FF; background: rgba(153,102,255,0.08); box-shadow: 0 0 16px rgba(153,102,255,0.2); }
+body.page-season7 .score-box.wins-box .score-label { color: #BB88FF; }
+body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow: 0 0 12px #9966FF; }
+
 /* ── Hiatus Screen ────────────────────────────────────────────────────────── */
 .hiatus-screen {
   min-height: 100vh;
