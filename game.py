@@ -708,8 +708,7 @@ def tick():
                         owned = owned + ['guard']
                         current_wins -= 500
                     else:
-                        active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
-                        auto_guard_failed = True
+                        auto_guard_failed = True  # can't afford this spin; cosmetic stays active
 
                 new_spin_count += 1
 
