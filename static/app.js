@@ -1587,6 +1587,19 @@ function drawWheel(canvas, theme = 'default') {
       bright: '#CC2244',
       start: Math.PI / 2,
       end: Math.PI * 1.5
+    }],
+    wormhole: [{
+      label: 'WIN',
+      color: '#1a0044',
+      bright: '#BB88FF',
+      start: -Math.PI / 2,
+      end: Math.PI / 2
+    }, {
+      label: 'LOSE',
+      color: '#3d0022',
+      bright: '#FF44AA',
+      start: Math.PI / 2,
+      end: Math.PI * 1.5
     }]
   };
   const segments = THEMES[theme] || THEMES.default;
@@ -4480,6 +4493,7 @@ function GameApp({
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice')) return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
+    if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season6')) return 'night_ocean';
     return 'default';
