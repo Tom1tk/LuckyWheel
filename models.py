@@ -390,7 +390,7 @@ LOCKOUT_RULES = [
 
 # Season 7: server-side auto-spinning
 AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
-MAX_SPINS_PER_TICK         = 600   # safety cap per tick (~30 min at 1/3s)
+MAX_SPINS_PER_TICK         = 100_800  # cap at 1 full season week (7d × 24h × 3600s / 3s)
 CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
 
 # Happy Hour: 9pm–10pm BST (20:00–21:00 UTC)
