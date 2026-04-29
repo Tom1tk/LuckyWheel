@@ -4469,6 +4469,9 @@ function GameApp({
   const [mobilePanel, setMobilePanel] = useState(null);
   const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
   const fireMode = 2; // Mix mode
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const wheelRotationRef = useRef(0);
+  const WHEEL_SPIN_SPEED = 1.5; // seconds
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -4841,19 +4844,26 @@ function GameApp({
       setResilienceTriggered(false);
       setLuckySevenTriggered(false);
       setFortuneCharmTriggered(false);
-      if (spinResult.guard_triggered) {
-        setGuardState({
-          blocked: spinResult.guard_blocked
-        });
-        guardCompleteRef.current = () => {
-          setGuardState(null);
+
+      // Advance wheel rotation by 2+ full turns then show result after spin completes
+      const nextRot = wheelRotationRef.current + 720 + Math.floor(Math.random() * 360);
+      wheelRotationRef.current = nextRot;
+      setWheelRotation(nextRot);
+      setTimeout(() => {
+        if (spinResult.guard_triggered) {
+          setGuardState({
+            blocked: spinResult.guard_blocked
+          });
+          guardCompleteRef.current = () => {
+            setGuardState(null);
+            applySpinResult(spinResult);
+            scheduleResultDismiss();
+          };
+        } else {
           applySpinResult(spinResult);
           scheduleResultDismiss();
-        };
-      } else {
-        applySpinResult(spinResult);
-        scheduleResultDismiss();
-      }
+        }
+      }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
       if (data.state) {
         if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
         if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
@@ -5102,7 +5112,11 @@ function GameApp({
     ref: canvasRef,
     width: 380,
     height: 380,
-    className: "wheel-canvas auto-spinning"
+    className: "wheel-canvas",
+    style: {
+      transform: `rotate(${wheelRotation}deg)`,
+      transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)`
+    }
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-hub"
   }, "\u2605")), catchupBonus && /*#__PURE__*/React.createElement("div", {
