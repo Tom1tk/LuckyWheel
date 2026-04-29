@@ -17,6 +17,7 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     UPGRADE_TIER_THRESHOLDS, item_tier,
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
+                    AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC)
 from seasons import ensure_current_season, get_season_info
 
@@ -592,10 +593,11 @@ def tick():
                     '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges,
                               regen_recharge_wins, spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
-                              fish_clicks, active_cosmetics,
+                              fish_clicks, caught_species, active_cosmetics,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin, pending_dice,
-                              auto_spin_since, last_spin_at
+                              auto_spin_since, last_spin_at,
+                              auto_fish_enabled, auto_fish_last_tick
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -862,6 +864,54 @@ def tick():
                      new_last_spin,
                      current_user.id),
                 )
+
+            # Auto-fish AFK catch-up — process missed ticks in the same transaction
+            fish_catchup_data = None
+            if gs['auto_fish_enabled']:
+                last_fish = gs['auto_fish_last_tick']
+                if last_fish is not None:
+                    if last_fish.tzinfo is None:
+                        last_fish = last_fish.replace(tzinfo=timezone.utc)
+                    fish_elapsed = (now_utc - last_fish).total_seconds()
+                    pending_fish = min(
+                        int(fish_elapsed / AUTO_FISH_INTERVAL_SECONDS),
+                        MAX_FISH_CATCHUP_TICKS,
+                    )
+                    if pending_fish >= FISH_CATCHUP_THRESHOLD:
+                        autofisher_lvl = _autofisher_level(owned)
+                        if autofisher_lvl >= 1:
+                            lure_lvl       = _lure_level(owned)
+                            new_clicks     = int(gs['fish_clicks'])
+                            new_caught     = list(gs['caught_species'])
+                            total_value    = 0
+                            catch_count    = 0
+                            first_catches  = []
+                            for _ in range(pending_fish):
+                                if random.random() < autofisher_catch_rate(autofisher_lvl):
+                                    sid = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4))
+                                    val = fish_value(sid, lure_lvl)
+                                    new_clicks  += val
+                                    total_value += val
+                                    catch_count += 1
+                                    if sid not in new_caught:
+                                        new_caught.append(sid)
+                                        first_catches.append(sid)
+                            with conn.cursor() as cur:
+                                cur.execute(
+                                    '''UPDATE game_state
+                                       SET fish_clicks = %s, caught_species = %s,
+                                           auto_fish_last_tick = %s
+                                       WHERE user_id = %s''',
+                                    (new_clicks, new_caught, now_utc, current_user.id),
+                                )
+                            fish_catchup_data = {
+                                'fish_count':      catch_count,
+                                'total_value':     total_value,
+                                'new_species':     first_catches,
+                                'fish_clicks':     new_clicks,
+                                'elapsed_seconds': fish_elapsed,
+                            }
+
             conn.commit()
 
         final_state = {
@@ -883,15 +933,17 @@ def tick():
 
         if is_catch_up:
             return jsonify({
-                'catch_up':       True,
+                'catch_up':        True,
                 'spins_processed': spins_due,
                 'elapsed_seconds': elapsed,
-                'state':          final_state,
+                'state':           final_state,
+                'fish_catchup':    fish_catchup_data,
             })
 
         return jsonify({
-            'spins': spin_results,
-            'state': final_state,
+            'spins':        spin_results,
+            'state':        final_state,
+            'fish_catchup': fish_catchup_data,
         })
 
     except Exception:
@@ -1681,7 +1733,7 @@ def auto_fish_tick():
             if random.random() >= autofisher_catch_rate(autofisher_lvl):
                 with conn.cursor() as cur:
                     cur.execute(
-                        'UPDATE game_state SET auto_fish_last_tick = %s WHERE user_id = %s',
+                        'UPDATE game_state SET auto_fish_last_tick = %s, auto_fish_enabled = TRUE WHERE user_id = %s',
                         (now_utc, current_user.id),
                     )
                 conn.commit()
@@ -1700,7 +1752,7 @@ def auto_fish_tick():
 
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE game_state SET fish_clicks = %s, caught_species = %s, auto_fish_last_tick = %s WHERE user_id = %s',
+                    'UPDATE game_state SET fish_clicks = %s, caught_species = %s, auto_fish_last_tick = %s, auto_fish_enabled = TRUE WHERE user_id = %s',
                     (new_fish_clicks, caught_species, now_utc, current_user.id),
                 )
             conn.commit()
@@ -1717,6 +1769,29 @@ def auto_fish_tick():
     except Exception:
         log.exception('AUTO_FISH_TICK_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Auto fish tick failed'}), 500
+
+
+@game_bp.route('/api/auto-fish-enabled', methods=['POST'])
+@login_required
+@limiter.limit('10 per minute')
+def set_auto_fish_enabled():
+    err = require_json()
+    if err:
+        return err
+    try:
+        data = request.get_json()
+        enabled = bool(data.get('enabled', False))
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE game_state SET auto_fish_enabled = %s WHERE user_id = %s',
+                    (enabled, current_user.id),
+                )
+            conn.commit()
+        return jsonify({'ok': True, 'auto_fish_enabled': enabled})
+    except Exception:
+        log.exception('AUTO_FISH_ENABLED_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Failed to update auto fish state'}), 500
 
 
 @game_bp.route('/api/fish-click', methods=['POST'])

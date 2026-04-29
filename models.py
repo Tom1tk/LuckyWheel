@@ -393,6 +393,11 @@ AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
 MAX_SPINS_PER_TICK         = 100_800  # cap at 1 full season week (7d × 24h × 3600s / 3s)
 CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
 
+# Auto-fish AFK catch-up
+AUTO_FISH_INTERVAL_SECONDS = 6.0   # 1 auto-fish tick every 6 seconds
+MAX_FISH_CATCHUP_TICKS     = 14_400  # cap at 24 hours (86400s / 6s)
+FISH_CATCHUP_THRESHOLD     = 2     # min missed ticks before catch-up fires
+
 # Happy Hour: 9pm–10pm BST (20:00–21:00 UTC)
 HAPPY_HOUR_START_UTC = 20
 HAPPY_HOUR_END_UTC   = 21

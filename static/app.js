@@ -2340,6 +2340,13 @@ function FishingPanel({
       setAutoFish(e.target.checked);
       if (e.target.checked) {
         setPhase('idle');
+      } else {
+        apiGame('/api/auto-fish-enabled', {
+          method: 'POST',
+          body: JSON.stringify({
+            enabled: false
+          })
+        });
       }
     }
   }), /*#__PURE__*/React.createElement("span", {
@@ -4434,6 +4441,7 @@ function GameApp({
   const [shieldCharges, setShieldCharges] = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
   const [catchUpSummary, setCatchUpSummary] = useState(null);
+  const [fishCatchUpSummary, setFishCatchUpSummary] = useState(null);
   const [happyHour, setHappyHour] = useState(gameState.happy_hour || false);
   const [catchupBonus, setCatchupBonus] = useState(false);
   const [ownedItems, setOwnedItems] = useState(gameState.owned_items);
@@ -4793,6 +4801,22 @@ function GameApp({
     if (resultAutoCloseRef.current) clearTimeout(resultAutoCloseRef.current);
     resultAutoCloseRef.current = setTimeout(dismissResult, 2500);
   }, [dismissResult]);
+  const applyFishCatchUp = useCallback(fc => {
+    if (!fc || fc.fish_count === 0) return;
+    setFishClicks(fc.fish_clicks);
+    if (fc.new_species && fc.new_species.length > 0) {
+      setCaughtSpecies(prev => {
+        const s = new Set(prev);
+        fc.new_species.forEach(id => s.add(id));
+        return [...s];
+      });
+    }
+    const hrs = Math.floor(fc.elapsed_seconds / 3600);
+    const mins = Math.floor(fc.elapsed_seconds % 3600 / 60);
+    const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+    setFishCatchUpSummary(`🎣 Away ${timeStr} — ${fc.fish_count} fish auto-caught (+${fmt(fc.total_value)} 🐟)`);
+    setTimeout(() => setFishCatchUpSummary(null), 5000);
+  }, []);
   const tick = useCallback(async () => {
     if (tickPendingRef.current) return;
     tickPendingRef.current = true;
@@ -4831,6 +4855,7 @@ function GameApp({
         const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         setCatchUpSummary(`⏰ Away ${timeStr} — ${data.spins_processed} spins processed`);
         setTimeout(() => setCatchUpSummary(null), 5000);
+        if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
         return;
       }
       if (!data.spins || data.spins.length === 0) return;
@@ -4873,10 +4898,11 @@ function GameApp({
           if (!data.state.dice_rolled_since_spin) setDiceResult(null);
         }
       }
+      if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
     } finally {
       tickPendingRef.current = false;
     }
-  }, [applySpinResult, dismissResult, scheduleResultDismiss]);
+  }, [applySpinResult, applyFishCatchUp, dismissResult, scheduleResultDismiss]);
 
   // Tick every 3 seconds
   useEffect(() => {
@@ -4935,7 +4961,9 @@ function GameApp({
     className: "happy-hour-banner"
   }, "\u2B50 Happy Hour! 9\u201310pm \u2014 2\xD7 pot contributions \xB7 boosted legendary fish \u2B50"), catchUpSummary && /*#__PURE__*/React.createElement("div", {
     className: "catchup-banner"
-  }, catchUpSummary), /*#__PURE__*/React.createElement(Confetti, {
+  }, catchUpSummary), fishCatchUpSummary && /*#__PURE__*/React.createElement("div", {
+    className: "catchup-banner catchup-banner--fish"
+  }, fishCatchUpSummary), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), wormholeActive && /*#__PURE__*/React.createElement("div", {

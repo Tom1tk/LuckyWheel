@@ -2169,6 +2169,15 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   white-space: nowrap;
 }
 
+.catchup-banner--fish {
+  top: auto;
+  bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: rgba(10, 60, 30, 0.95);
+  color: #afe;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+}
+
 /* ── Leaderboard WP/BP columns ─────────────────────────────────────────── */
 .lb-wp-h, .lb-bp-h, .lb-wp, .lb-bp {
   font-size: 0.72rem;
