@@ -3318,8 +3318,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setBonusEarned(0); setEchoTriggered(false); setJackpotHit(false);
       setResilienceTriggered(false); setLuckySevenTriggered(false); setFortuneCharmTriggered(false);
 
-      // Advance wheel rotation by 2+ full turns then show result after spin completes
-      const nextRot = wheelRotationRef.current + 720 + Math.floor(Math.random() * 360);
+      // Advance wheel to the correct result segment (same formula as HiatusWheel)
+      const seg = spinResult.angle % 360;
+      const nextRot = Math.ceil((wheelRotationRef.current + 2 * 360 - seg) / 360) * 360 + seg;
       wheelRotationRef.current = nextRot;
       setWheelRotation(nextRot);
 
@@ -3415,7 +3416,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       {!isMobile && guardState && (
         <GuardWheel
           blocked={guardState.blocked}
-          speedMult={1.0}
+          speedMult={0.4}
           onComplete={() => guardCompleteRef.current && guardCompleteRef.current()}
         />
       )}
@@ -3621,7 +3622,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {isMobile && guardState && (
             <GuardWheel
               blocked={guardState.blocked}
-              speedMult={1.0}
+              speedMult={0.4}
               onComplete={() => guardCompleteRef.current && guardCompleteRef.current()}
               contained
             />
