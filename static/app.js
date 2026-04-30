@@ -2846,6 +2846,11 @@ function HiatusScreen({
   onLogout
 }) {
   const winners = season && season.latest_winners;
+  useEffect(() => {
+    apiFetch('/api/register-season', {
+      method: 'POST'
+    }).catch(() => {});
+  }, []);
   return /*#__PURE__*/React.createElement("div", {
     className: "hiatus-screen"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2891,7 +2896,11 @@ function HiatusScreen({
     className: "hiatus-countdown-row"
   }, /*#__PURE__*/React.createElement("span", {
     className: "hiatus-countdown-label"
-  }, "Season7\uFE0F\u20E3 begins in"), /*#__PURE__*/React.createElement(HiatusCountdown, null))))));
+  }, "Season7\uFE0F\u20E3 begins in"), /*#__PURE__*/React.createElement(HiatusCountdown, null)), /*#__PURE__*/React.createElement("div", {
+    className: "hiatus-preregistered"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "hiatus-preregistered-text"
+  }, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFB0 You're pre-registered for Season 7."), " Your auto-spin clock starts the moment the season begins \u2014 so your wins are already accumulating by the time you next log in, no matter how long after launch that is."))))));
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────

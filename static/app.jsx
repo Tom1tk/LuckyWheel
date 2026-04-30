@@ -2004,6 +2004,10 @@ function HiatusWheel() {
 function HiatusScreen({ season, username, onLogout }) {
   const winners = season && season.latest_winners;
 
+  useEffect(() => {
+    apiFetch('/api/register-season', { method: 'POST' }).catch(() => {});
+  }, []);
+
   return (
     <div className="hiatus-screen">
       <div className="hiatus-topbar">
@@ -2044,6 +2048,13 @@ function HiatusScreen({ season, username, onLogout }) {
             <div className="hiatus-countdown-row">
               <span className="hiatus-countdown-label">Season7️⃣ begins in</span>
               <HiatusCountdown />
+            </div>
+            <div className="hiatus-preregistered">
+              <p className="hiatus-preregistered-text">
+                <strong>🎰 You&apos;re pre-registered for Season 7.</strong> Your auto-spin clock
+                starts the moment the season begins — so your wins are already accumulating by the
+                time you next log in, no matter how long after launch that is.
+              </p>
             </div>
           </div>
         </div>
