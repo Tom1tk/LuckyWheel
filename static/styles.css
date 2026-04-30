@@ -157,6 +157,30 @@ body::before {
   margin-bottom: 8px;
 }
 
+.title-lucky-wrap {
+  position: relative;
+  display: inline-block;
+}
+.title-lucky {
+  text-decoration: line-through;
+  text-decoration-thickness: 0.1em;
+  opacity: 0.55;
+}
+.title-endless {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: #FF2222;
+  font-weight: 900;
+  font-size: 1em;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px #FF0000, 0 0 20px #CC0000;
+  text-decoration: none;
+  pointer-events: none;
+}
+
 /* Wheel wrapper */
 .wheel-wrapper {
   position: relative;

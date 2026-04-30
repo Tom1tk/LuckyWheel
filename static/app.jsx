@@ -1851,28 +1851,11 @@ function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo({ seasonNumber, endsAt }) {
-  const [timeLeft, setTimeLeft] = useState('');
-
-  useEffect(() => {
-    if (!endsAt) return;
-    const update = () => {
-      const diff = new Date(endsAt) - new Date();
-      if (diff <= 0) { setTimeLeft('Ending...'); return; }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff % 86400000) / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`);
-    };
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, [endsAt]);
-
+function SeasonInfo({ seasonNumber }) {
   return (
     <div className="season-info">
       <span>Season {seasonNumber} ends:</span>
-      {timeLeft && <span className="season-countdown">{timeLeft}</span>}
+      <span className="season-countdown">∞?</span>
     </div>
   );
 }
@@ -3722,8 +3705,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           </div>
 
           <div className="casino-header">
-            <div className="casino-title">Lucky Wheel</div>
-            <div className="subtitle">Try Your Fortune</div>
+            <div className="casino-title">
+              <span className="title-lucky-wrap">
+                <span className="title-lucky">Lucky</span>
+                <span className="title-endless">ENDLESS</span>
+              </span>
+              {' '}Wheel
+            </div>
+            <div className="subtitle">Where we&apos;re going, we won&apos;t need luck to win</div>
           </div>
 
           <div className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}>

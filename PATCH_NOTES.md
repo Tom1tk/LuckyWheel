@@ -2,6 +2,176 @@
 
 ---
 
+## Season 7 — Endless — 1 May 2026
+
+Season 7 is built around one idea: **there is no single correct answer** to where you spend your next 100,000 wins. Last season the top players cracked a near-optimal 3:5 Bonus Power to Win Power ratio, and everyone else copying that recipe meant the season played out as a single-strategy race. Season 7 breaks the meta by adding four new infinite upgrade axes, a parallel fish economy with its own infinite path, a class system that skews your value curve from the moment you equip it, and a meaningful rebalance to Bonus Power's scaling curve so the old recipe stops being dominant.
+
+The season also has no scheduled end date. The "Season ends in" countdown has been replaced with **∞?** — seasons will be advanced manually when the time is right.
+
+### Title & Branding
+
+The main title has been updated to reflect the open-ended nature of Season 7. **"Lucky"** is struck through and overlaid with **ENDLESS** in bold red — only the word "Lucky" is affected; "Wheel" remains. The tagline has been changed from *"Try Your Fortune"* to *"Where we're going, we won't need luck to win"*.
+
+### Open-Ended Season Format
+
+The automatic Friday reset cron job has been removed. Seasons will now run until manually advanced. The season countdown in the top bar displays **∞?** rather than a live timer, styled identically to the previous badge. This removes the time pressure of a fixed weekly deadline and allows each season to run for as long as is appropriate.
+
+---
+
+### New Infinite Upgrade Paths
+
+Four new infinite upgrade tracks have been added. Each competes for resources against Win Power and Bonus Power, giving several different defensible spending strategies depending on your current build.
+
+#### 🎣 Lure Mastery *(costs Fish Bucks — no cap)*
+
+Extends lure power past the Master Lure ceiling. Where Master Lure locks the value multiplier at 20×, Lure Mastery stacks an additional **+10% per level** on top of every catch — both manual reels and Auto-Fish ticks. This is the only infinite upgrade priced in Fish Bucks rather than Wins, making it the first expansion of the fish economy into genuine late-game scaling.
+
+| Level range | Cost per level (Fish Bucks) | Fish value multiplier |
+|-------------|-----------------------------|-----------------------|
+| Lv 1 | 5,000 | +10% |
+| Lv 2 | 25,000 | +20% |
+| Lv 3 | 100,000 | +30% |
+| Lv 4 | 400,000 | +40% |
+| Lv 5+ | 1,500,000 × 1.25^(n) | +10% per level, no cap |
+
+Players who have been accumulating Fish Bucks with nowhere to spend them now have a direct path to convert fishing activity into a sustained income advantage.
+
+#### 🎰 Jackpot Resonance *(costs Wins — capped at level 10)*
+
+Raises the Jackpot proc rate above the default 1%. Each level adds **+0.2 percentage points**, hard-capped at **3%** at level 10. Requires Jackpot to be owned.
+
+| Level | Cost (Wins) | Jackpot proc rate |
+|-------|-------------|-------------------|
+| 1 | 5,000,000 | 1.2% |
+| 2 | 10,000,000 | 1.4% |
+| 3 | 20,000,000 | 1.6% |
+| 4–9 | 40,000,000 × 1.50^(n) | +0.2% per level |
+| 10 (MAX) | — | 3.0% |
+
+A Jackpot-heavy build pairs most naturally with Win Power (Jackpot triggers at 25× the current win value, not bonus). This creates a build where Win Power outperforms the old 3:5 recipe — a genuinely different optimum.
+
+#### 🔊 Echo Amplification *(costs Wins — capped at level 10)*
+
+Raises the Win Echo proc rate above the default 20%. Each level adds **+2 percentage points**, hard-capped at **40%** at level 10. Requires Win Echo to be owned.
+
+| Level | Cost (Wins) | Win Echo proc rate |
+|-------|-------------|-------------------|
+| 1 | 2,000,000 | 22% |
+| 2 | 5,000,000 | 24% |
+| 3 | 12,000,000 | 26% |
+| 4–9 | 25,000,000 × 1.40^(n) | +2% per level |
+| 10 (MAX) | — | 40% |
+
+Echo Amplification benefits both Win Power and Bonus Power proportionally — investing here is a "both" multiplier that competes for the same win budget as the other paths, adding a genuine opportunity cost to every spending decision.
+
+#### ⚡ Proc Streak *(costs Wins — capped at level 15)*
+
+Amplifies proc'd payouts when consecutive procs happen. Every time a Jackpot, Win Echo, or Fortune Charm fires on consecutive wins, a hidden counter increments. The counter resets on any win without a proc (losses leave it unchanged). The bonus multiplier applied to all proc'd payouts is:
+
+```
+multiplier = 1.0 + (streak_count × level × 0.005)
+```
+
+So at level 5 with a proc streak of 10, every proc fires at **×1.25** on top of its normal effect. Requires at least one proc upgrade to be owned (Jackpot, Win Echo, or Fortune Charm).
+
+| Level | Cost (Wins) | Bonus at streak 10 | Bonus at streak 20 |
+|-------|-------------|-------------------|-------------------|
+| 1 | 3,000,000 | ×1.05 | ×1.10 |
+| 3 | 8,000,000 | ×1.15 | ×1.30 |
+| 5 | 20,000,000 | ×1.25 | ×1.50 |
+| 10 | 50,000,000 × 1.50^(n) | ×1.50 | ×2.00 |
+| 15 (MAX) | — | ×1.75 | ×2.50 |
+
+This upgrade rewards players who build around proc rate (Jackpot Resonance + Echo Amplification + Moon Class) and sustain long proc chains.
+
+#### Proc Streak Counter
+
+When Proc Streak is owned (level ≥ 1), a **⚡ counter** appears in the left sidebar showing the current consecutive proc streak — displayed the same way the Lucky Seven spin counter is shown. It updates live on every spin result and disappears when the streak resets to zero.
+
+---
+
+### 🌌 Class System
+
+Three equippable classes have been added to the top of the shop, each priced at **10,000,000 Wins** and gated behind Tier 3 (5,000 total wins). All three can be purchased and owned simultaneously — only **one can be equipped at a time**. Equipping a new class automatically replaces the previous one. Clicking an already-equipped class in the shop unequips it (returning to no class). Classes are functional, not cosmetic — their effects apply immediately on equip.
+
+| Class | Cost | Effect |
+|-------|------|--------|
+| 🌍 Earth | 10,000,000 wins | +25% to all fish income (manual reels and Auto-Fish) |
+| 🌙 Moon | 10,000,000 wins | +5% added to every proc rate (Jackpot, Win Echo, Fortune Charm) |
+| ⭐ Star | 10,000,000 wins | +20% applied to win multiplier payouts |
+
+**Earth** compounds with Lure Mastery — both stack multiplicatively on catch value, making Earth + Lure Mastery the natural anchor for a fish-economy build.
+
+**Moon** stacks directly on top of Jackpot Resonance and Echo Amplification proc rates, and also affects the base Fortune Charm rate. It is the natural class for a proc-chain build.
+
+**Star** is a flat boost to all winning spins regardless of streak, making it the cleanest cross-build option for players who haven't committed to a proc or fish path.
+
+Classes are equipped via the new `/api/equip-class` endpoint.
+
+---
+
+### 🔄 Fish Exchange
+
+A new **Fish Exchange** panel has been added to the shop's functional tab (visible when you have a Fish Bucks balance above zero). It converts Fish Bucks into Wins at a **1:1 ratio with gentle diminishing returns** — the more total Fish Bucks you have ever exchanged, the slightly worse your conversion rate becomes.
+
+**Rate formula:**
+```
+rate = 1.0 / (1 + total_exchanged / 50,000,000)
+```
+
+At zero total exchanged, the rate is 1:1. At 50 million total exchanged (ever), the rate halves to 0.5:1. At 150 million total exchanged, the rate is 0.25:1. The rate never reaches zero and is personal — it doesn't interact with other players.
+
+Two buttons are available:
+- **10%** — converts 10% of your current Fish Bucks balance.
+- **ALL** — converts your entire Fish Bucks balance.
+
+The current effective rate is shown before confirming so there are no surprises. This gives players with large fishing surpluses (particularly those who have unlocked Master Lure + Lure Mastery) a meaningful outlet for excess Fish Bucks, and introduces genuine cross-economy competition: fish income can now feed the wins economy.
+
+---
+
+### Balance: Bonus Power Rebalance
+
+The Bonus Power multiplier curve has been adjusted at two points to reduce the dominance of the ~3:5 Win:Bonus ratio that defined last season's top builds.
+
+**What changed:**
+
+The fixed tier cap at level 6 has been reduced from ×100 to **×70**. Beyond level 6, the per-level increment has been reduced from +10 to **+8** for levels 7–30, and then to **+5** per level past level 30.
+
+| Level | Old multiplier | New multiplier |
+|-------|---------------|---------------|
+| 1 | ×2 | ×2 |
+| 2 | ×4 | ×4 |
+| 3 | ×8 | ×8 |
+| 4 | ×15 | ×15 |
+| 5 | ×35 | ×35 |
+| 6 | ×100 | **×70** |
+| 10 | ×140 | **×102** |
+| 20 | ×240 | **×182** |
+| 30 | ×340 | **×262** |
+| 40 | ×440 | **×312** |
+
+The early curve (levels 1–5) is completely unchanged. The reduction only bites at level 6 and beyond — players who stopped investing in Bonus Power early won't notice a difference. The change is forward-looking: new levels bought in Season 7 return less than they would have last season, which opens the field for Jackpot Resonance, Echo Amplification, and Proc Streak to compete credibly for the same win budget.
+
+---
+
+### Database
+
+Migration `025_season7_upgrades.sql` adds seven new columns to `game_state`:
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `lure_mastery_level` | INTEGER | Lure Mastery infinite level |
+| `jackpot_resonance_level` | INTEGER | Jackpot Resonance infinite level |
+| `echo_amp_level` | INTEGER | Echo Amplification infinite level |
+| `proc_streak_level` | INTEGER | Proc Streak infinite level |
+| `proc_streak` | INTEGER | Current consecutive proc streak count |
+| `fish_exchange_total` | BIGINT | Lifetime Fish Bucks exchanged (feeds the rate formula) |
+| `equipped_class` | VARCHAR(10) | Currently equipped class (`earth`, `moon`, `star`, or NULL) |
+
+All new columns reset to their defaults at season rollover.
+
+---
+
 ## Season 6 — Night Ocean — 17 Apr 2026
 
 Season 6 overhauls fishing, balance, and the UI theme. The passive fish-clicking mechanic is replaced with an active **Cast & Reel** minigame; ability costs are significantly repriced to match the new economy; and the entire colour system is now driven by a CSS palette that carries forward cleanly into future seasons.

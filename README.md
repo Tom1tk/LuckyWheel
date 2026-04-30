@@ -57,7 +57,8 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - Seasons track per-user win/loss history and freeze a top-5 leaderboard snapshot at end-of-season
 - **Season History** — users can view their final wins and finishing positions for all past seasons in the stats popup
 - Season info shown in the UI; transitions announced via toast
-- The active leaderboard (bottom-left) displays the top 10 players, including their current and all-time best streaks.
+- The active leaderboard (bottom-left) displays the top 10 players, including their current and all-time best streaks
+- **Season 7 is open-ended** — no automatic reset. The "Season ends in" countdown shows **∞?** and seasons are advanced manually.
 
 ### Rising Fire Effect
 - A full-viewport canvas fire effect rises behind all game UI, scaling with win streak intensity
@@ -92,7 +93,7 @@ The shop is always visible as a two-column panel on the right side of the screen
 ### Currencies
 - **Wins**: Used for all functional upgrades and gameplay boosts.
 - **Losses**: Used for all cosmetic items (skins, trails, themes, backgrounds).
-- **Fish Clicks**: Used exclusively for The Singularity.
+- **Fish Bucks**: Used for Lure Mastery (infinite upgrade) and The Singularity. Can be converted to Wins via the Fish Exchange.
 
 ### Tier Gating (Season 5)
 Functional upgrades are gated behind total win milestones. Locked items appear greyed out with the required win count shown.
@@ -155,8 +156,11 @@ Multiplies streak bonus payouts — for both win streaks **and** loss streaks. �
 
 | Level range | Cost per level | Multiplier |
 |-------------|----------------|-----------|
-| Lv 1–6 | 300 / 900 / 2,800 / 8,500 / 26,000 / 80,000 | ×2 → ×100 |
-| Lv 7+ | 200,000 × 1.18^(level−7) | +10 per level (×110, ×120, …) |
+| Lv 1–6 | 300 / 900 / 2,800 / 8,500 / 26,000 / 80,000 | ×2 → ×70 |
+| Lv 7–30 | 200,000 × 1.18^(level−7) | +8 per level (×78, ×86, … ×262) |
+| Lv 31+ | continues at same scaling | +5 per level (×267, ×272, …) |
+
+*Season 7: level 6 cap reduced from ×100 → ×70; post-tier scaling reduced from +10/level to +8/level (levels 7–30) then +5/level (levels 31+).*
 
 ### Fish Size (Costs Losses)
 | Tier | Cost | Fish Size |
@@ -301,12 +305,30 @@ All Special Upgrades require Tier 3 (5,000 total wins) to unlock.
 |------|------|--------|
 | 🍀 Fortune Charm | 1,000,000 | All streak bonuses are increased by 25% |
 | 7️⃣ Lucky Seven | 7,000,000 | Every 7th spin is guaranteed to win |
-| 🔊 Win Echo | 1,000,000 | 20% chance each win is doubled |
+| 🔊 Win Echo | 1,000,000 | 20% → 40% chance each win is doubled (upgradeable via Echo Amplification) |
 | 💪 Resilience | 10,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% base chance) |
-| 🎰 Jackpot | 3,000,000 | 1% chance each win multiplies all gains by 25×. 5% chance for Jackpot Echo (triggers again next spin) |
+| 🎰 Jackpot | 3,000,000 | 1% → 3% chance each win multiplies all gains by 25×. 5% chance for Jackpot Echo (upgradeable via Jackpot Resonance) |
 | 🛡️ Streak Armor | 500,000–2,750,000 | Infinite upgrade (10 levels). Requires Resilience. +1% to Resilience save chance per level (50% → 60% max) |
+| 🎣 Lure Mastery | 5,000–1,500,000+ Fish Bucks | Infinite upgrade (no cap). +10% to all fish catch value per level, stacking on top of Master Lure's 20× |
+| 🎰 Jackpot Resonance | 5,000,000–40,000,000+ Wins | Infinite upgrade (10 levels max). Requires Jackpot. +0.2% jackpot proc rate per level (1% → 3%) |
+| 🔊 Echo Amplification | 2,000,000–25,000,000+ Wins | Infinite upgrade (10 levels max). Requires Win Echo. +2% echo proc rate per level (20% → 40%) |
+| ⚡ Proc Streak | 3,000,000–50,000,000+ Wins | Infinite upgrade (15 levels max). Requires any proc upgrade. Multiplies proc payouts by (1 + streak × level × 0.005). Counter shown in sidebar. |
 
-### 🌌 Legendary (Costs Fish Clicks)
+### 🌌 Class System (Costs Wins — Tier 3)
+Each class costs **10,000,000 Wins**. All three can be owned simultaneously; only one can be equipped at a time. Equipping a new class replaces the previous one. Toggle equip by clicking an already-equipped class.
+
+| Class | Effect |
+|-------|--------|
+| 🌍 Earth | +25% to all fish income (manual reels and Auto-Fish) |
+| 🌙 Moon | +5% added to every proc rate (Jackpot, Win Echo, Fortune Charm) |
+| ⭐ Star | +20% applied to all win multiplier payouts |
+
+### 🔄 Fish Exchange
+Converts Fish Bucks into Wins at a diminishing rate. Available in the shop's functional tab when Fish Bucks > 0. Two buttons: **10%** (10% of current balance) or **ALL** (entire balance).
+
+**Rate**: `1.0 / (1 + total_ever_exchanged / 50,000,000)` — starts at 1:1, halves at 50M lifetime exchanged, continues declining. The live rate is shown before each conversion.
+
+### 🌌 Legendary (Costs Fish Bucks)
 | Item | Cost | Effect |
 |------|------|--------|
 | The Singularity | 1,000,000,000 | Transcend reality. Every spin is a win. |
@@ -422,8 +444,9 @@ wheel-app/
 ├── app.py             # Flask app factory: config, extensions, blueprints, error handlers
 ├── auth.py            # Blueprint: /api/me, /api/register, /api/login, /api/logout
 ├── game.py            # Blueprint: /api/state, /api/spin, /api/buy, /api/equip,
-│                      #            /api/equip-cosmetic, /api/fish-click,
-│                      #            /api/click-frenzy, /api/stats, /api/leaderboard, /api/health
+│                      #            /api/equip-cosmetic, /api/equip-class, /api/fish-click,
+│                      #            /api/click-frenzy, /api/fish-exchange,
+│                      #            /api/stats, /api/leaderboard, /api/health
 ├── db.py              # psycopg2 ThreadedConnectionPool + db_connection() context manager
 ├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, INFINITE_UPGRADES, helper functions
 ├── security.py        # check_lockout(), record_attempt(), clear_attempts(), require_json()
@@ -475,6 +498,8 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/settings` | POST | — | Persist user preferences (e.g. `low_spec_mode`) |
 | `/api/stats` | GET | — | Personal stats (including Season History and fastest catch %) |
 | `/api/leaderboard` | GET | — | Public — top 10 players |
+| `/api/equip-class` | POST | — | Equip or unequip a class item (`{"item_id": "class_earth"}`) |
+| `/api/fish-exchange` | POST | — | Convert Fish Bucks → Wins (`{"mode": "10pct"}` or `{"mode": "all"}`) |
 
 `/api/spin` response:
 ```json
@@ -499,7 +524,8 @@ All game endpoints require authentication (session cookie). POST endpoints requi
   "resilience_triggered": false,
   "lucky_seven_triggered": false,
   "fortune_charm_triggered": false,
-  "auto_guard_failed": false
+  "auto_guard_failed": false,
+  "proc_streak": 3
 }
 ```
 

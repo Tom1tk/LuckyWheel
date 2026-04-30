@@ -2659,32 +2659,13 @@ function SeasonWinners({
 
 // ── Season Info ───────────────────────────────────────────────────────────
 function SeasonInfo({
-  seasonNumber,
-  endsAt
+  seasonNumber
 }) {
-  const [timeLeft, setTimeLeft] = useState('');
-  useEffect(() => {
-    if (!endsAt) return;
-    const update = () => {
-      const diff = new Date(endsAt) - new Date();
-      if (diff <= 0) {
-        setTimeLeft('Ending...');
-        return;
-      }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor(diff % 86400000 / 3600000);
-      const m = Math.floor(diff % 3600000 / 60000);
-      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`);
-    };
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, [endsAt]);
   return /*#__PURE__*/React.createElement("div", {
     className: "season-info"
-  }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonNumber, " ends:"), timeLeft && /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonNumber, " ends:"), /*#__PURE__*/React.createElement("span", {
     className: "season-countdown"
-  }, timeLeft));
+  }, "\u221E?"));
 }
 
 // ── Hiatus Screen ────────────────────────────────────────────────────────
@@ -5327,9 +5308,15 @@ function GameApp({
     className: "casino-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "casino-title"
-  }, "Lucky Wheel"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "title-lucky-wrap"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "title-lucky"
+  }, "Lucky"), /*#__PURE__*/React.createElement("span", {
+    className: "title-endless"
+  }, "ENDLESS")), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
-  }, "Try Your Fortune")), /*#__PURE__*/React.createElement("div", {
+  }, "Where we're going, we won't need luck to win")), /*#__PURE__*/React.createElement("div", {
     className: `wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "pointer"
