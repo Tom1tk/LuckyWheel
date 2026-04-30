@@ -2806,6 +2806,30 @@ function StatsPanel({ open, onClose }) {
   );
 }
 
+// ── Patch Notes Panel ──────────────────────────────────────────────────────
+function PatchNotesPanel({ open, onClose }) {
+  const [md, setMd] = useState(null);
+  useEffect(() => {
+    if (!open || md !== null) return;
+    apiFetch('/api/patch-notes').then(r => { if (r.ok) setMd(r.data.content); });
+  }, [open]);
+  if (!open) return null;
+  const html = md != null ? window.marked.parse(md) : null;
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="patch-notes-card" onClick={e => e.stopPropagation()}>
+        <div className="stats-title">📋 Patch Notes</div>
+        <button className="stats-close-btn" onClick={onClose}>✕</button>
+        <div className="patch-notes-body">
+          {html
+            ? <div className="patch-notes-content" dangerouslySetInnerHTML={{ __html: html }} />
+            : <div className="stats-loading">Loading…</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Auth Page ──────────────────────────────────────────────────────────────
 function AuthPage({ onAuth }) {
   const [mode, setMode] = useState('login');
@@ -3002,6 +3026,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
   const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
   const [showStats, setShowStats]     = useState(false);
+  const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 1_000, filled: false, active: false, win_chance_pct: 50.0 });
@@ -3178,6 +3203,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [season ? season.season_number : null]); // eslint-disable-line
 
   useEffect(() => {
+    if (!season) return;
+    const key = `patchNotesSeen_s${season.season_number}`;
+    if (!localStorage.getItem(key)) {
+      setShowPatchNotes(true);
+    }
+  }, [season ? season.season_number : null]); // eslint-disable-line
+
+  useEffect(() => {
     const classes = [bgClass, pageThemeClass].filter(Boolean).join(' ');
     document.body.className = classes;
     return () => { document.body.className = ''; };
@@ -3193,6 +3226,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
+
+  const handleClosePatchNotes = useCallback(() => {
+    setShowPatchNotes(false);
+    if (season) localStorage.setItem(`patchNotesSeen_s${season.season_number}`, '1');
+  }, [season]);
 
   const handleBuy = useCallback(async (id) => {
     const { ok, data } = await apiGame('/api/buy', {
@@ -3521,6 +3559,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   return (
     <div className={lowSpec ? 'low-spec' : ''}>
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
+      <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
       {toast && <div className="toast-notification">{toast}</div>}
       {happyHour && (
         <div className="happy-hour-banner">
@@ -3590,14 +3629,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             style={{ opacity: showChat ? 1 : 0.5 }}
           >💬</button>
         )}
-        <a
-          className="stats-btn"
-          href="https://github.com/Tom1tk/fishspin/wiki/Patch-Notes"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Patch Notes"
-          style={{ textDecoration: 'none' }}
-        >📋</a>
+        <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         <CommunityPot
           pot={communityPot}

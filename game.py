@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import os
 import random
 import secrets
 from datetime import timezone, timedelta
@@ -1982,7 +1983,7 @@ def fish_exchange():
                     (new_fish, wins_earned, new_exchange_total, current_user.id),
                 )
                 cur.execute('SELECT wins FROM game_state WHERE user_id = %s', (current_user.id,))
-                updated_wins = cur.fetchone()['wins']
+                updated_wins = cur.fetchone()[0]
             conn.commit()
 
         return jsonify({
@@ -2169,6 +2170,19 @@ def leaderboard():
     except Exception:
         log.exception('LEADERBOARD_ERROR')
         return jsonify([])
+
+
+@game_bp.route('/api/patch-notes')
+def get_patch_notes():
+    """Public endpoint that returns raw PATCH_NOTES.md content."""
+    try:
+        notes_path = os.path.join(os.path.dirname(__file__), 'PATCH_NOTES.md')
+        with open(notes_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return jsonify({'content': content})
+    except Exception:
+        log.exception('PATCH_NOTES_ERROR')
+        return jsonify({'error': 'Failed to load patch notes'}), 500
 
 
 @game_bp.route('/api/season')
