@@ -4316,6 +4316,43 @@ function StatsPanel({
   }, "\u2715")));
 }
 
+// ── Patch Notes Panel ──────────────────────────────────────────────────────
+function PatchNotesPanel({
+  open,
+  onClose
+}) {
+  const [md, setMd] = useState(null);
+  useEffect(() => {
+    if (!open || md !== null) return;
+    apiFetch('/api/patch-notes').then(r => {
+      if (r.ok) setMd(r.data.content);
+    });
+  }, [open]);
+  if (!open) return null;
+  const html = md != null ? window.marked.parse(md) : null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "stats-overlay",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "patch-notes-card",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stats-title"
+  }, "\uD83D\uDCCB Patch Notes"), /*#__PURE__*/React.createElement("button", {
+    className: "stats-close-btn",
+    onClick: onClose
+  }, "\u2715"), /*#__PURE__*/React.createElement("div", {
+    className: "patch-notes-body"
+  }, html ? /*#__PURE__*/React.createElement("div", {
+    className: "patch-notes-content",
+    dangerouslySetInnerHTML: {
+      __html: html
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "stats-loading"
+  }, "Loading\u2026"))));
+}
+
 // ── Auth Page ──────────────────────────────────────────────────────────────
 function AuthPage({
   onAuth
@@ -4584,6 +4621,7 @@ function GameApp({
   const [procStreak, setProcStreak] = useState(gameState.proc_streak || 0);
   const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
   const [showStats, setShowStats] = useState(false);
+  const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || {
@@ -4755,6 +4793,14 @@ function GameApp({
   }, [season ? season.season_number : null]); // eslint-disable-line
 
   useEffect(() => {
+    if (!season) return;
+    const key = `patchNotesSeen_s${season.season_number}`;
+    if (!localStorage.getItem(key)) {
+      setShowPatchNotes(true);
+    }
+  }, [season ? season.season_number : null]); // eslint-disable-line
+
+  useEffect(() => {
     const classes = [bgClass, pageThemeClass].filter(Boolean).join(' ');
     document.body.className = classes;
     return () => {
@@ -4770,6 +4816,10 @@ function GameApp({
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
+  const handleClosePatchNotes = useCallback(() => {
+    setShowPatchNotes(false);
+    if (season) localStorage.setItem(`patchNotesSeen_s${season.season_number}`, '1');
+  }, [season]);
   const handleBuy = useCallback(async id => {
     const {
       ok,
@@ -5132,6 +5182,9 @@ function GameApp({
   }, /*#__PURE__*/React.createElement(StatsPanel, {
     open: showStats,
     onClose: () => setShowStats(false)
+  }), /*#__PURE__*/React.createElement(PatchNotesPanel, {
+    open: showPatchNotes,
+    onClose: handleClosePatchNotes
   }), toast && /*#__PURE__*/React.createElement("div", {
     className: "toast-notification"
   }, toast), happyHour && /*#__PURE__*/React.createElement("div", {
@@ -5206,15 +5259,10 @@ function GameApp({
     style: {
       opacity: showChat ? 1 : 0.5
     }
-  }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("a", {
+  }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
-    href: "https://github.com/Tom1tk/fishspin/wiki/Patch-Notes",
-    target: "_blank",
-    rel: "noopener noreferrer",
     title: "Patch Notes",
-    style: {
-      textDecoration: 'none'
-    }
+    onClick: () => setShowPatchNotes(true)
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
     className: "logout-btn",
     onClick: handleLogout
