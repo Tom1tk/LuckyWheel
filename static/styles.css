@@ -2292,6 +2292,21 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   font-size: 0.72rem;
   padding: 6px 8px;
 }
+.wins-exchange-panel {
+  background: rgba(40,28,0,0.55);
+  border: 1px solid rgba(255,200,50,0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wins-exchange-desc {
+  font-size: 0.75rem;
+  color: rgba(255,220,120,0.85);
+  line-height: 1.4;
+}
 
 /* ── Leaderboard WP/BP columns ─────────────────────────────────────────── */
 .lb-wp-h, .lb-bp-h, .lb-wp, .lb-bp {

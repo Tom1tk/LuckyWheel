@@ -2529,6 +2529,14 @@ const getItemCurrency = id => {
 };
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
+// Linear decay: 1:1 for first 25M exchanged, linearly down to 10% by 125M
+function computeFishExchangeRate(total) {
+  if (total < 25_000_000)  return 100;
+  if (total >= 125_000_000) return 10;
+  const t = (total - 25_000_000) / 100_000_000;
+  return Math.round(Math.max(10, 100 - 90 * t));
+}
+
 // ── Shop components ────────────────────────────────────────────────────────
 const CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
 
@@ -2604,7 +2612,7 @@ const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Tr
 // Season 5 tier thresholds
 const TIER_THRESHOLDS = { 2: 1000, 3: 10000 };
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, equippedClass, fishExchangeTotal, collapsed, winCount, caughtSpecies, procStreak }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, winCount, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -2708,9 +2716,7 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
     </React.Fragment>
   );
 
-  const exchangeRate = fishExchangeTotal != null
-    ? Math.round(100 / (1.0 + fishExchangeTotal / 50_000_000))
-    : 100;
+  const exchangeRate = computeFishExchangeRate(fishExchangeTotal || 0);
 
   return (
     <div className={`shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`}>
@@ -2743,23 +2749,40 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         ) : (
           <>
             {functionalSections.map(renderSection)}
-            {fishClicks > 0 && (
+            {(fishClicks > 0 || wins > 0) && (
               <React.Fragment>
                 <div className="shop-section-label">── 🔄 Fish Exchange ──</div>
-                <div className="fish-exchange-panel">
-                  <div className="fish-exchange-desc">
-                    Convert 🐟 Fish Bucks → 🏆 Wins at ~{exchangeRate}¢ per buck
-                    {exchangeRate < 100 && <span className="fish-exchange-rate-warn"> (rate decays slowly with use)</span>}
+                {fishClicks > 0 && (
+                  <div className="fish-exchange-panel">
+                    <div className="fish-exchange-desc">
+                      Convert 🐟 Fish Bucks → 🏆 Wins at ~{exchangeRate}¢ per buck
+                      {exchangeRate < 100 && <span className="fish-exchange-rate-warn"> (1:1 for first 25M, then decays)</span>}
+                    </div>
+                    <div className="fish-exchange-buttons">
+                      <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('10pct')}>
+                        Exchange 10% ({fmt(Math.max(1, Math.floor(fishClicks / 10)))} 🐟)
+                      </button>
+                      <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('all')}>
+                        Exchange All ({fmt(fishClicks)} 🐟)
+                      </button>
+                    </div>
                   </div>
-                  <div className="fish-exchange-buttons">
-                    <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('10pct')}>
-                      Exchange 10% ({fmt(Math.max(1, Math.floor(fishClicks / 10)))} 🐟)
-                    </button>
-                    <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('all')}>
-                      Exchange All ({fmt(fishClicks)} 🐟)
-                    </button>
+                )}
+                {wins > 0 && (
+                  <div className="wins-exchange-panel">
+                    <div className="wins-exchange-desc">
+                      Convert 🏆 Wins → 🐟 Fish Bucks at 1:1
+                    </div>
+                    <div className="fish-exchange-buttons">
+                      <button className="shop-buy-btn can-afford" onClick={() => onWinsExchange('10pct')}>
+                        Exchange 10% ({fmt(Math.max(1, Math.floor(wins / 10)))} 🏆)
+                      </button>
+                      <button className="shop-buy-btn can-afford" onClick={() => onWinsExchange('all')}>
+                        Exchange All ({fmt(wins)} 🏆)
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </React.Fragment>
             )}
           </>
@@ -3325,6 +3348,20 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
+  const handleWinsExchange = useCallback(async (amountType) => {
+    const { ok, data } = await apiGame('/api/wins-exchange', {
+      method: 'POST',
+      body: JSON.stringify({ amount: amountType }),
+    });
+    if (ok) {
+      setWins(data.wins);
+      setFishClicks(data.fish_clicks);
+      showToast(`Exchanged ${fmt(data.wins_spent)} 🏆 → +${fmt(data.fish_earned)} 🐟`);
+    } else {
+      showToast(data.error || 'Exchange failed');
+    }
+  }, [showToast]);
+
   const handleDiceRoll = useCallback(async () => {
     if (diceRolling) return;
     setDiceRolling(true);
@@ -3870,6 +3907,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onEquipCosmetic={handleEquipCosmetic}
             onEquipClass={handleEquipClass}
             onFishExchange={handleFishExchange}
+            onWinsExchange={handleWinsExchange}
             equippedClass={equippedClass}
             fishExchangeTotal={fishExchangeTotal}
             collapsed={shopCollapsed}

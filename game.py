@@ -1971,9 +1971,15 @@ def fish_exchange():
 
             fish_to_exchange = max(1, fish_clicks // 10) if amount_type == '10pct' else fish_clicks
 
-            # Diminishing returns: very gentle decay — rate halves after 50M total exchanged
+            # Linear decay: 1:1 for first 25M exchanged, then decays to a 10% floor by 125M
             exchange_total = int(gs['fish_exchange_total'])
-            rate = 1.0 / (1.0 + exchange_total / 50_000_000)
+            if exchange_total < 25_000_000:
+                rate = 1.0
+            elif exchange_total < 125_000_000:
+                t = (exchange_total - 25_000_000) / 100_000_000
+                rate = max(0.10, 1.0 - 0.90 * t)
+            else:
+                rate = 0.10
             wins_earned = max(1, int(fish_to_exchange * rate))
 
             new_fish           = fish_clicks - fish_to_exchange
@@ -2000,6 +2006,58 @@ def fish_exchange():
         })
     except Exception:
         log.exception('FISH_EXCHANGE_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Exchange failed'}), 500
+
+
+@game_bp.route('/api/wins-exchange', methods=['POST'])
+@login_required
+@limiter.limit('5 per second')
+def wins_exchange():
+    err = require_json()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    amount_type = data.get('amount', '10pct')
+    if amount_type not in ('10pct', 'all'):
+        return jsonify({'error': 'Invalid amount type'}), 400
+
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT wins FROM game_state WHERE user_id = %s FOR UPDATE',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+
+            current_wins = int(gs['wins'])
+            if current_wins <= 0:
+                return jsonify({'error': 'No wins to exchange'}), 400
+
+            wins_to_exchange = max(1, current_wins // 10) if amount_type == '10pct' else current_wins
+            fish_earned = wins_to_exchange  # 1:1 rate
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET wins = wins - %s, fish_clicks = fish_clicks + %s
+                       WHERE user_id = %s''',
+                    (wins_to_exchange, fish_earned, current_user.id),
+                )
+                cur.execute('SELECT wins, fish_clicks FROM game_state WHERE user_id = %s', (current_user.id,))
+                row = cur.fetchone()
+                updated_wins, updated_fish = row[0], row[1]
+            conn.commit()
+
+        return jsonify({
+            'ok':          True,
+            'wins_spent':  wins_to_exchange,
+            'fish_earned': fish_earned,
+            'wins':        int(updated_wins),
+            'fish_clicks': int(updated_fish),
+        })
+    except Exception:
+        log.exception('WINS_EXCHANGE_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Exchange failed'}), 500
 
 

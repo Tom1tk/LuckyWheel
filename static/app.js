@@ -3955,6 +3955,14 @@ const getItemCurrency = id => {
 };
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
+// Linear decay: 1:1 for first 25M exchanged, linearly down to 10% by 125M
+function computeFishExchangeRate(total) {
+  if (total < 25_000_000) return 100;
+  if (total >= 125_000_000) return 10;
+  const t = (total - 25_000_000) / 100_000_000;
+  return Math.round(Math.max(10, 100 - 90 * t));
+}
+
 // ── Shop components ────────────────────────────────────────────────────────
 const CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
 const ShopItem = React.memo(function ShopItem({
@@ -4071,6 +4079,7 @@ function ShopPanel({
   onEquipCosmetic,
   onEquipClass,
   onFishExchange,
+  onWinsExchange,
   equippedClass,
   fishExchangeTotal,
   collapsed,
@@ -4218,7 +4227,7 @@ function ShopPanel({
       onEquipClass: onEquipClass
     });
   }));
-  const exchangeRate = fishExchangeTotal != null ? Math.round(100 / (1.0 + fishExchangeTotal / 50_000_000)) : 100;
+  const exchangeRate = computeFishExchangeRate(fishExchangeTotal || 0);
   return /*#__PURE__*/React.createElement("div", {
     className: `shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -4255,15 +4264,15 @@ function ShopPanel({
     onBuy: onBuy,
     onEquip: onEquip,
     onEquipCosmetic: onEquipCosmetic
-  })), cosmeticSections.map(renderSection)) : /*#__PURE__*/React.createElement(React.Fragment, null, functionalSections.map(renderSection), fishClicks > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  })), cosmeticSections.map(renderSection)) : /*#__PURE__*/React.createElement(React.Fragment, null, functionalSections.map(renderSection), (fishClicks > 0 || wins > 0) && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "shop-section-label"
-  }, "\u2500\u2500 \uD83D\uDD04 Fish Exchange \u2500\u2500"), /*#__PURE__*/React.createElement("div", {
+  }, "\u2500\u2500 \uD83D\uDD04 Fish Exchange \u2500\u2500"), fishClicks > 0 && /*#__PURE__*/React.createElement("div", {
     className: "fish-exchange-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "fish-exchange-desc"
   }, "Convert \uD83D\uDC1F Fish Bucks \u2192 \uD83C\uDFC6 Wins at ~", exchangeRate, "\xA2 per buck", exchangeRate < 100 && /*#__PURE__*/React.createElement("span", {
     className: "fish-exchange-rate-warn"
-  }, " (rate decays slowly with use)")), /*#__PURE__*/React.createElement("div", {
+  }, " (1:1 for first 25M, then decays)")), /*#__PURE__*/React.createElement("div", {
     className: "fish-exchange-buttons"
   }, /*#__PURE__*/React.createElement("button", {
     className: "shop-buy-btn can-afford",
@@ -4271,7 +4280,19 @@ function ShopPanel({
   }, "Exchange 10% (", fmt(Math.max(1, Math.floor(fishClicks / 10))), " \uD83D\uDC1F)"), /*#__PURE__*/React.createElement("button", {
     className: "shop-buy-btn can-afford",
     onClick: () => onFishExchange('all')
-  }, "Exchange All (", fmt(fishClicks), " \uD83D\uDC1F)")))))));
+  }, "Exchange All (", fmt(fishClicks), " \uD83D\uDC1F)"))), wins > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wins-exchange-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "wins-exchange-desc"
+  }, "Convert \uD83C\uDFC6 Wins \u2192 \uD83D\uDC1F Fish Bucks at 1:1"), /*#__PURE__*/React.createElement("div", {
+    className: "fish-exchange-buttons"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "shop-buy-btn can-afford",
+    onClick: () => onWinsExchange('10pct')
+  }, "Exchange 10% (", fmt(Math.max(1, Math.floor(wins / 10))), " \uD83C\uDFC6)"), /*#__PURE__*/React.createElement("button", {
+    className: "shop-buy-btn can-afford",
+    onClick: () => onWinsExchange('all')
+  }, "Exchange All (", fmt(wins), " \uD83C\uDFC6)")))))));
 }
 
 // ── Stats Panel ────────────────────────────────────────────────────────────
@@ -4927,6 +4948,24 @@ function GameApp({
       showToast(data.error || 'Exchange failed');
     }
   }, [showToast]);
+  const handleWinsExchange = useCallback(async amountType => {
+    const {
+      ok,
+      data
+    } = await apiGame('/api/wins-exchange', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: amountType
+      })
+    });
+    if (ok) {
+      setWins(data.wins);
+      setFishClicks(data.fish_clicks);
+      showToast(`Exchanged ${fmt(data.wins_spent)} 🏆 → +${fmt(data.fish_earned)} 🐟`);
+    } else {
+      showToast(data.error || 'Exchange failed');
+    }
+  }, [showToast]);
   const handleDiceRoll = useCallback(async () => {
     if (diceRolling) return;
     setDiceRolling(true);
@@ -5479,6 +5518,7 @@ function GameApp({
     onEquipCosmetic: handleEquipCosmetic,
     onEquipClass: handleEquipClass,
     onFishExchange: handleFishExchange,
+    onWinsExchange: handleWinsExchange,
     equippedClass: equippedClass,
     fishExchangeTotal: fishExchangeTotal,
     collapsed: shopCollapsed,
