@@ -3628,6 +3628,25 @@ body.page-season4 .mobile-toolbar-btn.active { color: #AA00FF; border-color: #AA
   padding-top: 14px;
 }
 
+.hiatus-preregistered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 14px;
+}
+.hiatus-preregistered-text {
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+  margin: 0;
+  font-family: inherit;
+  text-align: center;
+}
+.hiatus-preregistered-text strong { color: var(--p-lt, #b388ff); }
+
 .hiatus-countdown-label {
   font-size: 0.62rem;
   letter-spacing: 2px;
