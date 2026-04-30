@@ -2532,7 +2532,7 @@ const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '�
 // ── Shop components ────────────────────────────────────────────────────────
 const CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
 
-const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, onEquipClass, isSkin, isSingularity, isCosmetic, isClass, isClassEquipped, infLevel, displayCost }) {
+const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, onEquipClass, isSkin, isSingularity, isCosmetic, isClass, isClassEquipped, infLevel, displayCost, procStreak }) {
   const isInfinite = !!item.infinite;
   const cost = isInfinite ? displayCost : item.cost;
 
@@ -2572,13 +2572,17 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
         const cfg = INF_UPGRADE_CFG[item.id];
         const atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
         if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
+        if (item.id === 'proc_streak_inf') {
+          const streak = procStreak || 0;
+          const currentBonus = (streak * infLevel * 0.5).toFixed(1);
+          return `+${currentBonus}% now (streak ${streak} × Lv${infLevel}) · Lv${infLevel} → Lv${infLevel + 1}  ${item.desc}`;
+        }
         const cur = infMultiplier(item.id, infLevel);
         const nxt = infMultiplier(item.id, infLevel + 1);
         let sep = 'x';
         if (item.id === 'streak_armor_inf')      sep = '%';
         if (item.id === 'jackpot_resonance_inf') sep = '%';
         if (item.id === 'echo_amp_inf')          sep = '%';
-        if (item.id === 'proc_streak_inf')       sep = '';
         return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
       })()
     : item.desc;
@@ -2600,7 +2604,7 @@ const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Tr
 // Season 5 tier thresholds
 const TIER_THRESHOLDS = { 2: 1000, 3: 10000 };
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, equippedClass, fishExchangeTotal, collapsed, winCount, caughtSpecies }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, equippedClass, fishExchangeTotal, collapsed, winCount, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -2695,6 +2699,7 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
             canAfford={!atMaxLevel && balance >= displayCost}
             infLevel={infLevel}
             displayCost={atMaxLevel ? 0 : displayCost}
+            procStreak={procStreak}
             onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
             onEquipClass={onEquipClass}
           />
@@ -3870,6 +3875,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             collapsed={shopCollapsed}
             winCount={winCount}
             caughtSpecies={caughtSpecies}
+            procStreak={procStreak}
           />
         </div>
       </div>

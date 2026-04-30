@@ -3973,7 +3973,8 @@ const ShopItem = React.memo(function ShopItem({
   isClass,
   isClassEquipped,
   infLevel,
-  displayCost
+  displayCost,
+  procStreak
 }) {
   const isInfinite = !!item.infinite;
   const cost = isInfinite ? displayCost : item.cost;
@@ -4020,13 +4021,17 @@ const ShopItem = React.memo(function ShopItem({
     const cfg = INF_UPGRADE_CFG[item.id];
     const atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
     if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
+    if (item.id === 'proc_streak_inf') {
+      const streak = procStreak || 0;
+      const currentBonus = (streak * infLevel * 0.5).toFixed(1);
+      return `+${currentBonus}% now (streak ${streak} × Lv${infLevel}) · Lv${infLevel} → Lv${infLevel + 1}  ${item.desc}`;
+    }
     const cur = infMultiplier(item.id, infLevel);
     const nxt = infMultiplier(item.id, infLevel + 1);
     let sep = 'x';
     if (item.id === 'streak_armor_inf') sep = '%';
     if (item.id === 'jackpot_resonance_inf') sep = '%';
     if (item.id === 'echo_amp_inf') sep = '%';
-    if (item.id === 'proc_streak_inf') sep = '';
     return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
   })() : item.desc;
   return /*#__PURE__*/React.createElement("div", {
@@ -4070,7 +4075,8 @@ function ShopPanel({
   fishExchangeTotal,
   collapsed,
   winCount,
-  caughtSpecies
+  caughtSpecies,
+  procStreak
 }) {
   const [activeTab, setActiveTab] = useState('functional');
   const {
@@ -4205,6 +4211,7 @@ function ShopPanel({
       canAfford: !atMaxLevel && balance >= displayCost,
       infLevel: infLevel,
       displayCost: atMaxLevel ? 0 : displayCost,
+      procStreak: procStreak,
       onBuy: onBuy,
       onEquip: onEquip,
       onEquipCosmetic: onEquipCosmetic,
@@ -5476,7 +5483,8 @@ function GameApp({
     fishExchangeTotal: fishExchangeTotal,
     collapsed: shopCollapsed,
     winCount: winCount,
-    caughtSpecies: caughtSpecies
+    caughtSpecies: caughtSpecies,
+    procStreak: procStreak
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
   }, /*#__PURE__*/React.createElement("div", {
