@@ -4,17 +4,9 @@
 
 ## Season 7 — Endless — 1 May 2026
 
-Season 7 is built around one idea: **there is no single correct answer** to where you spend your next 100,000 wins. Last season the top players cracked a near-optimal 3:5 Bonus Power to Win Power ratio, and everyone else copying that recipe meant the season played out as a single-strategy race. Season 7 breaks the meta by adding four new infinite upgrade axes, a parallel fish economy with its own infinite path, a class system that skews your value curve from the moment you equip it, and a meaningful rebalance to Bonus Power's scaling curve so the old recipe stops being dominant.
+Season 7 is built around one idea: **there is no single correct answer** to where you spend your next 100,000 wins. Last season the top players cracked a near-optimal Bonus Power to Win Power ratio, and everyone else copying that recipe meant the season played out as a single-strategy race. Season 7 breaks the meta by adding four new infinite upgrade axes, a parallel fish economy with its own infinite path, a class system that skews your value curve from the moment you equip it, and a meaningful rebalance to Bonus Power's scaling curve so the old recipe stops being dominant.
 
-The season also has no scheduled end date. The "Season ends in" countdown has been replaced with **∞?** — seasons will be advanced manually when the time is right.
-
-### Title & Branding
-
-The main title has been updated to reflect the open-ended nature of Season 7. **"Lucky"** is struck through and overlaid with **ENDLESS** in bold red — only the word "Lucky" is affected; "Wheel" remains. The tagline has been changed from *"Try Your Fortune"* to *"Where we're going, we won't need luck to win"*.
-
-### Open-Ended Season Format
-
-The automatic Friday reset cron job has been removed. Seasons will now run until manually advanced. The season countdown in the top bar displays **∞?** rather than a live timer, styled identically to the previous badge. This removes the time pressure of a fixed weekly deadline and allows each season to run for as long as is appropriate.
+The season also has no scheduled end date - seasons will be advanced manually when the time is right. Don't worry, you'll get fair warning.
 
 ---
 
@@ -92,7 +84,7 @@ When Proc Streak is owned (level ≥ 1), a **⚡ counter** appears in the left s
 
 ### 🌌 Class System
 
-Three equippable classes have been added to the top of the shop, each priced at **10,000,000 Wins** and gated behind Tier 3 (5,000 total wins). All three can be purchased and owned simultaneously — only **one can be equipped at a time**. Equipping a new class automatically replaces the previous one. Clicking an already-equipped class in the shop unequips it (returning to no class). Classes are functional, not cosmetic — their effects apply immediately on equip.
+Three equippable classes have been added to the top of the shop, each priced at **10,000,000 Wins** and gated behind Tier 3 (5,000 total wins). All three can be purchased and owned simultaneously — only **one can be equipped at a time**. Equipping a new class automatically replaces the previous one. Clicking an already equipped class in the shop unequips it (returning to no class). Classes are functional, not cosmetic and their effects apply immediately on equip.
 
 | Class | Cost | Effect |
 |-------|------|--------|
