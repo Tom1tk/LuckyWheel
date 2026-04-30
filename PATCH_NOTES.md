@@ -24,13 +24,6 @@ Catch-up is capped at a full season week (100,800 spins) to keep things sane, bu
 
 Auto-Fish now runs on the same server-tick model. If you have an Auto-Fisher upgrade and Auto-Fish is enabled, fish catches are computed and awarded server-side every **6 seconds** — regardless of whether the page is open. Fish Bucks, species discoveries, and Encyclopaedia progress all accumulate while you're away, applying the same Lure, Earth Class, and Lure Mastery multipliers you have equipped.
 
-#### What this means for you
-
-- **No more dedicated spinning setups.** Last season the most competitive players ran the game in a persistent browser tab and maximised their spin rate with speed upgrades. That advantage is gone — the server sets the pace for everyone equally.
-- **The game plays itself between sessions.** Log in after a sleep and collect your accumulated wins. The streak will have been live the whole time — a lucky run while you were offline is as real as one you watched happen.
-- **Catch-up on reconnect.** If your streak breaks while you're offline, the server resolves it fairly. You'll come back to the actual outcome, not a frozen state.
-- **Fishing income is now truly passive.** With Auto-Fish enabled, Fish Bucks accumulate overnight. Combined with Lure Mastery and the Fish Exchange, fishing is a real parallel income source you can harvest each session.
-
 #### Spin Speed and Auto Speed upgrades removed
 
 Because spin rate is now fixed server-side at 3 seconds per spin, the following upgrades have been retired and removed from the shop:
@@ -40,8 +33,6 @@ Because spin rate is now fixed server-side at 3 seconds per spin, the following 
 **Auto Speed** — Quick Auto, Rapid Auto, Instant Auto
 
 These upgrades only ever changed the visual animation duration and the delay between client-triggered spins. With the server now driving all spin timing, they have no effect and no meaningful role. Removing them keeps the shop focused on choices that actually matter, and ensures no player can buy a spin-rate advantage over another.
-
-Players who owned any of these upgrades before Season 7 are unaffected by the removal — they simply no longer appear in the shop.
 
 ---
 
