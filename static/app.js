@@ -2398,13 +2398,26 @@ const LuckySevenCounter = React.memo(function LuckySevenCounter({
     className: `lucky-seven-pip${i <= progress ? ' filled' : ''}${i === 7 && progress === 0 && spinCount > 0 ? ' triggered' : ''}`
   })));
 });
+const ProcStreakCounter = React.memo(function ProcStreakCounter({
+  streak
+}) {
+  if (streak === 0) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "proc-streak-counter"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "proc-streak-label"
+  }, "\u26A1"), /*#__PURE__*/React.createElement("span", {
+    className: "proc-streak-value"
+  }, streak));
+});
 
 // ── Streak Panel ──────────────────────────────────────────────────────────
-// Must match models.py bonus_mult_from_level()
+// Must match models.py bonus_mult_from_level() (Season 7: C1+C2 curve)
 function bonusMultFromLevel(level) {
-  const fixed = [1, 2, 5, 10, 20, 50, 100];
+  const fixed = [1, 2, 4, 8, 15, 35, 70];
   if (level <= 6) return fixed[level] || 1;
-  return 100 + (level - 6) * 10;
+  if (level <= 30) return 70 + (level - 6) * 8;
+  return 262 + (level - 30) * 5;
 }
 const StreakPanel = React.memo(function StreakPanel({
   streak,
@@ -3344,6 +3357,31 @@ const FISH_SKINS = [{
   }
 }];
 const SHOP_SECTIONS = [{
+  label: '🪐 Class',
+  classSection: true,
+  items: [{
+    id: 'class_earth',
+    emoji: '🌍',
+    name: 'Earth',
+    cost: 10000000,
+    tier: 3,
+    desc: '+25% to all fish income while equipped'
+  }, {
+    id: 'class_moon',
+    emoji: '🌙',
+    name: 'Moon',
+    cost: 10000000,
+    tier: 3,
+    desc: '+5% to all proc rates (Jackpot, Win Echo, Fortune Charm) while equipped'
+  }, {
+    id: 'class_star',
+    emoji: '⭐',
+    name: 'Star',
+    cost: 10000000,
+    tier: 3,
+    desc: '+20% to Win Power payout while equipped'
+  }]
+}, {
   label: '💰 Win Power',
   items: [{
     id: 'winmult_inf',
@@ -3529,6 +3567,13 @@ const SHOP_SECTIONS = [{
     desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia',
     requires: 'precise_angler_2',
     encyclopaediaLocked: true
+  }, {
+    id: 'lure_mastery_inf',
+    emoji: '✨',
+    name: 'Lure Mastery',
+    cost: 0,
+    desc: '+10% fish value per level (stacks beyond Lure V cap) — costs 🐟 Fish Bucks',
+    infinite: true
   }]
 }, {
   label: '🛡️ Protection',
@@ -3786,6 +3831,27 @@ const SHOP_SECTIONS = [{
     cost: 0,
     desc: '+1% to Resilience save chance per level (base 50%, cap 60%)',
     infinite: true
+  }, {
+    id: 'jackpot_resonance_inf',
+    emoji: '🎰',
+    name: 'Jackpot Resonance',
+    cost: 0,
+    desc: 'Raises Jackpot proc rate: 1% → up to 3% cap (level 10)',
+    infinite: true
+  }, {
+    id: 'echo_amp_inf',
+    emoji: '🔊',
+    name: 'Echo Amplification',
+    cost: 0,
+    desc: 'Raises Win Echo proc rate: 20% → up to 40% cap (level 10)',
+    infinite: true
+  }, {
+    id: 'proc_streak_inf',
+    emoji: '⚡',
+    name: 'Proc Streak',
+    cost: 0,
+    desc: "Amplifies proc payouts by +0.5% per consecutive proc'd win per level",
+    infinite: true
   }]
 }, {
   label: '🌌 Legendary',
@@ -3820,30 +3886,59 @@ const INF_UPGRADE_CFG = {
     infBase: 999_999_999,
     infScale: 1.0,
     maxLevel: 10
+  },
+  lure_mastery_inf: {
+    tierCosts: [5000, 25000, 100000, 400000],
+    infBase: 1_500_000,
+    infScale: 1.25
+  },
+  jackpot_resonance_inf: {
+    tierCosts: [5000000, 10000000, 20000000],
+    infBase: 40_000_000,
+    infScale: 1.50,
+    maxLevel: 10
+  },
+  echo_amp_inf: {
+    tierCosts: [2000000, 5000000, 12000000],
+    infBase: 25_000_000,
+    infScale: 1.40,
+    maxLevel: 10
+  },
+  proc_streak_inf: {
+    tierCosts: [3000000, 8000000, 20000000],
+    infBase: 50_000_000,
+    infScale: 1.50,
+    maxLevel: 15
   }
 };
 function infCost(id, level) {
+  const cfg = INF_UPGRADE_CFG[id];
+  if (!cfg) return 0;
   const {
     tierCosts,
     infBase,
     infScale
-  } = INF_UPGRADE_CFG[id];
+  } = cfg;
   if (level < tierCosts.length) return tierCosts[level];
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
 function infMultiplier(id, level) {
-  if (id === 'streak_armor_inf') {
-    return Math.min(50 + level, 60); // resilience % chance
-  }
+  if (id === 'streak_armor_inf') return Math.min(50 + level, 60); // resilience %
+  if (id === 'lure_mastery_inf') return 1 + level * 0.10; // fish value multiplier
+  if (id === 'jackpot_resonance_inf') return parseFloat((Math.min(0.01 + level * 0.002, 0.03) * 100).toFixed(1)); // jackpot %
+  if (id === 'echo_amp_inf') return parseFloat((Math.min(0.20 + level * 0.02, 0.40) * 100).toFixed(0)); // echo %
+  if (id === 'proc_streak_inf') return level; // streak level
   if (id === 'winmult_inf') {
     if (level <= 0) return 1;
     if (level <= 7) return Math.pow(2, level);
     return 128 + (level - 7) * 16;
   }
   if (id === 'bonusmult_inf') {
-    const fixed = [1, 2, 5, 10, 20, 50, 100];
-    if (level <= 6) return fixed[level];
-    return 100 + (level - 6) * 10;
+    // Season 7: flatter early (C2), slower past level 30 (C1)
+    const fixed = [1, 2, 4, 8, 15, 35, 70];
+    if (level <= 6) return fixed[level] || 1;
+    if (level <= 30) return 70 + (level - 6) * 8;
+    return 262 + (level - 30) * 5;
   }
   if (id === 'clickmult_inf') return 1 + level * 0.25;
   return 1;
@@ -3863,10 +3958,15 @@ const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
 const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
-const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
+const getItemCurrency = id => {
+  if (id === 'singularity' || id === 'lure_mastery_inf') return 'fish_clicks';
+  if (COSMETIC_IDS.has(id)) return 'losses';
+  return 'wins';
+};
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
 // ── Shop components ────────────────────────────────────────────────────────
+const CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
 const ShopItem = React.memo(function ShopItem({
   item,
   owned,
@@ -3876,9 +3976,12 @@ const ShopItem = React.memo(function ShopItem({
   onBuy,
   onEquip,
   onEquipCosmetic,
+  onEquipClass,
   isSkin,
   isSingularity,
   isCosmetic,
+  isClass,
+  isClassEquipped,
   infLevel,
   displayCost
 }) {
@@ -3890,6 +3993,13 @@ const ShopItem = React.memo(function ShopItem({
       className: `shop-buy-btn ${canAfford ? 'can-afford' : 'cant-afford'}`,
       onClick: () => canAfford && onBuy(item.id, cost)
     }, "Buy");
+  } else if (owned && isClass) {
+    actionEl = isClassEquipped ? /*#__PURE__*/React.createElement("span", {
+      className: "shop-equipped-badge"
+    }, "\u2B50 Equipped") : /*#__PURE__*/React.createElement("button", {
+      className: "shop-equip-btn",
+      onClick: () => onEquipClass(item.id)
+    }, "Equip");
   } else if (owned && isSkin) {
     actionEl = equipped ? /*#__PURE__*/React.createElement("span", {
       className: "shop-equipped-badge"
@@ -3922,7 +4032,11 @@ const ShopItem = React.memo(function ShopItem({
     if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
     const cur = infMultiplier(item.id, infLevel);
     const nxt = infMultiplier(item.id, infLevel + 1);
-    const sep = item.id === 'streak_armor_inf' ? '%' : 'x';
+    let sep = 'x';
+    if (item.id === 'streak_armor_inf') sep = '%';
+    if (item.id === 'jackpot_resonance_inf') sep = '%';
+    if (item.id === 'echo_amp_inf') sep = '%';
+    if (item.id === 'proc_streak_inf') sep = '';
     return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
   })() : item.desc;
   return /*#__PURE__*/React.createElement("div", {
@@ -3960,6 +4074,10 @@ function ShopPanel({
   onBuy,
   onEquip,
   onEquipCosmetic,
+  onEquipClass,
+  onFishExchange,
+  equippedClass,
+  fishExchangeTotal,
   collapsed,
   winCount,
   caughtSpecies
@@ -3977,8 +4095,10 @@ function ShopPanel({
         const requiresMet = !item.requires || ownedItems.includes(item.requires);
         if (isCosmeticSection) return requiresMet;
         if (item.infinite) {
-          // streak_armor_inf requires resilience owned
           if (item.id === 'streak_armor_inf') return ownedItems.includes('resilience');
+          if (item.id === 'jackpot_resonance_inf') return ownedItems.includes('jackpot');
+          if (item.id === 'echo_amp_inf') return ownedItems.includes('win_echo');
+          if (item.id === 'proc_streak_inf') return ['jackpot', 'win_echo', 'fortune_charm'].some(x => ownedItems.includes(x));
           return requiresMet;
         }
         const isOwned = ownedItems.includes(item.id);
@@ -4079,12 +4199,16 @@ function ShopPanel({
         }
       }, fmt(winCount), "/", fmt(tierThreshold))));
     }
+    const isClass = CLASS_IDS.has(item.id);
+    const isClassEquipped = isClass && equippedClass === item.id.replace('class_', '');
     return /*#__PURE__*/React.createElement(ShopItem, {
       key: item.id,
       item: item,
       isSkin: false,
       isSingularity: item.id === 'singularity',
       isCosmetic: isCosmetic,
+      isClass: isClass,
+      isClassEquipped: isClassEquipped,
       owned: !item.infinite && ownedItems.includes(item.id),
       equipped: false,
       active: isCosmetic && activeCosmetics.includes(item.id),
@@ -4093,9 +4217,11 @@ function ShopPanel({
       displayCost: atMaxLevel ? 0 : displayCost,
       onBuy: onBuy,
       onEquip: onEquip,
-      onEquipCosmetic: onEquipCosmetic
+      onEquipCosmetic: onEquipCosmetic,
+      onEquipClass: onEquipClass
     });
   }));
+  const exchangeRate = fishExchangeTotal != null ? Math.round(100 / (1.0 + fishExchangeTotal / 50_000_000)) : 100;
   return /*#__PURE__*/React.createElement("div", {
     className: `shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -4132,7 +4258,23 @@ function ShopPanel({
     onBuy: onBuy,
     onEquip: onEquip,
     onEquipCosmetic: onEquipCosmetic
-  })), cosmeticSections.map(renderSection)) : functionalSections.map(renderSection)));
+  })), cosmeticSections.map(renderSection)) : /*#__PURE__*/React.createElement(React.Fragment, null, functionalSections.map(renderSection), fishClicks > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "shop-section-label"
+  }, "\u2500\u2500 \uD83D\uDD04 Fish Exchange \u2500\u2500"), /*#__PURE__*/React.createElement("div", {
+    className: "fish-exchange-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fish-exchange-desc"
+  }, "Convert \uD83D\uDC1F Fish Bucks \u2192 \uD83C\uDFC6 Wins at ~", exchangeRate, "\xA2 per buck", exchangeRate < 100 && /*#__PURE__*/React.createElement("span", {
+    className: "fish-exchange-rate-warn"
+  }, " (rate decays slowly with use)")), /*#__PURE__*/React.createElement("div", {
+    className: "fish-exchange-buttons"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "shop-buy-btn can-afford",
+    onClick: () => onFishExchange('10pct')
+  }, "Exchange 10% (", fmt(Math.max(1, Math.floor(fishClicks / 10))), " \uD83D\uDC1F)"), /*#__PURE__*/React.createElement("button", {
+    className: "shop-buy-btn can-afford",
+    onClick: () => onFishExchange('all')
+  }, "Exchange All (", fmt(fishClicks), " \uD83D\uDC1F)")))))));
 }
 
 // ── Stats Panel ────────────────────────────────────────────────────────────
@@ -4451,8 +4593,15 @@ function GameApp({
     winmult_inf: gameState.winmult_inf_level || 0,
     bonusmult_inf: gameState.bonusmult_inf_level || 0,
     clickmult_inf: gameState.clickmult_inf_level || 0,
-    streak_armor_inf: gameState.streak_armor_level || 0
+    streak_armor_inf: gameState.streak_armor_level || 0,
+    lure_mastery_inf: gameState.lure_mastery_level || 0,
+    jackpot_resonance_inf: gameState.jackpot_resonance_level || 0,
+    echo_amp_inf: gameState.echo_amp_level || 0,
+    proc_streak_inf: gameState.proc_streak_level || 0
   });
+  const [equippedClass, setEquippedClass] = useState(gameState.equipped_class || null);
+  const [procStreak, setProcStreak] = useState(gameState.proc_streak || 0);
+  const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
   const [showStats, setShowStats] = useState(false);
   const [toast, setToast] = useState(null);
   const [season, setSeason] = useState(gameState.season || null);
@@ -4601,8 +4750,16 @@ function GameApp({
           setInfLevels({
             winmult_inf: gs.data.winmult_inf_level || 0,
             bonusmult_inf: gs.data.bonusmult_inf_level || 0,
-            clickmult_inf: gs.data.clickmult_inf_level || 0
+            clickmult_inf: gs.data.clickmult_inf_level || 0,
+            streak_armor_inf: gs.data.streak_armor_level || 0,
+            lure_mastery_inf: gs.data.lure_mastery_level || 0,
+            jackpot_resonance_inf: gs.data.jackpot_resonance_level || 0,
+            echo_amp_inf: gs.data.echo_amp_level || 0,
+            proc_streak_inf: gs.data.proc_streak_level || 0
           });
+          setEquippedClass(gs.data.equipped_class || null);
+          setProcStreak(gs.data.proc_streak || 0);
+          setFishExchangeTotal(gs.data.fish_exchange_total || 0);
           if (gs.data.caught_species) setCaughtSpecies(gs.data.caught_species);
           setFishingLuckyNext(gs.data.fishing_lucky_next || false);
           if (gs.data.dice_charges != null) setDiceCharges(gs.data.dice_charges);
@@ -4650,12 +4807,16 @@ function GameApp({
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null) {
+      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null || data.lure_mastery_level != null || data.jackpot_resonance_level != null || data.echo_amp_level != null || data.proc_streak_level != null) {
         setInfLevels(prev => ({
           winmult_inf: data.winmult_inf_level ?? prev.winmult_inf,
           bonusmult_inf: data.bonusmult_inf_level ?? prev.bonusmult_inf,
           clickmult_inf: data.clickmult_inf_level ?? prev.clickmult_inf,
-          streak_armor_inf: data.streak_armor_level ?? prev.streak_armor_inf
+          streak_armor_inf: data.streak_armor_level ?? prev.streak_armor_inf,
+          lure_mastery_inf: data.lure_mastery_level ?? prev.lure_mastery_inf,
+          jackpot_resonance_inf: data.jackpot_resonance_level ?? prev.jackpot_resonance_inf,
+          echo_amp_inf: data.echo_amp_level ?? prev.echo_amp_inf,
+          proc_streak_inf: data.proc_streak_level ?? prev.proc_streak_inf
         }));
       }
     } else {
@@ -4685,6 +4846,39 @@ function GameApp({
       })
     });
     if (ok) setActiveCosmetics(data.active_cosmetics);else showToast(data.error || 'Equip failed');
+  }, [showToast]);
+  const handleEquipClass = useCallback(async classItemId => {
+    const isCurrentlyEquipped = equippedClass === classItemId.replace('class_', '');
+    const newClassId = isCurrentlyEquipped ? null : classItemId;
+    const {
+      ok,
+      data
+    } = await apiGame('/api/equip-class', {
+      method: 'POST',
+      body: JSON.stringify({
+        class_id: newClassId
+      })
+    });
+    if (ok) setEquippedClass(data.equipped_class);else showToast(data.error || 'Equip failed');
+  }, [equippedClass, showToast]);
+  const handleFishExchange = useCallback(async amountType => {
+    const {
+      ok,
+      data
+    } = await apiGame('/api/fish-exchange', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: amountType
+      })
+    });
+    if (ok) {
+      setFishClicks(data.fish_clicks);
+      setWins(data.wins);
+      setFishExchangeTotal(prev => prev + data.fish_spent);
+      showToast(`Exchanged ${fmt(data.fish_spent)} 🐟 → +${fmt(data.wins_earned)} 🏆`);
+    } else {
+      showToast(data.error || 'Exchange failed');
+    }
   }, [showToast]);
   const handleDiceRoll = useCallback(async () => {
     if (diceRolling) return;
@@ -4757,6 +4951,7 @@ function GameApp({
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
     setDiceRolledSinceSpin(false);
     if (data.wins_delta > 0) setWinCount(prev => prev + 1);
+    if (data.proc_streak != null) setProcStreak(data.proc_streak);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -4848,6 +5043,7 @@ function GameApp({
           if (data.state.win_count != null) setWinCount(data.state.win_count);
           if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
           if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+          if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
           setDiceRolledSinceSpin(false);
         }
         const hrs = Math.floor(data.elapsed_seconds / 3600);
@@ -5202,6 +5398,8 @@ function GameApp({
     className: "shield-indicator"
   }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
     spinCount: spinCount
+  }), infLevels.proc_streak_inf > 0 && /*#__PURE__*/React.createElement(ProcStreakCounter, {
+    streak: procStreak
   }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: infLevels.bonusmult_inf
@@ -5228,6 +5426,10 @@ function GameApp({
     onBuy: handleBuy,
     onEquip: handleEquip,
     onEquipCosmetic: handleEquipCosmetic,
+    onEquipClass: handleEquipClass,
+    onFishExchange: handleFishExchange,
+    equippedClass: equippedClass,
+    fishExchangeTotal: fishExchangeTotal,
     collapsed: shopCollapsed,
     winCount: winCount,
     caughtSpecies: caughtSpecies

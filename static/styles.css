@@ -2178,6 +2178,50 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
 }
 
+/* ── Proc Streak Counter ───────────────────────────────────────────────── */
+.proc-streak-counter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255,200,0,0.3);
+  flex-shrink: 0;
+  animation: streakEntrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.proc-streak-label { font-size: 0.85rem; }
+.proc-streak-value { font-size: 0.9rem; font-weight: 700; color: #ffe066; }
+
+/* ── Fish Exchange Panel ───────────────────────────────────────────────── */
+.fish-exchange-panel {
+  background: rgba(0,40,20,0.5);
+  border: 1px solid rgba(0,200,100,0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fish-exchange-desc {
+  font-size: 0.75rem;
+  color: rgba(180,240,200,0.85);
+  line-height: 1.4;
+}
+.fish-exchange-rate-warn { color: rgba(255,200,100,0.75); }
+.fish-exchange-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fish-exchange-buttons .shop-buy-btn {
+  flex: 1;
+  min-width: 120px;
+  font-size: 0.72rem;
+  padding: 6px 8px;
+}
+
 /* ── Leaderboard WP/BP columns ─────────────────────────────────────────── */
 .lb-wp-h, .lb-bp-h, .lb-wp, .lb-bp {
   font-size: 0.72rem;

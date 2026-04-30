@@ -13,6 +13,8 @@ from extensions import limiter
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
                     inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level,
+                    lure_mastery_mult, jackpot_pct, echo_amp_pct, proc_streak_mult,
+                    CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
                     UPGRADE_TIER_THRESHOLDS, item_tier,
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
@@ -98,6 +100,9 @@ def get_state():
                               active_cosmetics, spin_count, win_count,
                               winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
                               streak_armor_level, low_spec_mode,
+                              lure_mastery_level, jackpot_resonance_level,
+                              echo_amp_level, proc_streak_level, proc_streak,
+                              fish_exchange_total, equipped_class,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin,
                               fishing_lucky_next, caught_species,
@@ -143,11 +148,18 @@ def get_state():
             'spin_count':         gs['spin_count'],
             'win_count':          gs['win_count'],
             'season':             full_info,
-            'winmult_inf_level':   gs['winmult_inf_level'],
-            'bonusmult_inf_level': gs['bonusmult_inf_level'],
-            'clickmult_inf_level': gs['clickmult_inf_level'],
-            'streak_armor_level':  gs['streak_armor_level'],
-            'low_spec_mode':       gs['low_spec_mode'],
+            'winmult_inf_level':         gs['winmult_inf_level'],
+            'bonusmult_inf_level':       gs['bonusmult_inf_level'],
+            'clickmult_inf_level':       gs['clickmult_inf_level'],
+            'streak_armor_level':        gs['streak_armor_level'],
+            'lure_mastery_level':        gs['lure_mastery_level'],
+            'jackpot_resonance_level':   gs['jackpot_resonance_level'],
+            'echo_amp_level':            gs['echo_amp_level'],
+            'proc_streak_level':         gs['proc_streak_level'],
+            'proc_streak':               gs['proc_streak'],
+            'fish_exchange_total':       gs['fish_exchange_total'],
+            'equipped_class':            gs['equipped_class'],
+            'low_spec_mode':             gs['low_spec_mode'],
             'dice_charges':           dice_charges,
             'dice_last_recharge':     last_recharge.isoformat(),
             'jackpot_echo_next':      gs['jackpot_echo_next'],
@@ -208,6 +220,8 @@ def spin():
                     '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges, regen_recharge_wins,
                               spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
+                              jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
+                              equipped_class,
                               fish_clicks, active_cosmetics,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin, last_spin_at,
@@ -328,6 +342,20 @@ def spin():
             win_mult   = win_mult_from_level(gs['winmult_inf_level'])
             bonus_mult = bonus_mult_from_level(gs['bonusmult_inf_level'])
 
+            # Season 7 class effects
+            equipped_class   = gs['equipped_class']
+            moon_bonus       = CLASS_MOON_PROC_BONUS  if equipped_class == 'moon'  else 0.0
+            star_win_bonus   = CLASS_STAR_WIN_BONUS   if equipped_class == 'star'  else 0.0
+            effective_win_mult = win_mult * (1.0 + star_win_bonus)
+
+            # Season 7 proc-rate upgrades
+            _jackpot_chance = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
+            _echo_chance    = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
+            _charm_chance   = 0.25                                         + moon_bonus
+
+            # Proc streak tracking
+            current_proc_streak = gs['proc_streak']
+
             shield_used      = False
             shield_broke     = False
             shield_used_type = None
@@ -397,34 +425,48 @@ def spin():
                 count      = abs(new_streak)
                 raw_bonus  = streak_bonus(count)
                 base_bonus = raw_bonus * bonus_mult
-                # Fortune charm: +25% to all streak bonuses
-                if 'fortune_charm' in owned and base_bonus > 0 and random.random() < 0.25:
+                # Fortune charm: chance to +25% all streak bonuses (boosted by Moon class)
+                if 'fortune_charm' in owned and base_bonus > 0 and random.random() < _charm_chance:
                     base_bonus = int(base_bonus * 1.25)
                     fortune_charm_triggered = True
                 bonus_earned = base_bonus
+
+                any_proc_fired = False
+                _psmult = proc_streak_mult(gs['proc_streak_level'], current_proc_streak)
 
                 # Jackpot echo: trigger from previous spin's echo flag
                 if jackpot_echo_pending:
                     jackpot_echo_triggered = True
                     jackpot_hit = True
-                    new_wins += (win_mult + bonus_earned) * 25
-                    bonus_earned = (win_mult + bonus_earned) * 25 - win_mult
-                # Jackpot: 1% chance to multiply wins by 25
-                elif 'jackpot' in owned and random.random() < 0.01:
+                    raw_payout   = (effective_win_mult + bonus_earned) * 25
+                    boosted      = int(raw_payout * _psmult)
+                    new_wins    += boosted
+                    bonus_earned = boosted - effective_win_mult
+                    any_proc_fired = True
+                # Jackpot: chance to multiply wins by 25 (boosted by jackpot_resonance + Moon)
+                elif 'jackpot' in owned and random.random() < _jackpot_chance:
                     jackpot_hit = True
-                    new_wins += (win_mult + bonus_earned) * 25
-                    bonus_earned = (win_mult + bonus_earned) * 25 - win_mult
-                    # Jackpot Echo: 5% chance to trigger jackpot again next spin
+                    raw_payout   = (effective_win_mult + bonus_earned) * 25
+                    boosted      = int(raw_payout * _psmult)
+                    new_wins    += boosted
+                    bonus_earned = boosted - effective_win_mult
                     if random.random() < 0.05:
                         new_jackpot_echo_next = True
+                    any_proc_fired = True
                 else:
-                    # Win echo: 20% chance to double wins earned
-                    if 'win_echo' in owned and random.random() < 0.20:
+                    # Win echo: chance to double wins earned (boosted by echo_amp + Moon)
+                    if 'win_echo' in owned and random.random() < _echo_chance:
                         echo_triggered = True
-                        new_wins += (win_mult + bonus_earned) * 2
-                        bonus_earned = win_mult + bonus_earned  # extra portion shown as bonus
+                        raw_payout   = (effective_win_mult + bonus_earned) * 2
+                        boosted      = int(raw_payout * _psmult)
+                        new_wins    += boosted
+                        bonus_earned = boosted - effective_win_mult
+                        any_proc_fired = True
                     else:
-                        new_wins += win_mult + bonus_earned
+                        new_wins += int(effective_win_mult + bonus_earned)
+
+                # Proc streak: increment on any proc, reset on no-proc win
+                current_proc_streak = current_proc_streak + 1 if any_proc_fired else 0
 
             # Update best streak
             new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
@@ -453,7 +495,7 @@ def spin():
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
-                           jackpot_echo_next = %s,
+                           jackpot_echo_next = %s, proc_streak = %s,
                            dice_rolled_since_spin = FALSE,
                            last_spin_at = NOW(),
                            active_tab_id = %s, tab_last_seen = NOW()
@@ -463,7 +505,7 @@ def spin():
                      new_owned, new_spin_count, new_win_count, new_loss_count,
                      fish_clicks, active_cosmetics,
                      dice_charges, last_recharge,
-                     new_jackpot_echo_next,
+                     new_jackpot_echo_next, current_proc_streak,
                      req_tab_id or gs['active_tab_id'],
                      current_user.id),
                 )
@@ -496,6 +538,7 @@ def spin():
             'new_spin_count':          new_spin_count,
             'dice_charges':            dice_charges,
             'dice_last_recharge':      last_recharge.isoformat(),
+            'proc_streak':             current_proc_streak,
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -593,7 +636,10 @@ def tick():
                     '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges,
                               regen_recharge_wins, spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
+                              jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
+                              equipped_class,
                               fish_clicks, caught_species, active_cosmetics,
+                              lure_mastery_level,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin, pending_dice,
                               auto_spin_since, last_spin_at,
@@ -677,6 +723,17 @@ def tick():
             win_mult            = win_mult_from_level(gs['winmult_inf_level'])
             bonus_mult          = bonus_mult_from_level(gs['bonusmult_inf_level'])
             resilience_chance   = min(0.50 + gs['streak_armor_level'] * 0.01, 0.60)
+
+            # Season 7 — class and proc-rate upgrades
+            equipped_class      = gs['equipped_class']
+            moon_bonus          = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
+            star_win_bonus      = CLASS_STAR_WIN_BONUS  if equipped_class == 'star' else 0.0
+            effective_win_mult  = win_mult * (1.0 + star_win_bonus)
+            _jackpot_chance     = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
+            _echo_chance        = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
+            _charm_chance       = 0.25                                         + moon_bonus
+            _pstreak_level      = gs['proc_streak_level']
+            current_proc_streak = gs['proc_streak']
 
             # Dice recharge (computed once per tick from actual elapsed time)
             dice_charges  = gs['dice_charges']
@@ -780,29 +837,43 @@ def tick():
                     count      = abs(new_streak)
                     raw_bonus  = streak_bonus(count)
                     base_bonus = raw_bonus * bonus_mult
-                    if 'fortune_charm' in owned and base_bonus > 0 and random.random() < 0.25:
+                    if 'fortune_charm' in owned and base_bonus > 0 and random.random() < _charm_chance:
                         base_bonus = int(base_bonus * 1.25)
                         fortune_charm_triggered = True
                     bonus_earned = base_bonus
 
+                    any_proc_fired = False
+                    _psmult = proc_streak_mult(_pstreak_level, current_proc_streak)
+
                     if jackpot_echo_pending:
                         jackpot_echo_triggered = True
                         jackpot_hit = True
-                        current_wins += (win_mult + bonus_earned) * 25
-                        bonus_earned  = (win_mult + bonus_earned) * 25 - win_mult
-                    elif 'jackpot' in owned and random.random() < 0.01:
+                        raw_payout   = (effective_win_mult + bonus_earned) * 25
+                        boosted      = int(raw_payout * _psmult)
+                        current_wins += boosted
+                        bonus_earned  = boosted - effective_win_mult
+                        any_proc_fired = True
+                    elif 'jackpot' in owned and random.random() < _jackpot_chance:
                         jackpot_hit = True
-                        current_wins += (win_mult + bonus_earned) * 25
-                        bonus_earned  = (win_mult + bonus_earned) * 25 - win_mult
+                        raw_payout   = (effective_win_mult + bonus_earned) * 25
+                        boosted      = int(raw_payout * _psmult)
+                        current_wins += boosted
+                        bonus_earned  = boosted - effective_win_mult
                         if random.random() < 0.05:
                             jackpot_echo_next = True
+                        any_proc_fired = True
                     else:
-                        if 'win_echo' in owned and random.random() < 0.20:
+                        if 'win_echo' in owned and random.random() < _echo_chance:
                             echo_triggered = True
-                            current_wins += (win_mult + bonus_earned) * 2
-                            bonus_earned   = win_mult + bonus_earned
+                            raw_payout   = (effective_win_mult + bonus_earned) * 2
+                            boosted      = int(raw_payout * _psmult)
+                            current_wins += boosted
+                            bonus_earned  = boosted - effective_win_mult
+                            any_proc_fired = True
                         else:
-                            current_wins += win_mult + bonus_earned
+                            current_wins += int(effective_win_mult + bonus_earned)
+
+                    current_proc_streak = current_proc_streak + 1 if any_proc_fired else 0
 
                 new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
                 current_wins    = min(current_wins, _MAX_WINS)
@@ -840,6 +911,7 @@ def tick():
                         'new_spin_count':        new_spin_count,
                         'dice_charges':          dice_charges,
                         'dice_last_recharge':    last_recharge.isoformat(),
+                        'proc_streak':           current_proc_streak,
                     })
 
             # Advance last_spin_at cursor
@@ -853,6 +925,7 @@ def tick():
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            active_cosmetics = %s, jackpot_echo_next = %s,
                            dice_charges = %s, dice_last_recharge = %s,
+                           proc_streak = %s,
                            dice_rolled_since_spin = FALSE, pending_dice = NULL,
                            last_spin_at = %s
                        WHERE user_id = %s''',
@@ -861,6 +934,7 @@ def tick():
                      owned, new_spin_count, new_win_count, new_loss_count,
                      active_cosmetics, jackpot_echo_next,
                      dice_charges, last_recharge,
+                     current_proc_streak,
                      new_last_spin,
                      current_user.id),
                 )
@@ -881,6 +955,8 @@ def tick():
                         autofisher_lvl = _autofisher_level(owned)
                         if autofisher_lvl >= 1:
                             lure_lvl       = _lure_level(owned)
+                            _lm_mult       = lure_mastery_mult(gs['lure_mastery_level'])
+                            _earth_mult    = 1.0 + CLASS_EARTH_FISH_BONUS if gs['equipped_class'] == 'earth' else 1.0
                             new_clicks     = int(gs['fish_clicks'])
                             new_caught     = list(gs['caught_species'])
                             total_value    = 0
@@ -889,7 +965,7 @@ def tick():
                             for _ in range(pending_fish):
                                 if random.random() < autofisher_catch_rate(autofisher_lvl):
                                     sid = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4))
-                                    val = fish_value(sid, lure_lvl)
+                                    val = max(1, int(fish_value(sid, lure_lvl) * _lm_mult * _earth_mult))
                                     new_clicks  += val
                                     total_value += val
                                     catch_count += 1
@@ -929,6 +1005,7 @@ def tick():
             'jackpot_echo_next':     jackpot_echo_next,
             'catchup_bonus_active':  catchup_bonus_active,
             'dice_rolled_since_spin': False,
+            'proc_streak':           current_proc_streak,
         }
 
         if is_catch_up:
@@ -1088,7 +1165,8 @@ def buy():
                         f'''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
                                    regen_recharge_wins, active_cosmetics,
                                    winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
-                                   streak_armor_level
+                                   streak_armor_level, lure_mastery_level,
+                                   jackpot_resonance_level, echo_amp_level, proc_streak_level
                             FROM game_state WHERE user_id = %s FOR UPDATE''',
                         (current_user.id,),
                     )
@@ -1097,41 +1175,67 @@ def buy():
                 owned     = list(gs['owned_items'])
                 cur_level = gs[col]
 
-                # streak_armor_inf: requires resilience, hard cap at max_level
+                # Generic max_level check
+                max_level = inf.get('max_level')
+                if max_level is not None and cur_level >= max_level:
+                    return jsonify({'error': 'Maximum level reached'}), 400
+
+                # Per-upgrade requirement checks
                 if item_id == 'streak_armor_inf':
                     if 'resilience' not in owned:
                         return jsonify({'error': 'Requires Resilience'}), 400
-                    max_level = inf.get('max_level', 999)
-                    if cur_level >= max_level:
-                        return jsonify({'error': 'Maximum level reached'}), 400
+                elif item_id == 'jackpot_resonance_inf':
+                    if 'jackpot' not in owned:
+                        return jsonify({'error': 'Requires Jackpot upgrade'}), 400
+                elif item_id == 'echo_amp_inf':
+                    if 'win_echo' not in owned:
+                        return jsonify({'error': 'Requires Win Echo upgrade'}), 400
+                elif item_id == 'proc_streak_inf':
+                    if not any(x in owned for x in ('jackpot', 'win_echo', 'fortune_charm')):
+                        return jsonify({'error': 'Requires Jackpot, Win Echo, or Fortune Charm'}), 400
 
-                cost      = inf_upgrade_cost(item_id, cur_level)
+                cost = inf_upgrade_cost(item_id, cur_level)
 
-                if int(gs['wins']) < cost:
-                    return jsonify({'error': 'Insufficient wins'}), 402
+                # Currency-aware balance check and deduction
+                if currency == 'fish_clicks':
+                    if int(gs['fish_clicks']) < cost:
+                        return jsonify({'error': 'Insufficient fish bucks'}), 402
+                    new_wins  = int(gs['wins'])
+                    new_fish  = int(gs['fish_clicks']) - cost
+                else:  # wins
+                    if int(gs['wins']) < cost:
+                        return jsonify({'error': 'Insufficient wins'}), 402
+                    new_wins  = int(gs['wins']) - cost
+                    new_fish  = gs['fish_clicks']
 
-                new_wins  = int(gs['wins']) - cost
                 new_level = cur_level + 1
 
                 with conn.cursor() as cur:
                     cur.execute(
-                        f'UPDATE game_state SET wins = %s, {col} = %s WHERE user_id = %s',
-                        (new_wins, new_level, current_user.id),
+                        f'UPDATE game_state SET wins = %s, fish_clicks = %s, {col} = %s WHERE user_id = %s',
+                        (new_wins, new_fish, new_level, current_user.id),
                     )
                 conn.commit()
 
+            def _lvl(field):
+                return new_level if col == field else gs[field]
+
             return jsonify({
-                'wins':                new_wins,
-                'losses':              gs['losses'],
-                'fish_clicks':         gs['fish_clicks'],
-                'owned_items':         owned,
-                'shield_charges':      gs['shield_charges'],
-                'regen_recharge_wins': gs['regen_recharge_wins'],
-                'active_cosmetics':    list(gs['active_cosmetics']),
-                'winmult_inf_level':    new_level if col == 'winmult_inf_level'    else gs['winmult_inf_level'],
-                'bonusmult_inf_level':  new_level if col == 'bonusmult_inf_level'  else gs['bonusmult_inf_level'],
-                'clickmult_inf_level':  new_level if col == 'clickmult_inf_level'  else gs['clickmult_inf_level'],
-                'streak_armor_level':   new_level if col == 'streak_armor_level'   else gs['streak_armor_level'],
+                'wins':                    new_wins,
+                'losses':                  gs['losses'],
+                'fish_clicks':             new_fish,
+                'owned_items':             owned,
+                'shield_charges':          gs['shield_charges'],
+                'regen_recharge_wins':     gs['regen_recharge_wins'],
+                'active_cosmetics':        list(gs['active_cosmetics']),
+                'winmult_inf_level':         _lvl('winmult_inf_level'),
+                'bonusmult_inf_level':       _lvl('bonusmult_inf_level'),
+                'clickmult_inf_level':       _lvl('clickmult_inf_level'),
+                'streak_armor_level':        _lvl('streak_armor_level'),
+                'lure_mastery_level':        _lvl('lure_mastery_level'),
+                'jackpot_resonance_level':   _lvl('jackpot_resonance_level'),
+                'echo_amp_level':            _lvl('echo_amp_level'),
+                'proc_streak_level':         _lvl('proc_streak_level'),
             })
         except Exception:
             log.exception('BUY_INF_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
@@ -1710,7 +1814,9 @@ def auto_fish_tick():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT owned_items, fish_clicks, caught_species, auto_fish_last_tick FROM game_state WHERE user_id = %s FOR UPDATE',
+                    '''SELECT owned_items, fish_clicks, caught_species, auto_fish_last_tick,
+                              lure_mastery_level, equipped_class
+                       FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
@@ -1742,7 +1848,10 @@ def auto_fish_tick():
             lure_level     = _lure_level(owned)
             species_id     = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4))
             species        = FISH_CATALOG[species_id]
-            value          = fish_value(species_id, lure_level)
+            base_value     = fish_value(species_id, lure_level)
+            lm_mult        = lure_mastery_mult(gs['lure_mastery_level'])
+            earth_mult     = 1.0 + CLASS_EARTH_FISH_BONUS if gs['equipped_class'] == 'earth' else 1.0
+            value          = max(1, int(base_value * lm_mult * earth_mult))
             caught_species = list(gs['caught_species'])
             first_catch    = species_id not in caught_species
             if first_catch:
@@ -1792,6 +1901,101 @@ def set_auto_fish_enabled():
     except Exception:
         log.exception('AUTO_FISH_ENABLED_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Failed to update auto fish state'}), 500
+
+
+@game_bp.route('/api/equip-class', methods=['POST'])
+@login_required
+@limiter.limit('20 per minute')
+def equip_class():
+    err = require_json()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    class_item = data.get('class_id')  # 'class_earth' | 'class_moon' | 'class_star' | None
+
+    CLASS_MAP = {'class_earth': 'earth', 'class_moon': 'moon', 'class_star': 'star', None: None}
+    if class_item not in CLASS_MAP:
+        return jsonify({'error': 'Invalid class'}), 400
+    equipped_value = CLASS_MAP[class_item]
+
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute('SELECT owned_items FROM game_state WHERE user_id = %s', (current_user.id,))
+                gs = cur.fetchone()
+
+            if class_item and class_item not in list(gs['owned_items']):
+                return jsonify({'error': 'Class not owned'}), 400
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE game_state SET equipped_class = %s WHERE user_id = %s',
+                    (equipped_value, current_user.id),
+                )
+            conn.commit()
+        return jsonify({'ok': True, 'equipped_class': equipped_value})
+    except Exception:
+        log.exception('EQUIP_CLASS_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Failed to equip class'}), 500
+
+
+@game_bp.route('/api/fish-exchange', methods=['POST'])
+@login_required
+@limiter.limit('5 per second')
+def fish_exchange():
+    err = require_json()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    amount_type = data.get('amount', '10pct')
+    if amount_type not in ('10pct', 'all'):
+        return jsonify({'error': 'Invalid amount type'}), 400
+
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT fish_clicks, fish_exchange_total FROM game_state WHERE user_id = %s FOR UPDATE',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+
+            fish_clicks = int(gs['fish_clicks'])
+            if fish_clicks <= 0:
+                return jsonify({'error': 'No fish bucks to exchange'}), 400
+
+            fish_to_exchange = max(1, fish_clicks // 10) if amount_type == '10pct' else fish_clicks
+
+            # Diminishing returns: very gentle decay — rate halves after 50M total exchanged
+            exchange_total = int(gs['fish_exchange_total'])
+            rate = 1.0 / (1.0 + exchange_total / 50_000_000)
+            wins_earned = max(1, int(fish_to_exchange * rate))
+
+            new_fish           = fish_clicks - fish_to_exchange
+            new_exchange_total = exchange_total + fish_to_exchange
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET fish_clicks = %s, wins = wins + %s, fish_exchange_total = %s
+                       WHERE user_id = %s''',
+                    (new_fish, wins_earned, new_exchange_total, current_user.id),
+                )
+                cur.execute('SELECT wins FROM game_state WHERE user_id = %s', (current_user.id,))
+                updated_wins = cur.fetchone()['wins']
+            conn.commit()
+
+        return jsonify({
+            'ok':          True,
+            'fish_spent':  fish_to_exchange,
+            'wins_earned': wins_earned,
+            'rate':        round(rate, 3),
+            'fish_clicks': new_fish,
+            'wins':        int(updated_wins),
+        })
+    except Exception:
+        log.exception('FISH_EXCHANGE_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Exchange failed'}), 500
 
 
 @game_bp.route('/api/fish-click', methods=['POST'])
