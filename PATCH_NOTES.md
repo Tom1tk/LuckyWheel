@@ -90,7 +90,7 @@ Amplifies proc'd payouts when consecutive procs happen. Every time a Jackpot, Wi
 multiplier = 1.0 + (streak_count × level × 0.005)
 ```
 
-So at level 5 with a proc streak of 10, every proc fires at **×1.25** on top of its normal effect. Requires at least one proc upgrade to be owned (Jackpot, Win Echo, or Fortune Charm).
+So at level 5 with a proc streak of 10, every proc fires at **×1.25** on top of its normal effect. Requires at least one proc upgrade to be owned (Jackpot, Win Echo, Fortune Charm, or Resilience).
 
 | Level | Cost (Wins) | Bonus at streak 10 | Bonus at streak 20 |
 |-------|-------------|-------------------|-------------------|
@@ -100,7 +100,7 @@ So at level 5 with a proc streak of 10, every proc fires at **×1.25** on top of
 | 10 | 50,000,000 × 1.50^(n) | ×1.50 | ×2.00 |
 | 15 (MAX) | — | ×1.75 | ×2.50 |
 
-This upgrade rewards players who build around proc rate (Jackpot Resonance + Echo Amplification + Moon Class) and sustain long proc chains.
+This upgrade rewards players who build around proc rate (Jackpot Resonance + Echo Amplification + Moon Class) and sustain long proc chains. **Resilience saves also contribute to the chain** — a successful save on a loss increments your proc streak counter just like a win proc does, letting defensive play fuel offensive multipliers.
 
 #### Proc Streak Counter
 
@@ -115,12 +115,12 @@ Three equippable classes have been added to the top of the shop, each priced at 
 | Class | Cost | Effect |
 |-------|------|--------|
 | 🌍 Earth | 10,000,000 wins | +25% to all fish income (manual reels and Auto-Fish) |
-| 🌙 Moon | 10,000,000 wins | +5% added to every proc rate (Jackpot, Win Echo, Fortune Charm) |
+| 🌙 Moon | 10,000,000 wins | +5% added to every proc rate (Jackpot, Win Echo, Fortune Charm, Resilience) |
 | ⭐ Star | 10,000,000 wins | +20% applied to win multiplier payouts |
 
 **Earth** compounds with Lure Mastery — both stack multiplicatively on catch value, making Earth + Lure Mastery the natural anchor for a fish-economy build.
 
-**Moon** stacks directly on top of Jackpot Resonance and Echo Amplification proc rates, and also affects the base Fortune Charm rate. It is the natural class for a proc-chain build.
+**Moon** stacks directly on top of Jackpot Resonance and Echo Amplification proc rates, and also affects the base Fortune Charm rate and Resilience save chance (raising the effective ceiling from 60% to **65%**). It is the natural class for a proc-chain build.
 
 **Star** is a flat boost to all winning spins regardless of streak, making it the cleanest cross-build option for players who haven't committed to a proc or fish path.
 

@@ -417,7 +417,7 @@ def proc_streak_mult(level: int, streak: int) -> float:
 
 # ── Season 7 class effect constants ───────────────────────────────────────────
 CLASS_EARTH_FISH_BONUS = 0.25   # Earth: +25% to fish-click income
-CLASS_MOON_PROC_BONUS  = 0.05   # Moon:  +5% added to each proc rate
+CLASS_MOON_PROC_BONUS  = 0.05   # Moon:  +5% added to each proc rate (jackpot, echo, charm, resilience)
 CLASS_STAR_WIN_BONUS   = 0.20   # Star:  +20% to win_mult payout
 
 

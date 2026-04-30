@@ -376,8 +376,8 @@ def spin():
             # Jackpot echo from previous spin
             jackpot_echo_pending = bool(gs['jackpot_echo_next'])
 
-            # Resilience: dynamic chance based on streak_armor_level (base 50%, +1%/level, cap 60%)
-            resilience_chance = min(0.50 + gs['streak_armor_level'] * 0.01, 0.60)
+            # Resilience: base 50%, +1%/level streak armor (cap 60%), +5% with Moon class (cap 65%)
+            resilience_chance = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
 
             if outcome == 'lose':
                 # Regen shield: protects any loss when charged
@@ -399,6 +399,7 @@ def spin():
                         if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                             resilience_triggered = True
                             new_streak = max(0, streak - 1)
+                            current_proc_streak += 1
                         else:
                             new_streak = streak - 1 if streak <= 0 else -1
                         loss_count   = abs(new_streak) if new_streak < 0 else 0
@@ -411,6 +412,7 @@ def spin():
                     if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                         resilience_triggered = True
                         new_streak = max(0, streak - 1)
+                        current_proc_streak += 1
                     else:
                         new_streak = streak - 1 if streak <= 0 else -1
                     loss_count   = abs(new_streak) if new_streak < 0 else 0
@@ -723,8 +725,6 @@ def tick():
             active_cosmetics    = list(gs['active_cosmetics'])
             win_mult            = win_mult_from_level(gs['winmult_inf_level'])
             bonus_mult          = bonus_mult_from_level(gs['bonusmult_inf_level'])
-            resilience_chance   = min(0.50 + gs['streak_armor_level'] * 0.01, 0.60)
-
             # Season 7 — class and proc-rate upgrades
             equipped_class      = gs['equipped_class']
             moon_bonus          = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
@@ -733,6 +733,8 @@ def tick():
             _jackpot_chance     = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
             _echo_chance        = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
             _charm_chance       = 0.25                                         + moon_bonus
+            # Resilience: base 50%, +1%/level streak armor (cap 60%), +5% with Moon class (cap 65%)
+            resilience_chance   = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
             _pstreak_level      = gs['proc_streak_level']
             current_proc_streak = gs['proc_streak']
 
@@ -815,6 +817,7 @@ def tick():
                             if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                                 resilience_triggered = True
                                 new_streak = max(0, streak - 1)
+                                current_proc_streak += 1
                             else:
                                 new_streak = streak - 1 if streak <= 0 else -1
                             loss_count   = abs(new_streak) if new_streak < 0 else 0
@@ -825,6 +828,7 @@ def tick():
                         if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                             resilience_triggered = True
                             new_streak = max(0, streak - 1)
+                            current_proc_streak += 1
                         else:
                             new_streak = streak - 1 if streak <= 0 else -1
                         loss_count   = abs(new_streak) if new_streak < 0 else 0
