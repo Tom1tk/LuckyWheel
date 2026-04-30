@@ -10,6 +10,41 @@ The season also has no scheduled end date - seasons will be advanced manually wh
 
 ---
 
+### Server-Side Auto-Spin & AFK Auto-Fish
+
+The biggest structural change in Season 7 is that **the wheel now spins itself** — automatically, server-side, every **3 seconds**, for every player. You no longer need to sit at your keyboard clicking a spin button, and you no longer gain any advantage by doing so. Everyone earns at the same base rate of 20 spins per minute, around the clock, whether the tab is open or not.
+
+#### How it works
+
+When you first play in Season 7 your auto-spin clock starts. Every time you open the game (or keep it open), your browser sends a lightweight **tick** to the server every 3 seconds. The server calculates every spin outcome you were owed since your last tick — including all streak bonuses, proc effects, and upgrade modifiers — and returns the results in one go. If you've been away for hours or even days, the server catches up instantly: you'll receive a summary of everything that happened while you were offline, and your wins, streak, and balances will all reflect the full catch-up.
+
+Catch-up is capped at a full season week (100,800 spins) to keep things sane, but in practice you'll never come close to that ceiling in normal play.
+
+#### Auto-Fish AFK
+
+Auto-Fish now runs on the same server-tick model. If you have an Auto-Fisher upgrade and Auto-Fish is enabled, fish catches are computed and awarded server-side every **6 seconds** — regardless of whether the page is open. Fish Bucks, species discoveries, and Encyclopaedia progress all accumulate while you're away, applying the same Lure, Earth Class, and Lure Mastery multipliers you have equipped.
+
+#### What this means for you
+
+- **No more dedicated spinning setups.** Last season the most competitive players ran the game in a persistent browser tab and maximised their spin rate with speed upgrades. That advantage is gone — the server sets the pace for everyone equally.
+- **The game plays itself between sessions.** Log in after a sleep and collect your accumulated wins. The streak will have been live the whole time — a lucky run while you were offline is as real as one you watched happen.
+- **Catch-up on reconnect.** If your streak breaks while you're offline, the server resolves it fairly. You'll come back to the actual outcome, not a frozen state.
+- **Fishing income is now truly passive.** With Auto-Fish enabled, Fish Bucks accumulate overnight. Combined with Lure Mastery and the Fish Exchange, fishing is a real parallel income source you can harvest each session.
+
+#### Spin Speed and Auto Speed upgrades removed
+
+Because spin rate is now fixed server-side at 3 seconds per spin, the following upgrades have been retired and removed from the shop:
+
+**Spin Speed** — Speed Boost, Turbo Spin, Hyper Spin, Ultra Spin, Max Spin
+
+**Auto Speed** — Quick Auto, Rapid Auto, Instant Auto
+
+These upgrades only ever changed the visual animation duration and the delay between client-triggered spins. With the server now driving all spin timing, they have no effect and no meaningful role. Removing them keeps the shop focused on choices that actually matter, and ensures no player can buy a spin-rate advantage over another.
+
+Players who owned any of these upgrades before Season 7 are unaffected by the removal — they simply no longer appear in the shop.
+
+---
+
 ### New Infinite Upgrade Paths
 
 Four new infinite upgrade tracks have been added. Each competes for resources against Win Power and Bonus Power, giving several different defensible spending strategies depending on your current build.
