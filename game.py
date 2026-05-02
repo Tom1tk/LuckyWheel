@@ -205,24 +205,6 @@ def update_settings():
         return jsonify({'error': 'Settings update failed'}), 500
 
 
-@game_bp.route('/api/register-season', methods=['POST'])
-@login_required
-def register_season():
-    """Mark this player as active during the hiatus so they get auto_spin_since set on rollover."""
-    try:
-        with db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    'UPDATE game_state SET season_registered = TRUE WHERE user_id = %s',
-                    (current_user.id,),
-                )
-            conn.commit()
-        return jsonify({'ok': True})
-    except Exception:
-        log.exception('REGISTER_SEASON_ERROR  user_id=%s', current_user.id)
-        return jsonify({'error': 'Registration failed'}), 500
-
-
 @game_bp.route('/api/spin', methods=['POST'])
 @login_required
 @limiter.limit('10 per second')
