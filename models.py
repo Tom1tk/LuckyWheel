@@ -45,17 +45,23 @@ _AUTO_RARE_IDS    = [k for k in _ALL_IDS if k not in _AUTO_FISH_LEGENDARY]
 _AUTO_RARE_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_RARE_IDS]
 
 
-def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False) -> str:
+def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False,
+              happy_hour: bool = False) -> str:
     """Return a random fish species ID weighted by rarity.
-    master_lure=True adds +1% to each legendary species (whale, mermaid, lucky) — manual only.
+    master_lure=True adds +1% to each legendary species — manual only.
+    happy_hour=True adds +50% weight to legendary species — manual only.
     """
     if auto_mode:
         if allow_rare:
             return random.choices(_AUTO_RARE_IDS, weights=_AUTO_RARE_WEIGHTS, k=1)[0]
         return random.choices(_AUTO_IDS, weights=_AUTO_WEIGHTS, k=1)[0]
-    if master_lure:
-        boosted = [w + (1.0 if k in _AUTO_FISH_LEGENDARY else 0.0)
-                   for k, w in zip(_ALL_IDS, _ALL_WEIGHTS)]
+    if master_lure or happy_hour:
+        legend_bonus = (1.0 if master_lure else 0.0)
+        hh_bonus     = 0.5 if happy_hour else 0.0
+        boosted = [
+            w + (legend_bonus + FISH_CATALOG[k]['weight'] * hh_bonus if k in _AUTO_FISH_LEGENDARY else 0.0)
+            for k, w in zip(_ALL_IDS, _ALL_WEIGHTS)
+        ]
         return random.choices(_ALL_IDS, weights=boosted, k=1)[0]
     return random.choices(_ALL_IDS, weights=_ALL_WEIGHTS, k=1)[0]
 
@@ -108,22 +114,12 @@ FISH_SKINS = {
 }
 
 SHOP_ITEMS = {
-    # Spin speed
-    'speed_boost':    {'cost': 100,          'requires': None},
     # Dice charge upgrades (unlocked via tier gating)
     'dice_charge_2':  {'cost': 2_000,        'requires': None},
     'dice_charge_3':  {'cost': 15_000,       'requires': 'dice_charge_2'},
     'dice_charge_4':  {'cost': 100_000,      'requires': 'dice_charge_3'},
     # Extra Die — roll 3 dice; requires Tier 3 + dice_charge_3
     'dice_extra':     {'cost': 1_000_000,    'requires': 'dice_charge_3'},
-    'turbo_spin':     {'cost': 1_000,        'requires': 'speed_boost'},
-    'hyperspin':      {'cost': 10_000,       'requires': 'turbo_spin'},
-    'ultraspin':      {'cost': 100_000,      'requires': 'hyperspin'},
-    'maxspin':        {'cost': 1_000_000,    'requires': 'ultraspin'},
-    # Auto speed
-    'autospeed_1':    {'cost': 200,          'requires': None},
-    'autospeed_2':    {'cost': 10_000,       'requires': 'autospeed_1'},
-    'autospeed_3':    {'cost': 1_000_000,    'requires': 'autospeed_2'},
     # Win power (Season 6: shallower scaling — matches winmult_inf tier_costs)
     'winmult_1':      {'cost': 200,         'requires': None},
     'winmult_2':      {'cost': 600,         'requires': 'winmult_1'},
@@ -167,10 +163,6 @@ SHOP_ITEMS = {
     'guard':          {'cost': 500,          'requires': None},
     'auto_guard':     {'cost': 50_000,       'requires': 'guard'},
     'regen_shield':   {'cost': 1_500,        'requires': None},
-    'guard_speed_1':  {'cost': 2_000,        'requires': 'guard'},
-    'guard_speed_2':  {'cost': 8_000,        'requires': 'guard_speed_1'},
-    'guard_speed_3':  {'cost': 30_000,       'requires': 'guard_speed_2'},
-    'guard_speed_4':  {'cost': 100_000,      'requires': 'guard_speed_3'},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,          'requires': None},
     'theme_ice':      {'cost': 1_000,        'requires': 'theme_fire'},
@@ -185,6 +177,7 @@ SHOP_ITEMS = {
     'page_season4':   {'cost': 1_000,        'requires': None},
     'page_season5':   {'cost': 1_000,        'requires': None},
     'page_season6':   {'cost': 1_000,        'requires': None},
+    'page_season7':   {'cost': 1_000,        'requires': None},
     'party_mode':     {'cost': 150,          'requires': None},
     'confetti_1':     {'cost': 75,           'requires': None},
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
@@ -201,6 +194,10 @@ SHOP_ITEMS = {
     'win_echo':       {'cost': 1_000_000,    'requires': None},
     'resilience':     {'cost': 10_000_000,   'requires': None},
     'jackpot':        {'cost': 3_000_000,    'requires': None},
+    # Season 7 classes — own any, equip one at a time; functional tier 3
+    'class_earth': {'cost': 10_000_000, 'requires': None},
+    'class_moon':  {'cost': 10_000_000, 'requires': None},
+    'class_star':  {'cost': 10_000_000, 'requires': None},
     # Legendary
     'singularity':    {'cost': int(1e67),    'requires': None},
     # ── Fishing gear (Season 6) ──────────────────────────────────────────────
@@ -239,6 +236,7 @@ UPGRADE_TIER_2 = {
 UPGRADE_TIER_3 = {
     'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience',
     'dice_charge_3', 'dice_charge_4', 'dice_extra',
+    'class_earth', 'class_moon', 'class_star',
 }
 
 def item_tier(item_id):
@@ -270,7 +268,7 @@ _COSMETIC_ITEM_IDS = {
     'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold',
     'golden_wheel',
     # Page themes
-    'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6',
+    'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7',
     # Party / confetti
     'party_mode', 'confetti_1', 'confetti_2', 'confetti_3',
     # Backgrounds
@@ -286,12 +284,16 @@ for _id in ALL_ITEMS:
     else:
         ITEM_CURRENCY[_id] = 'wins'
 
-# All infinite upgrades are functional → cost wins.
+# All infinite upgrades are functional → cost wins (except lure_mastery_inf → fish_clicks).
 INFINITE_UPGRADE_CURRENCY = {
-    'winmult_inf':     'wins',
-    'bonusmult_inf':   'wins',
-    'clickmult_inf':   'wins',
-    'streak_armor_inf': 'wins',
+    'winmult_inf':           'wins',
+    'bonusmult_inf':         'wins',
+    'clickmult_inf':         'wins',
+    'streak_armor_inf':      'wins',
+    'lure_mastery_inf':      'fish_clicks',
+    'jackpot_resonance_inf': 'wins',
+    'echo_amp_inf':          'wins',
+    'proc_streak_inf':       'wins',
 }
 
 # Infinite repeatable upgrades — replace old fixed tier chains.
@@ -321,9 +323,40 @@ INFINITE_UPGRADES = {
     'streak_armor_inf': {
         'db_column':    'streak_armor_level',
         'tier_costs':   [500_000, 750_000, 1_000_000, 1_250_000, 1_500_000, 1_750_000, 2_000_000, 2_250_000, 2_500_000, 2_750_000],
-        'inf_base_cost': 999_999_999,  # effectively impossible past level 10
+        'inf_base_cost': 999_999_999,
         'inf_scale':     1.0,
-        'max_level':    10,            # hard cap — checked in buy endpoint
+        'max_level':    10,
+    },
+    # Lure Mastery: +10% fish value per level on top of lure_5's 20x cap. Costs fish_clicks.
+    'lure_mastery_inf': {
+        'db_column':    'lure_mastery_level',
+        'tier_costs':   [5_000, 25_000, 100_000, 400_000],
+        'inf_base_cost': 1_500_000,
+        'inf_scale':     1.25,
+    },
+    # Jackpot Resonance: raises jackpot proc rate from 1% toward 3% cap. Requires jackpot.
+    'jackpot_resonance_inf': {
+        'db_column':    'jackpot_resonance_level',
+        'tier_costs':   [5_000_000, 10_000_000, 20_000_000],
+        'inf_base_cost': 40_000_000,
+        'inf_scale':     1.50,
+        'max_level':    10,
+    },
+    # Echo Amplification: raises win_echo proc rate from 20% toward 40% cap. Requires win_echo.
+    'echo_amp_inf': {
+        'db_column':    'echo_amp_level',
+        'tier_costs':   [2_000_000, 5_000_000, 12_000_000],
+        'inf_base_cost': 25_000_000,
+        'inf_scale':     1.40,
+        'max_level':    10,
+    },
+    # Proc Streak: amplifies payouts based on consecutive proc'd wins. Requires proc upgrade.
+    'proc_streak_inf': {
+        'db_column':    'proc_streak_level',
+        'tier_costs':   [3_000_000, 8_000_000, 20_000_000],
+        'inf_base_cost': 50_000_000,
+        'inf_scale':     1.50,
+        'max_level':    15,
     },
 }
 
@@ -346,14 +379,47 @@ def win_mult_from_level(level):
 
 
 def bonus_mult_from_level(level):
-    _fixed = [1, 2, 5, 10, 20, 50, 100]
+    # Season 7 (C2): flatter early curve; (C1): slower past level 30.
+    _fixed = [1, 2, 4, 8, 15, 35, 70]
     if level <= 6: return _fixed[level]
-    return 100 + (level - 6) * 10             # 110, 120, 130, …
+    if level <= 30: return 70 + (level - 6) * 8   # 78, 86, …, 262
+    return 262 + (level - 30) * 5                  # 267, 272, … (slower past 30)
 
 
 def click_mult_from_level(level):
     if level <= 0: return 1
     return 1 + level * 0.25                    # 1.25, 1.5, 1.75, 2.0, 2.25, …
+
+
+# ── Season 7 upgrade multipliers ──────────────────────────────────────────────
+
+def lure_mastery_mult(level: int) -> float:
+    """Additional fish-value multiplier on top of the lure tier cap. +10% per level."""
+    return 1.0 + level * 0.10
+
+
+def jackpot_pct(level: int) -> float:
+    """Jackpot proc probability. Base 1%, +0.2% per level, hard cap 3% at level 10."""
+    return min(0.01 + level * 0.002, 0.03)
+
+
+def echo_amp_pct(level: int) -> float:
+    """Win-echo proc probability. Base 20%, +2% per level, hard cap 40% at level 10."""
+    return min(0.20 + level * 0.02, 0.40)
+
+
+def proc_streak_mult(level: int, streak: int) -> float:
+    """Bonus multiplier applied to all proc'd payouts. +0.5% per streak-count per level."""
+    if level == 0 or streak == 0:
+        return 1.0
+    return 1.0 + streak * level * 0.005
+
+
+# ── Season 7 class effect constants ───────────────────────────────────────────
+CLASS_EARTH_FISH_BONUS = 0.25   # Earth: +25% to fish-click income
+CLASS_MOON_PROC_BONUS  = 0.05   # Moon:  +5% added to each proc rate (jackpot, echo, charm, resilience)
+CLASS_STAR_WIN_BONUS   = 0.20   # Star:  +20% to win_mult payout
+
 
 def streak_bonus(count):
     """Season 6 streak bonus formula.
@@ -394,6 +460,20 @@ LOCKOUT_RULES = [
     (10, 300),   # 10+ fails → 5 minutes
     (5,  60),    # 5+ fails  → 1 minute
 ]
+
+# Season 7: server-side auto-spinning
+AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
+MAX_SPINS_PER_TICK         = 100_800  # cap at 1 full season week (7d × 24h × 3600s / 3s)
+CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
+
+# Auto-fish AFK catch-up
+AUTO_FISH_INTERVAL_SECONDS = 6.0   # 1 auto-fish tick every 6 seconds
+MAX_FISH_CATCHUP_TICKS     = 14_400  # cap at 24 hours (86400s / 6s)
+FISH_CATCHUP_THRESHOLD     = 2     # min missed ticks before catch-up fires
+
+# Happy Hour: 9pm–10pm BST (20:00–21:00 UTC)
+HAPPY_HOUR_START_UTC = 20
+HAPPY_HOUR_END_UTC   = 21
 
 REGEN_SHIELD_RECHARGE_WINS = 5
 
