@@ -2980,7 +2980,7 @@ function Leaderboard({
     className: "lb-winners-tab"
   }, seasonWinners && seasonWinners.length > 0 ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "lb-winners-title"
-  }, "Season ", seasonNumber, " Winners"), seasonWinners.map(w => /*#__PURE__*/React.createElement("div", {
+  }, seasonNumber === 7 ? 'Mid-Season 6.7' : `Season ${seasonNumber}`, " Winners"), seasonWinners.map(w => /*#__PURE__*/React.createElement("div", {
     key: w.position,
     className: `season-winner-row ${rankClasses[w.position - 1] || ''}`
   }, /*#__PURE__*/React.createElement("span", {
@@ -3344,6 +3344,56 @@ const FISH_SKINS = [{
     idle: '*death roll ready*',
     happy: 'SNAPPED IT!',
     sad: 'Sunk to the bottom...'
+  }
+}, {
+  id: 'fish_rocket',
+  emoji: '🚀',
+  name: 'Rocket',
+  cost: 50000,
+  labels: {
+    idle: 'T-minus 3...',
+    happy: 'BLAST OFF!',
+    sad: 'Mission failed...'
+  }
+}, {
+  id: 'fish_comet',
+  emoji: '☄️',
+  name: 'Comet',
+  cost: 85000,
+  labels: {
+    idle: '*blazing through space*',
+    happy: 'Comet strike!',
+    sad: 'Burned up...'
+  }
+}, {
+  id: 'fish_saturn',
+  emoji: '🪐',
+  name: 'Saturn',
+  cost: 145000,
+  labels: {
+    idle: 'Ringing around~',
+    happy: 'Orbital win!',
+    sad: 'Lost in the rings...'
+  }
+}, {
+  id: 'fish_alien',
+  emoji: '👽',
+  name: 'Alien',
+  cost: 250000,
+  labels: {
+    idle: 'Greetings, earthling',
+    happy: 'ABDUCTION WIN!',
+    sad: '*returns to home planet*'
+  }
+}, {
+  id: 'fish_ufo',
+  emoji: '🛸',
+  name: 'UFO',
+  cost: 425000,
+  labels: {
+    idle: '*hovering*',
+    happy: 'BEAM UP!',
+    sad: '*crashes*'
   }
 }];
 const SHOP_SECTIONS = [{
@@ -3947,7 +3997,7 @@ function getFishData(equippedFish) {
 const COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'final_frenzy', 'auto_guard']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+const COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 const getItemCurrency = id => {
   if (id === 'singularity' || id === 'lure_mastery_inf') return 'fish_clicks';
   if (COSMETIC_IDS.has(id)) return 'losses';

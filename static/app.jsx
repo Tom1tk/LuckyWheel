@@ -2129,7 +2129,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
         <div className="lb-winners-tab">
           {seasonWinners && seasonWinners.length > 0 ? (
             <>
-              <div className="lb-winners-title">Season {seasonNumber} Winners</div>
+              <div className="lb-winners-title">{seasonNumber === 7 ? 'Mid-Season 6.7' : `Season ${seasonNumber}`} Winners</div>
               {seasonWinners.map(w => (
                 <div key={w.position} className={`season-winner-row ${rankClasses[w.position - 1] || ''}`}>
                   <span className="sw-medal">{medals[w.position - 1] || w.position}</span>
@@ -2350,6 +2350,16 @@ const FISH_SKINS = [
     labels: { idle: 'Under the sea~', happy: 'Mythic win!', sad: 'Into the deep...' } },
   { id: 'fish_croc',     emoji: '🐊', name: 'Crocodile',     cost: 30000,
     labels: { idle: '*death roll ready*', happy: 'SNAPPED IT!', sad: 'Sunk to the bottom...' } },
+  { id: 'fish_rocket',   emoji: '🚀', name: 'Rocket',         cost: 50000,
+    labels: { idle: 'T-minus 3...', happy: 'BLAST OFF!', sad: 'Mission failed...' } },
+  { id: 'fish_comet',    emoji: '☄️', name: 'Comet',          cost: 85000,
+    labels: { idle: '*blazing through space*', happy: 'Comet strike!', sad: 'Burned up...' } },
+  { id: 'fish_saturn',   emoji: '🪐', name: 'Saturn',         cost: 145000,
+    labels: { idle: 'Ringing around~', happy: 'Orbital win!', sad: 'Lost in the rings...' } },
+  { id: 'fish_alien',    emoji: '👽', name: 'Alien',          cost: 250000,
+    labels: { idle: 'Greetings, earthling', happy: 'ABDUCTION WIN!', sad: '*returns to home planet*' } },
+  { id: 'fish_ufo',      emoji: '🛸', name: 'UFO',            cost: 425000,
+    labels: { idle: '*hovering*', happy: 'BEAM UP!', sad: '*crashes*' } },
 ];
 
 const SHOP_SECTIONS = [
@@ -2516,6 +2526,7 @@ const COSMETIC_IDS = new Set([
   'fish_tropical','fish_puffer','fish_octopus','fish_shark','fish_dolphin',
   'fish_squid','fish_turtle','fish_crab','fish_lobster','fish_whale',
   'fish_seal','fish_shrimp','fish_coral','fish_mermaid','fish_croc',
+  'fish_rocket','fish_comet','fish_saturn','fish_alien','fish_ufo',
   'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
