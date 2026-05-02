@@ -4342,7 +4342,7 @@ function StatsPanel({
     return /*#__PURE__*/React.createElement("div", {
       className: "stats-row stats-row--season",
       key: s.season_number
-    }, /*#__PURE__*/React.createElement("span", null, "Season ", s.season_number), /*#__PURE__*/React.createElement("span", null, !participated ? '—' : place ? /*#__PURE__*/React.createElement("span", {
+    }, /*#__PURE__*/React.createElement("span", null, s.season_number === 7 ? 'Mid-Season 6.7' : `Season ${s.season_number}`), /*#__PURE__*/React.createElement("span", null, !participated ? '—' : place ? /*#__PURE__*/React.createElement("span", {
       className: "stats-podium"
     }, place) : `${fmt(s.final_wins)} wins`));
   }))) : /*#__PURE__*/React.createElement("div", {
