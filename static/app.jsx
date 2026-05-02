@@ -322,6 +322,657 @@ function renderInferno(ctx, w, h, intensity, state) {
   ctx.restore();
 }
 
+// ── Wormhole Background Components ───────────────────────────────────────────
+
+function WormholeBackground({
+  className = "", intensity = 1, speed = 1, starCount = 950, streakCount = 240,
+  nebulaStrength = 0.95, starDriftSpeed = 0.18,
+}) {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0, height = 0, cx = 0, cy = 0;
+    let lastTime = performance.now(), time = 0;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    const movingStars = [], streaks = [];
+
+    function createMovingStar(index = 0) {
+      const colourBand = Math.random();
+      return {
+        angle: rand(0, Math.PI * 2), z: Math.random() ** 0.55,
+        speed: rand(0.0012, 0.0045) * speed * starDriftSpeed * (0.75 + intensity * 0.45),
+        size: rand(0.45, 1.7), alpha: rand(0.18, 0.95),
+        twinkle: rand(0.35, 2.1), phase: rand(0, Math.PI * 2),
+        colour: colourBand < 0.48 ? [165, 215, 255] : colourBand < 0.82 ? [255, 240, 255] : [255, 185, 235],
+        seed: index + Math.random() * 1000,
+      };
+    }
+    function createStars() {
+      movingStars.length = 0;
+      const total = Math.floor(starCount * intensity);
+      for (let i = 0; i < total; i++) movingStars.push(createMovingStar(i));
+    }
+    function createStreak(index = 0) {
+      const angleJitter = rand(-0.3, 0.3);
+      const baseAngle = Math.atan2(rand(-height * 0.55, height * 0.55), rand(-width * 0.55, width * 0.55));
+      const hueWeight = Math.random();
+      return {
+        angle: baseAngle + angleJitter, z: rand(0.02, 1),
+        speed: rand(0.003, 0.018) * speed * (0.8 + intensity * 0.65),
+        width: rand(0.5, 2.6), length: rand(22, 180),
+        alpha: rand(0.12, 0.85), drift: rand(-0.12, 0.12),
+        pulse: rand(0.5, 2.3), pulseOffset: rand(0, Math.PI * 2),
+        colour: hueWeight < 0.18 ? [255,255,255] : hueWeight < 0.39 ? [95,205,255] : hueWeight < 0.56 ? [0,255,220] : hueWeight < 0.68 ? [120,255,160] : hueWeight < 0.84 ? [255,90,210] : [165,110,255],
+        seed: index + Math.random() * 1000,
+      };
+    }
+    function createStreaks() {
+      streaks.length = 0;
+      const total = Math.floor(streakCount * intensity);
+      for (let i = 0; i < total; i++) streaks.push(createStreak(i));
+    }
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width || window.innerWidth));
+      height = Math.max(1, Math.floor(rect.height || window.innerHeight));
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = width * 0.5; cy = height * 0.5;
+      createStars(); createStreaks();
+    }
+    function drawBackgroundGradient() {
+      const bg = ctx.createLinearGradient(0, 0, width, height);
+      bg.addColorStop(0, "rgba(2,6,18,1)"); bg.addColorStop(0.28, "rgba(5,12,30,1)");
+      bg.addColorStop(0.55, "rgba(9,8,24,1)"); bg.addColorStop(0.78, "rgba(20,7,28,1)");
+      bg.addColorStop(1, "rgba(6,2,12,1)");
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, width, height);
+    }
+    function drawNebulaClouds(t) {
+      ctx.save(); ctx.globalCompositeOperation = "screen";
+      const leftGrad = ctx.createRadialGradient(width*0.18, height*0.48, 10, width*0.18, height*0.48, width*0.55);
+      leftGrad.addColorStop(0, `rgba(40,140,255,${0.18*nebulaStrength})`);
+      leftGrad.addColorStop(0.28, `rgba(20,105,230,${0.12*nebulaStrength})`);
+      leftGrad.addColorStop(0.62, `rgba(8,42,120,${0.09*nebulaStrength})`);
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = leftGrad; ctx.fillRect(0, 0, width, height);
+      const rightGrad = ctx.createRadialGradient(width*0.8, height*0.5, 12, width*0.8, height*0.5, width*0.48);
+      rightGrad.addColorStop(0, `rgba(255,100,230,${0.2*nebulaStrength})`);
+      rightGrad.addColorStop(0.34, `rgba(175,70,255,${0.14*nebulaStrength})`);
+      rightGrad.addColorStop(0.7, `rgba(95,25,160,${0.08*nebulaStrength})`);
+      rightGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = rightGrad; ctx.fillRect(0, 0, width, height);
+      const blobs = [
+        { x: width*0.16, y: height*0.33, rx: width*0.28, ry: height*0.16, c1: "rgba(80,180,255,0.06)", c2: "rgba(20,40,100,0)" },
+        { x: width*0.26, y: height*0.72, rx: width*0.24, ry: height*0.12, c1: "rgba(0,190,255,0.05)", c2: "rgba(0,0,0,0)" },
+        { x: width*0.78, y: height*0.33, rx: width*0.22, ry: height*0.14, c1: "rgba(255,90,200,0.07)", c2: "rgba(0,0,0,0)" },
+        { x: width*0.86, y: height*0.66, rx: width*0.26, ry: height*0.16, c1: "rgba(180,70,255,0.08)", c2: "rgba(0,0,0,0)" },
+      ];
+      blobs.forEach((b, i) => {
+        const driftX = Math.sin(t*0.00018+i*1.7)*18, driftY = Math.cos(t*0.00012+i*1.3)*12;
+        const g = ctx.createRadialGradient(b.x+driftX, b.y+driftY, 0, b.x+driftX, b.y+driftY, Math.max(b.rx, b.ry));
+        g.addColorStop(0, b.c1); g.addColorStop(1, b.c2);
+        ctx.save(); ctx.translate(b.x+driftX, b.y+driftY); ctx.scale(1, b.ry/b.rx);
+        ctx.beginPath(); ctx.arc(0, 0, b.rx, 0, Math.PI*2); ctx.closePath();
+        ctx.fillStyle = g; ctx.fill(); ctx.restore();
+      });
+      ctx.restore();
+    }
+    function drawSlowMovingStars(t) {
+      ctx.save(); ctx.globalCompositeOperation = "screen";
+      const maxRadius = Math.hypot(width, height) * 0.77;
+      for (let i = 0; i < movingStars.length; i++) {
+        const s = movingStars[i]; s.z += s.speed;
+        if (s.z > 1.03) { movingStars[i] = createMovingStar(i + t*0.001); movingStars[i].z = rand(0.01, 0.08); continue; }
+        const eased = s.z * s.z;
+        const radius = lerp(0, maxRadius, eased);
+        const x = cx + Math.cos(s.angle) * radius, y = cy + Math.sin(s.angle) * radius;
+        if (x < -20 || x > width+20 || y < -20 || y > height+20) { movingStars[i] = createMovingStar(i + t*0.001); movingStars[i].z = rand(0.01, 0.08); continue; }
+        const pulse = 0.78 + 0.22 * Math.sin(t*0.0012*s.twinkle + s.phase);
+        const alpha = clamp(s.alpha * (0.35 + eased*0.95) * pulse, 0.05, 1);
+        const radiusPx = s.size * (0.65 + eased*1.15);
+        const [r, g, b] = s.colour;
+        ctx.fillStyle = rgba(r, g, b, alpha); ctx.beginPath(); ctx.arc(x, y, radiusPx, 0, Math.PI*2); ctx.fill();
+        if (radiusPx > 1.2) {
+          ctx.strokeStyle = rgba(255,255,255, alpha*0.18); ctx.lineWidth = 0.55;
+          ctx.beginPath(); ctx.moveTo(x-radiusPx*1.8,y); ctx.lineTo(x+radiusPx*1.8,y);
+          ctx.moveTo(x,y-radiusPx*1.8); ctx.lineTo(x,y+radiusPx*1.8); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function drawStreaks(t) {
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+      const maxRadius = Math.hypot(width, height) * 0.75;
+      for (let i = 0; i < streaks.length; i++) {
+        const s = streaks[i]; s.z += s.speed;
+        if (s.z > 1.02) { streaks[i] = createStreak(i + t*0.001); continue; }
+        const eased = s.z * s.z;
+        const radius = lerp(6, maxRadius, eased);
+        const angle = s.angle + Math.sin(t*0.0004*s.pulse + s.pulseOffset)*s.drift*0.18;
+        const x = cx + Math.cos(angle)*radius, y = cy + Math.sin(angle)*radius;
+        const dirX = x-cx, dirY = y-cy, dirLen = Math.max(1, Math.hypot(dirX, dirY));
+        const ux = dirX/dirLen, uy = dirY/dirLen;
+        const trail = s.length * (0.18 + eased*1.75);
+        const x2 = x - ux*trail, y2 = y - uy*trail;
+        const [r, g, b] = s.colour;
+        const glow = clamp(s.alpha * (0.3 + eased*1.15), 0.05, 1);
+        const grad = ctx.createLinearGradient(x2,y2,x,y);
+        grad.addColorStop(0, rgba(255,255,255,0)); grad.addColorStop(0.45, rgba(r,g,b,glow*0.33)); grad.addColorStop(1, rgba(r,g,b,glow));
+        ctx.strokeStyle = grad; ctx.lineWidth = s.width * (0.3 + eased*1.4);
+        ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x,y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function buildSparklePath(sizeOuter, sizeInner) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - sizeOuter);
+      ctx.quadraticCurveTo(cx + sizeInner*0.45, cy - sizeInner*0.75, cx + sizeOuter, cy);
+      ctx.quadraticCurveTo(cx + sizeInner*0.75, cy + sizeInner*0.45, cx, cy + sizeOuter);
+      ctx.quadraticCurveTo(cx - sizeInner*0.45, cy + sizeInner*0.75, cx - sizeOuter, cy);
+      ctx.quadraticCurveTo(cx - sizeInner*0.75, cy - sizeInner*0.45, cx, cy - sizeOuter);
+      ctx.closePath();
+    }
+    function drawCentreFlare(t) {
+      ctx.save(); ctx.globalCompositeOperation = "screen";
+      const pulse = 0.94 + Math.sin(t*0.0034)*0.05 + Math.sin(t*0.0017)*0.035;
+      const minSide = Math.min(width, height);
+      const outerGlow = ctx.createRadialGradient(cx,cy,0,cx,cy,minSide*0.24);
+      outerGlow.addColorStop(0, rgba(255,255,255,0.46*pulse)); outerGlow.addColorStop(0.08, rgba(210,235,255,0.22*pulse));
+      outerGlow.addColorStop(0.18, rgba(255,160,235,0.16*pulse)); outerGlow.addColorStop(0.28, rgba(120,180,255,0.11*pulse));
+      outerGlow.addColorStop(1, rgba(0,0,0,0));
+      ctx.fillStyle = outerGlow; ctx.beginPath(); ctx.arc(cx,cy,minSide*0.24,0,Math.PI*2); ctx.fill();
+      const starOuter = clamp(minSide*0.078*pulse, 36, 82), starInner = starOuter*0.34;
+      const starGlowA = ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter*1.45);
+      starGlowA.addColorStop(0, rgba(255,255,255,0.78)); starGlowA.addColorStop(0.42, rgba(255,245,255,0.28));
+      starGlowA.addColorStop(0.7, rgba(255,170,235,0.16)); starGlowA.addColorStop(1, rgba(0,0,0,0));
+      ctx.fillStyle = starGlowA; buildSparklePath(starOuter*1.22, starInner*1.22); ctx.fill();
+      const starFill = ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter);
+      starFill.addColorStop(0, rgba(255,255,255,1)); starFill.addColorStop(0.28, rgba(255,255,255,0.96));
+      starFill.addColorStop(0.62, rgba(255,230,245,0.82)); starFill.addColorStop(0.86, rgba(190,225,255,0.52));
+      starFill.addColorStop(1, rgba(160,215,255,0.18));
+      ctx.fillStyle = starFill; buildSparklePath(starOuter, starInner); ctx.fill();
+      ctx.strokeStyle = rgba(255,255,255,0.28); ctx.lineWidth = 1.1; buildSparklePath(starOuter, starInner); ctx.stroke();
+      const verticalH = Math.min(height*0.42,360), verticalW = Math.max(6, Math.min(width*0.014,16));
+      const vertFlare = ctx.createLinearGradient(cx, cy-verticalH*0.5, cx, cy+verticalH*0.5);
+      vertFlare.addColorStop(0, rgba(255,255,255,0)); vertFlare.addColorStop(0.18, rgba(255,185,235,0.22));
+      vertFlare.addColorStop(0.5, rgba(255,255,255,0.78)); vertFlare.addColorStop(0.82, rgba(180,215,255,0.22));
+      vertFlare.addColorStop(1, rgba(255,255,255,0));
+      ctx.fillStyle = vertFlare; ctx.fillRect(cx-verticalW*0.5, cy-verticalH*0.5, verticalW, verticalH);
+      const horizontalW = width*0.7;
+      const horizFlare = ctx.createLinearGradient(cx-horizontalW*0.5,cy,cx+horizontalW*0.5,cy);
+      horizFlare.addColorStop(0, rgba(255,255,255,0)); horizFlare.addColorStop(0.2, rgba(90,165,255,0.05));
+      horizFlare.addColorStop(0.42, rgba(255,180,235,0.12)); horizFlare.addColorStop(0.5, rgba(255,255,255,0.34));
+      horizFlare.addColorStop(0.58, rgba(190,220,255,0.12)); horizFlare.addColorStop(0.8, rgba(255,120,220,0.05));
+      horizFlare.addColorStop(1, rgba(255,255,255,0));
+      ctx.fillStyle = horizFlare; ctx.fillRect(cx-horizontalW*0.5, cy-2.5, horizontalW, 5);
+      const innerGlow = ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter*0.9);
+      innerGlow.addColorStop(0, rgba(255,255,255,0.96)); innerGlow.addColorStop(0.35, rgba(255,255,255,0.55));
+      innerGlow.addColorStop(0.8, rgba(180,225,255,0.12)); innerGlow.addColorStop(1, rgba(0,0,0,0));
+      ctx.fillStyle = innerGlow; ctx.beginPath(); ctx.arc(cx,cy,starOuter*0.9,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    function drawVignette() {
+      const vig = ctx.createRadialGradient(cx,cy,Math.min(width,height)*0.2,cx,cy,Math.max(width,height)*0.8);
+      vig.addColorStop(0,"rgba(0,0,0,0)"); vig.addColorStop(0.65,"rgba(0,0,0,0.08)"); vig.addColorStop(1,"rgba(0,0,0,0.42)");
+      ctx.fillStyle = vig; ctx.fillRect(0,0,width,height);
+    }
+    function frame(now) {
+      const dt = Math.min(32, now - lastTime); lastTime = now; time += dt;
+      ctx.clearRect(0,0,width,height);
+      drawBackgroundGradient(); drawNebulaClouds(time); drawSlowMovingStars(time); drawStreaks(time); drawCentreFlare(time); drawVignette();
+      animationRef.current = requestAnimationFrame(frame);
+    }
+    resize();
+    const ro = new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
+    animationRef.current = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(animationRef.current); ro.disconnect(); window.removeEventListener("resize", resize); };
+  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed]);
+
+  return (
+    <canvas ref={canvasRef} className={className} aria-hidden="true"
+      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
+  );
+}
+
+function WormholeBackgroundParallax({
+  className = "", intensity = 1, speed = 1, starCount = 950, streakCount = 240,
+  nebulaStrength = 0.95, starDriftSpeed = 0.18, parallaxStrength = 28, parallaxSmoothing = 0.065,
+}) {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(0);
+  const parallaxRef = useRef({ currentX: 0, currentY: 0, targetX: 0, targetY: 0 });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0, height = 0, cx = 0, cy = 0;
+    let lastTime = performance.now(), time = 0;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    const depth = { background: 0.16, vignette: 0.2, focal: 0.12, nebula: 0.3, slowStars: 0.62, streaks: 1.0 };
+    const movingStars = [], streaks = [];
+
+    function createMovingStar(index = 0) {
+      const colourBand = Math.random();
+      return {
+        angle: rand(0, Math.PI*2), z: Math.random() ** 0.55,
+        speed: rand(0.0012, 0.0045) * speed * starDriftSpeed * (0.75 + intensity*0.45),
+        size: rand(0.45, 1.7), alpha: rand(0.18, 0.95),
+        twinkle: rand(0.35, 2.1), phase: rand(0, Math.PI*2),
+        colour: colourBand < 0.48 ? [165,215,255] : colourBand < 0.82 ? [255,240,255] : [255,185,235],
+        seed: index + Math.random() * 1000,
+      };
+    }
+    function createStars() {
+      movingStars.length = 0;
+      const total = Math.floor(starCount * intensity);
+      for (let i = 0; i < total; i++) movingStars.push(createMovingStar(i));
+    }
+    function createStreak(index = 0) {
+      const baseAngle = Math.atan2(rand(-height*0.55, height*0.55), rand(-width*0.55, width*0.55));
+      const hueWeight = Math.random();
+      return {
+        angle: baseAngle + rand(-0.3, 0.3), z: rand(0.02, 1),
+        speed: rand(0.003, 0.018) * speed * (0.8 + intensity*0.65),
+        width: rand(0.5, 2.6), length: rand(22, 180),
+        alpha: rand(0.12, 0.85), drift: rand(-0.12, 0.12),
+        pulse: rand(0.5, 2.3), pulseOffset: rand(0, Math.PI*2),
+        colour: hueWeight < 0.18 ? [255,255,255] : hueWeight < 0.39 ? [95,205,255] : hueWeight < 0.56 ? [0,255,220] : hueWeight < 0.68 ? [120,255,160] : hueWeight < 0.84 ? [255,90,210] : [165,110,255],
+        seed: index + Math.random() * 1000,
+      };
+    }
+    function createStreaks() {
+      streaks.length = 0;
+      const total = Math.floor(streakCount * intensity);
+      for (let i = 0; i < total; i++) streaks.push(createStreak(i));
+    }
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width || window.innerWidth));
+      height = Math.max(1, Math.floor(rect.height || window.innerHeight));
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width*dpr); canvas.height = Math.floor(height*dpr);
+      canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = width*0.5; cy = height*0.5;
+      createStars(); createStreaks();
+    }
+    function onPointerMove(event) {
+      const rect = canvas.getBoundingClientRect();
+      const xNorm = rect.width > 0 ? ((event.clientX - rect.left) / rect.width) * 2 - 1 : 0;
+      const yNorm = rect.height > 0 ? ((event.clientY - rect.top) / rect.height) * 2 - 1 : 0;
+      parallaxRef.current.targetX = clamp(xNorm, -1, 1) * parallaxStrength;
+      parallaxRef.current.targetY = clamp(yNorm, -1, 1) * parallaxStrength;
+    }
+    function onPointerLeave() { parallaxRef.current.targetX = 0; parallaxRef.current.targetY = 0; }
+    function updateParallax() {
+      const p = parallaxRef.current;
+      p.currentX = lerp(p.currentX, p.targetX, parallaxSmoothing);
+      p.currentY = lerp(p.currentY, p.targetY, parallaxSmoothing);
+      return p;
+    }
+    function drawBackgroundGradient(p) {
+      const shiftX = p.currentX * depth.background, shiftY = p.currentY * depth.background;
+      const bg = ctx.createLinearGradient(shiftX*0.8, shiftY*0.8, width+shiftX*0.5, height+shiftY*0.5);
+      bg.addColorStop(0,"rgba(2,6,18,1)"); bg.addColorStop(0.28,"rgba(5,12,30,1)");
+      bg.addColorStop(0.55,"rgba(9,8,24,1)"); bg.addColorStop(0.78,"rgba(20,7,28,1)");
+      bg.addColorStop(1,"rgba(6,2,12,1)");
+      ctx.fillStyle = bg; ctx.fillRect(0,0,width,height);
+    }
+    function drawNebulaClouds(t, p) {
+      ctx.save(); ctx.globalCompositeOperation = "screen";
+      const nx = p.currentX * depth.nebula, ny = p.currentY * depth.nebula;
+      const leftGrad = ctx.createRadialGradient(width*0.18+nx,height*0.48+ny,10,width*0.18+nx,height*0.48+ny,width*0.55);
+      leftGrad.addColorStop(0,`rgba(40,140,255,${0.18*nebulaStrength})`);
+      leftGrad.addColorStop(0.28,`rgba(20,105,230,${0.12*nebulaStrength})`);
+      leftGrad.addColorStop(0.62,`rgba(8,42,120,${0.09*nebulaStrength})`);
+      leftGrad.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle = leftGrad; ctx.fillRect(0,0,width,height);
+      const rightGrad = ctx.createRadialGradient(width*0.8+nx,height*0.5+ny,12,width*0.8+nx,height*0.5+ny,width*0.48);
+      rightGrad.addColorStop(0,`rgba(255,100,230,${0.2*nebulaStrength})`);
+      rightGrad.addColorStop(0.34,`rgba(175,70,255,${0.14*nebulaStrength})`);
+      rightGrad.addColorStop(0.7,`rgba(95,25,160,${0.08*nebulaStrength})`);
+      rightGrad.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle = rightGrad; ctx.fillRect(0,0,width,height);
+      const blobs = [
+        {x:width*0.16,y:height*0.33,rx:width*0.28,ry:height*0.16,c1:"rgba(80,180,255,0.06)",c2:"rgba(20,40,100,0)"},
+        {x:width*0.26,y:height*0.72,rx:width*0.24,ry:height*0.12,c1:"rgba(0,190,255,0.05)",c2:"rgba(0,0,0,0)"},
+        {x:width*0.78,y:height*0.33,rx:width*0.22,ry:height*0.14,c1:"rgba(255,90,200,0.07)",c2:"rgba(0,0,0,0)"},
+        {x:width*0.86,y:height*0.66,rx:width*0.26,ry:height*0.16,c1:"rgba(180,70,255,0.08)",c2:"rgba(0,0,0,0)"},
+      ];
+      blobs.forEach((b, i) => {
+        const driftX = Math.sin(t*0.00018+i*1.7)*18+nx, driftY = Math.cos(t*0.00012+i*1.3)*12+ny;
+        const g = ctx.createRadialGradient(b.x+driftX,b.y+driftY,0,b.x+driftX,b.y+driftY,Math.max(b.rx,b.ry));
+        g.addColorStop(0,b.c1); g.addColorStop(1,b.c2);
+        ctx.save(); ctx.translate(b.x+driftX,b.y+driftY); ctx.scale(1,b.ry/b.rx);
+        ctx.beginPath(); ctx.arc(0,0,b.rx,0,Math.PI*2); ctx.closePath();
+        ctx.fillStyle=g; ctx.fill(); ctx.restore();
+      });
+      ctx.restore();
+    }
+    function drawSlowMovingStars(t, p) {
+      ctx.save(); ctx.globalCompositeOperation = "screen";
+      const maxRadius = Math.hypot(width,height)*0.77;
+      const povX = cx + p.currentX*depth.slowStars, povY = cy + p.currentY*depth.slowStars;
+      for (let i = 0; i < movingStars.length; i++) {
+        const s = movingStars[i]; s.z += s.speed;
+        if (s.z > 1.03) { movingStars[i] = createMovingStar(i+t*0.001); movingStars[i].z = rand(0.01,0.08); continue; }
+        const eased = s.z*s.z, radius = lerp(0,maxRadius,eased);
+        const x = povX + Math.cos(s.angle)*radius, y = povY + Math.sin(s.angle)*radius;
+        if (x<-20||x>width+20||y<-20||y>height+20) { movingStars[i]=createMovingStar(i+t*0.001); movingStars[i].z=rand(0.01,0.08); continue; }
+        const pulse = 0.78+0.22*Math.sin(t*0.0012*s.twinkle+s.phase);
+        const alpha = clamp(s.alpha*(0.35+eased*0.95)*pulse,0.05,1);
+        const radiusPx = s.size*(0.65+eased*1.15);
+        const [r,g,b] = s.colour;
+        ctx.fillStyle=rgba(r,g,b,alpha); ctx.beginPath(); ctx.arc(x,y,radiusPx,0,Math.PI*2); ctx.fill();
+        if (radiusPx>1.2) {
+          ctx.strokeStyle=rgba(255,255,255,alpha*0.18); ctx.lineWidth=0.55;
+          ctx.beginPath(); ctx.moveTo(x-radiusPx*1.8,y); ctx.lineTo(x+radiusPx*1.8,y);
+          ctx.moveTo(x,y-radiusPx*1.8); ctx.lineTo(x,y+radiusPx*1.8); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function drawStreaks(t, p) {
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+      const maxRadius = Math.hypot(width,height)*0.75;
+      const povX = cx+p.currentX*depth.streaks, povY = cy+p.currentY*depth.streaks;
+      for (let i = 0; i < streaks.length; i++) {
+        const s = streaks[i]; s.z += s.speed;
+        if (s.z > 1.02) { streaks[i]=createStreak(i+t*0.001); continue; }
+        const eased = s.z*s.z, radius = lerp(6,maxRadius,eased);
+        const angle = s.angle + Math.sin(t*0.0004*s.pulse+s.pulseOffset)*s.drift*0.18;
+        const x=povX+Math.cos(angle)*radius, y=povY+Math.sin(angle)*radius;
+        const dirX=x-povX, dirY=y-povY, dirLen=Math.max(1,Math.hypot(dirX,dirY));
+        const ux=dirX/dirLen, uy=dirY/dirLen;
+        const trail=s.length*(0.18+eased*1.75);
+        const x2=x-ux*trail, y2=y-uy*trail;
+        const [r,g,b]=s.colour, glow=clamp(s.alpha*(0.3+eased*1.15),0.05,1);
+        const grad=ctx.createLinearGradient(x2,y2,x,y);
+        grad.addColorStop(0,rgba(255,255,255,0)); grad.addColorStop(0.45,rgba(r,g,b,glow*0.33)); grad.addColorStop(1,rgba(r,g,b,glow));
+        ctx.strokeStyle=grad; ctx.lineWidth=s.width*(0.3+eased*1.4);
+        ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x,y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function buildSparklePath(x, y, sizeOuter, sizeInner) {
+      ctx.beginPath();
+      ctx.moveTo(x, y-sizeOuter);
+      ctx.quadraticCurveTo(x+sizeInner*0.45, y-sizeInner*0.75, x+sizeOuter, y);
+      ctx.quadraticCurveTo(x+sizeInner*0.75, y+sizeInner*0.45, x, y+sizeOuter);
+      ctx.quadraticCurveTo(x-sizeInner*0.45, y+sizeInner*0.75, x-sizeOuter, y);
+      ctx.quadraticCurveTo(x-sizeInner*0.75, y-sizeInner*0.45, x, y-sizeOuter);
+      ctx.closePath();
+    }
+    function drawCentreFlare(t, p) {
+      ctx.save(); ctx.globalCompositeOperation = "screen";
+      const focalX = cx+p.currentX*depth.focal, focalY = cy+p.currentY*depth.focal;
+      const pulse = 0.94+Math.sin(t*0.0034)*0.05+Math.sin(t*0.0017)*0.035;
+      const minSide = Math.min(width,height);
+      const outerGlow = ctx.createRadialGradient(focalX,focalY,0,focalX,focalY,minSide*0.24);
+      outerGlow.addColorStop(0,rgba(255,255,255,0.46*pulse)); outerGlow.addColorStop(0.08,rgba(210,235,255,0.22*pulse));
+      outerGlow.addColorStop(0.18,rgba(255,160,235,0.16*pulse)); outerGlow.addColorStop(0.28,rgba(120,180,255,0.11*pulse));
+      outerGlow.addColorStop(1,rgba(0,0,0,0));
+      ctx.fillStyle=outerGlow; ctx.beginPath(); ctx.arc(focalX,focalY,minSide*0.24,0,Math.PI*2); ctx.fill();
+      const starOuter=clamp(minSide*0.078*pulse,36,82), starInner=starOuter*0.34;
+      const starGlowA=ctx.createRadialGradient(focalX,focalY,0,focalX,focalY,starOuter*1.45);
+      starGlowA.addColorStop(0,rgba(255,255,255,0.78)); starGlowA.addColorStop(0.42,rgba(255,245,255,0.28));
+      starGlowA.addColorStop(0.7,rgba(255,170,235,0.16)); starGlowA.addColorStop(1,rgba(0,0,0,0));
+      ctx.fillStyle=starGlowA; buildSparklePath(focalX,focalY,starOuter*1.22,starInner*1.22); ctx.fill();
+      const starFill=ctx.createRadialGradient(focalX,focalY,0,focalX,focalY,starOuter);
+      starFill.addColorStop(0,rgba(255,255,255,1)); starFill.addColorStop(0.28,rgba(255,255,255,0.96));
+      starFill.addColorStop(0.62,rgba(255,230,245,0.82)); starFill.addColorStop(0.86,rgba(190,225,255,0.52));
+      starFill.addColorStop(1,rgba(160,215,255,0.18));
+      ctx.fillStyle=starFill; buildSparklePath(focalX,focalY,starOuter,starInner); ctx.fill();
+      ctx.strokeStyle=rgba(255,255,255,0.28); ctx.lineWidth=1.1; buildSparklePath(focalX,focalY,starOuter,starInner); ctx.stroke();
+      const verticalH=Math.min(height*0.42,360), verticalW=Math.max(6,Math.min(width*0.014,16));
+      const vertFlare=ctx.createLinearGradient(focalX,focalY-verticalH*0.5,focalX,focalY+verticalH*0.5);
+      vertFlare.addColorStop(0,rgba(255,255,255,0)); vertFlare.addColorStop(0.18,rgba(255,185,235,0.22));
+      vertFlare.addColorStop(0.5,rgba(255,255,255,0.78)); vertFlare.addColorStop(0.82,rgba(180,215,255,0.22));
+      vertFlare.addColorStop(1,rgba(255,255,255,0));
+      ctx.fillStyle=vertFlare; ctx.fillRect(focalX-verticalW*0.5,focalY-verticalH*0.5,verticalW,verticalH);
+      const horizontalW=width*0.7;
+      const horizFlare=ctx.createLinearGradient(focalX-horizontalW*0.5,focalY,focalX+horizontalW*0.5,focalY);
+      horizFlare.addColorStop(0,rgba(255,255,255,0)); horizFlare.addColorStop(0.2,rgba(90,165,255,0.05));
+      horizFlare.addColorStop(0.42,rgba(255,180,235,0.12)); horizFlare.addColorStop(0.5,rgba(255,255,255,0.34));
+      horizFlare.addColorStop(0.58,rgba(190,220,255,0.12)); horizFlare.addColorStop(0.8,rgba(255,120,220,0.05));
+      horizFlare.addColorStop(1,rgba(255,255,255,0));
+      ctx.fillStyle=horizFlare; ctx.fillRect(focalX-horizontalW*0.5,focalY-2.5,horizontalW,5);
+      const innerGlow=ctx.createRadialGradient(focalX,focalY,0,focalX,focalY,starOuter*0.9);
+      innerGlow.addColorStop(0,rgba(255,255,255,0.96)); innerGlow.addColorStop(0.35,rgba(255,255,255,0.55));
+      innerGlow.addColorStop(0.8,rgba(180,225,255,0.12)); innerGlow.addColorStop(1,rgba(0,0,0,0));
+      ctx.fillStyle=innerGlow; ctx.beginPath(); ctx.arc(focalX,focalY,starOuter*0.9,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    function drawVignette(p) {
+      const sx=p.currentX*depth.vignette, sy=p.currentY*depth.vignette;
+      const vig=ctx.createRadialGradient(cx+sx,cy+sy,Math.min(width,height)*0.2,cx+sx,cy+sy,Math.max(width,height)*0.8);
+      vig.addColorStop(0,"rgba(0,0,0,0)"); vig.addColorStop(0.65,"rgba(0,0,0,0.08)"); vig.addColorStop(1,"rgba(0,0,0,0.42)");
+      ctx.fillStyle=vig; ctx.fillRect(0,0,width,height);
+    }
+    function frame(now) {
+      const dt=Math.min(32,now-lastTime); lastTime=now; time+=dt;
+      const p=updateParallax();
+      ctx.clearRect(0,0,width,height);
+      drawBackgroundGradient(p); drawCentreFlare(time,p); drawNebulaClouds(time,p); drawSlowMovingStars(time,p); drawStreaks(time,p); drawVignette(p);
+      animationRef.current=requestAnimationFrame(frame);
+    }
+    resize();
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerleave", onPointerLeave);
+    window.addEventListener("blur", onPointerLeave);
+    const ro=new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
+    animationRef.current=requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(animationRef.current); ro.disconnect(); window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("blur", onPointerLeave);
+    };
+  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed, parallaxStrength, parallaxSmoothing]);
+
+  return (
+    <canvas ref={canvasRef} className={className} aria-hidden="true"
+      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
+  );
+}
+
+function WormholeBackgroundStatic({
+  className = "", intensity = 1, starCount = 950, streakCount = 240, nebulaStrength = 0.95, seed = 1337,
+}) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0, height = 0, cx = 0, cy = 0;
+    function mulberry32(a) {
+      return function() { let t=(a+=0x6d2b79f5); t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return((t^(t>>>14))>>>0)/4294967296; };
+    }
+    let rng = mulberry32(Number(seed)||1337);
+    const rand = (min, max) => rng()*(max-min)+min;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const lerp = (a, b, t) => a+(b-a)*t;
+    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+
+    function resize() {
+      const rect=canvas.getBoundingClientRect();
+      width=Math.max(1,Math.floor(rect.width||window.innerWidth)); height=Math.max(1,Math.floor(rect.height||window.innerHeight));
+      dpr=Math.min(window.devicePixelRatio||1,2);
+      canvas.width=Math.floor(width*dpr); canvas.height=Math.floor(height*dpr);
+      canvas.style.width=`${width}px`; canvas.style.height=`${height}px`;
+      ctx.setTransform(dpr,0,0,dpr,0,0); cx=width*0.5; cy=height*0.5; draw();
+    }
+    function drawBackgroundGradient() {
+      const bg=ctx.createLinearGradient(0,0,width,height);
+      bg.addColorStop(0,"rgba(2,6,18,1)"); bg.addColorStop(0.28,"rgba(5,12,30,1)");
+      bg.addColorStop(0.55,"rgba(9,8,24,1)"); bg.addColorStop(0.78,"rgba(20,7,28,1)");
+      bg.addColorStop(1,"rgba(6,2,12,1)");
+      ctx.fillStyle=bg; ctx.fillRect(0,0,width,height);
+    }
+    function drawNebulaClouds() {
+      ctx.save(); ctx.globalCompositeOperation="screen";
+      const leftGrad=ctx.createRadialGradient(width*0.18,height*0.48,10,width*0.18,height*0.48,width*0.55);
+      leftGrad.addColorStop(0,`rgba(40,140,255,${0.18*nebulaStrength})`);
+      leftGrad.addColorStop(0.28,`rgba(20,105,230,${0.12*nebulaStrength})`);
+      leftGrad.addColorStop(0.62,`rgba(8,42,120,${0.09*nebulaStrength})`);
+      leftGrad.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=leftGrad; ctx.fillRect(0,0,width,height);
+      const rightGrad=ctx.createRadialGradient(width*0.8,height*0.5,12,width*0.8,height*0.5,width*0.48);
+      rightGrad.addColorStop(0,`rgba(255,100,230,${0.2*nebulaStrength})`);
+      rightGrad.addColorStop(0.34,`rgba(175,70,255,${0.14*nebulaStrength})`);
+      rightGrad.addColorStop(0.7,`rgba(95,25,160,${0.08*nebulaStrength})`);
+      rightGrad.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=rightGrad; ctx.fillRect(0,0,width,height);
+      const blobs=[
+        {x:width*0.16,y:height*0.33,rx:width*0.28,ry:height*0.16,c1:"rgba(80,180,255,0.06)",c2:"rgba(20,40,100,0)"},
+        {x:width*0.26,y:height*0.72,rx:width*0.24,ry:height*0.12,c1:"rgba(0,190,255,0.05)",c2:"rgba(0,0,0,0)"},
+        {x:width*0.78,y:height*0.33,rx:width*0.22,ry:height*0.14,c1:"rgba(255,90,200,0.07)",c2:"rgba(0,0,0,0)"},
+        {x:width*0.86,y:height*0.66,rx:width*0.26,ry:height*0.16,c1:"rgba(180,70,255,0.08)",c2:"rgba(0,0,0,0)"},
+      ];
+      blobs.forEach(b => {
+        const driftX=rand(-18,18), driftY=rand(-12,12);
+        const g=ctx.createRadialGradient(b.x+driftX,b.y+driftY,0,b.x+driftX,b.y+driftY,Math.max(b.rx,b.ry));
+        g.addColorStop(0,b.c1); g.addColorStop(1,b.c2);
+        ctx.save(); ctx.translate(b.x+driftX,b.y+driftY); ctx.scale(1,b.ry/b.rx);
+        ctx.beginPath(); ctx.arc(0,0,b.rx,0,Math.PI*2); ctx.closePath(); ctx.fillStyle=g; ctx.fill(); ctx.restore();
+      });
+      ctx.restore();
+    }
+    function drawStars() {
+      ctx.save(); ctx.globalCompositeOperation="screen";
+      const total=Math.floor(starCount*intensity);
+      for (let i=0;i<total;i++) {
+        const sideBias=rng(), x=rand(0,width), y=rand(0,height);
+        const base=rng()**1.6, r=rand(0.35,1.8)*(0.7+base);
+        const a=rand(0.15,0.95)*rand(0.82,1);
+        let tint="rgba(255,255,255,1)";
+        if (sideBias<0.46) tint=`rgba(${Math.floor(rand(140,210))},${Math.floor(rand(190,240))},255,1)`;
+        else if (sideBias>0.62) tint=`rgba(255,${Math.floor(rand(150,205))},${Math.floor(rand(220,255))},1)`;
+        ctx.fillStyle=tint.replace(/,\s*1\)$/,`,${a})`);
+        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+        if (r>1.15) {
+          ctx.strokeStyle=rgba(255,255,255,a*0.2); ctx.lineWidth=0.6;
+          ctx.beginPath(); ctx.moveTo(x-r*2.1,y); ctx.lineTo(x+r*2.1,y);
+          ctx.moveTo(x,y-r*2.1); ctx.lineTo(x,y+r*2.1); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function drawStreaks() {
+      ctx.save(); ctx.globalCompositeOperation="lighter"; ctx.lineCap="round";
+      const total=Math.floor(streakCount*intensity);
+      const maxRadius=Math.hypot(width,height)*0.75;
+      for (let i=0;i<total;i++) {
+        const hueWeight=rng();
+        const baseAngle=Math.atan2(rand(-height*0.55,height*0.55),rand(-width*0.55,width*0.55));
+        const angle=baseAngle+rand(-0.3,0.3);
+        const z=rand(0.04,1), eased=z*z, radius=lerp(6,maxRadius,eased);
+        const x=cx+Math.cos(angle)*radius, y=cy+Math.sin(angle)*radius;
+        const dirX=x-cx, dirY=y-cy, dirLen=Math.max(1,Math.hypot(dirX,dirY));
+        const ux=dirX/dirLen, uy=dirY/dirLen;
+        const widthPx=rand(0.5,2.6)*(0.3+eased*1.4);
+        const trail=rand(22,180)*(0.18+eased*1.75);
+        const x2=x-ux*trail, y2=y-uy*trail;
+        const alpha=clamp(rand(0.12,0.85)*(0.3+eased*1.15),0.05,1);
+        let colour=[165,110,255];
+        if (hueWeight<0.18) colour=[255,255,255];
+        else if (hueWeight<0.39) colour=[95,205,255];
+        else if (hueWeight<0.56) colour=[0,255,220];
+        else if (hueWeight<0.68) colour=[120,255,160];
+        else if (hueWeight<0.84) colour=[255,90,210];
+        const [r,g,b]=colour;
+        const grad=ctx.createLinearGradient(x2,y2,x,y);
+        grad.addColorStop(0,rgba(255,255,255,0)); grad.addColorStop(0.45,rgba(r,g,b,alpha*0.33)); grad.addColorStop(1,rgba(r,g,b,alpha));
+        ctx.strokeStyle=grad; ctx.lineWidth=widthPx;
+        ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x,y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function buildSparklePath(x, y, sizeOuter, sizeInner) {
+      ctx.beginPath();
+      ctx.moveTo(x,y-sizeOuter);
+      ctx.quadraticCurveTo(x+sizeInner*0.45,y-sizeInner*0.75,x+sizeOuter,y);
+      ctx.quadraticCurveTo(x+sizeInner*0.75,y+sizeInner*0.45,x,y+sizeOuter);
+      ctx.quadraticCurveTo(x-sizeInner*0.45,y+sizeInner*0.75,x-sizeOuter,y);
+      ctx.quadraticCurveTo(x-sizeInner*0.75,y-sizeInner*0.45,x,y-sizeOuter);
+      ctx.closePath();
+    }
+    function drawCentreFlare() {
+      ctx.save(); ctx.globalCompositeOperation="screen";
+      const minSide=Math.min(width,height);
+      const outerGlow=ctx.createRadialGradient(cx,cy,0,cx,cy,minSide*0.24);
+      outerGlow.addColorStop(0,rgba(255,255,255,0.46)); outerGlow.addColorStop(0.08,rgba(210,235,255,0.22));
+      outerGlow.addColorStop(0.18,rgba(255,160,235,0.16)); outerGlow.addColorStop(0.28,rgba(120,180,255,0.11));
+      outerGlow.addColorStop(1,rgba(0,0,0,0));
+      ctx.fillStyle=outerGlow; ctx.beginPath(); ctx.arc(cx,cy,minSide*0.24,0,Math.PI*2); ctx.fill();
+      const starOuter=clamp(minSide*0.078,36,82), starInner=starOuter*0.34;
+      const starGlowA=ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter*1.45);
+      starGlowA.addColorStop(0,rgba(255,255,255,0.78)); starGlowA.addColorStop(0.42,rgba(255,245,255,0.28));
+      starGlowA.addColorStop(0.7,rgba(255,170,235,0.16)); starGlowA.addColorStop(1,rgba(0,0,0,0));
+      ctx.fillStyle=starGlowA; buildSparklePath(cx,cy,starOuter*1.22,starInner*1.22); ctx.fill();
+      const starFill=ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter);
+      starFill.addColorStop(0,rgba(255,255,255,1)); starFill.addColorStop(0.28,rgba(255,255,255,0.96));
+      starFill.addColorStop(0.62,rgba(255,230,245,0.82)); starFill.addColorStop(0.86,rgba(190,225,255,0.52));
+      starFill.addColorStop(1,rgba(160,215,255,0.18));
+      ctx.fillStyle=starFill; buildSparklePath(cx,cy,starOuter,starInner); ctx.fill();
+      ctx.strokeStyle=rgba(255,255,255,0.28); ctx.lineWidth=1.1; buildSparklePath(cx,cy,starOuter,starInner); ctx.stroke();
+      const verticalH=Math.min(height*0.42,360), verticalW=Math.max(6,Math.min(width*0.014,16));
+      const vertFlare=ctx.createLinearGradient(cx,cy-verticalH*0.5,cx,cy+verticalH*0.5);
+      vertFlare.addColorStop(0,rgba(255,255,255,0)); vertFlare.addColorStop(0.18,rgba(255,185,235,0.22));
+      vertFlare.addColorStop(0.5,rgba(255,255,255,0.78)); vertFlare.addColorStop(0.82,rgba(180,215,255,0.22));
+      vertFlare.addColorStop(1,rgba(255,255,255,0));
+      ctx.fillStyle=vertFlare; ctx.fillRect(cx-verticalW*0.5,cy-verticalH*0.5,verticalW,verticalH);
+      const horizontalW=width*0.7;
+      const horizFlare=ctx.createLinearGradient(cx-horizontalW*0.5,cy,cx+horizontalW*0.5,cy);
+      horizFlare.addColorStop(0,rgba(255,255,255,0)); horizFlare.addColorStop(0.2,rgba(90,165,255,0.05));
+      horizFlare.addColorStop(0.42,rgba(255,180,235,0.12)); horizFlare.addColorStop(0.5,rgba(255,255,255,0.34));
+      horizFlare.addColorStop(0.58,rgba(190,220,255,0.12)); horizFlare.addColorStop(0.8,rgba(255,120,220,0.05));
+      horizFlare.addColorStop(1,rgba(255,255,255,0));
+      ctx.fillStyle=horizFlare; ctx.fillRect(cx-horizontalW*0.5,cy-2.5,horizontalW,5);
+      const innerGlow=ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter*0.9);
+      innerGlow.addColorStop(0,rgba(255,255,255,0.96)); innerGlow.addColorStop(0.35,rgba(255,255,255,0.55));
+      innerGlow.addColorStop(0.8,rgba(180,225,255,0.12)); innerGlow.addColorStop(1,rgba(0,0,0,0));
+      ctx.fillStyle=innerGlow; ctx.beginPath(); ctx.arc(cx,cy,starOuter*0.9,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    function drawVignette() {
+      const vig=ctx.createRadialGradient(cx,cy,Math.min(width,height)*0.2,cx,cy,Math.max(width,height)*0.8);
+      vig.addColorStop(0,"rgba(0,0,0,0)"); vig.addColorStop(0.65,"rgba(0,0,0,0.08)"); vig.addColorStop(1,"rgba(0,0,0,0.42)");
+      ctx.fillStyle=vig; ctx.fillRect(0,0,width,height);
+    }
+    function draw() {
+      rng=mulberry32(Number(seed)||1337);
+      ctx.clearRect(0,0,width,height);
+      drawBackgroundGradient(); drawNebulaClouds(); drawStars(); drawStreaks(); drawCentreFlare(); drawVignette();
+    }
+    resize();
+    const ro=new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
+    return () => { ro.disconnect(); window.removeEventListener("resize", resize); };
+  }, [intensity, starCount, streakCount, nebulaStrength, seed]);
+
+  return (
+    <canvas ref={canvasRef} className={className} aria-hidden="true"
+      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
+  );
+}
+
 // ── Draw main wheel ────────────────────────────────────────────────────────
 function drawWheel(canvas, theme = 'default') {
   const ctx = canvas.getContext('2d');
@@ -362,6 +1013,10 @@ function drawWheel(canvas, theme = 'default') {
     night_ocean: [
       { label: 'WIN',  color: '#1a0d4d', bright: '#5533FF', start: -Math.PI/2, end: Math.PI/2 },
       { label: 'LOSE', color: '#3d0011', bright: '#CC2244', start: Math.PI/2,  end: Math.PI*1.5 },
+    ],
+    wormhole: [
+      { label: 'WIN',  color: '#1a0044', bright: '#BB88FF', start: -Math.PI/2, end: Math.PI/2 },
+      { label: 'LOSE', color: '#3d0022', bright: '#FF44AA', start: Math.PI/2,  end: Math.PI*1.5 },
     ],
   };
   const segments = THEMES[theme] || THEMES.default;
@@ -504,7 +1159,7 @@ function fmt(n) {
 }
 
 // ── Hiatus mode — set to false to re-enable the full game ─────────────────
-const HIATUS_MODE        = true;
+const HIATUS_MODE        = false;
 const HIATUS_END         = new Date('2026-05-01T23:59:59'); // Next Friday 11:59 pm
 const HIATUS_PAST_SEASON = 6;  // season that just ended
 
@@ -910,6 +1565,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
               <input type="checkbox" checked={autoFish} onChange={e => {
                 setAutoFish(e.target.checked);
                 if (e.target.checked) { setPhase('idle'); }
+                else { apiGame('/api/auto-fish-enabled', { method: 'POST', body: JSON.stringify({ enabled: false }) }); }
               }} />
               <span className="fishing-toggle-text">Auto-Fish</span>
             </label>
@@ -964,12 +1620,23 @@ const LuckySevenCounter = React.memo(function LuckySevenCounter({ spinCount }) {
   );
 });
 
+const ProcStreakCounter = React.memo(function ProcStreakCounter({ streak }) {
+  if (streak === 0) return null;
+  return (
+    <div className="proc-streak-counter">
+      <span className="proc-streak-label">⚡</span>
+      <span className="proc-streak-value">{streak}</span>
+    </div>
+  );
+});
+
 // ── Streak Panel ──────────────────────────────────────────────────────────
-// Must match models.py bonus_mult_from_level()
+// Must match models.py bonus_mult_from_level() (Season 7: C1+C2 curve)
 function bonusMultFromLevel(level) {
-  const fixed = [1, 2, 5, 10, 20, 50, 100];
+  const fixed = [1, 2, 4, 8, 15, 35, 70];
   if (level <= 6) return fixed[level] || 1;
-  return 100 + (level - 6) * 10;
+  if (level <= 30) return 70 + (level - 6) * 8;
+  return 262 + (level - 30) * 5;
 }
 
 const StreakPanel = React.memo(function StreakPanel({ streak, bonusmultLevel }) {
@@ -1039,7 +1706,7 @@ function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
   return secsToNext;
 }
 
-function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, hasDiceExtra, rolledSinceSpin }) {
+function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, hasDiceExtra, rolledSinceSpin }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [animDie3, setAnimDie3] = React.useState(1);
@@ -1079,14 +1746,14 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
     }
   }, [diceResult]);
 
-  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !spinning && !guardSpinning && !rolledSinceSpin;
+  const canRoll = diceCharges >= 1 && streak >= 3 && !rolling && !guardSpinning && !rolledSinceSpin;
 
   const die1Val = (rolling && !lowSpec) ? animDie1 : (diceResult ? diceResult.die1 : animDie1);
   const die2Val = (rolling && !lowSpec) ? animDie2 : (diceResult ? diceResult.die2 : animDie2);
   const die3Val = (rolling && !lowSpec) ? animDie3 : (diceResult && diceResult.die3 != null ? diceResult.die3 : animDie3);
 
   const showTip = () => {
-    if (spinning || guardSpinning) return;
+    if (guardSpinning) return;
     const rect = descRef.current && descRef.current.getBoundingClientRect();
     if (!rect) return;
     let left = rect.left + rect.width / 2 - DICE_TOOLTIP_W / 2;
@@ -1109,7 +1776,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
   let disabledReason = '';
   if (diceCharges < 1) disabledReason = 'No charges';
   else if (streak < 3) disabledReason = 'Need win streak ≥3';
-  else if (rolledSinceSpin) disabledReason = 'Spin once before rolling again';
+  else if (rolledSinceSpin) disabledReason = 'Dice buffered — applies next spin';
 
   return (
     <div className="dice-panel">
@@ -1149,6 +1816,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, spinning, guardSpinnin
             : diceResult.cursed
             ? `💀 CURSED! Streak -${diceResult.streak_before - diceResult.streak_after}`
             : `+${diceResult.streak_delta} streak!`}
+          {diceResult.pending && rolledSinceSpin && <span className="dice-pending-note"> ⏳ next spin</span>}
         </span>
       )}
       <button
@@ -1183,28 +1851,11 @@ function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo({ seasonNumber, endsAt }) {
-  const [timeLeft, setTimeLeft] = useState('');
-
-  useEffect(() => {
-    if (!endsAt) return;
-    const update = () => {
-      const diff = new Date(endsAt) - new Date();
-      if (diff <= 0) { setTimeLeft('Ending...'); return; }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff % 86400000) / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`);
-    };
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, [endsAt]);
-
+function SeasonInfo({ seasonNumber }) {
   return (
     <div className="season-info">
       <span>Season {seasonNumber} ends:</span>
-      {timeLeft && <span className="season-countdown">{timeLeft}</span>}
+      <span className="season-countdown">∞?</span>
     </div>
   );
 }
@@ -1456,15 +2107,17 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
             <span className="lb-wins-h">W</span>
-            <span className="lb-best-h">Best</span>
-            <span className="lb-streak-h">Now</span>
+            <span className="lb-wp-h" title="Win Power level">WP</span>
+            <span className="lb-bp-h" title="Bonus Power level">BP</span>
+            <span className="lb-streak-h">🔥</span>
           </div>
           {rows.map((r, i) => (
-            <div key={r.username} className="lb-row">
+            <div key={r.username} className={`lb-row${r.active ? '' : ' lb-inactive'}`}>
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
               <span className="lb-wins">{fmt(r.wins)}</span>
-              <span className="lb-best">{r.best_streak > 0 ? `${r.best_streak}🔥` : '—'}</span>
+              <span className="lb-wp">{r.winmult_inf_level > 0 ? r.winmult_inf_level : '—'}</span>
+              <span className="lb-bp">{r.bonusmult_inf_level > 0 ? r.bonusmult_inf_level : '—'}</span>
               <span className={`lb-streak ${infernoClass(r.streak)}`}>
                 {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
               </span>
@@ -1700,17 +2353,10 @@ const FISH_SKINS = [
 ];
 
 const SHOP_SECTIONS = [
-  { label: '⚡ Spin Speed', items: [
-    { id: 'speed_boost', emoji: '⚡', name: 'Speed Boost',  cost: 100,       desc: 'Spin time: 4.5s → 3s' },
-    { id: 'turbo_spin',  emoji: '🚀', name: 'Turbo Spin',   cost: 1000,      desc: 'Spin time: 3s → 1.5s',  requires: 'speed_boost' },
-    { id: 'hyperspin',   emoji: '💨', name: 'Hyper Spin',   cost: 10000,     desc: 'Spin time: 1.5s → 1s',  requires: 'turbo_spin' },
-    { id: 'ultraspin',   emoji: '🌀', name: 'Ultra Spin',   cost: 100000,    desc: 'Spin time: 1s → 0.75s', requires: 'hyperspin' },
-    { id: 'maxspin',     emoji: '⚡', name: 'Max Spin',     cost: 1000000,   desc: 'Spin time: 0.75s → 0.5s',requires: 'ultraspin' },
-  ]},
-  { label: '⏩ Auto Speed', items: [
-    { id: 'autospeed_1', emoji: '⏩', name: 'Quick Auto',   cost: 200,       desc: 'Auto-spin cuts wheel animation at 1s — toggle on/off after purchase' },
-    { id: 'autospeed_2', emoji: '⏩', name: 'Rapid Auto',   cost: 10000,     desc: 'Auto-spin cuts wheel animation at 0.5s — toggle on/off after purchase', requires: 'autospeed_1' },
-    { id: 'autospeed_3', emoji: '⏩', name: 'Instant Auto', cost: 1000000,   desc: 'Auto-spin skips result banner — wheel animation plays in full — toggle on/off after purchase', requires: 'autospeed_2' },
+  { label: '🪐 Class', classSection: true, items: [
+    { id: 'class_earth', emoji: '🌍', name: 'Earth', cost: 10000000, tier: 3, desc: '+25% to all fish income while equipped' },
+    { id: 'class_moon',  emoji: '🌙', name: 'Moon',  cost: 10000000, tier: 3, desc: '+5% to all proc rates (Jackpot, Win Echo, Fortune Charm) while equipped' },
+    { id: 'class_star',  emoji: '⭐', name: 'Star',  cost: 10000000, tier: 3, desc: '+20% to Win Power payout while equipped' },
   ]},
   { label: '💰 Win Power', items: [
     { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
@@ -1746,15 +2392,12 @@ const SHOP_SECTIONS = [
     { id: 'precise_angler_1', emoji: '🎯', name: 'Precise Angler',        cost: 50000,  desc: 'Reel within the first 50% of the bite window for 1.2× catch value', tier: 2 },
     { id: 'precise_angler_2', emoji: '🎯', name: 'Precise Angler II',     cost: 100000, desc: 'Also: reel within the first 20% for 1.5× catch value', requires: 'precise_angler_1' },
     { id: 'precise_angler_3', emoji: '🎯', name: 'Master Angler',         cost: 500000, desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia', requires: 'precise_angler_2', encyclopaediaLocked: true },
+    { id: 'lure_mastery_inf', emoji: '✨', name: 'Lure Mastery', cost: 0, desc: '+10% fish value per level (stacks beyond Lure V cap) — costs 🐟 Fish Bucks', infinite: true },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
     { id: 'auto_guard',    emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard', tier: 2 },
     { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
-    { id: 'guard_speed_1', emoji: '⚡', name: 'Guard Speed I',      cost: 2000,   desc: 'Guard activates 25% faster — toggle on/off after purchase', requires: 'guard' },
-    { id: 'guard_speed_2', emoji: '⚡', name: 'Guard Speed II',     cost: 8000,   desc: 'Guard activates 50% faster — toggle on/off after purchase', requires: 'guard_speed_1' },
-    { id: 'guard_speed_3', emoji: '⚡', name: 'Guard Speed III',    cost: 30000,  desc: 'Guard activates 65% faster — toggle on/off after purchase', requires: 'guard_speed_2' },
-    { id: 'guard_speed_4', emoji: '⚡', name: 'Guard Speed MAX',    cost: 100000, desc: 'Guard animation skipped entirely — toggle on/off after purchase', requires: 'guard_speed_3' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -1784,6 +2427,7 @@ const SHOP_SECTIONS = [
     { id: 'page_season4', emoji: '💜', name: 'Season 4 Theme', cost: 1000, desc: 'Deep violet casino theme (S4).' },
     { id: 'page_season5', emoji: '🌊', name: 'Season 5 Theme', cost: 1000, desc: 'Bioluminescent deep ocean theme (S5).' },
     { id: 'page_season6', emoji: '🌙', name: 'Season 6 Theme', cost: 1000, desc: 'Night ocean — deep indigo & violet (S6).' },
+    { id: 'page_season7', emoji: '🌌', name: 'Season 7 Theme', cost: 1000, desc: 'Sci-fi wormhole — animated star field with parallax (S7).' },
   ]},
   { label: '🎲 Dice Charges', items: [
     { id: 'dice_charge_2', emoji: '🎲', name: 'Extra Charge',    cost: 2000,    desc: 'Max dice charges: 1 → 2', tier: 2 },
@@ -1797,7 +2441,10 @@ const SHOP_SECTIONS = [
     { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
     { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 10000000, desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
     { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
-    { id: 'streak_armor_inf', emoji: '🛡️', name: 'Streak Armor', cost: 0, desc: '+1% to Resilience save chance per level (base 50%, cap 60%)', infinite: true },
+    { id: 'streak_armor_inf',      emoji: '🛡️', name: 'Streak Armor',       cost: 0, desc: '+1% to Resilience save chance per level (base 50%, cap 60%)', infinite: true },
+    { id: 'jackpot_resonance_inf', emoji: '🎰', name: 'Jackpot Resonance',  cost: 0, desc: 'Raises Jackpot proc rate: 1% → up to 3% cap (level 10)', infinite: true },
+    { id: 'echo_amp_inf',          emoji: '🔊', name: 'Echo Amplification', cost: 0, desc: 'Raises Win Echo proc rate: 20% → up to 40% cap (level 10)', infinite: true },
+    { id: 'proc_streak_inf',       emoji: '⚡', name: 'Proc Streak',        cost: 0, desc: "Amplifies proc payouts by +0.5% per consecutive proc'd win per level", infinite: true },
   ]},
   { label: '🌌 Legendary', items: [
     { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1e67,
@@ -1807,29 +2454,39 @@ const SHOP_SECTIONS = [
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 const INF_UPGRADE_CFG = {
-  winmult_inf:      { tierCosts: [200, 600, 2000, 6400, 20000, 64000, 200000],   infBase: 400_000,   infScale: 1.18 },
-  bonusmult_inf:    { tierCosts: [300, 900, 2800, 8500, 26000, 80000],           infBase: 200_000,   infScale: 1.18 },
-  clickmult_inf:    { tierCosts: [75, 250, 600, 1400, 3000],                     infBase: 10_000,    infScale: 1.5 },
-  streak_armor_inf: { tierCosts: [500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000, 2250000, 2500000, 2750000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
+  winmult_inf:           { tierCosts: [200, 600, 2000, 6400, 20000, 64000, 200000],   infBase: 400_000,     infScale: 1.18 },
+  bonusmult_inf:         { tierCosts: [300, 900, 2800, 8500, 26000, 80000],           infBase: 200_000,     infScale: 1.18 },
+  clickmult_inf:         { tierCosts: [75, 250, 600, 1400, 3000],                     infBase: 10_000,      infScale: 1.5 },
+  streak_armor_inf:      { tierCosts: [500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000, 2250000, 2500000, 2750000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
+  lure_mastery_inf:      { tierCosts: [5000, 25000, 100000, 400000],                  infBase: 1_500_000,   infScale: 1.25 },
+  jackpot_resonance_inf: { tierCosts: [5000000, 10000000, 20000000],                  infBase: 40_000_000,  infScale: 1.50, maxLevel: 10 },
+  echo_amp_inf:          { tierCosts: [2000000, 5000000, 12000000],                   infBase: 25_000_000,  infScale: 1.40, maxLevel: 10 },
+  proc_streak_inf:       { tierCosts: [3000000, 8000000, 20000000],                   infBase: 50_000_000,  infScale: 1.50, maxLevel: 15 },
 };
 function infCost(id, level) {
-  const { tierCosts, infBase, infScale } = INF_UPGRADE_CFG[id];
+  const cfg = INF_UPGRADE_CFG[id];
+  if (!cfg) return 0;
+  const { tierCosts, infBase, infScale } = cfg;
   if (level < tierCosts.length) return tierCosts[level];
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
 function infMultiplier(id, level) {
-  if (id === 'streak_armor_inf') {
-    return Math.min(50 + level, 60);  // resilience % chance
-  }
+  if (id === 'streak_armor_inf')      return Math.min(50 + level, 60);  // resilience %
+  if (id === 'lure_mastery_inf')      return 1 + level * 0.10;          // fish value multiplier
+  if (id === 'jackpot_resonance_inf') return parseFloat((Math.min(0.01 + level * 0.002, 0.03) * 100).toFixed(1)); // jackpot %
+  if (id === 'echo_amp_inf')          return parseFloat((Math.min(0.20 + level * 0.02, 0.40) * 100).toFixed(0));  // echo %
+  if (id === 'proc_streak_inf')       return level;                      // streak level
   if (id === 'winmult_inf') {
     if (level <= 0) return 1;
     if (level <= 7) return Math.pow(2, level);
     return 128 + (level - 7) * 16;
   }
   if (id === 'bonusmult_inf') {
-    const fixed = [1, 2, 5, 10, 20, 50, 100];
-    if (level <= 6) return fixed[level];
-    return 100 + (level - 6) * 10;
+    // Season 7: flatter early (C2), slower past level 30 (C1)
+    const fixed = [1, 2, 4, 8, 15, 35, 70];
+    if (level <= 6) return fixed[level] || 1;
+    if (level <= 30) return 70 + (level - 6) * 8;
+    return 262 + (level - 30) * 5;
   }
   if (id === 'clickmult_inf') return 1 + level * 0.25;
   return 1;
@@ -1849,11 +2506,9 @@ const COSMETIC_SECTION_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
-  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6',
+  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7',
   'final_frenzy',
   'auto_guard',
-  'autospeed_1', 'autospeed_2', 'autospeed_3',
-  'guard_speed_1', 'guard_speed_2', 'guard_speed_3', 'guard_speed_4',
 ]);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
@@ -1864,14 +2519,28 @@ const COSMETIC_IDS = new Set([
   'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
-  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','party_mode','confetti_1','confetti_2','confetti_3',
+  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','page_season7','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
-const getItemCurrency = id => id === 'singularity' ? 'fish_clicks' : COSMETIC_IDS.has(id) ? 'losses' : 'wins';
+const getItemCurrency = id => {
+  if (id === 'singularity' || id === 'lure_mastery_inf') return 'fish_clicks';
+  if (COSMETIC_IDS.has(id)) return 'losses';
+  return 'wins';
+};
 const currencyIcon = c => c === 'wins' ? '🏆' : c === 'losses' ? '💀' : '🐟';
 
+// Linear decay: 1:1 for first 25M exchanged, linearly down to 10% by 125M
+function computeFishExchangeRate(total) {
+  if (total < 25_000_000)  return 100;
+  if (total >= 125_000_000) return 10;
+  const t = (total - 25_000_000) / 100_000_000;
+  return Math.round(Math.max(10, 100 - 90 * t));
+}
+
 // ── Shop components ────────────────────────────────────────────────────────
-const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, isSkin, isSingularity, isCosmetic, infLevel, displayCost }) {
+const CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
+
+const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, onEquipClass, isSkin, isSingularity, isCosmetic, isClass, isClassEquipped, infLevel, displayCost, procStreak }) {
   const isInfinite = !!item.infinite;
   const cost = isInfinite ? displayCost : item.cost;
 
@@ -1883,6 +2552,10 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
         onClick={() => canAfford && onBuy(item.id, cost)}
       >Buy</button>
     );
+  } else if (owned && isClass) {
+    actionEl = isClassEquipped
+      ? <span className="shop-equipped-badge">⭐ Equipped</span>
+      : <button className="shop-equip-btn" onClick={() => onEquipClass(item.id)}>Equip</button>;
   } else if (owned && isSkin) {
     actionEl = equipped
       ? <span className="shop-equipped-badge">✓ On</span>
@@ -1907,9 +2580,17 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
         const cfg = INF_UPGRADE_CFG[item.id];
         const atMax = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
         if (atMax) return `Lv${infLevel} · MAX  ${item.desc}`;
+        if (item.id === 'proc_streak_inf') {
+          const streak = procStreak || 0;
+          const currentBonus = (streak * infLevel * 0.5).toFixed(1);
+          return `+${currentBonus}% now (streak ${streak} × Lv${infLevel}) · Lv${infLevel} → Lv${infLevel + 1}  ${item.desc}`;
+        }
         const cur = infMultiplier(item.id, infLevel);
         const nxt = infMultiplier(item.id, infLevel + 1);
-        const sep = item.id === 'streak_armor_inf' ? '%' : 'x';
+        let sep = 'x';
+        if (item.id === 'streak_armor_inf')      sep = '%';
+        if (item.id === 'jackpot_resonance_inf') sep = '%';
+        if (item.id === 'echo_amp_inf')          sep = '%';
         return `Lv${infLevel} · ${cur}${sep} → ${nxt}${sep}  ${item.desc}`;
       })()
     : item.desc;
@@ -1931,7 +2612,7 @@ const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Tr
 // Season 5 tier thresholds
 const TIER_THRESHOLDS = { 2: 1000, 3: 10000 };
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, collapsed, winCount, caughtSpecies }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, winCount, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -1942,8 +2623,10 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         const requiresMet = !item.requires || ownedItems.includes(item.requires);
         if (isCosmeticSection) return requiresMet;
         if (item.infinite) {
-          // streak_armor_inf requires resilience owned
-          if (item.id === 'streak_armor_inf') return ownedItems.includes('resilience');
+          if (item.id === 'streak_armor_inf')      return ownedItems.includes('resilience');
+          if (item.id === 'jackpot_resonance_inf') return ownedItems.includes('jackpot');
+          if (item.id === 'echo_amp_inf')          return ownedItems.includes('win_echo');
+          if (item.id === 'proc_streak_inf')       return ['jackpot','win_echo','fortune_charm'].some(x => ownedItems.includes(x));
           return requiresMet;
         }
         const isOwned = ownedItems.includes(item.id);
@@ -2009,23 +2692,31 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
           );
         }
 
+        const isClass = CLASS_IDS.has(item.id);
+        const isClassEquipped = isClass && equippedClass === item.id.replace('class_', '');
         return (
           <ShopItem key={item.id} item={item}
             isSkin={false}
             isSingularity={item.id === 'singularity'}
             isCosmetic={isCosmetic}
+            isClass={isClass}
+            isClassEquipped={isClassEquipped}
             owned={!item.infinite && ownedItems.includes(item.id)}
             equipped={false}
             active={isCosmetic && activeCosmetics.includes(item.id)}
             canAfford={!atMaxLevel && balance >= displayCost}
             infLevel={infLevel}
             displayCost={atMaxLevel ? 0 : displayCost}
+            procStreak={procStreak}
             onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
+            onEquipClass={onEquipClass}
           />
         );
       })}
     </React.Fragment>
   );
+
+  const exchangeRate = computeFishExchangeRate(fishExchangeTotal || 0);
 
   return (
     <div className={`shop-panel${collapsed ? ' shop-panel--collapsed' : ''}`}>
@@ -2056,7 +2747,45 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
             {cosmeticSections.map(renderSection)}
           </>
         ) : (
-          functionalSections.map(renderSection)
+          <>
+            {functionalSections.map(renderSection)}
+            {(fishClicks > 0 || wins > 0) && (
+              <React.Fragment>
+                <div className="shop-section-label">── 🔄 Fish Exchange ──</div>
+                {fishClicks > 0 && (
+                  <div className="fish-exchange-panel">
+                    <div className="fish-exchange-desc">
+                      Convert 🐟 Fish Bucks → 🏆 Wins at ~{exchangeRate}¢ per buck
+                      {exchangeRate < 100 && <span className="fish-exchange-rate-warn"> (1:1 for first 25M, then decays)</span>}
+                    </div>
+                    <div className="fish-exchange-buttons">
+                      <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('10pct')}>
+                        Exchange 10% ({fmt(Math.max(1, Math.floor(fishClicks / 10)))} 🐟)
+                      </button>
+                      <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('all')}>
+                        Exchange All ({fmt(fishClicks)} 🐟)
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {wins > 0 && (
+                  <div className="wins-exchange-panel">
+                    <div className="wins-exchange-desc">
+                      Convert 🏆 Wins → 🐟 Fish Bucks at 1:1
+                    </div>
+                    <div className="fish-exchange-buttons">
+                      <button className="shop-buy-btn can-afford" onClick={() => onWinsExchange('10pct')}>
+                        Exchange 10% ({fmt(Math.max(1, Math.floor(wins / 10)))} 🏆)
+                      </button>
+                      <button className="shop-buy-btn can-afford" onClick={() => onWinsExchange('all')}>
+                        Exchange All ({fmt(wins)} 🏆)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -2111,6 +2840,30 @@ function StatsPanel({ open, onClose }) {
           </>
         ) : <div className="stats-loading">Loading…</div>}
         <button className="stats-close-btn" onClick={onClose}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Patch Notes Panel ──────────────────────────────────────────────────────
+function PatchNotesPanel({ open, onClose }) {
+  const [md, setMd] = useState(null);
+  useEffect(() => {
+    if (!open || md !== null) return;
+    apiFetch('/api/patch-notes').then(r => { if (r.ok) setMd(r.data.content); });
+  }, [open]);
+  if (!open) return null;
+  const html = md != null ? window.marked.parse(md) : null;
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="patch-notes-card" onClick={e => e.stopPropagation()}>
+        <div className="stats-title">📋 Patch Notes</div>
+        <button className="stats-close-btn" onClick={onClose}>✕</button>
+        <div className="patch-notes-body">
+          {html
+            ? <div className="patch-notes-content" dangerouslySetInnerHTML={{ __html: html }} />
+            : <div className="stats-loading">Loading…</div>}
+        </div>
       </div>
     </div>
   );
@@ -2267,8 +3020,6 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
 // ── Game App ───────────────────────────────────────────────────────────────
 function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const canvasRef = useRef(null);
-  const [rotation, setRotation]       = useState(0);
-  const [spinning, setSpinning]       = useState(false);
   const [result, setResult]           = useState(null);
   const [showResult, setShowResult]   = useState(false);
   const setShowResultSync = (v) => { showResultRef.current = v; setShowResult(v); };
@@ -2293,39 +3044,48 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fortuneCharmTriggered, setFortuneCharmTriggered] = useState(false);
   const [shieldCharges, setShieldCharges]         = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
-  const [autoSpin, setAutoSpin]       = useState(false);
+  const [catchUpSummary, setCatchUpSummary] = useState(null);
+  const [fishCatchUpSummary, setFishCatchUpSummary] = useState(null);
+  const [happyHour, setHappyHour]     = useState(gameState.happy_hour || false);
+  const [catchupBonus, setCatchupBonus] = useState(false);
   const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
   const [infLevels, setInfLevels]     = useState({
-    winmult_inf:      gameState.winmult_inf_level   || 0,
-    bonusmult_inf:    gameState.bonusmult_inf_level || 0,
-    clickmult_inf:    gameState.clickmult_inf_level || 0,
-    streak_armor_inf: gameState.streak_armor_level  || 0,
+    winmult_inf:           gameState.winmult_inf_level          || 0,
+    bonusmult_inf:         gameState.bonusmult_inf_level        || 0,
+    clickmult_inf:         gameState.clickmult_inf_level        || 0,
+    streak_armor_inf:      gameState.streak_armor_level         || 0,
+    lure_mastery_inf:      gameState.lure_mastery_level         || 0,
+    jackpot_resonance_inf: gameState.jackpot_resonance_level    || 0,
+    echo_amp_inf:          gameState.echo_amp_level             || 0,
+    proc_streak_inf:       gameState.proc_streak_level          || 0,
   });
+  const [equippedClass, setEquippedClass]   = useState(gameState.equipped_class || null);
+  const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
+  const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
   const [showStats, setShowStats]     = useState(false);
+  const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [toast, setToast]             = useState(null);
   const [season, setSeason]           = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 1_000, filled: false, active: false, win_chance_pct: 50.0 });
   const [spinCount, setSpinCount]     = useState(gameState.spin_count || 0);
   const [winCount, setWinCount]       = useState(gameState.win_count || 0);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
+  const [parallaxEnabled, setParallaxEnabled] = useState(() => localStorage.getItem('parallaxEnabled') !== 'false');
   const [shopCollapsed, setShopCollapsed] = useState(false);
   const [diceRolling, setDiceRolling]     = useState(false);
   const [diceResult, setDiceResult]       = useState(null);
   const [diceCharges, setDiceCharges]     = useState(gameState.dice_charges ?? 1);
   const [diceLastRecharge, setDiceLastRecharge] = useState(gameState.dice_last_recharge || new Date().toISOString());
   const [diceRolledSinceSpin, setDiceRolledSinceSpin] = useState(gameState.dice_rolled_since_spin ?? false);
-  const [tabLocked, setTabLocked] = useState(false);
-  const tabIdRef = useRef((() => {
-    let id = sessionStorage.getItem('wheel_tab_id');
-    if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('wheel_tab_id', id); }
-    return id;
-  })());
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
   const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
   const fireMode = 2; // Mix mode
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const wheelRotationRef = useRef(0);
+  const WHEEL_SPIN_SPEED = 1.5; // seconds
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -2337,28 +3097,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const toggleMobilePanel = useCallback((panel) => {
     setMobilePanel(prev => prev === panel ? null : panel);
   }, []);
-
-  const spinSpeed = useMemo(() => {
-    if (ownedItems.includes('maxspin'))   return 0.5;
-    if (ownedItems.includes('ultraspin')) return 0.75;
-    if (ownedItems.includes('hyperspin')) return 1.0;
-    if (ownedItems.includes('turbo_spin')) return 1.5;
-    if (ownedItems.includes('speed_boost')) return 3.0;
-    return 4.5;
-  }, [ownedItems]);
-
-  // Guard animation speed multiplier (1.0 = normal, lower = faster, 0 = skip)
-  const guardSpeedMult = useMemo(() => {
-    if (activeCosmetics.includes('guard_speed_4')) return 0;
-    if (activeCosmetics.includes('guard_speed_3')) return 0.35;
-    if (activeCosmetics.includes('guard_speed_2')) return 0.5;
-    if (activeCosmetics.includes('guard_speed_1')) return 0.75;
-    return 1.0;
-  }, [activeCosmetics]);
-
-  const autoSpinDelay = useMemo(() =>
-    activeCosmetics.includes('autospeed_3') ? 0 : activeCosmetics.includes('autospeed_2') ? 500 : activeCosmetics.includes('autospeed_1') ? 1000 : Infinity,
-  [activeCosmetics]);
 
   const diceMaxCharges = useMemo(() => {
     if (ownedItems.includes('dice_charge_4')) return 4;
@@ -2385,6 +3123,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice'))  return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
+    if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season6')) return 'night_ocean';
     return 'default';
@@ -2411,6 +3150,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [activeCosmetics]);
 
   const pageThemeClass = useMemo(() => {
+    if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
     if (activeCosmetics.includes('page_season3')) return 'page-season3';
@@ -2420,40 +3160,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return '';
   }, [activeCosmetics]);
 
-  const currentRotationRef = useRef(0);
+  const wormholeActive = activeCosmetics.includes('page_season7');
+
   const fishTimerRef       = useRef(null);
   const toastTimerRef      = useRef(null);
   const confettiTimerRef   = useRef(null);
-  const autoSpinRef        = useRef(false);
-  const spinSpeedRef       = useRef(4.5);
-  const autoSpinDelayRef   = useRef(Infinity);
-  const spinningRef        = useRef(false);
   const showResultRef      = useRef(false);
   const activeCosmeticsRef = useRef(activeCosmetics);
   const lowSpecRef         = useRef(lowSpec);
+  const tickPendingRef     = useRef(false);
+  const resultAutoCloseRef = useRef(null);
 
   useEffect(() => { activeCosmeticsRef.current = activeCosmetics; }, [activeCosmetics]);
   useEffect(() => { lowSpecRef.current = lowSpec; }, [lowSpec]);
-  useEffect(() => {
-    autoSpinRef.current = autoSpin;
-    if (autoSpin && !spinning) spin();
-  }, [autoSpin]); // eslint-disable-line
-  useEffect(() => { spinSpeedRef.current = spinSpeed; }, [spinSpeed]);
-  useEffect(() => { autoSpinDelayRef.current = autoSpinDelay; }, [autoSpinDelay]);
-
-  // Tab heartbeat — claim the lock on mount, refresh every 10s
-  useEffect(() => {
-    const tabId = tabIdRef.current;
-    const beat = () => apiGame('/api/tab/heartbeat', {
-      method: 'POST',
-      body: JSON.stringify({ tab_id: tabId }),
-    }).then(r => {
-      if (r.ok) setTabLocked(!r.data.active);
-    });
-    beat();
-    const id = setInterval(beat, 10000);
-    return () => clearInterval(id);
-  }, []); // eslint-disable-line
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -2465,12 +3184,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [lowSpec]);
 
   useEffect(() => {
-    const show = bgClass === 'bg-ocean';
+    const show = bgClass === 'bg-ocean' && !wormholeActive;
     const iframe = document.getElementById('seabed-bg');
     const overlay = document.getElementById('seabed-overlay');
     if (iframe)  iframe.style.display  = show ? 'block' : 'none';
     if (overlay) overlay.style.display = show ? 'block' : 'none';
-  }, [bgClass]);
+  }, [bgClass, wormholeActive]);
 
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);
@@ -2497,10 +3216,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
           setActiveCosmetics(gs.data.active_cosmetics || []);
           setInfLevels({
-            winmult_inf:   gs.data.winmult_inf_level   || 0,
-            bonusmult_inf: gs.data.bonusmult_inf_level || 0,
-            clickmult_inf: gs.data.clickmult_inf_level || 0,
+            winmult_inf:           gs.data.winmult_inf_level          || 0,
+            bonusmult_inf:         gs.data.bonusmult_inf_level        || 0,
+            clickmult_inf:         gs.data.clickmult_inf_level        || 0,
+            streak_armor_inf:      gs.data.streak_armor_level         || 0,
+            lure_mastery_inf:      gs.data.lure_mastery_level         || 0,
+            jackpot_resonance_inf: gs.data.jackpot_resonance_level    || 0,
+            echo_amp_inf:          gs.data.echo_amp_level             || 0,
+            proc_streak_inf:       gs.data.proc_streak_level          || 0,
           });
+          setEquippedClass(gs.data.equipped_class || null);
+          setProcStreak(gs.data.proc_streak || 0);
+          setFishExchangeTotal(gs.data.fish_exchange_total || 0);
           if (gs.data.caught_species) setCaughtSpecies(gs.data.caught_species);
           setFishingLuckyNext(gs.data.fishing_lucky_next || false);
           if (gs.data.dice_charges != null) setDiceCharges(gs.data.dice_charges);
@@ -2512,6 +3239,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }
     }, 60000);
     return () => clearInterval(id);
+  }, [season ? season.season_number : null]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!season) return;
+    const key = `patchNotesSeen_s${season.season_number}`;
+    if (!localStorage.getItem(key)) {
+      setShowPatchNotes(true);
+    }
   }, [season ? season.season_number : null]); // eslint-disable-line
 
   useEffect(() => {
@@ -2531,6 +3266,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const handleClosePatchNotes = useCallback(() => {
+    setShowPatchNotes(false);
+    if (season) localStorage.setItem(`patchNotesSeen_s${season.season_number}`, '1');
+  }, [season]);
+
   const handleBuy = useCallback(async (id) => {
     const { ok, data } = await apiGame('/api/buy', {
       method: 'POST',
@@ -2544,12 +3284,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.clickmult_inf_level != null || data.streak_armor_level != null) {
+      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null ||
+          data.clickmult_inf_level != null || data.streak_armor_level != null ||
+          data.lure_mastery_level != null || data.jackpot_resonance_level != null ||
+          data.echo_amp_level != null || data.proc_streak_level != null) {
         setInfLevels(prev => ({
-          winmult_inf:      data.winmult_inf_level    ?? prev.winmult_inf,
-          bonusmult_inf:    data.bonusmult_inf_level  ?? prev.bonusmult_inf,
-          clickmult_inf:    data.clickmult_inf_level  ?? prev.clickmult_inf,
-          streak_armor_inf: data.streak_armor_level   ?? prev.streak_armor_inf,
+          winmult_inf:           data.winmult_inf_level          ?? prev.winmult_inf,
+          bonusmult_inf:         data.bonusmult_inf_level        ?? prev.bonusmult_inf,
+          clickmult_inf:         data.clickmult_inf_level        ?? prev.clickmult_inf,
+          streak_armor_inf:      data.streak_armor_level         ?? prev.streak_armor_inf,
+          lure_mastery_inf:      data.lure_mastery_level         ?? prev.lure_mastery_inf,
+          jackpot_resonance_inf: data.jackpot_resonance_level    ?? prev.jackpot_resonance_inf,
+          echo_amp_inf:          data.echo_amp_level             ?? prev.echo_amp_inf,
+          proc_streak_inf:       data.proc_streak_level          ?? prev.proc_streak_inf,
         }));
       }
     } else {
@@ -2575,8 +3322,48 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     else showToast(data.error || 'Equip failed');
   }, [showToast]);
 
+  const handleEquipClass = useCallback(async (classItemId) => {
+    const isCurrentlyEquipped = equippedClass === classItemId.replace('class_', '');
+    const newClassId = isCurrentlyEquipped ? null : classItemId;
+    const { ok, data } = await apiGame('/api/equip-class', {
+      method: 'POST',
+      body: JSON.stringify({ class_id: newClassId }),
+    });
+    if (ok) setEquippedClass(data.equipped_class);
+    else showToast(data.error || 'Equip failed');
+  }, [equippedClass, showToast]);
+
+  const handleFishExchange = useCallback(async (amountType) => {
+    const { ok, data } = await apiGame('/api/fish-exchange', {
+      method: 'POST',
+      body: JSON.stringify({ amount: amountType }),
+    });
+    if (ok) {
+      setFishClicks(data.fish_clicks);
+      setWins(data.wins);
+      setFishExchangeTotal(prev => prev + data.fish_spent);
+      showToast(`Exchanged ${fmt(data.fish_spent)} 🐟 → +${fmt(data.wins_earned)} 🏆`);
+    } else {
+      showToast(data.error || 'Exchange failed');
+    }
+  }, [showToast]);
+
+  const handleWinsExchange = useCallback(async (amountType) => {
+    const { ok, data } = await apiGame('/api/wins-exchange', {
+      method: 'POST',
+      body: JSON.stringify({ amount: amountType }),
+    });
+    if (ok) {
+      setWins(data.wins);
+      setFishClicks(data.fish_clicks);
+      showToast(`Exchanged ${fmt(data.wins_spent)} 🏆 → +${fmt(data.fish_earned)} 🐟`);
+    } else {
+      showToast(data.error || 'Exchange failed');
+    }
+  }, [showToast]);
+
   const handleDiceRoll = useCallback(async () => {
-    if (diceRolling || spinning) return;
+    if (diceRolling) return;
     setDiceRolling(true);
     setDiceResult(null);
     const prevStreak = streak;
@@ -2598,14 +3385,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         cursed_triple: data.cursed_triple ?? false,
         blessed_triple: data.blessed_triple ?? false,
         streak_before: prevStreak, streak_after: data.streak,
+        pending: true,
       });
-      setStreak(data.streak);
+      // Streak is applied by the next /api/tick, not immediately
       if (data.dice_charges != null) setDiceCharges(data.dice_charges);
       if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
       setDiceRolledSinceSpin(true);
       setDiceRolling(false);
     }, lowSpec ? 100 : 1200);
-  }, [diceRolling, spinning, streak, lowSpec, showToast]);
+  }, [diceRolling, streak, lowSpec, showToast]);
 
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
@@ -2637,6 +3425,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
     setDiceRolledSinceSpin(false);
     if (data.wins_delta > 0) setWinCount(prev => prev + 1);
+    if (data.proc_streak != null) setProcStreak(data.proc_streak);
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -2663,170 +3452,148 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
-
-    spinningRef.current = false;
-    setSpinning(false);
   }, [showToast]);
 
-  const spin = useCallback(async () => {
-    if (spinningRef.current) return;
-    if (showResultRef.current) {
-      setHideResult(true);
-      setShowResultSync(false);
-      setConfetti(false);
-      setTimeout(() => { setHideResult(false); setResult(null); setShieldFeedback(null); }, 350);
+  // Dismiss the result banner smoothly
+  const dismissResult = useCallback(() => {
+    if (!showResultRef.current) return;
+    setHideResult(true);
+    setShowResultSync(false);
+    setConfetti(false);
+    setTimeout(() => { setHideResult(false); setResult(null); setShieldFeedback(null); }, 350);
+  }, []);
+
+  // Schedule auto-dismissal of the result banner after 2.5s
+  const scheduleResultDismiss = useCallback(() => {
+    if (resultAutoCloseRef.current) clearTimeout(resultAutoCloseRef.current);
+    resultAutoCloseRef.current = setTimeout(dismissResult, 2500);
+  }, [dismissResult]);
+
+  const applyFishCatchUp = useCallback((fc) => {
+    if (!fc || fc.fish_count === 0) return;
+    setFishClicks(fc.fish_clicks);
+    if (fc.new_species && fc.new_species.length > 0) {
+      setCaughtSpecies(prev => {
+        const s = new Set(prev);
+        fc.new_species.forEach(id => s.add(id));
+        return [...s];
+      });
     }
+    const hrs = Math.floor(fc.elapsed_seconds / 3600);
+    const mins = Math.floor((fc.elapsed_seconds % 3600) / 60);
+    const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+    setFishCatchUpSummary(`🎣 Away ${timeStr} — ${fc.fish_count} fish auto-caught (+${fmt(fc.total_value)} 🐟)`);
+    setTimeout(() => setFishCatchUpSummary(null), 5000);
+  }, []);
 
-    setBonusEarned(0);
-    setEchoTriggered(false);
-    setJackpotHit(false);
-    setResilienceTriggered(false);
-    setLuckySevenTriggered(false);
-    setFortuneCharmTriggered(false);
-    spinningRef.current = true;
-    setSpinning(true);
-
-    let data;
+  const tick = useCallback(async () => {
+    if (tickPendingRef.current) return;
+    tickPendingRef.current = true;
     try {
-      const res = await apiGame('/api/spin', { method: 'POST', body: JSON.stringify({ tab_id: tabIdRef.current }) });
-      if (!res.ok) {
-        spinningRef.current = false;
-        setSpinning(false);
-        if (res.status === 423) {
-          setTabLocked(true);
-          setAutoSpin(false);
-          return;
+      const res = await apiGame('/api/tick', { method: 'POST', body: JSON.stringify({}) });
+      if (!res.ok) return;
+      const data = res.data;
+
+      if (data.happy_hour != null) setHappyHour(data.happy_hour);
+
+      if (data.started) return; // Wheel just initialised — nothing to animate yet
+
+      if (data.catch_up) {
+        // Many spins processed offline — show summary, update state silently
+        if (data.state) {
+          if (data.state.wins   != null) setWins(data.state.wins);
+          if (data.state.losses != null) setLosses(data.state.losses);
+          if (data.state.streak != null) setStreak(data.state.streak);
+          if (data.state.owned_items)    setOwnedItems(prev => {
+            const s = new Set(data.state.owned_items);
+            const withoutGuard = prev.filter(id => id !== 'guard');
+            return s.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
+          });
+          if (data.state.shield_charges      != null) setShieldCharges(data.state.shield_charges);
+          if (data.state.regen_recharge_wins != null) setRegenRechargeWins(data.state.regen_recharge_wins);
+          if (data.state.active_cosmetics)            setActiveCosmetics(data.state.active_cosmetics);
+          if (data.state.spin_count != null) setSpinCount(data.state.spin_count);
+          if (data.state.win_count  != null) setWinCount(data.state.win_count);
+          if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
+          if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+          if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
+          setDiceRolledSinceSpin(false);
         }
-        if (autoSpinRef.current) setTimeout(() => { if (autoSpinRef.current) spin(); }, 1000);
+        const hrs = Math.floor(data.elapsed_seconds / 3600);
+        const mins = Math.floor((data.elapsed_seconds % 3600) / 60);
+        const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+        setCatchUpSummary(`⏰ Away ${timeStr} — ${data.spins_processed} spins processed`);
+        setTimeout(() => setCatchUpSummary(null), 5000);
+        if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
         return;
       }
-      setTabLocked(false);
-      data = res.data;
-    } catch (e) {
-      spinningRef.current = false;
-      setSpinning(false);
-      if (autoSpinRef.current) setTimeout(() => { if (autoSpinRef.current) spin(); }, 1000);
-      return;
-    }
 
-    const base = currentRotationRef.current;
-    const segmentAngle = data.angle % 360;
-    const minTarget = base + 5 * 360;
-    const newRotation = Math.ceil((minTarget - segmentAngle) / 360) * 360 + segmentAngle;
-    currentRotationRef.current = newRotation;
-    setRotation(newRotation);
+      if (!data.spins || data.spins.length === 0) return;
 
-    const fullAnimMs = spinSpeedRef.current * 1000 + 200;
-    // delay=0 (Instant Auto) lets the wheel finish then skips the result banner — don't cut anim.
-    // delay>0 upgrades cut into the animation at that ms mark.
-    // Guard always waits for full animation.
-    const resultFireMs = (autoSpinRef.current && autoSpinDelayRef.current > 0 && autoSpinDelayRef.current < fullAnimMs && !data.guard_triggered)
-      ? autoSpinDelayRef.current
-      : fullAnimMs;
+      const spinResult = data.spins[data.spins.length - 1];
 
-    setTimeout(() => {
-      if (data.guard_triggered) {
-        if (activeCosmeticsRef.current.includes('guard_speed_4')) {
-          // Skip guard animation entirely — apply result immediately
-          applySpinResult(data);
-          if (autoSpinRef.current) {
-            if (autoSpinDelayRef.current === 0) {
-              setShowResultSync(false);
-              setResult(null);
-              setShieldFeedback(null);
-              setConfetti(false);
-              spin();
-            } else {
-              setTimeout(() => {
-                if (autoSpinRef.current) {
-                  setHideResult(true);
-                  setTimeout(() => {
-                    setShowResultSync(false);
-                    setHideResult(false);
-                    setResult(null);
-                    setShieldFeedback(null);
-                    setConfetti(false);
-                    spin();
-                  }, 320);
-                }
-              }, 350);
-            }
-          }
-          return;
+      // Dismiss any lingering result before showing the new one
+      if (showResultRef.current) dismissResult();
+
+      setBonusEarned(0); setEchoTriggered(false); setJackpotHit(false);
+      setResilienceTriggered(false); setLuckySevenTriggered(false); setFortuneCharmTriggered(false);
+
+      // Advance wheel to the correct result segment (same formula as HiatusWheel)
+      const seg = spinResult.angle % 360;
+      const nextRot = Math.ceil((wheelRotationRef.current + 2 * 360 - seg) / 360) * 360 + seg;
+      wheelRotationRef.current = nextRot;
+      setWheelRotation(nextRot);
+
+      setTimeout(() => {
+        if (spinResult.guard_triggered) {
+          setGuardState({ blocked: spinResult.guard_blocked });
+          guardCompleteRef.current = () => {
+            setGuardState(null);
+            applySpinResult(spinResult);
+            scheduleResultDismiss();
+          };
+        } else {
+          applySpinResult(spinResult);
+          scheduleResultDismiss();
         }
-        // Show guard wheel; defer result display until guard resolves
-        setGuardState({ blocked: data.guard_blocked });
-        guardCompleteRef.current = () => {
-          setGuardState(null);
-          applySpinResult(data);
+      }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
 
-          if (autoSpinRef.current) {
-            if (autoSpinDelayRef.current === 0) {
-              setShowResultSync(false);
-              setResult(null);
-              setShieldFeedback(null);
-              setConfetti(false);
-              spin();
-            } else {
-              // Brief result glimpse then next spin — no artificial hold
-              setTimeout(() => {
-                if (autoSpinRef.current) {
-                  setHideResult(true);
-                  setTimeout(() => {
-                    setShowResultSync(false);
-                    setHideResult(false);
-                    setResult(null);
-                    setShieldFeedback(null);
-                    setConfetti(false);
-                    spin();
-                  }, 320);
-                }
-              }, 350);
-            }
-          }
-        };
-      } else {
-        applySpinResult(data);
-
-        if (autoSpinRef.current) {
-          if (autoSpinDelayRef.current === 0) {
-            setShowResultSync(false);
-            setResult(null);
-            setShieldFeedback(null);
-            setConfetti(false);
-            spin();
-          } else {
-            // Brief result glimpse then next spin — no artificial hold
-            setTimeout(() => {
-              if (autoSpinRef.current) {
-                setHideResult(true);
-                setTimeout(() => {
-                  setShowResultSync(false);
-                  setHideResult(false);
-                  setResult(null);
-                  setShieldFeedback(null);
-                  spin();
-                  setTimeout(() => setConfetti(false), 3000);
-                }, 320);
-              }
-            }, 350);
-          }
+      if (data.state) {
+        if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
+        if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
+        if (data.state.dice_rolled_since_spin != null) {
+          setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
+          if (!data.state.dice_rolled_since_spin) setDiceResult(null);
         }
       }
-    }, resultFireMs);
-  }, [applySpinResult]);
+      if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
+    } finally {
+      tickPendingRef.current = false;
+    }
+  }, [applySpinResult, applyFishCatchUp, dismissResult, scheduleResultDismiss]);
 
-  const handleSpinAgain = useCallback(() => {
-    setHideResult(true);
-    setTimeout(() => {
-      setShowResultSync(false);
-      setHideResult(false);
-      setResult(null);
-      setShieldFeedback(null);
-      setConfetti(false);
-      spin();
-    }, 320);
-  }, [spin]);
+  // Tick every 3 seconds
+  useEffect(() => {
+    let busy = false;
+    const doTick = async () => {
+      if (busy) return;
+      busy = true;
+      try { await tick(); } finally { busy = false; }
+    };
+    doTick();
+    const id = setInterval(doTick, 3000);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line
+
+  // Poll happy_hour status every minute (in case of time zone changes or missed state update)
+  useEffect(() => {
+    const id = setInterval(() => {
+      apiFetch('/api/season').then(r => {
+        if (r.ok && r.data.happy_hour != null) setHappyHour(r.data.happy_hour);
+      });
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleLogout = async () => {
     await apiFetch('/api/logout', { method: 'POST', body: '{}' });
@@ -2845,19 +3612,36 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   return (
     <div className={lowSpec ? 'low-spec' : ''}>
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
+      <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
       {toast && <div className="toast-notification">{toast}</div>}
-      {tabLocked && (
-        <div className="tab-locked-banner">
-          This tab is locked — another tab is already active. Close it or wait 30s for the lock to expire.
+      {happyHour && (
+        <div className="happy-hour-banner">
+          ⭐ Happy Hour! 9–10pm — 2× pot contributions · boosted legendary fish ⭐
         </div>
       )}
+      {catchUpSummary && (
+        <div className="catchup-banner">{catchUpSummary}</div>
+      )}
+      {fishCatchUpSummary && (
+        <div className="catchup-banner catchup-banner--fish">{fishCatchUpSummary}</div>
+      )}
       <Confetti active={confetti} count={confettiCount} />
+      {wormholeActive && (
+        <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
+          {lowSpec
+            ? <WormholeBackgroundStatic />
+            : parallaxEnabled
+              ? <WormholeBackgroundParallax />
+              : <WormholeBackground />
+          }
+        </div>
+      )}
       <div className={`overlay ${showResult ? 'active' : ''}`} />
 
       {!isMobile && guardState && (
         <GuardWheel
           blocked={guardState.blocked}
-          speedMult={guardSpeedMult}
+          speedMult={0.4}
           onComplete={() => guardCompleteRef.current && guardCompleteRef.current()}
         />
       )}
@@ -2882,6 +3666,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           title={lowSpec ? 'Low Spec Mode ON — click to restore animations' : 'Low Spec Mode OFF — click to reduce GPU usage'}
           style={{ opacity: lowSpec ? 1 : 0.5 }}
         >⚡</button>
+        {wormholeActive && !lowSpec && (
+          <button
+            className="stats-btn"
+            onClick={() => setParallaxEnabled(v => { const next = !v; localStorage.setItem('parallaxEnabled', next); return next; })}
+            title={parallaxEnabled ? 'Parallax ON — click to disable cursor tracking' : 'Parallax OFF — click to enable cursor tracking'}
+            style={{ opacity: parallaxEnabled ? 1 : 0.5 }}
+          >🖱️</button>
+        )}
         {!isMobile && (
           <button
             className="stats-btn"
@@ -2890,14 +3682,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             style={{ opacity: showChat ? 1 : 0.5 }}
           >💬</button>
         )}
-        <a
-          className="stats-btn"
-          href="https://github.com/Tom1tk/fishspin/wiki/Patch-Notes"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Patch Notes"
-          style={{ textDecoration: 'none' }}
-        >📋</a>
+        <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         <CommunityPot
           pot={communityPot}
@@ -2995,7 +3780,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               </div>
             );
           })()}
-          <button className="spin-again-btn" onClick={handleSpinAgain}>Spin Again</button>
         </div>
       )}
 
@@ -3006,34 +3790,33 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           </div>
 
           <div className="casino-header">
-            <div className="casino-title">Lucky Wheel</div>
-            <div className="subtitle">Try Your Fortune</div>
+            <div className="casino-title">
+              <span className="title-lucky-wrap">
+                <span className="title-lucky">Lucky</span>
+                <span className="title-endless">ENDLESS</span>
+              </span>
+              {' '}Wheel
+            </div>
+            <div className="subtitle">Where we&apos;re going, we won&apos;t need luck to win</div>
           </div>
 
-          <div
-            className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
-            onClick={!spinning && !autoSpin ? spin : undefined}
-            title={autoSpin ? 'Auto-spin active' : 'Click to spin!'}
-          >
-            <div className={`pointer ${spinning ? 'spinning' : ''}`} />
+          <div className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}>
+            <div className="pointer" />
             <canvas
               ref={canvasRef}
               width={380}
               height={380}
-              className={`wheel-canvas ${spinning ? 'spinning' : ''}`}
-              style={{ transform: `rotate(${rotation}deg)`, transition: `transform ${spinSpeed}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
+              className="wheel-canvas"
+              style={{ transform: `rotate(${wheelRotation}deg)`, transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
             />
             <div className="center-hub">★</div>
           </div>
 
-          <div className={`spin-prompt ${spinning || autoSpin ? 'hidden' : ''}`} onClick={spin}>
-            {spinning || autoSpin ? '' : '▶ Click to Spin ◀'}
-          </div>
-
-          <label className="autospin-row">
-            <input type="checkbox" checked={autoSpin} onChange={e => setAutoSpin(e.target.checked)} />
-            <span className="autospin-label">Auto Spin</span>
-          </label>
+          {catchupBonus && (
+            <div className="spin-prompt" style={{ opacity: 0.7, fontSize: '0.7rem', pointerEvents: 'none' }}>
+              🔼 Catch-up bonus active
+            </div>
+          )}
 
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
 
@@ -3045,7 +3828,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 onRoll={handleDiceRoll}
                 rolling={diceRolling}
                 diceResult={diceResult}
-                spinning={spinning}
                 guardSpinning={!!guardState}
                 lowSpec={lowSpec}
                 diceCharges={diceCharges}
@@ -3064,7 +3846,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {isMobile && guardState && (
             <GuardWheel
               blocked={guardState.blocked}
-              speedMult={guardSpeedMult}
+              speedMult={0.4}
               onComplete={() => guardCompleteRef.current && guardCompleteRef.current()}
               contained
             />
@@ -3092,13 +3874,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {ownedItems.includes('lucky_seven') && (
                 <LuckySevenCounter spinCount={spinCount} />
               )}
+              {infLevels.proc_streak_inf > 0 && (
+                <ProcStreakCounter streak={procStreak} />
+              )}
               <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
               <DicePanel
                 streak={streak}
                 onRoll={handleDiceRoll}
                 rolling={diceRolling}
                 diceResult={diceResult}
-                spinning={spinning}
                 guardSpinning={!!guardState}
                 lowSpec={lowSpec}
                 diceCharges={diceCharges}
@@ -3121,9 +3905,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onBuy={handleBuy}
             onEquip={handleEquip}
             onEquipCosmetic={handleEquipCosmetic}
+            onEquipClass={handleEquipClass}
+            onFishExchange={handleFishExchange}
+            onWinsExchange={handleWinsExchange}
+            equippedClass={equippedClass}
+            fishExchangeTotal={fishExchangeTotal}
             collapsed={shopCollapsed}
             winCount={winCount}
             caughtSpecies={caughtSpecies}
+            procStreak={procStreak}
           />
         </div>
       </div>
