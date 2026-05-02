@@ -151,6 +151,15 @@ def _perform_rollover(conn, season):
 
         with conn.cursor() as cur:
             cur.execute(
+                '''UPDATE community_pot SET
+                       total_contributed = 0, target = 40000, filled = false,
+                       filled_at = NULL, fib_prev = 0, win_chance_pct = 51.0,
+                       last_decay_check = NOW()
+                   WHERE id = 1''',
+            )
+
+        with conn.cursor() as cur:
+            cur.execute(
                 '''UPDATE seasons
                    SET season_number = %s, started_at = %s, ends_at = %s
                    WHERE id = %s''',
