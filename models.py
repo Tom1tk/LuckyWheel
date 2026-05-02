@@ -111,6 +111,11 @@ FISH_SKINS = {
     'fish_coral':    {'cost': 10_000},
     'fish_mermaid':  {'cost': 17_500},
     'fish_croc':     {'cost': 30_000},
+    'fish_rocket':   {'cost': 50_000},
+    'fish_comet':    {'cost': 85_000},
+    'fish_saturn':   {'cost': 145_000},
+    'fish_alien':    {'cost': 250_000},
+    'fish_ufo':      {'cost': 425_000},
 }
 
 SHOP_ITEMS = {
@@ -260,6 +265,7 @@ _COSMETIC_ITEM_IDS = {
     'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab',
     'fish_lobster', 'fish_whale',
     'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc',
+    'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo',
     # Fish size
     'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3',
     # Trails
