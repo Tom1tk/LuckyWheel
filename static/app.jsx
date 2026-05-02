@@ -2826,7 +2826,7 @@ function StatsPanel({ open, onClose }) {
                   const participated = s.final_wins != null;
                   return (
                     <div className="stats-row stats-row--season" key={s.season_number}>
-                      <span>Season {s.season_number}</span>
+                      <span>{s.season_number === 7 ? 'Mid-Season 6.7' : `Season ${s.season_number}`}</span>
                       <span>
                         {!participated ? '—' : place
                           ? <span className="stats-podium">{place}</span>
