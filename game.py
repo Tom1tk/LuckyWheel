@@ -226,12 +226,18 @@ def spin():
                               fish_clicks, active_cosmetics,
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin, last_spin_at,
-                              active_tab_id, tab_last_seen
+                              active_tab_id, tab_last_seen,
+                              auto_spin_since
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
 
+            # Block manual spins when server-side auto-spin is active
+            if gs['auto_spin_since'] is not None:
+                return jsonify({'error': 'Auto-spin is active — use /api/tick'}), 403
+
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute('SELECT filled, filled_at, win_chance_pct, last_decay_check, total_contributed, target FROM community_pot WHERE id = 1')
                 pot_row = cur.fetchone()
 
