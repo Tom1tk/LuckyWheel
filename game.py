@@ -22,7 +22,7 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC)
-from seasons import ensure_current_season, get_season_info
+from seasons import ensure_current_season, get_season_info, advance_season
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
@@ -2259,3 +2259,18 @@ def get_season():
     except Exception:
         log.exception('GET_SEASON_ERROR')
         return jsonify({'error': 'Failed to load season'}), 500
+
+
+@game_bp.route('/api/admin/advance-season', methods=['POST'])
+def admin_advance_season():
+    """Manually advance the season. Requires X-Admin-Secret header."""
+    secret = os.environ.get('ADMIN_SECRET', '')
+    if not secret or request.headers.get('X-Admin-Secret') != secret:
+        return jsonify({'error': 'Forbidden'}), 403
+    try:
+        with db_connection() as conn:
+            advance_season(conn)
+        return jsonify({'ok': True})
+    except Exception:
+        log.exception('ADMIN_ADVANCE_SEASON_ERROR')
+        return jsonify({'error': 'Failed to advance season'}), 500
