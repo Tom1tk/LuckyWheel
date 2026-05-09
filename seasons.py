@@ -176,11 +176,11 @@ def get_season_info(conn):
     Read-only — no locks.
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute('SELECT season_number, ends_at FROM seasons ORDER BY id LIMIT 1')
+        cur.execute('SELECT season_number, name, ends_at FROM seasons ORDER BY id LIMIT 1')
         season = cur.fetchone()
 
     if season is None:
-        return {'season_number': 1, 'ends_at': None, 'latest_winners': []}
+        return {'season_number': 1, 'season_name': '1', 'ends_at': None, 'latest_winners': []}
 
     prev = season['season_number'] - 1
     latest_winners = []
@@ -206,6 +206,7 @@ def get_season_info(conn):
 
     return {
         'season_number': season['season_number'],
+        'season_name':   season['name'] or str(season['season_number']),
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
         'latest_winners': latest_winners,
     }

@@ -2007,6 +2007,24 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .patch-notes-body::-webkit-scrollbar-thumb { background: rgba(var(--p-rgb),0.3); border-radius: 3px; }
 .patch-notes-body::-webkit-scrollbar-track { background: transparent; }
 
+/* ── Apology Popup ──────────────────────────────────────────────────────── */
+.apology-card { max-width: 520px; border-top: 3px solid #e05c5c; }
+.apology-body { padding: 4px 24px 8px; line-height: 1.65; color: rgba(255,255,255,0.85); }
+.apology-body p { margin: 0 0 14px; }
+.apology-body strong { color: #fff; }
+.apology-sig { margin-top: 18px !important; opacity: 0.6; font-style: italic; }
+.apology-dismiss-btn {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  padding: 8px 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+.apology-dismiss-btn:hover { background: rgba(255,255,255,0.22); }
+
 /* Markdown content styling */
 .patch-notes-content { color: #ccc; font-size: 0.78rem; line-height: 1.7; }
 .patch-notes-content h1 { font-size: 1.1rem; color: var(--p); letter-spacing: 3px; text-transform: uppercase; margin: 0 0 16px; text-shadow: 0 0 10px rgba(var(--p-rgb),0.4); }
