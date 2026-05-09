@@ -1855,7 +1855,8 @@ function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
 function SeasonInfo({ seasonName }) {
   return (
     <div className="season-info">
-      <span>Season {seasonName}</span>
+      <span>Season {seasonName} ends:</span>
+      <span className="season-countdown">∞</span>
     </div>
   );
 }
