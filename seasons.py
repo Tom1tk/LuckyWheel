@@ -87,12 +87,23 @@ def _perform_rollover(conn, season):
                  row['wins'], row['losses']),
             )
 
-    # Record all users' final stats for per-season history
+    # Record all users' final stats for per-season history (full snapshot — fully reversible)
     with conn.cursor() as cur:
         cur.execute(
-            '''INSERT INTO user_season_history
-                   (user_id, season_number, finishing_position, final_wins, final_losses)
-               SELECT gs.user_id, %s, NULL, gs.wins, gs.losses
+            '''INSERT INTO user_season_history (
+                   user_id, season_number, finishing_position,
+                   final_wins, final_losses, final_fish_clicks,
+                   winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
+                   streak_armor_level, lure_mastery_level, jackpot_resonance_level,
+                   echo_amp_level, proc_streak_level,
+                   owned_items, active_cosmetics, equipped_fish, equipped_class
+               )
+               SELECT gs.user_id, %s, NULL,
+                      gs.wins, gs.losses, gs.fish_clicks,
+                      gs.winmult_inf_level, gs.bonusmult_inf_level, gs.clickmult_inf_level,
+                      gs.streak_armor_level, gs.lure_mastery_level, gs.jackpot_resonance_level,
+                      gs.echo_amp_level, gs.proc_streak_level,
+                      gs.owned_items, gs.active_cosmetics, gs.equipped_fish, gs.equipped_class
                FROM game_state gs
                ON CONFLICT (user_id, season_number) DO NOTHING''',
             (current_number,),
