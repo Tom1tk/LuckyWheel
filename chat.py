@@ -105,6 +105,7 @@ def _check_and_update_spam(conn, user_id, is_blocked_word=False):
 
 
 @chat_bp.route('/api/chat', methods=['GET'])
+@limiter.limit('30 per minute')
 def get_chat():
     with db_connection() as conn:
         with conn.cursor() as cur:
