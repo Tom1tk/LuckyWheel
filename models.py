@@ -45,8 +45,12 @@ _AUTO_RARE_IDS    = [k for k in _ALL_IDS if k not in _AUTO_FISH_LEGENDARY]
 _AUTO_RARE_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_RARE_IDS]
 
 
-def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False,
-              happy_hour: bool = False) -> str:
+def roll_fish(
+    auto_mode: bool,
+    allow_rare: bool = False,
+    master_lure: bool = False,
+    happy_hour: bool = False,
+) -> str:
     """Return a random fish species ID weighted by rarity.
     master_lure=True adds +1% to each legendary species — manual only.
     happy_hour=True adds +50% weight to legendary species — manual only.
@@ -66,7 +70,7 @@ def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = Fal
     return random.choices(_ALL_IDS, weights=_ALL_WEIGHTS, k=1)[0]
 
 
-def lure_bite_delay_seconds(lure_level: int):
+def lure_bite_delay_seconds(lure_level: int) -> tuple[float, float]:
     """Return (min_seconds, max_seconds) wait between cast and bite.
     Base window is 3–10 s. Each lure tier reduces both bounds by a fixed percentage,
     making timing harder to bot (wide variance at all levels).
@@ -244,7 +248,7 @@ UPGRADE_TIER_3 = {
     'class_earth', 'class_moon', 'class_star',
 }
 
-def item_tier(item_id):
+def item_tier(item_id: str) -> int:
     """Return the tier (1, 2, or 3) required to purchase this item."""
     if item_id in UPGRADE_TIER_3:
         return 3
@@ -252,6 +256,9 @@ def item_tier(item_id):
         return 2
     return 1
 
+assert not (set(FISH_SKINS) & set(SHOP_ITEMS)), (
+    f"FISH_SKINS and SHOP_ITEMS share keys: {set(FISH_SKINS) & set(SHOP_ITEMS)}"
+)
 ALL_ITEMS = {**FISH_SKINS, **SHOP_ITEMS}
 VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
 
@@ -367,7 +374,7 @@ INFINITE_UPGRADES = {
 }
 
 
-def inf_upgrade_cost(item_id, current_level):
+def inf_upgrade_cost(item_id: str, current_level: int) -> int:
     """Cost to advance from current_level to current_level+1."""
     cfg = INFINITE_UPGRADES[item_id]
     tiers = cfg['tier_costs']
@@ -378,13 +385,13 @@ def inf_upgrade_cost(item_id, current_level):
 
 
 # Multiplier values at each level (level 0 = nothing owned)
-def win_mult_from_level(level):
+def win_mult_from_level(level: int) -> int:
     if level <= 0: return 1
     if level <= 7: return 1 << level          # 2, 4, 8, 16, 32, 64, 128
     return 128 + (level - 7) * 16             # 144, 160, 176, …
 
 
-def bonus_mult_from_level(level):
+def bonus_mult_from_level(level: int) -> int:
     # Season 7 (C2): flatter early curve; (C1): slower past level 30.
     _fixed = [1, 2, 4, 8, 15, 35, 70]
     if level <= 6: return _fixed[level]
@@ -392,7 +399,7 @@ def bonus_mult_from_level(level):
     return 262 + (level - 30) * 5                  # 267, 272, … (slower past 30)
 
 
-def click_mult_from_level(level):
+def click_mult_from_level(level: int) -> float:
     if level <= 0: return 1
     return 1 + level * 0.25                    # 1.25, 1.5, 1.75, 2.0, 2.25, …
 
@@ -427,7 +434,7 @@ CLASS_MOON_PROC_BONUS  = 0.05   # Moon:  +5% added to each proc rate (jackpot, e
 CLASS_STAR_WIN_BONUS   = 0.20   # Star:  +20% to win_mult payout
 
 
-def streak_bonus(count):
+def streak_bonus(count: int) -> int:
     """Season 6 streak bonus formula.
     Keeps exponential through streak 15, then buffs mid/high range.
     Hard cap at streak 150 to prevent runaway numbers.
@@ -450,7 +457,7 @@ DICE_RECHARGE_SECONDS = 600   # 10 minutes per charge
 DICE_MAX_CHARGES_BASE = 1     # default max without upgrades
 
 
-def dice_max_charges(owned_items):
+def dice_max_charges(owned_items: list) -> int:
     """Return the maximum dice charges based on owned upgrades."""
     if 'dice_charge_4' in owned_items:
         return 4

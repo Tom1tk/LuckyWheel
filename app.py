@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 log = logging.getLogger('wheel')
 
@@ -24,6 +25,9 @@ def create_app() -> Flask:
         )
 
     app = Flask(__name__, static_folder='static')
+    # Trust one layer of reverse-proxy headers (nginx/caddy in front).
+    # Fixes remote_addr (rate-limit keys, audit logs) and request.is_secure.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.secret_key = secret_key
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,

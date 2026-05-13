@@ -1,4 +1,5 @@
 import datetime as dt
+import hmac
 import logging
 import os
 import random
@@ -23,6 +24,7 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC)
 from seasons import ensure_current_season, get_season_info, advance_season
+from security import require_json
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
@@ -45,7 +47,7 @@ COSMETIC_SLOTS = {
 def is_happy_hour(now_utc=None):
     now = now_utc or dt.datetime.now(timezone.utc)
     return HAPPY_HOUR_START_UTC <= now.hour < HAPPY_HOUR_END_UTC
-from security import require_json
+
 
 log = logging.getLogger('wheel')
 game_bp = Blueprint('game', __name__)
@@ -73,6 +75,204 @@ def _autofisher_level(owned: list) -> int:
         if item in owned:
             return lvl
     return 0
+
+
+# Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
+_MAX_WINS = round(9.99e99)
+
+
+def _resolve_spin(
+    owned: list,
+    streak: int,
+    best_streak: int,
+    shield_charges: int,
+    regen_recharge_wins: int,
+    wins: int,
+    losses: int,
+    jackpot_echo_next: bool,
+    spin_count: int,        # already incremented for this spin
+    active_cosmetics: list,
+    proc_streak: int,
+    # ── immutable per-session context ──
+    effective_win_mult: float,
+    bonus_mult: int,
+    jackpot_chance: float,
+    echo_chance: float,
+    charm_chance: float,
+    resilience_chance: float,
+    proc_streak_level: int,
+    pot_active: bool,
+    pot_win_pct: float,     # fraction 0–1
+    catchup_bonus_active: bool = False,
+) -> tuple[dict, dict]:
+    """Resolve one spin. Returns (new_state, events). Does not mutate inputs."""
+    original_wins   = wins
+    original_losses = losses
+
+    # Auto-guard: buy before spin if enabled and guard is gone
+    auto_guard_failed = False
+    if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
+        if wins >= 500:
+            owned = owned + ['guard']
+            wins -= 500
+        else:
+            # Can't afford — cosmetic stays active; will retry next spin
+            auto_guard_failed = True
+
+    # Determine outcome
+    lucky_seven_triggered = False
+    if 'singularity' in owned:
+        outcome = 'win'
+    elif 'lucky_seven' in owned and spin_count % 7 == 0:
+        outcome = 'win'
+        lucky_seven_triggered = True
+    elif pot_active:
+        outcome = 'win' if random.random() < pot_win_pct else 'lose'
+    elif catchup_bonus_active:
+        outcome = 'win' if random.random() < 0.55 else 'lose'
+    else:
+        outcome = secrets.choice(['win', 'lose'])
+
+    jackpot_echo_pending  = jackpot_echo_next
+    new_jackpot_echo_next = False
+
+    shield_used             = False
+    shield_used_type        = None
+    guard_triggered         = False
+    guard_blocked           = False
+    echo_triggered          = False
+    jackpot_hit             = False
+    jackpot_echo_triggered  = False
+    resilience_triggered    = False
+    fortune_charm_triggered = False
+    bonus_earned            = 0
+    new_owned               = owned   # may have guard removed on block
+
+    if outcome == 'lose':
+        if 'regen_shield' in owned and regen_recharge_wins == 0:
+            shield_used         = True
+            shield_used_type    = 'regen_shield'
+            regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
+            new_streak          = streak
+        elif 'guard' in owned:
+            guard_triggered = True
+            if random.random() < 0.50:
+                guard_blocked = True
+                new_owned  = [x for x in new_owned if x != 'guard']
+                new_streak = streak
+            else:
+                if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
+                    resilience_triggered = True
+                    new_streak  = max(0, streak - 1)
+                    proc_streak += 1
+                else:
+                    new_streak = streak - 1 if streak <= 0 else -1
+                loss_count   = abs(new_streak) if new_streak < 0 else 0
+                loss_bonus   = streak_bonus(loss_count) * bonus_mult
+                losses      += 1 + loss_bonus
+                bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+        else:
+            if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
+                resilience_triggered = True
+                new_streak  = max(0, streak - 1)
+                proc_streak += 1
+            else:
+                new_streak = streak - 1 if streak <= 0 else -1
+            loss_count   = abs(new_streak) if new_streak < 0 else 0
+            loss_bonus   = streak_bonus(loss_count) * bonus_mult
+            losses      += 1 + loss_bonus
+            bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+    else:  # win
+        new_streak = streak + 1 if streak >= 0 else 1
+        if regen_recharge_wins > 0:
+            regen_recharge_wins -= 1
+
+        count      = abs(new_streak)
+        raw_bonus  = streak_bonus(count)
+        base_bonus = raw_bonus * bonus_mult
+        if 'fortune_charm' in owned and base_bonus > 0 and random.random() < charm_chance:
+            base_bonus = int(base_bonus * 1.25)
+            fortune_charm_triggered = True
+        bonus_earned = base_bonus
+
+        any_proc_fired = False
+        _psmult = proc_streak_mult(proc_streak_level, proc_streak)
+
+        if jackpot_echo_pending:
+            jackpot_echo_triggered = True
+            jackpot_hit  = True
+            raw_payout   = (effective_win_mult + bonus_earned) * 25
+            boosted      = int(raw_payout * _psmult)
+            wins        += boosted
+            bonus_earned = boosted - effective_win_mult
+            any_proc_fired = True
+        elif 'jackpot' in owned and random.random() < jackpot_chance:
+            jackpot_hit  = True
+            raw_payout   = (effective_win_mult + bonus_earned) * 25
+            boosted      = int(raw_payout * _psmult)
+            wins        += boosted
+            bonus_earned = boosted - effective_win_mult
+            if random.random() < 0.05:
+                new_jackpot_echo_next = True
+            any_proc_fired = True
+        else:
+            if 'win_echo' in owned and random.random() < echo_chance:
+                echo_triggered = True
+                raw_payout   = (effective_win_mult + bonus_earned) * 2
+                boosted      = int(raw_payout * _psmult)
+                wins        += boosted
+                bonus_earned = boosted - effective_win_mult
+                any_proc_fired = True
+            else:
+                wins += int(effective_win_mult + bonus_earned)
+
+        proc_streak = proc_streak + 1 if any_proc_fired else 0
+
+    new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
+    wins = min(wins, _MAX_WINS)
+
+    # Segment angle for wheel animation; /api/spin adds extra full rotations on top
+    segment_angle = random.uniform(200, 340) if outcome == 'win' else random.uniform(20, 160)
+
+    new_state = {
+        'owned':              new_owned,
+        'streak':             new_streak,
+        'best_streak':        new_best_streak,
+        'shield_charges':     shield_charges,
+        'regen_recharge_wins': regen_recharge_wins,
+        'wins':               wins,
+        'losses':             losses,
+        'jackpot_echo_next':  new_jackpot_echo_next,
+        'active_cosmetics':   active_cosmetics,
+        'proc_streak':        proc_streak,
+    }
+    events = {
+        'result':                  outcome,
+        'segment_angle':           segment_angle,
+        'wins_delta':              wins - original_wins,
+        'losses_delta':            losses - original_losses,
+        'streak':                  new_streak,
+        'owned_items':             new_owned,
+        'shield_charges':          shield_charges,
+        'regen_recharge_wins':     regen_recharge_wins,
+        'shield_used':             shield_used,
+        'shield_used_type':        shield_used_type,
+        'shield_broke':            False,
+        'guard_triggered':         guard_triggered,
+        'guard_blocked':           guard_blocked,
+        'bonus_earned':            bonus_earned,
+        'echo_triggered':          echo_triggered,
+        'jackpot_hit':             jackpot_hit,
+        'jackpot_echo_triggered':  jackpot_echo_triggered,
+        'jackpot_echo_next':       new_jackpot_echo_next,
+        'resilience_triggered':    resilience_triggered,
+        'lucky_seven_triggered':   lucky_seven_triggered,
+        'fortune_charm_triggered': fortune_charm_triggered,
+        'active_cosmetics':        active_cosmetics,
+        'auto_guard_failed':       auto_guard_failed,
+        'proc_streak':             proc_streak,
+    }
+    return new_state, events
 
 
 @game_bp.route('/api/health')
@@ -257,14 +457,7 @@ def spin():
                         if age < TAB_LOCK_TIMEOUT:
                             return jsonify({'error': 'Another tab is active. Close it to spin here.', 'tab_locked': True}), 423
 
-            owned               = list(gs['owned_items'])
-            streak              = gs['streak']
-            best_streak         = gs['best_streak']
-            shield_charges      = gs['shield_charges']
-            regen_recharge_wins = gs['regen_recharge_wins']
-            fish_clicks         = gs['fish_clicks']
-            active_cosmetics    = list(gs['active_cosmetics'])
-            now_utc             = dt.datetime.now(timezone.utc)
+            now_utc = dt.datetime.now(timezone.utc)
 
             pot_active = bool(
                 pot_row and pot_row['filled'] and pot_row['filled_at'] and
@@ -281,7 +474,7 @@ def spin():
                         (new_pot_target,)
                     )
 
-            # Community pot: apply target decay if 12+ hours since last check (only when pot is not active)
+            # Community pot: apply target decay if 12+ hours since last check
             if pot_row and pot_row['last_decay_check'] and not pot_active:
                 last_decay = pot_row['last_decay_check']
                 if last_decay.tzinfo is None:
@@ -291,7 +484,6 @@ def spin():
                     new_target = int(pot_row['target'])
                     for _ in range(decay_periods):
                         new_target = max(500, int(new_target * 0.8))
-                    # Safety: never drop below current fill amount + 1
                     if pot_row['total_contributed'] > 0:
                         new_target = max(new_target, int(pot_row['total_contributed']) + 1)
                     new_decay_ts = last_decay + timedelta(hours=12 * decay_periods)
@@ -302,199 +494,57 @@ def spin():
                         )
 
             # Dice recharge
-            dice_charges   = gs['dice_charges']
-            last_recharge  = gs['dice_last_recharge']
+            dice_charges  = gs['dice_charges']
+            last_recharge = gs['dice_last_recharge']
             if last_recharge.tzinfo is None:
                 last_recharge = last_recharge.replace(tzinfo=timezone.utc)
-            max_charges = dice_max_charges(owned)
-            dice_charges = min(dice_charges, max_charges)  # cap stale over-limit values
+            owned_for_dice = list(gs['owned_items'])
+            max_charges    = dice_max_charges(owned_for_dice)
+            dice_charges   = min(dice_charges, max_charges)
             elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
             if elapsed_charges > 0 and dice_charges < max_charges:
-                new_dice_charges  = min(dice_charges + elapsed_charges, max_charges)
-                new_last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
-                dice_charges      = new_dice_charges
-                last_recharge     = new_last_recharge
+                dice_charges  = min(dice_charges + elapsed_charges, max_charges)
+                last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
 
-            # Auto-guard: if enabled and guard is gone, buy one before spinning (costs wins)
-            auto_guard_failed = False
-            original_wins  = int(gs['wins'])
-            original_losses = gs['losses']
-            new_wins = original_wins
-            if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
-                if new_wins >= 500:
-                    owned       = owned + ['guard']
-                    new_wins   -= 500
-                    wins_delta  = -500
-                else:
-                    active_cosmetics = [c for c in active_cosmetics if c != 'auto_guard']
-                    auto_guard_failed = True
-
-            # New spin count (used by lucky_seven)
-            new_spin_count = gs['spin_count'] + 1
-
-            # Determine outcome
-            lucky_seven_triggered = False
-            if 'singularity' in owned:
-                outcome = 'win'
-            elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
-                outcome = 'win'
-                lucky_seven_triggered = True
-            elif pot_active:
-                pot_win_pct = float(pot_row['win_chance_pct']) if pot_row else 50.5
-                outcome = 'win' if random.random() < (pot_win_pct / 100.0) else 'lose'
-            else:
-                outcome = secrets.choice(['win', 'lose'])
-
-            # Multipliers — derived entirely from inf level columns
-            win_mult   = win_mult_from_level(gs['winmult_inf_level'])
-            bonus_mult = bonus_mult_from_level(gs['bonusmult_inf_level'])
-
-            # Season 7 class effects
-            equipped_class   = gs['equipped_class']
-            moon_bonus       = CLASS_MOON_PROC_BONUS  if equipped_class == 'moon'  else 0.0
-            star_win_bonus   = CLASS_STAR_WIN_BONUS   if equipped_class == 'star'  else 0.0
+            # Build spin context (immutable for this request)
+            equipped_class     = gs['equipped_class']
+            moon_bonus         = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
+            star_win_bonus     = CLASS_STAR_WIN_BONUS  if equipped_class == 'star' else 0.0
+            win_mult           = win_mult_from_level(gs['winmult_inf_level'])
+            bonus_mult         = bonus_mult_from_level(gs['bonusmult_inf_level'])
             effective_win_mult = win_mult * (1.0 + star_win_bonus)
+            pot_win_pct_frac   = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.505
+            resilience_chance  = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
 
-            # Season 7 proc-rate upgrades
-            _jackpot_chance = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
-            _echo_chance    = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
-            _charm_chance   = 0.25                                         + moon_bonus
+            new_spin_count = gs['spin_count'] + 1
+            new_state, events = _resolve_spin(
+                owned=list(gs['owned_items']),
+                streak=gs['streak'],
+                best_streak=gs['best_streak'],
+                shield_charges=gs['shield_charges'],
+                regen_recharge_wins=gs['regen_recharge_wins'],
+                wins=int(gs['wins']),
+                losses=gs['losses'],
+                jackpot_echo_next=bool(gs['jackpot_echo_next']),
+                spin_count=new_spin_count,
+                active_cosmetics=list(gs['active_cosmetics']),
+                proc_streak=gs['proc_streak'],
+                effective_win_mult=effective_win_mult,
+                bonus_mult=bonus_mult,
+                jackpot_chance=jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus,
+                echo_chance=echo_amp_pct(gs['echo_amp_level']) + moon_bonus,
+                charm_chance=0.25 + moon_bonus,
+                resilience_chance=resilience_chance,
+                proc_streak_level=gs['proc_streak_level'],
+                pot_active=pot_active,
+                pot_win_pct=pot_win_pct_frac,
+            )
 
-            # Proc streak tracking
-            current_proc_streak = gs['proc_streak']
+            new_win_count  = gs['win_count']  + (1 if events['result'] == 'win'  else 0)
+            new_loss_count = gs['loss_count'] + (1 if events['result'] == 'lose' else 0)
 
-            shield_used      = False
-            shield_broke     = False
-            shield_used_type = None
-            guard_triggered  = False
-            guard_blocked    = False
-            # new_wins already initialized above (auto-guard may have deducted from it)
-            new_losses       = gs['losses']
-            bonus_earned     = 0
-            new_owned        = owned
-            echo_triggered          = False
-            jackpot_hit             = False
-            jackpot_echo_triggered  = False
-            resilience_triggered    = False
-            fortune_charm_triggered = False
-            new_jackpot_echo_next   = False  # whether next spin should echo
-
-            # Jackpot echo from previous spin
-            jackpot_echo_pending = bool(gs['jackpot_echo_next'])
-
-            # Resilience: base 50%, +1%/level streak armor (cap 60%), +5% with Moon class (cap 65%)
-            resilience_chance = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
-
-            if outcome == 'lose':
-                # Regen shield: protects any loss when charged
-                if 'regen_shield' in owned and regen_recharge_wins == 0:
-                    shield_used         = True
-                    shield_used_type    = 'regen_shield'
-                    regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
-                    new_streak          = streak
-
-                # Guard: 50% chance to block any loss
-                elif 'guard' in owned:
-                    guard_triggered = True
-                    if random.random() < 0.50:
-                        guard_blocked = True
-                        new_owned     = [x for x in new_owned if x != 'guard']
-                        new_streak    = streak  # loss blocked, keep streak
-                    else:
-                        # Guard failed: take the loss
-                        if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
-                            resilience_triggered = True
-                            new_streak = max(0, streak - 1)
-                            current_proc_streak += 1
-                        else:
-                            new_streak = streak - 1 if streak <= 0 else -1
-                        loss_count   = abs(new_streak) if new_streak < 0 else 0
-                        loss_bonus   = streak_bonus(loss_count) * bonus_mult
-                        new_losses  += 1 + loss_bonus
-                        bonus_earned = -loss_bonus if loss_bonus > 0 else 0
-
-                else:
-                    # No protection
-                    if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
-                        resilience_triggered = True
-                        new_streak = max(0, streak - 1)
-                        current_proc_streak += 1
-                    else:
-                        new_streak = streak - 1 if streak <= 0 else -1
-                    loss_count   = abs(new_streak) if new_streak < 0 else 0
-                    loss_bonus   = streak_bonus(loss_count) * bonus_mult
-                    new_losses  += 1 + loss_bonus
-                    bonus_earned = -loss_bonus if loss_bonus > 0 else 0
-
-            else:  # outcome == 'win'
-                new_streak = streak + 1 if streak >= 0 else 1
-                if regen_recharge_wins > 0:
-                    regen_recharge_wins -= 1
-
-                count      = abs(new_streak)
-                raw_bonus  = streak_bonus(count)
-                base_bonus = raw_bonus * bonus_mult
-                # Fortune charm: chance to +25% all streak bonuses (boosted by Moon class)
-                if 'fortune_charm' in owned and base_bonus > 0 and random.random() < _charm_chance:
-                    base_bonus = int(base_bonus * 1.25)
-                    fortune_charm_triggered = True
-                bonus_earned = base_bonus
-
-                any_proc_fired = False
-                _psmult = proc_streak_mult(gs['proc_streak_level'], current_proc_streak)
-
-                # Jackpot echo: trigger from previous spin's echo flag
-                if jackpot_echo_pending:
-                    jackpot_echo_triggered = True
-                    jackpot_hit = True
-                    raw_payout   = (effective_win_mult + bonus_earned) * 25
-                    boosted      = int(raw_payout * _psmult)
-                    new_wins    += boosted
-                    bonus_earned = boosted - effective_win_mult
-                    any_proc_fired = True
-                # Jackpot: chance to multiply wins by 25 (boosted by jackpot_resonance + Moon)
-                elif 'jackpot' in owned and random.random() < _jackpot_chance:
-                    jackpot_hit = True
-                    raw_payout   = (effective_win_mult + bonus_earned) * 25
-                    boosted      = int(raw_payout * _psmult)
-                    new_wins    += boosted
-                    bonus_earned = boosted - effective_win_mult
-                    if random.random() < 0.05:
-                        new_jackpot_echo_next = True
-                    any_proc_fired = True
-                else:
-                    # Win echo: chance to double wins earned (boosted by echo_amp + Moon)
-                    if 'win_echo' in owned and random.random() < _echo_chance:
-                        echo_triggered = True
-                        raw_payout   = (effective_win_mult + bonus_earned) * 2
-                        boosted      = int(raw_payout * _psmult)
-                        new_wins    += boosted
-                        bonus_earned = boosted - effective_win_mult
-                        any_proc_fired = True
-                    else:
-                        new_wins += int(effective_win_mult + bonus_earned)
-
-                # Proc streak: increment on any proc, reset on no-proc win
-                current_proc_streak = current_proc_streak + 1 if any_proc_fired else 0
-
-            # Update best streak
-            new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
-
-            # Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
-            _MAX_WINS = round(9.99e99)
-            new_wins = min(new_wins, _MAX_WINS)
-
-            # Stats tracking
-            new_win_count  = gs['win_count']  + (1 if outcome == 'win'  else 0)
-            new_loss_count = gs['loss_count'] + (1 if outcome == 'lose' else 0)
-
-            # Wheel rotation angle
-            extra_spins = random.randint(5, 8) * 360
-            if outcome == 'win':
-                segment_angle = random.uniform(200, 340)
-            else:
-                segment_angle = random.uniform(20, 160)
-            total_rotation = extra_spins + segment_angle
+            # Manual spin: add extra full rotations for the wheel animation
+            total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
 
             with conn.cursor() as cur:
                 cur.execute(
@@ -509,45 +559,46 @@ def spin():
                            last_spin_at = NOW(),
                            active_tab_id = %s, tab_last_seen = NOW()
                        WHERE user_id = %s''',
-                    (new_wins, new_losses, new_streak, new_best_streak,
-                     shield_charges, regen_recharge_wins,
-                     new_owned, new_spin_count, new_win_count, new_loss_count,
-                     fish_clicks, active_cosmetics,
+                    (new_state['wins'], new_state['losses'],
+                     new_state['streak'], new_state['best_streak'],
+                     new_state['shield_charges'], new_state['regen_recharge_wins'],
+                     new_state['owned'], new_spin_count, new_win_count, new_loss_count,
+                     gs['fish_clicks'], new_state['active_cosmetics'],
                      dice_charges, last_recharge,
-                     new_jackpot_echo_next, current_proc_streak,
+                     new_state['jackpot_echo_next'], new_state['proc_streak'],
                      req_tab_id or gs['active_tab_id'],
                      current_user.id),
                 )
             conn.commit()
 
         return jsonify({
-            'result':             outcome,
+            'result':             events['result'],
             'angle':              total_rotation,
-            'wins_delta':         new_wins   - original_wins,
-            'losses_delta':       new_losses - original_losses,
-            'streak':             new_streak,
-            'owned_items':        new_owned,
-            'shield_charges':     shield_charges,
-            'regen_recharge_wins': regen_recharge_wins,
-            'shield_used':        shield_used,
-            'shield_used_type':   shield_used_type,
-            'shield_broke':       shield_broke,
-            'guard_triggered':    guard_triggered,
-            'guard_blocked':      guard_blocked,
-            'bonus_earned':       bonus_earned,
-            'echo_triggered':           echo_triggered,
-            'jackpot_hit':              jackpot_hit,
-            'jackpot_echo_triggered':   jackpot_echo_triggered,
-            'jackpot_echo_next':        new_jackpot_echo_next,
-            'resilience_triggered':     resilience_triggered,
-            'lucky_seven_triggered':    lucky_seven_triggered,
-            'fortune_charm_triggered':  fortune_charm_triggered,
-            'active_cosmetics':        active_cosmetics,
-            'auto_guard_failed':       auto_guard_failed,
-            'new_spin_count':          new_spin_count,
-            'dice_charges':            dice_charges,
-            'dice_last_recharge':      last_recharge.isoformat(),
-            'proc_streak':             current_proc_streak,
+            'wins_delta':         events['wins_delta'],
+            'losses_delta':       events['losses_delta'],
+            'streak':             events['streak'],
+            'owned_items':        events['owned_items'],
+            'shield_charges':     events['shield_charges'],
+            'regen_recharge_wins': events['regen_recharge_wins'],
+            'shield_used':        events['shield_used'],
+            'shield_used_type':   events['shield_used_type'],
+            'shield_broke':       events['shield_broke'],
+            'guard_triggered':    events['guard_triggered'],
+            'guard_blocked':      events['guard_blocked'],
+            'bonus_earned':       events['bonus_earned'],
+            'echo_triggered':           events['echo_triggered'],
+            'jackpot_hit':              events['jackpot_hit'],
+            'jackpot_echo_triggered':   events['jackpot_echo_triggered'],
+            'jackpot_echo_next':        events['jackpot_echo_next'],
+            'resilience_triggered':     events['resilience_triggered'],
+            'lucky_seven_triggered':    events['lucky_seven_triggered'],
+            'fortune_charm_triggered':  events['fortune_charm_triggered'],
+            'active_cosmetics':         events['active_cosmetics'],
+            'auto_guard_failed':        events['auto_guard_failed'],
+            'new_spin_count':           new_spin_count,
+            'dice_charges':             dice_charges,
+            'dice_last_recharge':       last_recharge.isoformat(),
+            'proc_streak':              events['proc_streak'],
         })
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -729,20 +780,20 @@ def tick():
             new_win_count       = gs['win_count']
             new_loss_count      = gs['loss_count']
             active_cosmetics    = list(gs['active_cosmetics'])
-            win_mult            = win_mult_from_level(gs['winmult_inf_level'])
-            bonus_mult          = bonus_mult_from_level(gs['bonusmult_inf_level'])
-            # Season 7 — class and proc-rate upgrades
-            equipped_class      = gs['equipped_class']
-            moon_bonus          = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
-            star_win_bonus      = CLASS_STAR_WIN_BONUS  if equipped_class == 'star' else 0.0
-            effective_win_mult  = win_mult * (1.0 + star_win_bonus)
-            _jackpot_chance     = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
-            _echo_chance        = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
-            _charm_chance       = 0.25                                         + moon_bonus
-            # Resilience: base 50%, +1%/level streak armor (cap 60%), +5% with Moon class (cap 65%)
-            resilience_chance   = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
-            _pstreak_level      = gs['proc_streak_level']
             current_proc_streak = gs['proc_streak']
+
+            # Immutable spin context
+            equipped_class     = gs['equipped_class']
+            moon_bonus         = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
+            star_win_bonus     = CLASS_STAR_WIN_BONUS  if equipped_class == 'star' else 0.0
+            win_mult           = win_mult_from_level(gs['winmult_inf_level'])
+            bonus_mult         = bonus_mult_from_level(gs['bonusmult_inf_level'])
+            effective_win_mult = win_mult * (1.0 + star_win_bonus)
+            jackpot_chance     = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
+            echo_chance        = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
+            charm_chance       = 0.25                                         + moon_bonus
+            resilience_chance  = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
+            proc_streak_level  = gs['proc_streak_level']
 
             # Dice recharge (computed once per tick from actual elapsed time)
             dice_charges  = gs['dice_charges']
@@ -762,167 +813,78 @@ def tick():
                 streak      = pd['new_streak']
                 best_streak = max(best_streak, streak) if streak > 0 else best_streak
 
-            _MAX_WINS = round(9.99e99)
             spin_results = []
 
             for _ in range(spins_due):
-                wins_before = current_wins
-                losses_before = current_losses
-
-                # Auto-guard: re-buy guard before each spin if enabled and guard is gone
-                auto_guard_failed = False
-                if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
-                    if current_wins >= 500:
-                        owned = owned + ['guard']
-                        current_wins -= 500
-                    else:
-                        auto_guard_failed = True  # can't afford this spin; cosmetic stays active
-
                 new_spin_count += 1
+                new_state, events = _resolve_spin(
+                    owned=owned,
+                    streak=streak,
+                    best_streak=best_streak,
+                    shield_charges=shield_charges,
+                    regen_recharge_wins=regen_recharge_wins,
+                    wins=current_wins,
+                    losses=current_losses,
+                    jackpot_echo_next=jackpot_echo_next,
+                    spin_count=new_spin_count,
+                    active_cosmetics=active_cosmetics,
+                    proc_streak=current_proc_streak,
+                    effective_win_mult=effective_win_mult,
+                    bonus_mult=bonus_mult,
+                    jackpot_chance=jackpot_chance,
+                    echo_chance=echo_chance,
+                    charm_chance=charm_chance,
+                    resilience_chance=resilience_chance,
+                    proc_streak_level=proc_streak_level,
+                    pot_active=pot_active,
+                    pot_win_pct=pot_win_pct,
+                    catchup_bonus_active=catchup_bonus_active,
+                )
 
-                # Determine outcome
-                if 'singularity' in owned:
-                    outcome = 'win'
-                    lucky_seven_triggered = False
-                elif 'lucky_seven' in owned and new_spin_count % 7 == 0:
-                    outcome = 'win'
-                    lucky_seven_triggered = True
-                elif pot_active:
-                    outcome = 'win' if random.random() < pot_win_pct else 'lose'
-                    lucky_seven_triggered = False
-                elif catchup_bonus_active:
-                    outcome = 'win' if random.random() < 0.55 else 'lose'
-                    lucky_seven_triggered = False
-                else:
-                    outcome = secrets.choice(['win', 'lose'])
-                    lucky_seven_triggered = False
+                # Update carry-over state from result
+                owned               = new_state['owned']
+                streak              = new_state['streak']
+                best_streak         = new_state['best_streak']
+                shield_charges      = new_state['shield_charges']
+                regen_recharge_wins = new_state['regen_recharge_wins']
+                current_wins        = new_state['wins']
+                current_losses      = new_state['losses']
+                jackpot_echo_next   = new_state['jackpot_echo_next']
+                active_cosmetics    = new_state['active_cosmetics']
+                current_proc_streak = new_state['proc_streak']
 
-                jackpot_echo_pending = jackpot_echo_next
-                jackpot_echo_next    = False
+                new_win_count  += 1 if events['result'] == 'win'  else 0
+                new_loss_count += 1 if events['result'] == 'lose' else 0
 
-                shield_used = False
-                shield_used_type = None
-                guard_triggered = guard_blocked = False
-                echo_triggered = jackpot_hit = jackpot_echo_triggered = False
-                resilience_triggered = fortune_charm_triggered = False
-                bonus_earned = 0
-
-                if outcome == 'lose':
-                    if 'regen_shield' in owned and regen_recharge_wins == 0:
-                        shield_used      = True
-                        shield_used_type = 'regen_shield'
-                        regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
-                        new_streak = streak
-                    elif 'guard' in owned:
-                        guard_triggered = True
-                        if random.random() < 0.50:
-                            guard_blocked = True
-                            owned = [x for x in owned if x != 'guard']
-                            new_streak = streak
-                        else:
-                            if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
-                                resilience_triggered = True
-                                new_streak = max(0, streak - 1)
-                                current_proc_streak += 1
-                            else:
-                                new_streak = streak - 1 if streak <= 0 else -1
-                            loss_count   = abs(new_streak) if new_streak < 0 else 0
-                            loss_bonus   = streak_bonus(loss_count) * bonus_mult
-                            current_losses += 1 + loss_bonus
-                            bonus_earned = -loss_bonus if loss_bonus > 0 else 0
-                    else:
-                        if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
-                            resilience_triggered = True
-                            new_streak = max(0, streak - 1)
-                            current_proc_streak += 1
-                        else:
-                            new_streak = streak - 1 if streak <= 0 else -1
-                        loss_count   = abs(new_streak) if new_streak < 0 else 0
-                        loss_bonus   = streak_bonus(loss_count) * bonus_mult
-                        current_losses += 1 + loss_bonus
-                        bonus_earned = -loss_bonus if loss_bonus > 0 else 0
-                else:
-                    new_streak = streak + 1 if streak >= 0 else 1
-                    if regen_recharge_wins > 0:
-                        regen_recharge_wins -= 1
-                    count      = abs(new_streak)
-                    raw_bonus  = streak_bonus(count)
-                    base_bonus = raw_bonus * bonus_mult
-                    if 'fortune_charm' in owned and base_bonus > 0 and random.random() < _charm_chance:
-                        base_bonus = int(base_bonus * 1.25)
-                        fortune_charm_triggered = True
-                    bonus_earned = base_bonus
-
-                    any_proc_fired = False
-                    _psmult = proc_streak_mult(_pstreak_level, current_proc_streak)
-
-                    if jackpot_echo_pending:
-                        jackpot_echo_triggered = True
-                        jackpot_hit = True
-                        raw_payout   = (effective_win_mult + bonus_earned) * 25
-                        boosted      = int(raw_payout * _psmult)
-                        current_wins += boosted
-                        bonus_earned  = boosted - effective_win_mult
-                        any_proc_fired = True
-                    elif 'jackpot' in owned and random.random() < _jackpot_chance:
-                        jackpot_hit = True
-                        raw_payout   = (effective_win_mult + bonus_earned) * 25
-                        boosted      = int(raw_payout * _psmult)
-                        current_wins += boosted
-                        bonus_earned  = boosted - effective_win_mult
-                        if random.random() < 0.05:
-                            jackpot_echo_next = True
-                        any_proc_fired = True
-                    else:
-                        if 'win_echo' in owned and random.random() < _echo_chance:
-                            echo_triggered = True
-                            raw_payout   = (effective_win_mult + bonus_earned) * 2
-                            boosted      = int(raw_payout * _psmult)
-                            current_wins += boosted
-                            bonus_earned  = boosted - effective_win_mult
-                            any_proc_fired = True
-                        else:
-                            current_wins += int(effective_win_mult + bonus_earned)
-
-                    current_proc_streak = current_proc_streak + 1 if any_proc_fired else 0
-
-                new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
-                current_wins    = min(current_wins, _MAX_WINS)
-                new_win_count  += 1 if outcome == 'win'  else 0
-                new_loss_count += 1 if outcome == 'lose' else 0
-                streak      = new_streak
-                best_streak = new_best_streak
-
-                # Record result for client animation (only kept for non-catch-up)
                 if not is_catch_up:
                     spin_results.append({
-                        'result':                outcome,
-                        'angle':                 random.uniform(200, 340) if outcome == 'win' else random.uniform(20, 160),
-                        'wins_delta':            int(current_wins) - int(wins_before),
-                        'losses_delta':          current_losses - losses_before,
-                        'streak':                streak,
-                        'owned_items':           owned,
-                        'shield_charges':        shield_charges,
-                        'regen_recharge_wins':   regen_recharge_wins,
-                        'shield_used':           shield_used,
-                        'shield_used_type':      shield_used_type,
-                        'shield_broke':          False,
-                        'guard_triggered':       guard_triggered,
-                        'guard_blocked':         guard_blocked,
-                        'bonus_earned':          bonus_earned,
-                        'echo_triggered':        echo_triggered,
-                        'jackpot_hit':           jackpot_hit,
-                        'jackpot_echo_triggered': jackpot_echo_triggered,
-                        'jackpot_echo_next':     jackpot_echo_next,
-                        'resilience_triggered':  resilience_triggered,
-                        'lucky_seven_triggered': lucky_seven_triggered,
-                        'fortune_charm_triggered': fortune_charm_triggered,
-                        'active_cosmetics':      active_cosmetics,
-                        'auto_guard_failed':     auto_guard_failed,
+                        'result':                events['result'],
+                        'angle':                 events['segment_angle'],
+                        'wins_delta':            events['wins_delta'],
+                        'losses_delta':          events['losses_delta'],
+                        'streak':                events['streak'],
+                        'owned_items':           events['owned_items'],
+                        'shield_charges':        events['shield_charges'],
+                        'regen_recharge_wins':   events['regen_recharge_wins'],
+                        'shield_used':           events['shield_used'],
+                        'shield_used_type':      events['shield_used_type'],
+                        'shield_broke':          events['shield_broke'],
+                        'guard_triggered':       events['guard_triggered'],
+                        'guard_blocked':         events['guard_blocked'],
+                        'bonus_earned':          events['bonus_earned'],
+                        'echo_triggered':        events['echo_triggered'],
+                        'jackpot_hit':           events['jackpot_hit'],
+                        'jackpot_echo_triggered': events['jackpot_echo_triggered'],
+                        'jackpot_echo_next':     events['jackpot_echo_next'],
+                        'resilience_triggered':  events['resilience_triggered'],
+                        'lucky_seven_triggered': events['lucky_seven_triggered'],
+                        'fortune_charm_triggered': events['fortune_charm_triggered'],
+                        'active_cosmetics':      events['active_cosmetics'],
+                        'auto_guard_failed':     events['auto_guard_failed'],
                         'new_spin_count':        new_spin_count,
                         'dice_charges':          dice_charges,
                         'dice_last_recharge':    last_recharge.isoformat(),
-                        'proc_streak':           current_proc_streak,
+                        'proc_streak':           events['proc_streak'],
                     })
 
             # Advance last_spin_at cursor
@@ -2240,14 +2202,20 @@ def leaderboard():
         return jsonify([])
 
 
+_PATCH_NOTES_PATH = os.path.join(os.path.dirname(__file__), 'PATCH_NOTES.md')
+_patch_notes_cache: dict = {'mtime': None, 'content': None}
+
+
 @game_bp.route('/api/patch-notes')
 def get_patch_notes():
-    """Public endpoint that returns raw PATCH_NOTES.md content."""
+    """Public endpoint that returns raw PATCH_NOTES.md content (mtime-cached)."""
     try:
-        notes_path = os.path.join(os.path.dirname(__file__), 'PATCH_NOTES.md')
-        with open(notes_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return jsonify({'content': content})
+        mtime = os.path.getmtime(_PATCH_NOTES_PATH)
+        if _patch_notes_cache['mtime'] != mtime:
+            with open(_PATCH_NOTES_PATH, 'r', encoding='utf-8') as f:
+                _patch_notes_cache['content'] = f.read()
+            _patch_notes_cache['mtime'] = mtime
+        return jsonify({'content': _patch_notes_cache['content']})
     except Exception:
         log.exception('PATCH_NOTES_ERROR')
         return jsonify({'error': 'Failed to load patch notes'}), 500
@@ -2271,7 +2239,11 @@ def get_season():
 def admin_advance_season():
     """Manually advance the season. Requires X-Admin-Secret header."""
     secret = os.environ.get('ADMIN_SECRET', '')
-    if not secret or request.headers.get('X-Admin-Secret') != secret:
+    if not secret:
+        log.warning('ADMIN_SECRET not configured — advance-season endpoint is disabled')
+        return jsonify({'error': 'Forbidden'}), 403
+    provided = request.headers.get('X-Admin-Secret', '')
+    if not hmac.compare_digest(provided.encode(), secret.encode()):
         return jsonify({'error': 'Forbidden'}), 403
     try:
         with db_connection() as conn:

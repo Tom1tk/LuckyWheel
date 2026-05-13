@@ -51,7 +51,7 @@ def index():
         resp.set_cookie(
             DEVICE_COOKIE, device_id,
             max_age=DEVICE_COOKIE_MAX_AGE,
-            httponly=True, samesite='Lax',
+            httponly=True, secure=True, samesite='Lax',
         )
     return resp
 
@@ -66,9 +66,6 @@ def me():
 @auth_bp.route('/api/register', methods=['POST'])
 @limiter.limit('5 per hour')
 def register():
-    # STAGING: registration temporarily disabled
-    return jsonify({'error': 'Registration is currently disabled on staging'}), 403
-
     err = require_json()
     if err:
         return err

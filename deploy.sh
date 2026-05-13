@@ -11,6 +11,10 @@
 #   5. Rebuilds JSX (unless --skip-build)
 #   6. Clears stale .pyc bytecode cache
 #   7. Hard-restarts gunicorn via systemctl (falls back to HUP)
+#
+# Prerequisite: the deploy user needs passwordless sudo for this one command.
+# Add to /etc/sudoers (via visudo):
+#   user ALL=(ALL) NOPASSWD: /bin/systemctl restart wheel-app
 
 set -euo pipefail
 
@@ -62,7 +66,7 @@ echo "==> Clearing stale bytecode..."
 find "$PROD_DIR" -path "$PROD_DIR/__pycache__/*.pyc" -delete 2>/dev/null || true
 
 echo "==> Restarting gunicorn..."
-if echo "1234" | sudo -S systemctl restart wheel-app 2>/dev/null; then
+if sudo systemctl restart wheel-app 2>/dev/null; then
   echo "    systemctl restart wheel-app: OK"
 elif [[ -f gunicorn.ctl ]]; then
   kill -HUP "$(cat gunicorn.ctl)"
