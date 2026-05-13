@@ -2100,6 +2100,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
   useEffect(() => {
     let ctrl = new AbortController();
     const load = () => {
+      if (document.hidden) return;
       ctrl.abort();
       ctrl = new AbortController();
       apiFetch('/api/leaderboard', { signal: ctrl.signal })
@@ -2235,6 +2236,7 @@ function ChatPanel({ extraClass = '', onClose }) {
   useEffect(() => {
     let ctrl = new AbortController();
     const load = () => {
+      if (document.hidden) return;
       ctrl.abort();
       ctrl = new AbortController();
       apiFetch('/api/chat', { signal: ctrl.signal })
@@ -2893,7 +2895,7 @@ function PatchNotesPanel({ open, onClose }) {
     apiFetch('/api/patch-notes').then(r => { if (r.ok) setMd(r.data.content); });
   }, [open]);
   if (!open) return null;
-  const html = md != null ? window.marked.parse(md) : null;
+  const html = md != null ? window.DOMPurify.sanitize(window.marked.parse(md)) : null;
   return (
     <div className="stats-overlay" onClick={onClose}>
       <div className="patch-notes-card" onClick={e => e.stopPropagation()}>
@@ -3082,7 +3084,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [resilienceTriggered, setResilienceTriggered]   = useState(false);
   const [luckySevenTriggered, setLuckySevenTriggered]   = useState(false);
   const [fortuneCharmTriggered, setFortuneCharmTriggered] = useState(false);
-  const [shieldCharges, setShieldCharges]         = useState(gameState.shield_charges);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
   const [catchUpSummary, setCatchUpSummary] = useState(null);
   const [fishCatchUpSummary, setFishCatchUpSummary] = useState(null);
@@ -3252,7 +3253,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           setFishClicks(gs.data.fish_clicks);
           setOwnedItems(gs.data.owned_items);
           setEquippedFish(gs.data.equipped_fish);
-          setShieldCharges(gs.data.shield_charges);
           setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
           setActiveCosmetics(gs.data.active_cosmetics || []);
           setInfLevels({
@@ -3321,7 +3321,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       if (data.wins != null) setWins(data.wins);
       if (data.losses != null) setLosses(data.losses);
       setOwnedItems(data.owned_items);
-      setShieldCharges(data.shield_charges);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
       if (data.winmult_inf_level != null || data.bonusmult_inf_level != null ||
@@ -3441,7 +3440,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (data.wins_delta)   setWins(prev => prev + data.wins_delta);
     if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
     setStreak(data.streak);
-    setShieldCharges(data.shield_charges);
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
     if (data.owned_items) {
       const spinResult = new Set(data.owned_items);
@@ -3469,7 +3467,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
-      chargesLeft: data.shield_charges,
       rechargeWins: data.regen_recharge_wins ?? 0,
     } : (data.guard_triggered && data.guard_blocked) ? {
       type: 'guard',
@@ -3549,7 +3546,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             const withoutGuard = prev.filter(id => id !== 'guard');
             return s.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
           });
-          if (data.state.shield_charges      != null) setShieldCharges(data.state.shield_charges);
           if (data.state.regen_recharge_wins != null) setRegenRechargeWins(data.state.regen_recharge_wins);
           if (data.state.active_cosmetics)            setActiveCosmetics(data.state.active_cosmetics);
           if (data.state.spin_count != null) setSpinCount(data.state.spin_count);
@@ -3616,7 +3612,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   useEffect(() => {
     let busy = false;
     const doTick = async () => {
-      if (busy) return;
+      if (busy || document.hidden) return;
       busy = true;
       try { await tick(); } finally { busy = false; }
     };

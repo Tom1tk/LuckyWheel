@@ -85,7 +85,6 @@ def _resolve_spin(
     owned: list,
     streak: int,
     best_streak: int,
-    shield_charges: int,
     regen_recharge_wins: int,
     wins: int,
     losses: int,
@@ -238,7 +237,6 @@ def _resolve_spin(
         'owned':              new_owned,
         'streak':             new_streak,
         'best_streak':        new_best_streak,
-        'shield_charges':     shield_charges,
         'regen_recharge_wins': regen_recharge_wins,
         'wins':               wins,
         'losses':             losses,
@@ -253,7 +251,6 @@ def _resolve_spin(
         'losses_delta':            losses - original_losses,
         'streak':                  new_streak,
         'owned_items':             new_owned,
-        'shield_charges':          shield_charges,
         'regen_recharge_wins':     regen_recharge_wins,
         'shield_used':             shield_used,
         'shield_used_type':        shield_used_type,
@@ -297,7 +294,7 @@ def get_state():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
-                              equipped_fish, shield_charges, regen_recharge_wins,
+                              equipped_fish, regen_recharge_wins,
                               active_cosmetics, spin_count, win_count,
                               winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
                               streak_armor_level, low_spec_mode,
@@ -343,7 +340,6 @@ def get_state():
             'streak':             gs['streak'],
             'owned_items':        owned_items,
             'equipped_fish':      gs['equipped_fish'],
-            'shield_charges':     gs['shield_charges'],
             'regen_recharge_wins': gs['regen_recharge_wins'],
             'active_cosmetics':   list(gs['active_cosmetics']),
             'spin_count':         gs['spin_count'],
@@ -405,6 +401,30 @@ def update_settings():
         return jsonify({'error': 'Settings update failed'}), 500
 
 
+def _apply_pot_decay(conn, pot_row, now_utc: dt.datetime) -> int:
+    """Decay the community pot target by 20% per 12-hour period. Returns effective target."""
+    if not pot_row or not pot_row.get('last_decay_check'):
+        return int(pot_row['target']) if pot_row else 1_000
+    last_decay = pot_row['last_decay_check']
+    if last_decay.tzinfo is None:
+        last_decay = last_decay.replace(tzinfo=timezone.utc)
+    decay_periods = int((now_utc - last_decay).total_seconds() / (12 * 3600))
+    effective_target = int(pot_row['target'])
+    if decay_periods <= 0:
+        return effective_target
+    for _ in range(decay_periods):
+        effective_target = max(500, int(effective_target * 0.8))
+    if int(pot_row.get('total_contributed', 0)) > 0:
+        effective_target = max(effective_target, int(pot_row['total_contributed']) + 1)
+    new_decay_ts = last_decay + timedelta(hours=12 * decay_periods)
+    with conn.cursor() as _cur:
+        _cur.execute(
+            'UPDATE community_pot SET target = %s, last_decay_check = %s WHERE id = 1',
+            (effective_target, new_decay_ts),
+        )
+    return effective_target
+
+
 @game_bp.route('/api/spin', methods=['POST'])
 @login_required
 @limiter.limit('10 per second')
@@ -418,7 +438,7 @@ def spin():
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges, regen_recharge_wins,
+                    '''SELECT wins, losses, streak, best_streak, owned_items, regen_recharge_wins,
                               spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
                               jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
@@ -475,23 +495,8 @@ def spin():
                     )
 
             # Community pot: apply target decay if 12+ hours since last check
-            if pot_row and pot_row['last_decay_check'] and not pot_active:
-                last_decay = pot_row['last_decay_check']
-                if last_decay.tzinfo is None:
-                    last_decay = last_decay.replace(tzinfo=timezone.utc)
-                decay_periods = int((now_utc - last_decay).total_seconds() / (12 * 3600))
-                if decay_periods > 0:
-                    new_target = int(pot_row['target'])
-                    for _ in range(decay_periods):
-                        new_target = max(500, int(new_target * 0.8))
-                    if pot_row['total_contributed'] > 0:
-                        new_target = max(new_target, int(pot_row['total_contributed']) + 1)
-                    new_decay_ts = last_decay + timedelta(hours=12 * decay_periods)
-                    with conn.cursor() as cur2:
-                        cur2.execute(
-                            'UPDATE community_pot SET target = %s, last_decay_check = %s WHERE id = 1',
-                            (new_target, new_decay_ts)
-                        )
+            if not pot_active:
+                _apply_pot_decay(conn, pot_row, now_utc)
 
             # Dice recharge
             dice_charges  = gs['dice_charges']
@@ -521,7 +526,6 @@ def spin():
                 owned=list(gs['owned_items']),
                 streak=gs['streak'],
                 best_streak=gs['best_streak'],
-                shield_charges=gs['shield_charges'],
                 regen_recharge_wins=gs['regen_recharge_wins'],
                 wins=int(gs['wins']),
                 losses=gs['losses'],
@@ -550,7 +554,7 @@ def spin():
                 cur.execute(
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, streak = %s, best_streak = %s,
-                           shield_charges = %s, regen_recharge_wins = %s,
+                           regen_recharge_wins = %s,
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
@@ -561,7 +565,7 @@ def spin():
                        WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
                      new_state['streak'], new_state['best_streak'],
-                     new_state['shield_charges'], new_state['regen_recharge_wins'],
+                     new_state['regen_recharge_wins'],
                      new_state['owned'], new_spin_count, new_win_count, new_loss_count,
                      gs['fish_clicks'], new_state['active_cosmetics'],
                      dice_charges, last_recharge,
@@ -578,7 +582,6 @@ def spin():
             'losses_delta':       events['losses_delta'],
             'streak':             events['streak'],
             'owned_items':        events['owned_items'],
-            'shield_charges':     events['shield_charges'],
             'regen_recharge_wins': events['regen_recharge_wins'],
             'shield_used':        events['shield_used'],
             'shield_used_type':   events['shield_used_type'],
@@ -693,7 +696,7 @@ def tick():
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT wins, losses, streak, best_streak, owned_items, shield_charges,
+                    '''SELECT wins, losses, streak, best_streak, owned_items,
                               regen_recharge_wins, spin_count, win_count, loss_count,
                               winmult_inf_level, bonusmult_inf_level, streak_armor_level,
                               jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
@@ -771,7 +774,6 @@ def tick():
             owned               = list(gs['owned_items'])
             streak              = gs['streak']
             best_streak         = gs['best_streak']
-            shield_charges      = gs['shield_charges']
             regen_recharge_wins = gs['regen_recharge_wins']
             current_wins        = int(gs['wins'])
             current_losses      = gs['losses']
@@ -821,7 +823,6 @@ def tick():
                     owned=owned,
                     streak=streak,
                     best_streak=best_streak,
-                    shield_charges=shield_charges,
                     regen_recharge_wins=regen_recharge_wins,
                     wins=current_wins,
                     losses=current_losses,
@@ -845,7 +846,6 @@ def tick():
                 owned               = new_state['owned']
                 streak              = new_state['streak']
                 best_streak         = new_state['best_streak']
-                shield_charges      = new_state['shield_charges']
                 regen_recharge_wins = new_state['regen_recharge_wins']
                 current_wins        = new_state['wins']
                 current_losses      = new_state['losses']
@@ -864,7 +864,6 @@ def tick():
                         'losses_delta':          events['losses_delta'],
                         'streak':                events['streak'],
                         'owned_items':           events['owned_items'],
-                        'shield_charges':        events['shield_charges'],
                         'regen_recharge_wins':   events['regen_recharge_wins'],
                         'shield_used':           events['shield_used'],
                         'shield_used_type':      events['shield_used_type'],
@@ -894,7 +893,7 @@ def tick():
                 cur.execute(
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, streak = %s, best_streak = %s,
-                           shield_charges = %s, regen_recharge_wins = %s,
+                           regen_recharge_wins = %s,
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
                            active_cosmetics = %s, jackpot_echo_next = %s,
                            dice_charges = %s, dice_last_recharge = %s,
@@ -903,7 +902,7 @@ def tick():
                            last_spin_at = %s
                        WHERE user_id = %s''',
                     (current_wins, current_losses, streak, best_streak,
-                     shield_charges, regen_recharge_wins,
+                     regen_recharge_wins,
                      owned, new_spin_count, new_win_count, new_loss_count,
                      active_cosmetics, jackpot_echo_next,
                      dice_charges, last_recharge,
@@ -968,7 +967,6 @@ def tick():
             'losses':                current_losses,
             'streak':                streak,
             'owned_items':           owned,
-            'shield_charges':        shield_charges,
             'regen_recharge_wins':   regen_recharge_wins,
             'active_cosmetics':      active_cosmetics,
             'spin_count':            new_spin_count,
@@ -1135,7 +1133,7 @@ def buy():
             with db_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute(
-                        f'''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
+                        f'''SELECT wins, losses, fish_clicks, owned_items,
                                    regen_recharge_wins, active_cosmetics,
                                    winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
                                    streak_armor_level, lure_mastery_level,
@@ -1198,7 +1196,6 @@ def buy():
                 'losses':                  gs['losses'],
                 'fish_clicks':             new_fish,
                 'owned_items':             owned,
-                'shield_charges':          gs['shield_charges'],
                 'regen_recharge_wins':     gs['regen_recharge_wins'],
                 'active_cosmetics':        list(gs['active_cosmetics']),
                 'winmult_inf_level':         _lvl('winmult_inf_level'),
@@ -1226,7 +1223,7 @@ def buy():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT wins, losses, fish_clicks, owned_items, shield_charges,
+                    '''SELECT wins, losses, fish_clicks, owned_items,
                               regen_recharge_wins, active_cosmetics,
                               winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
                               streak_armor_level, win_count, caught_species
@@ -1277,14 +1274,8 @@ def buy():
                 new_losses = gs['losses']
                 new_clicks = gs['fish_clicks'] - cost
 
-            new_owned = owned + [item_id]
-
-            if item_id == 'regen_shield':
-                new_charges        = gs['shield_charges']
-                new_regen_recharge = 0
-            else:
-                new_charges        = gs['shield_charges']
-                new_regen_recharge = gs['regen_recharge_wins']
+            new_owned          = owned + [item_id]
+            new_regen_recharge = 0 if item_id == 'regen_shield' else gs['regen_recharge_wins']
 
             # Auto-activate cosmetic items when purchased
             new_active_cosmetics = list(gs['active_cosmetics'])
@@ -1297,11 +1288,10 @@ def buy():
                 cur.execute(
                     '''UPDATE game_state
                        SET wins = %s, losses = %s, fish_clicks = %s,
-                           owned_items = %s, shield_charges = %s,
-                           regen_recharge_wins = %s, active_cosmetics = %s
+                           owned_items = %s, regen_recharge_wins = %s, active_cosmetics = %s
                        WHERE user_id = %s''',
                     (new_wins, new_losses, new_clicks, new_owned,
-                     new_charges, new_regen_recharge, new_active_cosmetics, current_user.id),
+                     new_regen_recharge, new_active_cosmetics, current_user.id),
                 )
             conn.commit()
 
@@ -1310,7 +1300,6 @@ def buy():
             'losses':              new_losses,
             'fish_clicks':         new_clicks,
             'owned_items':         new_owned,
-            'shield_charges':      new_charges,
             'regen_recharge_wins': new_regen_recharge,
             'active_cosmetics':    new_active_cosmetics,
             'winmult_inf_level':   gs['winmult_inf_level'],
@@ -1418,22 +1407,7 @@ def community_pot_contribute():
                 pot['target'] = new_exp_target
 
             # Apply decay if 12+ hours since last check
-            last_decay = pot['last_decay_check']
-            if last_decay.tzinfo is None:
-                last_decay = last_decay.replace(tzinfo=timezone.utc)
-            decay_periods = int((now_utc - last_decay).total_seconds() / (12 * 3600))
-            effective_target = int(pot['target'])
-            if decay_periods > 0:
-                for _ in range(decay_periods):
-                    effective_target = max(500, int(effective_target * 0.8))
-                if pot['total_contributed'] > 0:
-                    effective_target = max(effective_target, int(pot['total_contributed']) + 1)
-                new_decay_ts = last_decay + timedelta(hours=12 * decay_periods)
-                with conn.cursor() as cur2:
-                    cur2.execute(
-                        'UPDATE community_pot SET target = %s, last_decay_check = %s WHERE id = 1',
-                        (effective_target, new_decay_ts)
-                    )
+            effective_target = _apply_pot_decay(conn, pot, now_utc)
 
             fish_clicks  = gs['fish_clicks']
             happy_hour   = is_happy_hour(now_utc)
@@ -2163,6 +2137,7 @@ def stats():
 
 
 @game_bp.route('/api/leaderboard')
+@limiter.limit('30 per minute')
 def leaderboard():
     try:
         with db_connection() as conn:
@@ -2207,6 +2182,7 @@ _patch_notes_cache: dict = {'mtime': None, 'content': None}
 
 
 @game_bp.route('/api/patch-notes')
+@limiter.limit('20 per minute')
 def get_patch_notes():
     """Public endpoint that returns raw PATCH_NOTES.md content (mtime-cached)."""
     try:
@@ -2222,6 +2198,7 @@ def get_patch_notes():
 
 
 @game_bp.route('/api/season')
+@limiter.limit('60 per minute')
 def get_season():
     """Public endpoint for season info. Used by cron safety net and frontend polling."""
     try:

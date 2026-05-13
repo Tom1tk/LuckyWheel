@@ -67,7 +67,6 @@ def _base_state(**overrides):
         owned=[],
         streak=0,
         best_streak=0,
-        shield_charges=0,
         regen_recharge_wins=0,
         wins=1000,
         losses=0,
