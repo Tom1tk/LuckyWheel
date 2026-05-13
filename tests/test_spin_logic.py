@@ -43,7 +43,11 @@ sys.modules.setdefault('flask_login', _make_stub(
 sys.modules.setdefault('psycopg2', _make_stub('psycopg2'))
 sys.modules.setdefault('psycopg2.extras', _make_stub('psycopg2.extras', Json=lambda x: x))
 sys.modules.setdefault('db', _make_stub('db', db_connection=_fake_db))
-sys.modules.setdefault('extensions', _make_stub('extensions', limiter=types.SimpleNamespace(limit=_noop)))
+sys.modules.setdefault('extensions', _make_stub(
+    'extensions',
+    limiter=types.SimpleNamespace(limit=_noop),
+    csrf=types.SimpleNamespace(exempt=lambda f: f),
+))
 sys.modules.setdefault('seasons', _make_stub('seasons',
     ensure_current_season=lambda c: None,
     get_season_info=lambda c: {},

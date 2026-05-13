@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import secrets
+import time
 from datetime import timezone, timedelta
 
 import psycopg2.extras
@@ -11,7 +12,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from db import db_connection
-from extensions import limiter
+from extensions import limiter, csrf
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
                     inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level,
@@ -51,6 +52,46 @@ def is_happy_hour(now_utc=None):
 
 log = logging.getLogger('wheel')
 game_bp = Blueprint('game', __name__)
+
+# ── SUM(fish_clicks) cache ─────────────────────────────────────────────────
+# Full-table aggregate; cache per worker for 15 s to avoid scanning on every
+# /api/state load and every 5-second /api/community-pot poll.
+_fish_clicks_cache: dict = {'ts': 0.0, 'total': 0}
+_FISH_CLICKS_TTL = 15.0
+
+
+def _get_total_fish_clicks(cur) -> int:
+    now = time.monotonic()
+    if now - _fish_clicks_cache['ts'] < _FISH_CLICKS_TTL:
+        return _fish_clicks_cache['total']
+    cur.execute('SELECT COALESCE(SUM(fish_clicks), 0) AS total FROM game_state')
+    total = int(cur.fetchone()['total'])
+    _fish_clicks_cache['ts'] = now
+    _fish_clicks_cache['total'] = total
+    return total
+
+
+# ── Game state loader ──────────────────────────────────────────────────────
+# Union of all columns needed by spin, tick, and buy endpoints. Defining the
+# SELECT once means adding a new column is a single-line change.
+_GAME_STATE_SQL = '''
+    SELECT wins, losses, streak, best_streak, owned_items, regen_recharge_wins,
+           spin_count, win_count, loss_count,
+           winmult_inf_level, bonusmult_inf_level, clickmult_inf_level, streak_armor_level,
+           jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
+           lure_mastery_level, equipped_class, fish_clicks, caught_species, active_cosmetics,
+           dice_charges, dice_last_recharge, jackpot_echo_next, dice_rolled_since_spin,
+           pending_dice, auto_spin_since, last_spin_at, active_tab_id, tab_last_seen,
+           auto_fish_enabled, auto_fish_last_tick
+    FROM game_state WHERE user_id = %s
+'''
+
+
+def _load_game_state(cur, user_id: int, *, for_update: bool = False):
+    sql = _GAME_STATE_SQL + ('FOR UPDATE' if for_update else '')
+    cur.execute(sql, (user_id,))
+    return cur.fetchone()
+
 
 # ── Fishing constants ──────────────────────────────────────────────────────
 # Server-side reel window: client sees 1.5 s, server grants 0.3 s of network
@@ -311,9 +352,7 @@ def get_state():
                 gs = cur.fetchone()
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at, last_decay_check FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
-                cur.execute('SELECT COALESCE(SUM(fish_clicks), 0) AS total FROM game_state')
-                pending_row = cur.fetchone()
-        total_pending_clicks = int(pending_row['total']) if pending_row else 0
+                total_pending_clicks = _get_total_fish_clicks(cur)
         now_utc = dt.datetime.now(timezone.utc)
         # Brief 30-minute celebration window after a fill (UI only)
         pot_celebrate = bool(
@@ -437,21 +476,7 @@ def spin():
         with db_connection() as conn:
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    '''SELECT wins, losses, streak, best_streak, owned_items, regen_recharge_wins,
-                              spin_count, win_count, loss_count,
-                              winmult_inf_level, bonusmult_inf_level, streak_armor_level,
-                              jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
-                              equipped_class,
-                              fish_clicks, active_cosmetics,
-                              dice_charges, dice_last_recharge, jackpot_echo_next,
-                              dice_rolled_since_spin, last_spin_at,
-                              active_tab_id, tab_last_seen,
-                              auto_spin_since
-                       FROM game_state WHERE user_id = %s FOR UPDATE''',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
+                gs = _load_game_state(cur, current_user.id, for_update=True)
 
             # Block manual spins when server-side auto-spin is active
             if gs['auto_spin_since'] is not None:
@@ -695,23 +720,7 @@ def tick():
         with db_connection() as conn:
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    '''SELECT wins, losses, streak, best_streak, owned_items,
-                              regen_recharge_wins, spin_count, win_count, loss_count,
-                              winmult_inf_level, bonusmult_inf_level, streak_armor_level,
-                              jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
-                              equipped_class,
-                              fish_clicks, caught_species, active_cosmetics,
-                              lure_mastery_level,
-                              dice_charges, dice_last_recharge, jackpot_echo_next,
-                              dice_rolled_since_spin, pending_dice,
-                              auto_spin_since, last_spin_at,
-                              auto_fish_enabled, auto_fish_last_tick
-                       FROM game_state WHERE user_id = %s FOR UPDATE''',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
-
+                gs = _load_game_state(cur, current_user.id, for_update=True)
                 cur.execute(
                     'SELECT filled, filled_at, win_chance_pct FROM community_pot WHERE id = 1'
                 )
@@ -1132,16 +1141,7 @@ def buy():
         try:
             with db_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                    cur.execute(
-                        f'''SELECT wins, losses, fish_clicks, owned_items,
-                                   regen_recharge_wins, active_cosmetics,
-                                   winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
-                                   streak_armor_level, lure_mastery_level,
-                                   jackpot_resonance_level, echo_amp_level, proc_streak_level
-                            FROM game_state WHERE user_id = %s FOR UPDATE''',
-                        (current_user.id,),
-                    )
-                    gs = cur.fetchone()
+                    gs = _load_game_state(cur, current_user.id, for_update=True)
 
                 owned     = list(gs['owned_items'])
                 cur_level = gs[col]
@@ -1222,15 +1222,7 @@ def buy():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    '''SELECT wins, losses, fish_clicks, owned_items,
-                              regen_recharge_wins, active_cosmetics,
-                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
-                              streak_armor_level, win_count, caught_species
-                       FROM game_state WHERE user_id = %s FOR UPDATE''',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
+                gs = _load_game_state(cur, current_user.id, for_update=True)
 
             owned = list(gs['owned_items'])
 
@@ -1319,9 +1311,7 @@ def community_pot_state():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
-                cur.execute('SELECT COALESCE(SUM(fish_clicks), 0) AS total FROM game_state')
-                pending_row = cur.fetchone()
-            total_pending_clicks = int(pending_row['total']) if pending_row else 0
+                total_pending_clicks = _get_total_fish_clicks(cur)
             if not pot:
                 return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0, 'total_pending_clicks': total_pending_clicks})
             now_utc = dt.datetime.now(timezone.utc)
@@ -2213,6 +2203,7 @@ def get_season():
 
 
 @game_bp.route('/api/admin/advance-season', methods=['POST'])
+@csrf.exempt
 def admin_advance_season():
     """Manually advance the season. Requires X-Admin-Secret header."""
     secret = os.environ.get('ADMIN_SECRET', '')

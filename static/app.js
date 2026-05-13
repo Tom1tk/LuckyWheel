@@ -7,11 +7,20 @@ const {
 } = React;
 
 // ── API helpers ───────────────────────────────────────────────────────────
+let _csrfToken = null;
+function storeCsrf(data) {
+  if (data && data.csrf_token) _csrfToken = data.csrf_token;
+}
 async function apiFetch(path, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
+    headers['X-CSRFToken'] = _csrfToken;
+  }
   const res = await fetch(path, {
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers,
     ...opts
   });
   const json = await res.json().catch(() => ({}));
@@ -4502,6 +4511,7 @@ function AuthPage({
     });
     setLoading(false);
     if (ok) {
+      storeCsrf(data);
       onAuth(data.username);
     } else {
       setError(data.error || 'Something went wrong');
@@ -5658,6 +5668,7 @@ function App() {
         ok,
         data
       } = await apiFetch('/api/me');
+      storeCsrf(data);
       if (ok && data.username) {
         const gs = await apiFetch('/api/state');
         if (gs.ok) {

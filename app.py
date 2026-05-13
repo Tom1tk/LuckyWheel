@@ -40,10 +40,16 @@ def create_app() -> Flask:
     from db import init_pool
     init_pool(db_url)
 
+    # CSRF: token lives in the session; checked via X-CSRFToken header on mutations.
+    # No time limit — players keep tabs open for hours.
+    app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken']
+    app.config['WTF_CSRF_TIME_LIMIT'] = None
+
     # Initialise extensions (order matters: limiter before blueprints)
-    from extensions import limiter, login_manager
+    from extensions import limiter, login_manager, csrf
     limiter.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
 
     # Register blueprints (auth also registers @login_manager.user_loader)
     from auth import auth_bp
