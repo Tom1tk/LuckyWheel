@@ -8,6 +8,7 @@ import psycopg2.extras
 from flask import Blueprint, jsonify, make_response, request, send_from_directory, session
 from flask_limiter.util import get_remote_address
 from flask_login import current_user, login_user, logout_user
+from flask_wtf.csrf import generate_csrf
 
 from db import db_connection
 from extensions import limiter, login_manager
@@ -58,9 +59,10 @@ def index():
 
 @auth_bp.route('/api/me')
 def me():
+    token = generate_csrf()
     if current_user.is_authenticated:
-        return jsonify({'username': current_user.username})
-    return jsonify({'username': None}), 200
+        return jsonify({'username': current_user.username, 'csrf_token': token})
+    return jsonify({'username': None, 'csrf_token': token}), 200
 
 
 @auth_bp.route('/api/register', methods=['POST'])
@@ -128,7 +130,7 @@ def register():
 
         log.info('REGISTER_SUCCESS  username=%s  user_id=%d  device_id=%s  ip=%s',
                  username, user_id, device_id or 'none', ip)
-        return jsonify({'username': username}), 201
+        return jsonify({'username': username, 'csrf_token': generate_csrf()}), 201
 
     except psycopg2.errors.UniqueViolation:
         log.warning('REGISTER_REJECT  reason=unique_violation  username=%s  ip=%s', username, ip)
@@ -211,7 +213,7 @@ def login():
         session.permanent = True
 
         log.info('LOGIN_SUCCESS  username=%s  user_id=%d  ip=%s', row['username'], row['id'], ip)
-        return jsonify({'username': row['username']}), 200
+        return jsonify({'username': row['username'], 'csrf_token': generate_csrf()}), 200
 
     except Exception:
         log.exception('LOGIN_ERROR  username=%s  ip=%s', username, ip)
