@@ -110,7 +110,7 @@ def get_chat():
     with db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                '''SELECT id, username, message, created_at
+                '''SELECT id, username, message, created_at, message_type
                    FROM chat_messages
                    ORDER BY id DESC
                    LIMIT 30'''
@@ -124,6 +124,7 @@ def get_chat():
             'username': r[1],
             'message': r[2],
             'created_at': r[3].isoformat(),
+            'message_type': r[4] if r[4] else 'user',
         }
         for r in rows
     ]
@@ -178,3 +179,21 @@ def post_chat():
         conn.commit()
 
     return jsonify({'ok': True}), 201
+
+
+def post_system_message(conn, message: str, message_type: str = 'system'):
+    """Insert a system message into chat (user_id=NULL, username='SYSTEM').
+
+    Used by Season 8 features: bounty completions, community goal milestones,
+    singularity fills, prestige announcements. Must be called within an
+    existing db_connection() context — caller manages commit/rollback.
+    """
+    if not message:
+        return
+    message = message[:MAX_MSG_LEN]
+    with conn.cursor() as cur:
+        cur.execute(
+            '''INSERT INTO chat_messages (user_id, username, message, message_type)
+               VALUES (NULL, 'SYSTEM', %s, %s)''',
+            (message, message_type),
+        )

@@ -23,9 +23,17 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
-                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC)
+                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC, FISH_TO_WAGER_RATES)
 from seasons import ensure_current_season, get_season_info, advance_season
 from security import require_json
+from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
+                    apply_safety_net, compute_wager_payout, compute_wager_loss,
+                    MAX_STAKE, MIN_STAKE)
+from wheel_modes import WHEEL_MODES, get_available_modes, get_rotating_mode, get_week_number, is_mode_available
+from prestige import get_prestige_bonus, get_starting_prestige, can_prestige, get_prestige_threshold, get_legacy_keep_count, MAX_PRESTIGE_LEVEL
+from replays import generate_replay, should_generate_replay, decode_replay
+from bounties import get_daily_bounties, increment_bounty, get_bounty_status, get_claim_rewards, BOUNTY_DEFS
+from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
@@ -37,6 +45,8 @@ COSMETIC_SLOTS = {
     'trail_4': 'trail', 'trail_5': 'trail', 'trail_6': 'trail',
     'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
     'theme_void': 'wheel', 'theme_gold': 'wheel',
+    'theme_tidal': 'wheel', 'theme_ember': 'wheel', 'theme_frost': 'wheel',
+    'theme_aurora': 'wheel', 'theme_vintage': 'wheel',
     'golden_wheel': 'golden',
     'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
     'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme', 'page_season7': 'page_theme',
@@ -89,7 +99,6 @@ def _get_total_fish_clicks(cur) -> int:
 
 # ── Game state loader ──────────────────────────────────────────────────────
 # Union of all columns needed by spin, tick, and buy endpoints. Defining the
-# SELECT once means adding a new column is a single-line change.
 _GAME_STATE_SQL = '''
     SELECT wins, losses, streak, best_streak, owned_items, regen_recharge_wins,
            spin_count, win_count, loss_count,
@@ -98,7 +107,12 @@ _GAME_STATE_SQL = '''
            lure_mastery_level, equipped_class, fish_clicks, caught_species, active_cosmetics,
            dice_charges, dice_last_recharge, jackpot_echo_next, dice_rolled_since_spin,
            pending_dice, auto_spin_since, last_spin_at, active_tab_id, tab_last_seen,
-           auto_fish_enabled, auto_fish_last_tick
+           auto_fish_enabled, auto_fish_last_tick,
+           prestige_level, prestige_count, legacy_wins, onboarding_step, auto_spin_budget,
+           wager_streak, wager_last_stake, double_down_pending, wager_banked_wins,
+           wager_insurance_charges, active_wheel_mode,
+           wager_tokens, aquarium_species, cosmetic_fragments,
+           guard_charges, guard_last_regen_spin, resilience_last_use_spin
     FROM game_state WHERE user_id = %s
 '''
 
@@ -135,7 +149,7 @@ def _autofisher_level(owned: list) -> int:
 
 
 # Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
-_MAX_WINS = round(9.99e99)
+_MAX_WINS = 5_000_000  # Season 8 economy ceiling (was round(9.99e99))
 
 
 def _build_spin_context(gs: dict) -> dict:
@@ -143,14 +157,27 @@ def _build_spin_context(gs: dict) -> dict:
     equipped_class = gs['equipped_class']
     moon_bonus = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
     star_win_bonus = CLASS_STAR_WIN_BONUS if equipped_class == 'star' else 0.0
+    # Season 8: prestige bonus is flat +2% per level (max +40% at level 20)
+    prestige_bonus = get_prestige_bonus(gs.get('prestige_level', 0))
+    # Season 8: aquarium luck bonus — +0.1% per unique species
+    aquarium_species = gs.get('aquarium_species', [])
+    aquarium_count = len(aquarium_species) if aquarium_species else 0
+    aquarium_luck = aquarium_count * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0
+
+    # Season 8: old inf levels frozen at 0 — use flat values
+    base_win_mult = win_mult_from_level(0)  # always 1 (levels frozen)
+    base_bonus_mult = bonus_mult_from_level(0)  # always 1
+
     return {
-        'effective_win_mult': win_mult_from_level(gs['winmult_inf_level']) * (1.0 + star_win_bonus),
-        'bonus_mult':         bonus_mult_from_level(gs['bonusmult_inf_level']),
-        'jackpot_chance':     jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus,
-        'echo_chance':        echo_amp_pct(gs['echo_amp_level']) + moon_bonus,
+        'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),
+        'bonus_mult':         base_bonus_mult,
+        'jackpot_chance':     0.01 + moon_bonus,  # flat 1% base (resonance removed)
+        'echo_chance':        0.20 + moon_bonus,  # flat 20% base (echo_amp removed)
         'charm_chance':       0.25 + moon_bonus,
-        'resilience_chance':  min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65),
-        'proc_streak_level':  gs['proc_streak_level'],
+        'resilience_chance':  min(0.50 + moon_bonus, 0.65),  # flat 50% (streak_armor removed)
+        'proc_streak_level':  0,  # frozen
+        'aquarium_luck':      aquarium_luck,
+        'prestige_bonus':     prestige_bonus,
     }
 
 
@@ -176,34 +203,54 @@ def _resolve_spin(
     pot_active: bool,
     pot_win_pct: float,     # fraction 0–1
     catchup_bonus_active: bool = False,
+    # ── Season 8: wager + wheel mode ──
+    stake: int = 1,
+    wager_streak: int = 0,
+    wager_last_stake: int = 0,
+    active_wheel_mode: str = 'steady',
+    aquarium_luck: float = 0.0,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs."""
     original_wins   = wins
     original_losses = losses
 
-    # Auto-guard: buy before spin if enabled and guard is gone
+    # Season 8: auto_guard removed — no auto-purchase logic
     auto_guard_failed = False
-    if 'auto_guard' in owned and 'auto_guard' in active_cosmetics and 'guard' not in owned:
-        if wins >= 500:
-            owned = owned + ['guard']
-            wins -= 500
-        else:
-            # Can't afford — cosmetic stays active; will retry next spin
-            auto_guard_failed = True
 
-    # Determine outcome
+    # Season 8: wheel mode outcome determination (replaces singularity/50-50)
     lucky_seven_triggered = False
-    if 'singularity' in owned:
-        outcome = 'win'
-    elif 'lucky_seven' in owned and spin_count % 7 == 0:
+    mode = WHEEL_MODES.get(active_wheel_mode, WHEEL_MODES['steady'])
+
+    if 'lucky_seven' in owned and spin_count % 7 == 0:
         outcome = 'win'
         lucky_seven_triggered = True
     elif pot_active:
-        outcome = 'win' if random.random() < pot_win_pct else 'lose'
+        outcome = 'win' if random.random() < (pot_win_pct + aquarium_luck) else 'lose'
     elif catchup_bonus_active:
-        outcome = 'win' if random.random() < 0.55 else 'lose'
+        outcome = 'win' if random.random() < (0.55 + aquarium_luck) else 'lose'
     else:
-        outcome = secrets.choice(['win', 'lose'])
+        # Mode-based probability roll
+        win_pct = mode['win_pct'] / 100.0 + aquarium_luck
+        jackpot_pct = mode['jackpot_pct'] / 100.0
+        roll = random.random()
+        if roll < jackpot_pct:
+            outcome = 'jackpot'
+        elif roll < jackpot_pct + win_pct:
+            outcome = 'win'
+        else:
+            outcome = 'lose'
+        # Mirror mode: roll twice, take better
+        if active_wheel_mode == 'mirror':
+            roll2 = random.random()
+            if roll2 < jackpot_pct:
+                outcome2 = 'jackpot'
+            elif roll2 < jackpot_pct + win_pct:
+                outcome2 = 'win'
+            else:
+                outcome2 = 'lose'
+            rank = {'jackpot': 2, 'win': 1, 'lose': 0}
+            if rank[outcome2] > rank[outcome]:
+                outcome = outcome2
 
     jackpot_echo_pending  = jackpot_echo_next
     new_jackpot_echo_next = False
@@ -218,7 +265,15 @@ def _resolve_spin(
     resilience_triggered    = False
     fortune_charm_triggered = False
     bonus_earned            = 0
-    new_owned               = owned   # may have guard removed on block
+    new_owned               = owned
+
+    # Season 8: wager stake multiplier and hot streak
+    owns_wager_unlock = 'wager_unlock' in owned
+    actual_stake = validate_stake(stake, owns_wager_unlock)
+    owns_hot_streak = 'wager_hot_streak' in owned
+    if should_reset_streak(actual_stake, wager_last_stake):
+        wager_streak = 0
+    hot_streak_bonus = compute_hot_streak_bonus(wager_streak, owns_hot_streak)
 
     if outcome == 'lose':
         if 'regen_shield' in owned and regen_recharge_wins == 0:
@@ -228,21 +283,9 @@ def _resolve_spin(
             new_streak          = streak
         elif 'guard' in owned:
             guard_triggered = True
-            if random.random() < 0.50:
-                guard_blocked = True
-                new_owned  = [x for x in new_owned if x != 'guard']
-                new_streak = streak
-            else:
-                if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
-                    resilience_triggered = True
-                    new_streak  = max(0, streak - 1)
-                    proc_streak += 1
-                else:
-                    new_streak = streak - 1 if streak <= 0 else -1
-                loss_count   = abs(new_streak) if new_streak < 0 else 0
-                loss_bonus   = streak_bonus(loss_count) * bonus_mult
-                losses      += 1 + loss_bonus
-                bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+            guard_blocked = True
+            new_owned  = [x for x in new_owned if x != 'guard']
+            new_streak = streak
         else:
             if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                 resilience_triggered = True
@@ -252,8 +295,25 @@ def _resolve_spin(
                 new_streak = streak - 1 if streak <= 0 else -1
             loss_count   = abs(new_streak) if new_streak < 0 else 0
             loss_bonus   = streak_bonus(loss_count) * bonus_mult
-            losses      += 1 + loss_bonus
+            base_loss    = 1 + loss_bonus
+            actual_loss  = compute_wager_loss(base_loss, actual_stake)
+            actual_loss  = apply_safety_net(actual_loss, actual_stake, 'wager_safety_net' in owned)
+            losses      += actual_loss
             bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+    elif outcome == 'jackpot':
+        new_streak = streak + 1 if streak >= 0 else 1
+        if regen_recharge_wins > 0:
+            regen_recharge_wins -= 1
+        jackpot_hit = True
+        jackpot_mult = mode.get('jackpot_multiplier', 25)
+        raw_payout   = (effective_win_mult + bonus_earned) * jackpot_mult
+        wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+        wins        += wager_payout
+        bonus_earned = wager_payout - effective_win_mult
+        if random.random() < 0.05:
+            new_jackpot_echo_next = True
+        if jackpot_echo_pending:
+            jackpot_echo_triggered = True
     else:  # win
         new_streak = streak + 1 if streak >= 0 else 1
         if regen_recharge_wins > 0:
@@ -267,44 +327,43 @@ def _resolve_spin(
             fortune_charm_triggered = True
         bonus_earned = base_bonus
 
-        any_proc_fired = False
-        _psmult = proc_streak_mult(proc_streak_level, proc_streak)
-
         if jackpot_echo_pending:
             jackpot_echo_triggered = True
             jackpot_hit  = True
             raw_payout   = (effective_win_mult + bonus_earned) * 25
-            boosted      = int(raw_payout * _psmult)
-            wins        += boosted
-            bonus_earned = boosted - effective_win_mult
-            any_proc_fired = True
+            wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            wins        += wager_payout
+            bonus_earned = wager_payout - effective_win_mult
         elif 'jackpot' in owned and random.random() < jackpot_chance:
             jackpot_hit  = True
             raw_payout   = (effective_win_mult + bonus_earned) * 25
-            boosted      = int(raw_payout * _psmult)
-            wins        += boosted
-            bonus_earned = boosted - effective_win_mult
+            wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            wins        += wager_payout
+            bonus_earned = wager_payout - effective_win_mult
             if random.random() < 0.05:
                 new_jackpot_echo_next = True
-            any_proc_fired = True
         else:
             if 'win_echo' in owned and random.random() < echo_chance:
                 echo_triggered = True
                 raw_payout   = (effective_win_mult + bonus_earned) * 2
-                boosted      = int(raw_payout * _psmult)
-                wins        += boosted
-                bonus_earned = boosted - effective_win_mult
-                any_proc_fired = True
+                wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+                wins        += wager_payout
+                bonus_earned = wager_payout - effective_win_mult
             else:
-                wins += int(effective_win_mult + bonus_earned)
+                base_payout = effective_win_mult + bonus_earned
+                wager_payout = compute_wager_payout(base_payout, actual_stake, hot_streak_bonus)
+                wins += wager_payout
 
-        proc_streak = proc_streak + 1 if any_proc_fired else 0
+        # Update wager streak on win
+        if actual_stake == wager_last_stake or wager_last_stake == 0:
+            wager_streak += 1
+        else:
+            wager_streak = 1
 
     new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
     wins = min(wins, _MAX_WINS)
 
-    # Segment angle for wheel animation; /api/spin adds extra full rotations on top
-    segment_angle = random.uniform(200, 340) if outcome == 'win' else random.uniform(20, 160)
+    segment_angle = random.uniform(200, 340) if outcome in ('win', 'jackpot') else random.uniform(20, 160)
 
     new_state = {
         'owned':              new_owned,
@@ -316,6 +375,8 @@ def _resolve_spin(
         'jackpot_echo_next':  new_jackpot_echo_next,
         'active_cosmetics':   active_cosmetics,
         'proc_streak':        proc_streak,
+        'wager_streak':       wager_streak,
+        'wager_last_stake':   actual_stake,
     }
     events = {
         'result':                  outcome,
@@ -341,6 +402,8 @@ def _resolve_spin(
         'active_cosmetics':        active_cosmetics,
         'auto_guard_failed':       auto_guard_failed,
         'proc_streak':             proc_streak,
+        'wager_streak':            wager_streak,
+        'stake':                   actual_stake,
     }
     return new_state, events
 
@@ -370,6 +433,8 @@ def _events_to_response(events: dict) -> dict:
         'active_cosmetics':        events['active_cosmetics'],
         'auto_guard_failed':       events['auto_guard_failed'],
         'proc_streak':             events['proc_streak'],
+        'wager_streak':            events.get('wager_streak', 0),
+        'stake':                   events.get('stake', 1),
     }
 
 
@@ -405,7 +470,13 @@ def get_state():
                               dice_charges, dice_last_recharge, jackpot_echo_next,
                               dice_rolled_since_spin,
                               fishing_lucky_next, caught_species,
-                              auto_spin_since, season_registered
+                              auto_spin_since, season_registered,
+                              prestige_level, prestige_count, legacy_wins,
+                              onboarding_step, auto_spin_budget,
+                              wager_streak, wager_last_stake, double_down_pending,
+                              wager_banked_wins, wager_insurance_charges,
+                              active_wheel_mode, wager_tokens, aquarium_species,
+                              cosmetic_fragments, guard_charges
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -413,18 +484,35 @@ def get_state():
                 cur.execute('SELECT total_contributed, target, win_chance_pct, filled, filled_at, last_decay_check FROM community_pot WHERE id = 1')
                 pot = cur.fetchone()
                 total_pending_clicks = _get_total_fish_clicks(cur)
+                # Season 8: singularity meter
+                cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
+                singularity = cur.fetchone()
         now_utc = dt.datetime.now(timezone.utc)
-        # Brief 30-minute celebration window after a fill (UI only)
         pot_celebrate = bool(
             pot and pot['filled'] and pot['filled_at'] and
             pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
         )
-        # Recharge dice charges based on elapsed time
         owned_items     = list(gs['owned_items'])
         max_charges     = dice_max_charges(owned_items)
-        dice_charges    = min(gs['dice_charges'], max_charges)  # cap stale over-limit values
+        dice_charges    = min(gs['dice_charges'], max_charges)
         last_recharge   = gs['dice_last_recharge']
         dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+
+        # Season 8: available wheel modes for this week
+        week_num = get_week_number(now_utc)
+        available_modes = get_available_modes(week_num)
+        if singularity and singularity['filled']:
+            available_modes = available_modes + ['singularity']
+
+        # Season 8: bounty status
+        bounty_date = now_utc.date()
+        bounties = get_bounty_status(conn, current_user.id, bounty_date)
+
+        # Season 8: community goal
+        season_num = full_info.get('season_number', 8) if full_info else 8
+        goal_row, goal_def = get_active_goal(conn, season_num, week_num)
+        player_contrib = get_player_contribution(conn, goal_def['goal_id'], current_user.id) if goal_row else 0
+
         return jsonify({
             'wins':               int(gs['wins']),
             'losses':             gs['losses'],
@@ -465,6 +553,39 @@ def get_state():
                 'win_chance_pct':     float(pot['win_chance_pct']) if pot else 50.0,
                 'total_pending_clicks': total_pending_clicks,
             } if pot else None,
+            # Season 8 additions
+            'prestige_level':       gs.get('prestige_level', 0),
+            'prestige_count':       gs.get('prestige_count', 0),
+            'legacy_wins':          int(gs.get('legacy_wins', 0)),
+            'onboarding_step':      gs.get('onboarding_step', 0),
+            'auto_spin_budget':     gs.get('auto_spin_budget', 0),
+            'wager_streak':         gs.get('wager_streak', 0),
+            'wager_last_stake':     gs.get('wager_last_stake', 0),
+            'double_down_pending':  bool(gs.get('double_down_pending', False)),
+            'wager_banked_wins':    gs.get('wager_banked_wins', 0),
+            'wager_insurance_charges': gs.get('wager_insurance_charges', 0),
+            'active_wheel_mode':    gs.get('active_wheel_mode', 'steady'),
+            'available_wheel_modes': available_modes,
+            'wager_tokens':         gs.get('wager_tokens', 0),
+            'aquarium_species':     list(gs.get('aquarium_species', [])),
+            'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
+            'guard_charges':        gs.get('guard_charges', 0),
+            'bounties':             bounties,
+            'community_goal': {
+                'goal_id':     goal_def['goal_id'],
+                'description': goal_def['description'],
+                'target':      goal_def['target'],
+                'current':     goal_row['current'] if goal_row else 0,
+                'completed':   goal_row['completed'] if goal_row else False,
+                'player_contribution': player_contrib,
+                'per_player_cap': goal_def['per_player_cap'],
+            } if goal_def else None,
+            'singularity': {
+                'total_contributed': singularity['total_contributed'] if singularity else 0,
+                'target':            singularity['target'] if singularity else 100_000_000,
+                'filled':            singularity['filled'] if singularity else False,
+                'fill_count':        singularity['fill_count'] if singularity else 0,
+            } if singularity else None,
         })
     except Exception:
         log.exception('GET_STATE_ERROR  user_id=%s', current_user.id)
@@ -590,6 +711,9 @@ def spin():
             ctx = _build_spin_context(gs)
             pot_win_pct_frac = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.505
 
+            # Season 8: get stake from request body
+            req_stake = (request.json or {}).get('stake', 1)
+
             new_spin_count = gs['spin_count'] + 1
             new_state, events = _resolve_spin(
                 owned=list(gs['owned_items']),
@@ -611,10 +735,39 @@ def spin():
                 proc_streak_level=ctx['proc_streak_level'],
                 pot_active=pot_active,
                 pot_win_pct=pot_win_pct_frac,
+                # Season 8 additions
+                stake=req_stake,
+                wager_streak=gs.get('wager_streak', 0),
+                wager_last_stake=gs.get('wager_last_stake', 0),
+                active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
+                aquarium_luck=ctx.get('aquarium_luck', 0.0),
             )
 
-            new_win_count  = gs['win_count']  + (1 if events['result'] == 'win'  else 0)
+            new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
             new_loss_count = gs['loss_count'] + (1 if events['result'] == 'lose' else 0)
+
+            # Season 8: generate replay string for big wins
+            replay_string = None
+            if should_generate_replay(events['jackpot_hit'], events.get('stake', 1),
+                                      events['result'], False, events.get('wager_streak', 0)):
+                replay_string = generate_replay(
+                    current_user.username, gs.get('active_wheel_mode', 'steady'),
+                    events.get('stake', 1), events['result'], events['wins_delta']
+                )
+
+            # Season 8: bounty tracking
+            bounty_date = dt.datetime.now(timezone.utc).date()
+            if events['jackpot_hit']:
+                increment_bounty(conn, current_user.id, 'bounty_jackpot', bounty_date)
+            if events.get('stake', 1) >= 5 and events['result'] in ('win', 'jackpot'):
+                increment_bounty(conn, current_user.id, 'bounty_wager5', bounty_date)
+            if events.get('wager_streak', 0) == 10:
+                increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date)
+
+            # Season 8: onboarding advance
+            onboarding_advance = False
+            if gs.get('onboarding_step', 0) == 0:
+                onboarding_advance = True
 
             # Manual spin: add extra full rotations for the wheel animation
             total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
@@ -630,7 +783,9 @@ def spin():
                            jackpot_echo_next = %s, proc_streak = %s,
                            dice_rolled_since_spin = FALSE,
                            last_spin_at = NOW(),
-                           active_tab_id = %s, tab_last_seen = NOW()
+                           active_tab_id = %s, tab_last_seen = NOW(),
+                           wager_streak = %s, wager_last_stake = %s,
+                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                        WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
                      new_state['streak'], new_state['best_streak'],
@@ -640,6 +795,7 @@ def spin():
                      dice_charges, last_recharge,
                      new_state['jackpot_echo_next'], new_state['proc_streak'],
                      req_tab_id or gs['active_tab_id'],
+                     new_state.get('wager_streak', 0), new_state.get('wager_last_stake', 1),
                      current_user.id),
                 )
             conn.commit()
@@ -649,6 +805,10 @@ def spin():
         resp['new_spin_count'] = new_spin_count
         resp['dice_charges'] = dice_charges
         resp['dice_last_recharge'] = last_recharge.isoformat()
+        resp['wager_streak'] = new_state.get('wager_streak', 0)
+        resp['stake'] = new_state.get('wager_last_stake', 1)
+        resp['replay_string'] = replay_string
+        resp['onboarding_advance'] = onboarding_advance
         return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -853,6 +1013,12 @@ def tick():
                     pot_active=pot_active,
                     pot_win_pct=pot_win_pct,
                     catchup_bonus_active=catchup_bonus_active,
+                    # Season 8: auto-spin always uses stake=1, no wager streak
+                    stake=1,
+                    wager_streak=0,
+                    wager_last_stake=0,
+                    active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
+                    aquarium_luck=ctx.get('aquarium_luck', 0.0),
                 )
 
                 # Update carry-over state from result
@@ -2140,3 +2306,499 @@ def admin_advance_season():
     except Exception:
         log.exception('ADMIN_ADVANCE_SEASON_ERROR')
         return jsonify({'error': 'Failed to advance season'}), 500
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Season 8 API Endpoints
+# ════════════════════════════════════════════════════════════════════════════
+
+@game_bp.route('/api/wager/stake', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_set_stake():
+    """Set the wager stake for manual spins. Validates against wager_unlock."""
+    err = require_json()
+    if err:
+        return err
+    stake = (request.json or {}).get('stake', 1)
+    try:
+        stake = int(stake)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid stake'}), 400
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            owns_unlock = 'wager_unlock' in gs['owned_items']
+            actual_stake = validate_stake(stake, owns_unlock)
+            cur.execute('UPDATE game_state SET wager_last_stake = %s WHERE user_id = %s',
+                        (actual_stake, current_user.id))
+        conn.commit()
+    return jsonify({'stake': actual_stake})
+
+
+@game_bp.route('/api/wager/double-down', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_double_down():
+    """Double down: next spin uses 2× stake. Only if wager_double_down owned."""
+    err = require_json()
+    if err:
+        return err
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if 'wager_double_down' not in gs['owned_items']:
+                return jsonify({'error': 'Double down not unlocked'}), 403
+            if gs.get('double_down_pending'):
+                return jsonify({'error': 'Double down already pending'}), 409
+            cur.execute('UPDATE game_state SET double_down_pending = TRUE WHERE user_id = %s',
+                        (current_user.id,))
+        conn.commit()
+    return jsonify({'ok': True, 'message': 'Double down armed for next spin'})
+
+
+@game_bp.route('/api/wager/insurance', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_insurance():
+    """Activate insurance: caps next loss at stake. Only if wager_insurance owned."""
+    err = require_json()
+    if err:
+        return err
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if 'wager_insurance' not in gs['owned_items']:
+                return jsonify({'error': 'Insurance not unlocked'}), 403
+            if gs.get('wager_insurance_charges', 0) <= 0:
+                return jsonify({'error': 'No insurance charges left'}), 403
+            cur.execute('UPDATE game_state SET wager_insurance_charges = wager_insurance_charges - 1 WHERE user_id = %s',
+                        (current_user.id,))
+        conn.commit()
+    return jsonify({'ok': True, 'message': 'Insurance activated'})
+
+
+@game_bp.route('/api/prestige', methods=['POST'])
+@login_required
+@csrf.exempt
+def prestige_reset():
+    """Prestige: reset wins for permanent bonus + legacy_wins preservation."""
+    err = require_json()
+    if err:
+        return err
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if 'prestige_unlock' not in gs['owned_items']:
+                return jsonify({'error': 'Prestige not unlocked'}), 403
+            current_level = gs.get('prestige_level', 0)
+            if current_level >= MAX_PRESTIGE_LEVEL:
+                return jsonify({'error': 'Already at max prestige'}), 403
+            threshold = get_prestige_threshold(current_level)
+            if int(gs['wins']) < threshold:
+                return jsonify({'error': f'Need {threshold} wins to prestige', 'current_wins': int(gs['wins'])}), 403
+            new_level = current_level + 1
+            new_prestige_count = gs.get('prestige_count', 0) + 1
+            legacy_keep = get_legacy_keep_count(new_level, 'prestige_legacy' in gs['owned_items'])
+            new_legacy_wins = int(gs.get('legacy_wins', 0)) + int(gs['wins'])
+            starting_prestige = get_starting_prestige(new_prestige_count, 'prestige_efficiency' in gs['owned_items'])
+            cur.execute(
+                '''UPDATE game_state
+                   SET prestige_level = %s, prestige_count = %s,
+                       legacy_wins = %s, wins = 0, streak = 0, best_streak = 0,
+                       win_count = 0, loss_count = 0, losses = 0,
+                       spin_count = 0, wager_streak = 0, wager_last_stake = 0,
+                       double_down_pending = FALSE, wager_banked_wins = 0
+                   WHERE user_id = %s''',
+                (new_level, new_prestige_count, new_legacy_wins, current_user.id),
+            )
+        conn.commit()
+    return jsonify({
+        'prestige_level': new_level,
+        'prestige_count': new_prestige_count,
+        'legacy_wins': new_legacy_wins,
+        'starting_prestige': starting_prestige,
+    })
+
+
+@game_bp.route('/api/prestige', methods=['GET'])
+@login_required
+def prestige_info():
+    """Get prestige status and requirements."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id)
+            level = gs.get('prestige_level', 0)
+            threshold = get_prestige_threshold(level) if level < MAX_PRESTIGE_LEVEL else None
+            can = can_prestige(int(gs['wins']), level, 'prestige_unlock' in gs['owned_items'])
+    return jsonify({
+        'prestige_level': level,
+        'prestige_count': gs.get('prestige_count', 0),
+        'legacy_wins': int(gs.get('legacy_wins', 0)),
+        'current_wins': int(gs['wins']),
+        'next_threshold': threshold,
+        'can_prestige': can,
+        'max_level': MAX_PRESTIGE_LEVEL,
+        'bonus_pct': get_prestige_bonus(level),
+    })
+
+
+@game_bp.route('/api/bounties', methods=['GET'])
+@login_required
+def get_bounties_endpoint():
+    """Get today's bounty status."""
+    bounty_date = dt.datetime.now(timezone.utc).date()
+    with db_connection() as conn:
+        status = get_bounty_status(conn, current_user.id, bounty_date)
+    return jsonify({'bounties': status, 'date': str(bounty_date)})
+
+
+@game_bp.route('/api/bounties/claim', methods=['POST'])
+@login_required
+@csrf.exempt
+def claim_bounty():
+    """Claim a completed bounty."""
+    err = require_json()
+    if err:
+        return err
+    bounty_id = (request.json or {}).get('bounty_id')
+    if not bounty_id:
+        return jsonify({'error': 'bounty_id required'}), 400
+    bounty_date = dt.datetime.now(timezone.utc).date()
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            rewards = get_claim_rewards(conn, current_user.id, bounty_id, bounty_date)
+            if rewards is None:
+                return jsonify({'error': 'Bounty not claimable'}), 400
+            cur.execute(
+                '''UPDATE game_state SET cosmetic_fragments = cosmetic_fragments + %s WHERE user_id = %s''',
+                (rewards.get('cosmetic_fragments', 0), current_user.id),
+            )
+            if rewards.get('wins', 0) > 0:
+                cur.execute('UPDATE game_state SET wins = wins + %s WHERE user_id = %s',
+                            (rewards['wins'], current_user.id))
+        conn.commit()
+    return jsonify({'ok': True, 'rewards': rewards})
+
+
+@game_bp.route('/api/community-goal', methods=['GET'])
+@login_required
+def community_goal_endpoint():
+    """Get active community goal status."""
+    with db_connection() as conn:
+        season_info = get_season_info(conn)
+        season_num = season_info.get('season_number', 8) if season_info else 8
+        now_utc = dt.datetime.now(timezone.utc)
+        week_num = get_week_number(now_utc)
+        goal_row, goal_def = get_active_goal(conn, season_num, week_num)
+        player_contrib = get_player_contribution(conn, goal_def['goal_id'], current_user.id) if goal_row else 0
+    if not goal_def:
+        return jsonify({'goal': None})
+    return jsonify({
+        'goal': {
+            'goal_id':     goal_def['goal_id'],
+            'description': goal_def['description'],
+            'target':      goal_def['target'],
+            'current':     goal_row['current'] if goal_row else 0,
+            'completed':   goal_row['completed'] if goal_row else False,
+            'player_contribution': player_contrib,
+            'per_player_cap': goal_def['per_player_cap'],
+        }
+    })
+
+
+@game_bp.route('/api/singularity', methods=['GET'])
+@login_required
+def singularity_status():
+    """Get singularity meter status."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
+            row = cur.fetchone()
+    return jsonify({
+        'total_contributed': row['total_contributed'] if row else 0,
+        'target':            row['target'] if row else 100_000_000,
+        'filled':            row['filled'] if row else False,
+        'fill_count':        row['fill_count'] if row else 0,
+    })
+
+
+@game_bp.route('/api/singularity/contribute', methods=['POST'])
+@login_required
+@csrf.exempt
+def singularity_contribute():
+    """Contribute wins to the singularity meter."""
+    err = require_json()
+    if err:
+        return err
+    amount = (request.json or {}).get('amount', 0)
+    try:
+        amount = int(amount)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid amount'}), 400
+    if amount <= 0:
+        return jsonify({'error': 'Amount must be positive'}), 400
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if int(gs['wins']) < amount:
+                return jsonify({'error': 'Insufficient wins'}), 403
+            cur.execute(
+                '''UPDATE singularity_meter SET total_contributed = total_contributed + %s,
+                   filled = CASE WHEN total_contributed + %s >= target THEN TRUE ELSE filled END,
+                   filled_at = CASE WHEN total_contributed + %s >= target AND filled_at IS NULL THEN NOW() ELSE filled_at END
+                   WHERE id = 1 RETURNING total_contributed, target, filled''',
+                (amount, amount, amount),
+            )
+            row = cur.fetchone()
+            cur.execute('UPDATE game_state SET wins = wins - %s WHERE user_id = %s',
+                        (amount, current_user.id))
+        conn.commit()
+    return jsonify({
+        'total_contributed': row['total_contributed'],
+        'target': row['target'],
+        'filled': row['filled'],
+        'contributed': amount,
+    })
+
+
+@game_bp.route('/api/loadout', methods=['GET'])
+@login_required
+def get_loadout():
+    """Get saved build loadouts."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('SELECT slot, loadout_data FROM build_loadouts WHERE user_id = %s ORDER BY slot',
+                        (current_user.id,))
+            rows = cur.fetchall()
+    loadouts = {row['slot']: row['loadout_data'] for row in rows}
+    return jsonify({'loadouts': loadouts})
+
+
+@game_bp.route('/api/loadout', methods=['POST'])
+@login_required
+@csrf.exempt
+def save_loadout():
+    """Save a build loadout to a slot (1-5)."""
+    err = require_json()
+    if err:
+        return err
+    data = request.json or {}
+    slot = data.get('slot', 1)
+    loadout_data = data.get('loadout', {})
+    if not (1 <= slot <= 5):
+        return jsonify({'error': 'Slot must be 1-5'}), 400
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                '''INSERT INTO build_loadouts (user_id, slot, loadout_data)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (user_id, slot) DO UPDATE SET loadout_data = EXCLUDED.loadout_data''',
+                (current_user.id, slot, psycopg2.extras.Json(loadout_data)),
+            )
+        conn.commit()
+    return jsonify({'ok': True, 'slot': slot})
+
+
+@game_bp.route('/api/loadout/apply', methods=['POST'])
+@login_required
+@csrf.exempt
+def apply_loadout():
+    """Apply a saved loadout — sets owned_items to the loadout contents."""
+    err = require_json()
+    if err:
+        return err
+    slot = (request.json or {}).get('slot', 1)
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('SELECT loadout_data FROM build_loadouts WHERE user_id = %s AND slot = %s',
+                        (current_user.id, slot))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({'error': 'No loadout in that slot'}), 404
+            loadout = row['loadout_data']
+            owned = loadout.get('owned_items', [])
+            cosmetics = loadout.get('active_cosmetics', [])
+            cur.execute(
+                '''UPDATE game_state SET owned_items = %s, active_cosmetics = %s WHERE user_id = %s''',
+                (owned, cosmetics, current_user.id),
+            )
+        conn.commit()
+    return jsonify({'ok': True, 'owned_items': owned, 'active_cosmetics': cosmetics})
+
+
+@game_bp.route('/api/replay/share', methods=['POST'])
+@login_required
+@csrf.exempt
+def share_replay():
+    """Decode and validate a replay string for sharing."""
+    err = require_json()
+    if err:
+        return err
+    replay_string = (request.json or {}).get('replay', '')
+    if not replay_string:
+        return jsonify({'error': 'Replay string required'}), 400
+    decoded = decode_replay(replay_string)
+    if decoded is None:
+        return jsonify({'error': 'Invalid replay'}), 400
+    return jsonify({'replay': decoded})
+
+
+@game_bp.route('/api/legacy-boards', methods=['GET'])
+@login_required
+def legacy_boards():
+    """Get legacy wins leaderboard (across all seasons)."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                '''SELECT u.username, gs.legacy_wins
+                   FROM game_state gs JOIN users u ON u.id = gs.user_id
+                   WHERE gs.legacy_wins > 0
+                   ORDER BY gs.legacy_wins DESC LIMIT 50'''
+            )
+            rows = cur.fetchall()
+    return jsonify({'boards': [{'username': r['username'], 'legacy_wins': int(r['legacy_wins'])} for r in rows]})
+
+
+@game_bp.route('/api/guard', methods=['POST'])
+@login_required
+@csrf.exempt
+def guard_endpoint():
+    """Manually trigger a guard charge to block a loss. Only if guard_charges > 0."""
+    err = require_json()
+    if err:
+        return err
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if gs.get('guard_charges', 0) <= 0:
+                return jsonify({'error': 'No guard charges'}), 403
+            if 'guard' not in gs['owned_items']:
+                return jsonify({'error': 'Guard not owned'}), 403
+            cur.execute('UPDATE game_state SET guard_charges = guard_charges - 1 WHERE user_id = %s',
+                        (current_user.id,))
+        conn.commit()
+    return jsonify({'ok': True, 'message': 'Guard activated'})
+
+
+@game_bp.route('/api/auto-spin/start', methods=['POST'])
+@login_required
+@csrf.exempt
+def auto_spin_start():
+    """Start server-side auto-spin with an optional budget."""
+    err = require_json()
+    if err:
+        return err
+    budget = (request.json or {}).get('budget', 0)
+    try:
+        budget = int(budget)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid budget'}), 400
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if gs['auto_spin_since'] is not None:
+                return jsonify({'error': 'Auto-spin already active'}), 409
+            cur.execute(
+                '''UPDATE game_state SET auto_spin_since = NOW(), auto_spin_budget = %s WHERE user_id = %s''',
+                (budget, current_user.id),
+            )
+        conn.commit()
+    return jsonify({'ok': True, 'budget': budget})
+
+
+@game_bp.route('/api/auto-spin/stop', methods=['POST'])
+@login_required
+@csrf.exempt
+def auto_spin_stop():
+    """Stop server-side auto-spin."""
+    err = require_json()
+    if err:
+        return err
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                '''UPDATE game_state SET auto_spin_since = NULL, auto_spin_budget = 0 WHERE user_id = %s''',
+                (current_user.id,),
+            )
+        conn.commit()
+    return jsonify({'ok': True})
+
+
+@game_bp.route('/api/aquarium', methods=['GET'])
+@login_required
+def aquarium_status():
+    """Get aquarium species collection."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id)
+    return jsonify({
+        'species': list(gs.get('aquarium_species', [])),
+        'wager_tokens': gs.get('wager_tokens', 0),
+        'luck_bonus': len(gs.get('aquarium_species', [])) * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0,
+    })
+
+
+@game_bp.route('/api/wheel-mode', methods=['POST'])
+@login_required
+@csrf.exempt
+def set_wheel_mode():
+    """Set the active wheel mode for the week."""
+    err = require_json()
+    if err:
+        return err
+    mode = (request.json or {}).get('mode', 'steady')
+    now_utc = dt.datetime.now(timezone.utc)
+    week_num = get_week_number(now_utc)
+    available = get_available_modes(week_num)
+    if mode not in available and mode != 'steady':
+        return jsonify({'error': 'Mode not available this week', 'available': available}), 403
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('UPDATE game_state SET active_wheel_mode = %s WHERE user_id = %s',
+                        (mode, current_user.id))
+        conn.commit()
+    return jsonify({'ok': True, 'mode': mode})
+
+
+@game_bp.route('/api/fish-to-wager', methods=['POST'])
+@login_required
+@csrf.exempt
+def fish_to_wager():
+    """Convert caught fish to wager_tokens. Rate depends on fish tier."""
+    err = require_json()
+    if err:
+        return err
+    fish_id = (request.json or {}).get('fish_id')
+    if not fish_id:
+        return jsonify({'error': 'fish_id required'}), 400
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if 'fish_to_wager' not in gs['owned_items']:
+                return jsonify({'error': 'Fish-to-wager not unlocked'}), 403
+            caught = list(gs.get('caught_species', []))
+            if fish_id not in caught:
+                return jsonify({'error': 'Fish not in collection'}), 400
+            # Determine tier from FISH_CATALOG
+            fish_info = FISH_CATALOG.get(fish_id, {})
+            tier = fish_info.get('tier', 0)
+            if tier >= len(FISH_TO_WAGER_RATES):
+                tier = len(FISH_TO_WAGER_RATES) - 1
+            tokens = FISH_TO_WAGER_RATES[tier]
+            # catch_of_the_day: first conversion each UTC day gets 5x
+            now_utc = dt.datetime.now(timezone.utc)
+            today = now_utc.date()
+            last_conversion = gs.get('last_fish_conversion_date')
+            if 'catch_of_the_day' in gs['owned_items']:
+                if last_conversion is None or last_conversion.date() != today:
+                    tokens *= 5
+            cur.execute(
+                '''UPDATE game_state SET wager_tokens = wager_tokens + %s WHERE user_id = %s
+                   RETURNING wager_tokens''',
+                (tokens, current_user.id),
+            )
+            row = cur.fetchone()
+        conn.commit()
+    return jsonify({'tokens_earned': tokens, 'total_wager_tokens': row['wager_tokens']})

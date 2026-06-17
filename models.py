@@ -156,10 +156,10 @@ SHOP_ITEMS = {
     'trail_4':        {'cost': 7_000,        'requires': 'trail_3'},
     'trail_5':        {'cost': 22_000,       'requires': 'trail_4'},
     'trail_6':        {'cost': 70_000,       'requires': 'trail_5'},
-    # Protection
-    'guard':          {'cost': 500,          'requires': None},
-    'auto_guard':     {'cost': 50_000,       'requires': 'guard'},
-    'regen_shield':   {'cost': 1_500,        'requires': None},
+    # Protection (Season 8 rework — see spec S7)
+    'guard':          {'cost': 1_000,        'requires': None},
+    'guard_charge':   {'cost': 10_000,       'requires': 'guard'},
+    'regen_shield':   {'cost': 5_000,        'requires': None},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,          'requires': None},
     'theme_ice':      {'cost': 1_000,        'requires': 'theme_fire'},
@@ -185,18 +185,14 @@ SHOP_ITEMS = {
     'bg_forest':      {'cost': 5_000,        'requires': 'bg_inferno'},
     'bg_abyss':       {'cost': 15_000,       'requires': 'bg_forest'},
     'bg_cosmic':      {'cost': 50_000,       'requires': 'bg_abyss'},
-    # Bonus functional upgrades
+    # Bonus functional upgrades (resilience/jackpot reworked in Season 8 — see below)
     'fortune_charm':  {'cost': 1_000_000,    'requires': None},
     'lucky_seven':    {'cost': 7_000_000,    'requires': None},
     'win_echo':       {'cost': 1_000_000,    'requires': None},
-    'resilience':     {'cost': 10_000_000,   'requires': None},
-    'jackpot':        {'cost': 3_000_000,    'requires': None},
     # Season 7 classes — own any, equip one at a time; functional tier 3
     'class_earth': {'cost': 10_000_000, 'requires': None},
     'class_moon':  {'cost': 10_000_000, 'requires': None},
-    'class_star':  {'cost': 10_000_000, 'requires': None},
-    # Legendary
-    'singularity':    {'cost': int(1e67),    'requires': None},
+    # singularity removed in Season 8 — now a server-wide community meter (spec S13)
     # ── Fishing gear (Season 6) ──────────────────────────────────────────────
     # auto_cast: auto-casts line; player still taps the bite window manually.
     'auto_cast':      {'cost': 1_000,        'requires': None},
@@ -221,19 +217,46 @@ SHOP_ITEMS = {
     'precise_angler_1': {'cost':  50_000,    'requires': None},
     'precise_angler_2': {'cost': 100_000,    'requires': 'precise_angler_1'},
     'precise_angler_3': {'cost': 500_000,    'requires': 'precise_angler_2'},
+    # ── Season 8: Wager system (spec S3) ──────────────────────────────────────
+    'wager_unlock':      {'cost': 500,       'requires': None},
+    'wager_safety_net':  {'cost': 2_000,     'requires': 'wager_unlock'},
+    'wager_hot_streak':  {'cost': 8_000,     'requires': 'wager_unlock'},
+    'wager_double_down': {'cost': 25_000,    'requires': 'wager_hot_streak'},
+    'wager_insurance':   {'cost': 50_000,    'requires': 'wager_unlock'},
+    # ── Season 8: Prestige system (spec S5) ───────────────────────────────────
+    'prestige_unlock':     {'cost': 1_000_000, 'requires': None},
+    'prestige_efficiency': {'cost': 500_000,   'requires': 'prestige_unlock'},
+    'prestige_legacy':     {'cost': 1_000_000, 'requires': 'prestige_unlock'},
+    # ── Season 8: Fishing integration (spec S6) ───────────────────────────────
+    'fish_to_wager':       {'cost': 5_000,   'requires': None},
+    'catch_of_the_day':    {'cost': 3_000,   'requires': None},
+    'aquarium':            {'cost': 15_000,  'requires': None},
+    'lure_specialization': {'cost': 10_000,  'requires': 'fish_to_wager'},
+    # ── Season 8: Wheel themes (spec S16) ─────────────────────────────────────
+    'theme_tidal':   {'cost': 250,          'requires': None},
+    'theme_ember':   {'cost': 1_000,        'requires': 'theme_tidal'},
+    'theme_frost':   {'cost': 4_000,        'requires': 'theme_ember'},
+    'theme_aurora':  {'cost': 12_000,       'requires': 'theme_frost'},
+    'theme_vintage': {'cost': 40_000,       'requires': None},
+    # ── Season 8: Resilience rework (spec S7) ──────────────────────────────────
+    'resilience':    {'cost': 20_000,       'requires': None},
+    'jackpot':       {'cost': 3_000_000,    'requires': None},
 }
 
 # Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
 # Thresholds are based on win_count (total wins earned all-time this season)
 UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 5_000}
 UPGRADE_TIER_2 = {
-    'regen_shield', 'auto_guard', 'dice_charge_2',
+    'regen_shield', 'guard_charge', 'dice_charge_2',
     'precise_angler_1',
+    'aquarium', 'lure_specialization',
 }
 UPGRADE_TIER_3 = {
     'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience',
     'dice_charge_3', 'dice_charge_4', 'dice_extra',
     'class_earth', 'class_moon', 'class_star',
+    'wager_double_down', 'wager_insurance',
+    'prestige_unlock', 'prestige_efficiency', 'prestige_legacy',
 }
 
 def item_tier(item_id: str) -> int:
@@ -257,7 +280,7 @@ VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
 # Functional shop items are the exception; everything else in SHOP_ITEMS is cosmetic.
 # FISH_SKINS are all cosmetic by definition.
 _FUNCTIONAL_SHOP_ITEMS = {
-    'guard', 'auto_guard', 'regen_shield',
+    'guard', 'guard_charge', 'regen_shield',
     'winmult_1', 'winmult_2', 'winmult_3', 'winmult_4', 'winmult_5', 'winmult_6', 'winmult_7',
     'bonusmult_1', 'bonusmult_2', 'bonusmult_3', 'bonusmult_4', 'bonusmult_5', 'bonusmult_6',
     'fortune_charm', 'lucky_seven', 'win_echo', 'resilience', 'jackpot',
@@ -267,7 +290,12 @@ _FUNCTIONAL_SHOP_ITEMS = {
     'autofisher_1', 'autofisher_2', 'autofisher_3', 'autofisher_4',
     'precise_angler_1', 'precise_angler_2', 'precise_angler_3',
     'dice_charge_2', 'dice_charge_3', 'dice_charge_4', 'dice_extra',
+    # Season 8 additions
+    'wager_unlock', 'wager_safety_net', 'wager_hot_streak', 'wager_double_down', 'wager_insurance',
+    'prestige_unlock', 'prestige_efficiency', 'prestige_legacy',
+    'fish_to_wager', 'catch_of_the_day', 'aquarium', 'lure_specialization',
 }
+
 
 ITEM_CURRENCY = {}
 for _id in ALL_ITEMS:
@@ -278,74 +306,25 @@ for _id in ALL_ITEMS:
     else:
         ITEM_CURRENCY[_id] = 'wins'
 
-# All infinite upgrades are functional → cost wins (except lure_mastery_inf → fish_clicks).
+# Season 8: old infinite upgrades removed (spec S5). Columns remain in DB
+# for historical queries but are frozen at 0 and not read by _resolve_spin().
+# Only clickmult_inf is retained (not in the S5 removal list).
 INFINITE_UPGRADE_CURRENCY = {
-    'winmult_inf':           'wins',
-    'bonusmult_inf':         'wins',
-    'streak_armor_inf':      'wins',
-    'lure_mastery_inf':      'fish_clicks',
-    'jackpot_resonance_inf': 'wins',
-    'echo_amp_inf':          'wins',
-    'proc_streak_inf':       'wins',
+    'clickmult_inf':         'wins',
 }
 
-# Infinite repeatable upgrades — replace old fixed tier chains.
-# tier_costs[N] = cost to go from level N → N+1 (for the first len(tier_costs) levels).
-# Beyond that, cost = inf_base_cost * inf_scale ** (level - len(tier_costs)).
 INFINITE_UPGRADES = {
-    'winmult_inf': {
-        'db_column':    'winmult_inf_level',
-        'tier_costs':   [200, 600, 2000, 6400, 20000, 64000, 200000],
-        'inf_base_cost': 400_000,
-        'inf_scale':     1.18,
-    },
-    'bonusmult_inf': {
-        'db_column':    'bonusmult_inf_level',
-        'tier_costs':   [300, 900, 2800, 8500, 26000, 80000],
-        'inf_base_cost': 200_000,
-        'inf_scale':     1.18,
-    },
-    # Streak Armor: +1% to Resilience save chance per level, base 50%, cap 60% (10 levels).
-    # Requires owning 'resilience'.
-    'streak_armor_inf': {
-        'db_column':    'streak_armor_level',
-        'tier_costs':   [500_000, 750_000, 1_000_000, 1_250_000, 1_500_000, 1_750_000, 2_000_000, 2_250_000, 2_500_000, 2_750_000],
-        'inf_base_cost': 999_999_999,
-        'inf_scale':     1.0,
-        'max_level':    10,
-    },
-    # Lure Mastery: +10% fish value per level on top of lure_5's 20x cap. Costs fish_clicks.
-    'lure_mastery_inf': {
-        'db_column':    'lure_mastery_level',
-        'tier_costs':   [5_000, 25_000, 100_000, 400_000],
-        'inf_base_cost': 1_500_000,
-        'inf_scale':     1.25,
-    },
-    # Jackpot Resonance: raises jackpot proc rate from 1% toward 3% cap. Requires jackpot.
-    'jackpot_resonance_inf': {
-        'db_column':    'jackpot_resonance_level',
-        'tier_costs':   [5_000_000, 10_000_000, 20_000_000],
-        'inf_base_cost': 40_000_000,
-        'inf_scale':     1.50,
-        'max_level':    10,
-    },
-    # Echo Amplification: raises win_echo proc rate from 20% toward 40% cap. Requires win_echo.
-    'echo_amp_inf': {
-        'db_column':    'echo_amp_level',
-        'tier_costs':   [2_000_000, 5_000_000, 12_000_000],
-        'inf_base_cost': 25_000_000,
-        'inf_scale':     1.40,
-        'max_level':    10,
-    },
-    # Proc Streak: amplifies payouts based on consecutive proc'd wins. Requires proc upgrade.
-    'proc_streak_inf': {
-        'db_column':    'proc_streak_level',
-        'tier_costs':   [3_000_000, 8_000_000, 20_000_000],
-        'inf_base_cost': 50_000_000,
-        'inf_scale':     1.50,
-        'max_level':    15,
+    'clickmult_inf': {
+        'db_column':    'clickmult_inf_level',
+        'tier_costs':   [75, 250, 600, 1400, 3000],
+        'inf_base_cost': 10_000,
+        'inf_scale':     1.5,
     },
 }
+
+# Season 8: Fish-to-wager conversion rates by fish tier (spec S6)
+# Tier index: 0=common, 1=uncommon, 2=rare, 3=epic, 4=legendary, 5=mythic
+FISH_TO_WAGER_RATES = [5, 15, 40, 100, 250, 500]
 
 
 def inf_upgrade_cost(item_id: str, current_level: int) -> int:
@@ -446,7 +425,7 @@ LOCKOUT_RULES = [
 
 # Season 7: server-side auto-spinning
 AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
-MAX_SPINS_PER_TICK         = 100_800  # cap at 1 full season week (7d × 24h × 3600s / 3s)
+MAX_SPINS_PER_TICK         = 100  # Season 8: capped auto-spin (was 100800)
 CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
 
 # Auto-fish AFK catch-up

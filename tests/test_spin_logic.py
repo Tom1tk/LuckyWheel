@@ -102,10 +102,12 @@ def _base_ctx(**overrides):
 
 # ── Outcome determinism ───────────────────────────────────────────────────────
 
-def test_singularity_always_wins():
-    state = _base_state(owned=['singularity'])
+def test_pot_active_forces_win():
+    """Pot active with 100% win chance always wins."""
+    state = _base_state()
+    ctx = _base_ctx(pot_active=True, pot_win_pct=1.0)
     for _ in range(20):
-        _, events = _resolve_spin(**state, **_base_ctx())
+        _, events = _resolve_spin(**state, **ctx)
         assert events['result'] == 'win'
 
 
@@ -146,35 +148,35 @@ def test_catchup_bonus_higher_win_rate():
 
 def test_win_increases_wins():
     state = _base_state(wins=100)
-    # Force win via singularity
-    new_state, events = _resolve_spin(**_base_state(owned=['singularity'], wins=100), **_base_ctx())
+    # Force win via pot_active
+    new_state, events = _resolve_spin(**_base_state(owned=[], wins=100), **_base_ctx(pot_active=True, pot_win_pct=1.0))
     assert new_state['wins'] > 100
     assert events['wins_delta'] > 0
 
 
 def test_wins_delta_matches_state_change():
-    state = _base_state(owned=['singularity'], wins=500)
-    new_state, events = _resolve_spin(**state, **_base_ctx())
+    state = _base_state(wins=500)
+    new_state, events = _resolve_spin(**state, **_base_ctx(pot_active=True, pot_win_pct=1.0))
     assert events['wins_delta'] == new_state['wins'] - 500
 
 
 def test_win_streak_increments():
-    state = _base_state(owned=['singularity'], streak=3)
-    new_state, _ = _resolve_spin(**state, **_base_ctx())
+    state = _base_state(streak=3)
+    new_state, _ = _resolve_spin(**state, **_base_ctx(pot_active=True, pot_win_pct=1.0))
     assert new_state['streak'] == 4
 
 
 def test_win_from_loss_streak_resets_to_1():
-    state = _base_state(owned=['singularity'], streak=-5)
-    new_state, _ = _resolve_spin(**state, **_base_ctx())
+    state = _base_state(streak=-5)
+    new_state, _ = _resolve_spin(**state, **_base_ctx(pot_active=True, pot_win_pct=1.0))
     assert new_state['streak'] == 1
 
 
 # ── Jackpot echo ──────────────────────────────────────────────────────────────
 
 def test_jackpot_echo_triggers_on_next_win():
-    state = _base_state(owned=['singularity', 'jackpot'], jackpot_echo_next=True, wins=100)
-    new_state, events = _resolve_spin(**state, **_base_ctx(jackpot_chance=0.0))
+    state = _base_state(owned=['jackpot'], jackpot_echo_next=True, wins=100)
+    new_state, events = _resolve_spin(**state, **_base_ctx(jackpot_chance=0.0, pot_active=True, pot_win_pct=1.0))
     assert events['jackpot_echo_triggered'] is True
     assert events['jackpot_hit'] is True
     # Payout is (effective_win_mult + bonus) * 25
@@ -185,9 +187,9 @@ def test_jackpot_echo_triggers_on_next_win():
 
 def test_guard_consumed_on_block(monkeypatch):
     import random
-    monkeypatch.setattr(random, 'random', lambda: 0.0)  # always < 0.50 → guard blocks
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'lose')
+    # In Season 8, outcome is determined by random.random() for mode-based roll.
+    # Force a lose outcome by making random.random() return a high value (above win_pct + jackpot_pct)
+    monkeypatch.setattr(random, 'random', lambda: 0.99)
     state = _base_state(owned=['guard'])
     new_state, events = _resolve_spin(**state, **_base_ctx())
     assert events['guard_triggered'] is True
@@ -197,8 +199,9 @@ def test_guard_consumed_on_block(monkeypatch):
 
 
 def test_regen_shield_absorbs_loss(monkeypatch):
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'lose')
+    import random
+    # Force a lose outcome
+    monkeypatch.setattr(random, 'random', lambda: 0.99)
     state = _base_state(owned=['regen_shield'], regen_recharge_wins=0, losses=0)
     new_state, events = _resolve_spin(**state, **_base_ctx())
     assert events['shield_used'] is True
@@ -207,56 +210,34 @@ def test_regen_shield_absorbs_loss(monkeypatch):
     assert new_state['regen_recharge_wins'] > 0
 
 
-# ── Auto-guard ────────────────────────────────────────────────────────────────
-
-def test_auto_guard_buys_guard_when_affordable(monkeypatch):
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'win')
-    state = _base_state(owned=['auto_guard'], active_cosmetics=['auto_guard'], wins=1000)
-    new_state, events = _resolve_spin(**state, **_base_ctx())
-    # Guard should have been bought and then available (not consumed on a win)
-    assert events['auto_guard_failed'] is False
-
-
-def test_auto_guard_fails_gracefully_when_broke(monkeypatch):
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'win')
-    state = _base_state(owned=['auto_guard'], active_cosmetics=['auto_guard'], wins=0)
-    new_state, events = _resolve_spin(**state, **_base_ctx())
-    assert events['auto_guard_failed'] is True
-    # Cosmetic stays active (should retry next time wins recover)
-    assert 'auto_guard' in new_state['active_cosmetics']
-
-
 # ── Wins cap ──────────────────────────────────────────────────────────────────
 
 def test_wins_capped_at_max():
-    import math
-    huge = round(9.99e99) + 10**90
-    state = _base_state(owned=['singularity'], wins=huge)
-    new_state, _ = _resolve_spin(**state, **_base_ctx())
-    assert new_state['wins'] <= round(9.99e99)
+    huge = 5_000_001
+    state = _base_state(wins=huge)
+    new_state, _ = _resolve_spin(**state, **_base_ctx(pot_active=True, pot_win_pct=1.0))
+    assert new_state['wins'] <= 5_000_000
 
 
 # ── Loss streak ──────────────────────────────────────────────────────────────
 
 def test_loss_from_positive_streak_goes_to_negative_1(monkeypatch):
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'lose')
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.99)
     state = _base_state(streak=5)
     new_state, events = _resolve_spin(**state, **_base_ctx())
     assert new_state['streak'] == -1
 
 def test_loss_from_zero_streak_goes_to_negative_1(monkeypatch):
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'lose')
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.99)
     state = _base_state(streak=0)
     new_state, events = _resolve_spin(**state, **_base_ctx())
     assert new_state['streak'] == -1
 
 def test_consecutive_losses_deepens_streak(monkeypatch):
-    import secrets as _s
-    monkeypatch.setattr(_s, 'choice', lambda seq: 'lose')
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.99)
     state = _base_state(streak=-3)
     new_state, _ = _resolve_spin(**state, **_base_ctx())
     assert new_state['streak'] == -4
