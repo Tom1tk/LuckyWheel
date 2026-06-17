@@ -15,7 +15,7 @@ from db import db_connection
 from extensions import limiter, csrf
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
-                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level, click_mult_from_level,
+                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level,
                     lure_mastery_mult, jackpot_pct, echo_amp_pct, proc_streak_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
@@ -40,7 +40,6 @@ COSMETIC_SLOTS = {
     'golden_wheel': 'golden',
     'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
     'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme', 'page_season7': 'page_theme',
-    'final_frenzy': 'frenzy_mode',
     'auto_guard':   'auto_guard',
 }
 
@@ -48,6 +47,23 @@ COSMETIC_SLOTS = {
 def is_happy_hour(now_utc=None):
     now = now_utc or dt.datetime.now(timezone.utc)
     return HAPPY_HOUR_START_UTC <= now.hour < HAPPY_HOUR_END_UTC
+
+
+def _aware(dt_val):
+    """Ensure a datetime from psycopg2 has UTC tzinfo (psycopg2 returns naive datetimes)."""
+    if dt_val is not None and dt_val.tzinfo is None:
+        return dt_val.replace(tzinfo=timezone.utc)
+    return dt_val
+
+
+def _recharge_dice(charges, last_recharge, max_charges, now_utc):
+    """Recharge dice charges based on elapsed time. Returns (charges, last_recharge)."""
+    last_recharge = _aware(last_recharge)
+    elapsed = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
+    if elapsed > 0 and charges < max_charges:
+        charges = min(charges + elapsed, max_charges)
+        last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed)
+    return charges, last_recharge
 
 
 log = logging.getLogger('wheel')
@@ -77,7 +93,7 @@ def _get_total_fish_clicks(cur) -> int:
 _GAME_STATE_SQL = '''
     SELECT wins, losses, streak, best_streak, owned_items, regen_recharge_wins,
            spin_count, win_count, loss_count,
-           winmult_inf_level, bonusmult_inf_level, clickmult_inf_level, streak_armor_level,
+           winmult_inf_level, bonusmult_inf_level, streak_armor_level,
            jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
            lure_mastery_level, equipped_class, fish_clicks, caught_species, active_cosmetics,
            dice_charges, dice_last_recharge, jackpot_echo_next, dice_rolled_since_spin,
@@ -120,6 +136,22 @@ def _autofisher_level(owned: list) -> int:
 
 # Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
 _MAX_WINS = round(9.99e99)
+
+
+def _build_spin_context(gs: dict) -> dict:
+    """Compute immutable per-request spin context from game state. Shared by spin() and tick()."""
+    equipped_class = gs['equipped_class']
+    moon_bonus = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
+    star_win_bonus = CLASS_STAR_WIN_BONUS if equipped_class == 'star' else 0.0
+    return {
+        'effective_win_mult': win_mult_from_level(gs['winmult_inf_level']) * (1.0 + star_win_bonus),
+        'bonus_mult':         bonus_mult_from_level(gs['bonusmult_inf_level']),
+        'jackpot_chance':     jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus,
+        'echo_chance':        echo_amp_pct(gs['echo_amp_level']) + moon_bonus,
+        'charm_chance':       0.25 + moon_bonus,
+        'resilience_chance':  min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65),
+        'proc_streak_level':  gs['proc_streak_level'],
+    }
 
 
 def _resolve_spin(
@@ -313,6 +345,34 @@ def _resolve_spin(
     return new_state, events
 
 
+def _events_to_response(events: dict) -> dict:
+    """Convert spin events into the JSON response payload shared by spin() and tick()."""
+    return {
+        'result':                  events['result'],
+        'wins_delta':              events['wins_delta'],
+        'losses_delta':            events['losses_delta'],
+        'streak':                  events['streak'],
+        'owned_items':             events['owned_items'],
+        'regen_recharge_wins':     events['regen_recharge_wins'],
+        'shield_used':             events['shield_used'],
+        'shield_used_type':        events['shield_used_type'],
+        'shield_broke':            events['shield_broke'],
+        'guard_triggered':         events['guard_triggered'],
+        'guard_blocked':           events['guard_blocked'],
+        'bonus_earned':            events['bonus_earned'],
+        'echo_triggered':          events['echo_triggered'],
+        'jackpot_hit':             events['jackpot_hit'],
+        'jackpot_echo_triggered':  events['jackpot_echo_triggered'],
+        'jackpot_echo_next':       events['jackpot_echo_next'],
+        'resilience_triggered':    events['resilience_triggered'],
+        'lucky_seven_triggered':   events['lucky_seven_triggered'],
+        'fortune_charm_triggered': events['fortune_charm_triggered'],
+        'active_cosmetics':        events['active_cosmetics'],
+        'auto_guard_failed':       events['auto_guard_failed'],
+        'proc_streak':             events['proc_streak'],
+    }
+
+
 @game_bp.route('/api/health')
 def health():
     try:
@@ -337,7 +397,7 @@ def get_state():
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
                               equipped_fish, regen_recharge_wins,
                               active_cosmetics, spin_count, win_count,
-                              winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
+                              winmult_inf_level, bonusmult_inf_level,
                               streak_armor_level, low_spec_mode,
                               lure_mastery_level, jackpot_resonance_level,
                               echo_amp_level, proc_streak_level, proc_streak,
@@ -364,14 +424,7 @@ def get_state():
         max_charges     = dice_max_charges(owned_items)
         dice_charges    = min(gs['dice_charges'], max_charges)  # cap stale over-limit values
         last_recharge   = gs['dice_last_recharge']
-        if last_recharge.tzinfo is None:
-            last_recharge = last_recharge.replace(tzinfo=timezone.utc)
-        elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
-        if elapsed_charges > 0 and dice_charges < max_charges:
-            new_dice_charges = min(dice_charges + elapsed_charges, max_charges)
-            new_last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
-            dice_charges   = new_dice_charges
-            last_recharge  = new_last_recharge
+        dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
         return jsonify({
             'wins':               int(gs['wins']),
             'losses':             gs['losses'],
@@ -386,7 +439,6 @@ def get_state():
             'season':             full_info,
             'winmult_inf_level':         gs['winmult_inf_level'],
             'bonusmult_inf_level':       gs['bonusmult_inf_level'],
-            'clickmult_inf_level':       gs['clickmult_inf_level'],
             'streak_armor_level':        gs['streak_armor_level'],
             'lure_mastery_level':        gs['lure_mastery_level'],
             'jackpot_resonance_level':   gs['jackpot_resonance_level'],
@@ -445,8 +497,7 @@ def _apply_pot_decay(conn, pot_row, now_utc: dt.datetime) -> int:
     if not pot_row or not pot_row.get('last_decay_check'):
         return int(pot_row['target']) if pot_row else 1_000
     last_decay = pot_row['last_decay_check']
-    if last_decay.tzinfo is None:
-        last_decay = last_decay.replace(tzinfo=timezone.utc)
+    last_decay = _aware(last_decay)
     decay_periods = int((now_utc - last_decay).total_seconds() / (12 * 3600))
     effective_target = int(pot_row['target'])
     if decay_periods <= 0:
@@ -462,6 +513,19 @@ def _apply_pot_decay(conn, pot_row, now_utc: dt.datetime) -> int:
             (effective_target, new_decay_ts),
         )
     return effective_target
+
+
+def _reset_expired_pot(conn, pot) -> int:
+    """Reset an expired filled pot: advance target ×1.25, clear contributions. Returns new target."""
+    new_target = max(int(pot['target'] * 1.25), 1)
+    with conn.cursor() as cur:
+        cur.execute(
+            '''UPDATE community_pot SET filled = false, filled_at = NULL,
+               total_contributed = 0, target = %s, last_decay_check = NOW()
+               WHERE id = 1''',
+            (new_target,)
+        )
+    return new_target
 
 
 @game_bp.route('/api/spin', methods=['POST'])
@@ -496,8 +560,7 @@ def spin():
                 tab_last_seen  = gs['tab_last_seen']
                 if stored_tab_id and stored_tab_id != req_tab_id:
                     if tab_last_seen is not None:
-                        if tab_last_seen.tzinfo is None:
-                            tab_last_seen = tab_last_seen.replace(tzinfo=timezone.utc)
+                        tab_last_seen = _aware(tab_last_seen)
                         age = (dt.datetime.now(timezone.utc) - tab_last_seen).total_seconds()
                         if age < TAB_LOCK_TIMEOUT:
                             return jsonify({'error': 'Another tab is active. Close it to spin here.', 'tab_locked': True}), 423
@@ -508,16 +571,8 @@ def spin():
                 pot_row and pot_row['filled'] and pot_row['filled_at'] and
                 pot_row['filled_at'] > now_utc - dt.timedelta(minutes=30)
             )
-            # Auto-reset expired pot: advance to next target (×1.25), reset contributions
             if pot_row and pot_row['filled'] and not pot_active:
-                new_pot_target = max(int(pot_row['target'] * 1.25), 1)
-                with conn.cursor() as cur2:
-                    cur2.execute(
-                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
-                           total_contributed = 0, target = %s, last_decay_check = NOW()
-                           WHERE id = 1''',
-                        (new_pot_target,)
-                    )
+                _reset_expired_pot(conn, pot_row)
 
             # Community pot: apply target decay if 12+ hours since last check
             if not pot_active:
@@ -526,25 +581,14 @@ def spin():
             # Dice recharge
             dice_charges  = gs['dice_charges']
             last_recharge = gs['dice_last_recharge']
-            if last_recharge.tzinfo is None:
-                last_recharge = last_recharge.replace(tzinfo=timezone.utc)
             owned_for_dice = list(gs['owned_items'])
             max_charges    = dice_max_charges(owned_for_dice)
             dice_charges   = min(dice_charges, max_charges)
-            elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
-            if elapsed_charges > 0 and dice_charges < max_charges:
-                dice_charges  = min(dice_charges + elapsed_charges, max_charges)
-                last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+            dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
             # Build spin context (immutable for this request)
-            equipped_class     = gs['equipped_class']
-            moon_bonus         = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
-            star_win_bonus     = CLASS_STAR_WIN_BONUS  if equipped_class == 'star' else 0.0
-            win_mult           = win_mult_from_level(gs['winmult_inf_level'])
-            bonus_mult         = bonus_mult_from_level(gs['bonusmult_inf_level'])
-            effective_win_mult = win_mult * (1.0 + star_win_bonus)
-            pot_win_pct_frac   = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.505
-            resilience_chance  = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
+            ctx = _build_spin_context(gs)
+            pot_win_pct_frac = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.505
 
             new_spin_count = gs['spin_count'] + 1
             new_state, events = _resolve_spin(
@@ -558,13 +602,13 @@ def spin():
                 spin_count=new_spin_count,
                 active_cosmetics=list(gs['active_cosmetics']),
                 proc_streak=gs['proc_streak'],
-                effective_win_mult=effective_win_mult,
-                bonus_mult=bonus_mult,
-                jackpot_chance=jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus,
-                echo_chance=echo_amp_pct(gs['echo_amp_level']) + moon_bonus,
-                charm_chance=0.25 + moon_bonus,
-                resilience_chance=resilience_chance,
-                proc_streak_level=gs['proc_streak_level'],
+                effective_win_mult=ctx['effective_win_mult'],
+                bonus_mult=ctx['bonus_mult'],
+                jackpot_chance=ctx['jackpot_chance'],
+                echo_chance=ctx['echo_chance'],
+                charm_chance=ctx['charm_chance'],
+                resilience_chance=ctx['resilience_chance'],
+                proc_streak_level=ctx['proc_streak_level'],
                 pot_active=pot_active,
                 pot_win_pct=pot_win_pct_frac,
             )
@@ -600,34 +644,12 @@ def spin():
                 )
             conn.commit()
 
-        return jsonify({
-            'result':             events['result'],
-            'angle':              total_rotation,
-            'wins_delta':         events['wins_delta'],
-            'losses_delta':       events['losses_delta'],
-            'streak':             events['streak'],
-            'owned_items':        events['owned_items'],
-            'regen_recharge_wins': events['regen_recharge_wins'],
-            'shield_used':        events['shield_used'],
-            'shield_used_type':   events['shield_used_type'],
-            'shield_broke':       events['shield_broke'],
-            'guard_triggered':    events['guard_triggered'],
-            'guard_blocked':      events['guard_blocked'],
-            'bonus_earned':       events['bonus_earned'],
-            'echo_triggered':           events['echo_triggered'],
-            'jackpot_hit':              events['jackpot_hit'],
-            'jackpot_echo_triggered':   events['jackpot_echo_triggered'],
-            'jackpot_echo_next':        events['jackpot_echo_next'],
-            'resilience_triggered':     events['resilience_triggered'],
-            'lucky_seven_triggered':    events['lucky_seven_triggered'],
-            'fortune_charm_triggered':  events['fortune_charm_triggered'],
-            'active_cosmetics':         events['active_cosmetics'],
-            'auto_guard_failed':        events['auto_guard_failed'],
-            'new_spin_count':           new_spin_count,
-            'dice_charges':             dice_charges,
-            'dice_last_recharge':       last_recharge.isoformat(),
-            'proc_streak':              events['proc_streak'],
-        })
+        resp = _events_to_response(events)
+        resp['angle'] = total_rotation
+        resp['new_spin_count'] = new_spin_count
+        resp['dice_charges'] = dice_charges
+        resp['dice_last_recharge'] = last_recharge.isoformat()
+        return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Spin failed'}), 500
@@ -661,8 +683,7 @@ def tab_heartbeat():
             last_seen = gs['tab_last_seen']
             now = dt.datetime.now(timezone.utc)
 
-            if last_seen is not None and last_seen.tzinfo is None:
-                last_seen = last_seen.replace(tzinfo=timezone.utc)
+            last_seen = _aware(last_seen)
 
             stale = (last_seen is None or (now - last_seen).total_seconds() >= TAB_LOCK_TIMEOUT)
             can_claim = not stored or stored == tab_id or stale
@@ -737,12 +758,10 @@ def tick():
                 return jsonify({'started': True, 'auto_spin_since': now_utc.isoformat()})
 
             auto_spin_since = gs['auto_spin_since']
-            if auto_spin_since.tzinfo is None:
-                auto_spin_since = auto_spin_since.replace(tzinfo=timezone.utc)
+            auto_spin_since = _aware(auto_spin_since)
 
             last_spin = gs['last_spin_at'] or auto_spin_since
-            if last_spin.tzinfo is None:
-                last_spin = last_spin.replace(tzinfo=timezone.utc)
+            last_spin = _aware(last_spin)
             # Never count time before the wheel started this season
             cursor = max(auto_spin_since, last_spin)
 
@@ -794,29 +813,14 @@ def tick():
             current_proc_streak = gs['proc_streak']
 
             # Immutable spin context
-            equipped_class     = gs['equipped_class']
-            moon_bonus         = CLASS_MOON_PROC_BONUS if equipped_class == 'moon' else 0.0
-            star_win_bonus     = CLASS_STAR_WIN_BONUS  if equipped_class == 'star' else 0.0
-            win_mult           = win_mult_from_level(gs['winmult_inf_level'])
-            bonus_mult         = bonus_mult_from_level(gs['bonusmult_inf_level'])
-            effective_win_mult = win_mult * (1.0 + star_win_bonus)
-            jackpot_chance     = jackpot_pct(gs['jackpot_resonance_level']) + moon_bonus
-            echo_chance        = echo_amp_pct(gs['echo_amp_level'])          + moon_bonus
-            charm_chance       = 0.25                                         + moon_bonus
-            resilience_chance  = min(0.50 + gs['streak_armor_level'] * 0.01 + moon_bonus, 0.65)
-            proc_streak_level  = gs['proc_streak_level']
+            ctx = _build_spin_context(gs)
 
             # Dice recharge (computed once per tick from actual elapsed time)
             dice_charges  = gs['dice_charges']
             last_recharge = gs['dice_last_recharge']
-            if last_recharge.tzinfo is None:
-                last_recharge = last_recharge.replace(tzinfo=timezone.utc)
             max_charges = dice_max_charges(owned)
             dice_charges = min(dice_charges, max_charges)
-            elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
-            if elapsed_charges > 0 and dice_charges < max_charges:
-                dice_charges  = min(dice_charges + elapsed_charges, max_charges)
-                last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+            dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
             # Apply any pending dice roll before processing spins
             if gs['pending_dice']:
@@ -839,13 +843,13 @@ def tick():
                     spin_count=new_spin_count,
                     active_cosmetics=active_cosmetics,
                     proc_streak=current_proc_streak,
-                    effective_win_mult=effective_win_mult,
-                    bonus_mult=bonus_mult,
-                    jackpot_chance=jackpot_chance,
-                    echo_chance=echo_chance,
-                    charm_chance=charm_chance,
-                    resilience_chance=resilience_chance,
-                    proc_streak_level=proc_streak_level,
+                    effective_win_mult=ctx['effective_win_mult'],
+                    bonus_mult=ctx['bonus_mult'],
+                    jackpot_chance=ctx['jackpot_chance'],
+                    echo_chance=ctx['echo_chance'],
+                    charm_chance=ctx['charm_chance'],
+                    resilience_chance=ctx['resilience_chance'],
+                    proc_streak_level=ctx['proc_streak_level'],
                     pot_active=pot_active,
                     pot_win_pct=pot_win_pct,
                     catchup_bonus_active=catchup_bonus_active,
@@ -866,34 +870,12 @@ def tick():
                 new_loss_count += 1 if events['result'] == 'lose' else 0
 
                 if not is_catch_up:
-                    spin_results.append({
-                        'result':                events['result'],
-                        'angle':                 events['segment_angle'],
-                        'wins_delta':            events['wins_delta'],
-                        'losses_delta':          events['losses_delta'],
-                        'streak':                events['streak'],
-                        'owned_items':           events['owned_items'],
-                        'regen_recharge_wins':   events['regen_recharge_wins'],
-                        'shield_used':           events['shield_used'],
-                        'shield_used_type':      events['shield_used_type'],
-                        'shield_broke':          events['shield_broke'],
-                        'guard_triggered':       events['guard_triggered'],
-                        'guard_blocked':         events['guard_blocked'],
-                        'bonus_earned':          events['bonus_earned'],
-                        'echo_triggered':        events['echo_triggered'],
-                        'jackpot_hit':           events['jackpot_hit'],
-                        'jackpot_echo_triggered': events['jackpot_echo_triggered'],
-                        'jackpot_echo_next':     events['jackpot_echo_next'],
-                        'resilience_triggered':  events['resilience_triggered'],
-                        'lucky_seven_triggered': events['lucky_seven_triggered'],
-                        'fortune_charm_triggered': events['fortune_charm_triggered'],
-                        'active_cosmetics':      events['active_cosmetics'],
-                        'auto_guard_failed':     events['auto_guard_failed'],
-                        'new_spin_count':        new_spin_count,
-                        'dice_charges':          dice_charges,
-                        'dice_last_recharge':    last_recharge.isoformat(),
-                        'proc_streak':           events['proc_streak'],
-                    })
+                    resp = _events_to_response(events)
+                    resp['angle'] = events['segment_angle']
+                    resp['new_spin_count'] = new_spin_count
+                    resp['dice_charges'] = dice_charges
+                    resp['dice_last_recharge'] = last_recharge.isoformat()
+                    spin_results.append(resp)
 
             # Advance last_spin_at cursor
             new_last_spin = cursor + timedelta(seconds=spins_due * AUTO_SPIN_INTERVAL_SECONDS)
@@ -925,8 +907,7 @@ def tick():
             if gs['auto_fish_enabled']:
                 last_fish = gs['auto_fish_last_tick']
                 if last_fish is not None:
-                    if last_fish.tzinfo is None:
-                        last_fish = last_fish.replace(tzinfo=timezone.utc)
+                    last_fish = _aware(last_fish)
                     fish_elapsed = (now_utc - last_fish).total_seconds()
                     pending_fish = min(
                         int(fish_elapsed / AUTO_FISH_INTERVAL_SECONDS),
@@ -1036,12 +1017,7 @@ def roll_dice():
             max_charges = dice_max_charges(owned)
             dice_charges  = min(gs['dice_charges'], max_charges)  # cap stale over-limit values
             last_recharge = gs['dice_last_recharge']
-            if last_recharge.tzinfo is None:
-                last_recharge = last_recharge.replace(tzinfo=timezone.utc)
-            elapsed_charges = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
-            if elapsed_charges > 0 and dice_charges < max_charges:
-                dice_charges  = min(dice_charges + elapsed_charges, max_charges)
-                last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed_charges)
+            dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
             # Season 5: dice requires win streak >= 3 (no loss streak amplification)
             if streak < 3:
@@ -1200,7 +1176,6 @@ def buy():
                 'active_cosmetics':        list(gs['active_cosmetics']),
                 'winmult_inf_level':         _lvl('winmult_inf_level'),
                 'bonusmult_inf_level':       _lvl('bonusmult_inf_level'),
-                'clickmult_inf_level':       _lvl('clickmult_inf_level'),
                 'streak_armor_level':        _lvl('streak_armor_level'),
                 'lure_mastery_level':        _lvl('lure_mastery_level'),
                 'jackpot_resonance_level':   _lvl('jackpot_resonance_level'),
@@ -1296,7 +1271,6 @@ def buy():
             'active_cosmetics':    new_active_cosmetics,
             'winmult_inf_level':   gs['winmult_inf_level'],
             'bonusmult_inf_level': gs['bonusmult_inf_level'],
-            'clickmult_inf_level': gs['clickmult_inf_level'],
         })
     except Exception:
         log.exception('BUY_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
@@ -1319,16 +1293,8 @@ def community_pot_state():
                 pot['filled'] and pot['filled_at'] and
                 pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
             )
-            # Lazy reset: if window expired, advance target and clear filled state
             if pot['filled'] and not pot_active:
-                new_pot_target = max(int(pot['target'] * 1.25), 1)
-                with conn.cursor() as cur2:
-                    cur2.execute(
-                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
-                           total_contributed = 0, target = %s, last_decay_check = NOW()
-                           WHERE id = 1''',
-                        (new_pot_target,)
-                    )
+                new_pot_target = _reset_expired_pot(conn, pot)
                 conn.commit()
                 pot = dict(pot)
                 pot['filled'] = False
@@ -1382,15 +1348,7 @@ def community_pot_contribute():
                 pot_window_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
                 if pot_window_active:
                     return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
-                # Window expired: advance to next target (×1.25), reset contributions
-                new_exp_target = max(int(pot['target'] * 1.25), 1)
-                with conn.cursor() as cur2:
-                    cur2.execute(
-                        '''UPDATE community_pot SET filled = false, filled_at = NULL,
-                           total_contributed = 0, target = %s, last_decay_check = NOW()
-                           WHERE id = 1''',
-                        (new_exp_target,)
-                    )
+                new_exp_target = _reset_expired_pot(conn, pot)
                 pot = dict(pot)
                 pot['filled'] = False
                 pot['total_contributed'] = 0
@@ -1529,8 +1487,7 @@ def cast_line():
             cast_at = gs['fishing_cast_at']
             bite_at = gs['fishing_bite_at']
             if cast_at and bite_at:
-                if bite_at.tzinfo is None:
-                    bite_at = bite_at.replace(tzinfo=timezone.utc)
+                bite_at = _aware(bite_at)
                 if bite_at + timedelta(seconds=REEL_WINDOW_SECONDS) > now_utc:
                     return jsonify({'error': 'Already fishing'}), 400
 
@@ -1586,8 +1543,7 @@ def bite_poll():
         if bite_at is None:
             return jsonify({'bite': False}), 200
 
-        if bite_at.tzinfo is None:
-            bite_at = bite_at.replace(tzinfo=timezone.utc)
+        bite_at = _aware(bite_at)
 
         expires_at = bite_at + timedelta(seconds=REEL_WINDOW_SECONDS)
 
@@ -1633,8 +1589,7 @@ def reel_line():
                 return jsonify({'result': 'miss', 'reason': 'no_session',
                                 'fish_clicks': int(gs['fish_clicks'])}), 200
 
-            if bite_at.tzinfo is None:
-                bite_at = bite_at.replace(tzinfo=timezone.utc)
+            bite_at = _aware(bite_at)
 
             expires_at = bite_at + timedelta(seconds=REEL_WINDOW_SECONDS)
 
@@ -1767,8 +1722,7 @@ def auto_fish_tick():
 
             last_tick = gs['auto_fish_last_tick']
             if last_tick is not None:
-                if last_tick.tzinfo is None:
-                    last_tick = last_tick.replace(tzinfo=timezone.utc)
+                last_tick = _aware(last_tick)
                 if (now_utc - last_tick).total_seconds() < 5.0:
                     conn.commit()
                     return jsonify({'result': 'miss', 'fish_clicks': int(gs['fish_clicks'])}), 200
@@ -1993,39 +1947,6 @@ def wins_exchange():
         return jsonify({'error': 'Exchange failed'}), 500
 
 
-@game_bp.route('/api/fish-click', methods=['POST'])
-@login_required
-@limiter.limit('5 per second')
-def fish_click():
-    # Retired: fish-clicking replaced by Cast & Reel minigame.
-    # Kept to avoid 404s from stale clients; returns current balance unchanged.
-    try:
-        with db_connection() as conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute('SELECT fish_clicks FROM game_state WHERE user_id = %s', (current_user.id,))
-                row = cur.fetchone()
-        return jsonify({'fish_clicks': int(row['fish_clicks'])})
-    except Exception:
-        log.exception('FISH_CLICK_NOOP_ERROR  user_id=%s', current_user.id)
-        return jsonify({'error': 'Request failed'}), 500
-
-
-@game_bp.route('/api/click-frenzy', methods=['POST'])
-@login_required
-@limiter.limit('1 per second')
-def click_frenzy():
-    # Retired: passive frenzy replaced by Cast & Reel minigame.
-    # Kept to avoid 404s from stale clients; returns current balance unchanged.
-    try:
-        with db_connection() as conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute('SELECT fish_clicks FROM game_state WHERE user_id = %s', (current_user.id,))
-                row = cur.fetchone()
-        return jsonify({'fish_clicks': int(row['fish_clicks'])})
-    except Exception:
-        log.exception('CLICK_FRENZY_NOOP_ERROR  user_id=%s', current_user.id)
-        return jsonify({'error': 'Request failed'}), 500
-
 
 @game_bp.route('/api/equip-cosmetic', methods=['POST'])
 @login_required
@@ -2148,8 +2069,7 @@ def leaderboard():
         result = []
         for r in rows:
             last_spin = r['last_spin_at']
-            if last_spin and last_spin.tzinfo is None:
-                last_spin = last_spin.replace(tzinfo=timezone.utc)
+            last_spin = _aware(last_spin)
             active = last_spin and (now_utc - last_spin).total_seconds() < 86400
             result.append({
                 'username':           r['username'],

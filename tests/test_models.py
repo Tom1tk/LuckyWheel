@@ -9,7 +9,7 @@ from models import (
     FISH_CATALOG, FISH_SKINS, SHOP_ITEMS, ALL_ITEMS,
     roll_fish, fish_value, lure_bite_delay_seconds, lure_value_multiplier,
     autofisher_catch_rate, streak_bonus, dice_max_charges,
-    win_mult_from_level, bonus_mult_from_level, click_mult_from_level,
+    win_mult_from_level, bonus_mult_from_level,
     inf_upgrade_cost, INFINITE_UPGRADES,
     jackpot_pct, echo_amp_pct, proc_streak_mult, lure_mastery_mult,
     AUTO_FISH_EXCLUDED, _AUTO_FISH_LEGENDARY,
