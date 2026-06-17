@@ -43,17 +43,17 @@ function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
 function _apiFetch() {
-  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee20(path) {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee32(path) {
     var opts,
       method,
       headers,
       res,
       json,
-      _args20 = arguments;
-    return _regeneratorRuntime().wrap(function _callee20$(_context20) {
-      while (1) switch (_context20.prev = _context20.next) {
+      _args32 = arguments;
+    return _regeneratorRuntime().wrap(function _callee32$(_context32) {
+      while (1) switch (_context32.prev = _context32.next) {
         case 0:
-          opts = _args20.length > 1 && _args20[1] !== undefined ? _args20[1] : {};
+          opts = _args32.length > 1 && _args32[1] !== undefined ? _args32[1] : {};
           method = (opts.method || 'GET').toUpperCase();
           headers = {
             'Content-Type': 'application/json'
@@ -61,28 +61,28 @@ function _apiFetch() {
           if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
             headers['X-CSRFToken'] = _csrfToken;
           }
-          _context20.next = 6;
+          _context32.next = 6;
           return fetch(path, _objectSpread({
             headers: headers
           }, opts));
         case 6:
-          res = _context20.sent;
-          _context20.next = 9;
+          res = _context32.sent;
+          _context32.next = 9;
           return res.json()["catch"](function () {
             return {};
           });
         case 9:
-          json = _context20.sent;
-          return _context20.abrupt("return", {
+          json = _context32.sent;
+          return _context32.abrupt("return", {
             ok: res.ok,
             status: res.status,
             data: json
           });
         case 11:
         case "end":
-          return _context20.stop();
+          return _context32.stop();
       }
-    }, _callee20);
+    }, _callee32);
   }));
   return _apiFetch.apply(this, arguments);
 }
@@ -1698,7 +1698,10 @@ function drawGuardWheel(canvas) {
 
 // ── Number formatter ──────────────────────────────────────────────────────
 function fmt(n) {
-  if (!isFinite(n) || isNaN(n)) return '???';
+  // T15: Use shared format_wins() from format.js for consistency
+  if (typeof window.format_wins === 'function') return window.format_wins(n);
+  // Fallback if format.js not loaded
+  if (!isFinite(n) || isNaN(n)) return '0';
   if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
   if (n >= 1e12) return parseFloat((n / 1e12).toPrecision(3)) + 'T';
   if (n >= 1e9) return parseFloat((n / 1e9).toPrecision(3)) + 'B';
@@ -3513,6 +3516,32 @@ function ChatPanel(_ref23) {
     ref: scrollRef,
     onScroll: handleScroll
   }, messages.map(function (m) {
+    var isSystem = m.message_type && m.message_type !== 'user';
+    var isReplay = m.message_type === 'replay';
+    if (isReplay) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: m.id,
+        className: "chat-msg chat-msg-replay"
+      }, m.created_at && /*#__PURE__*/React.createElement("span", {
+        className: "chat-msg-time"
+      }, fmtChatTime(m.created_at)), /*#__PURE__*/React.createElement("div", {
+        className: "replay-card"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "replay-icon"
+      }, "\uD83C\uDFAC"), /*#__PURE__*/React.createElement("span", {
+        className: "replay-text"
+      }, m.message)));
+    }
+    if (isSystem) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: m.id,
+        className: "chat-msg chat-msg-system"
+      }, m.created_at && /*#__PURE__*/React.createElement("span", {
+        className: "chat-msg-time"
+      }, fmtChatTime(m.created_at)), /*#__PURE__*/React.createElement("span", {
+        className: "chat-msg-text chat-system-text"
+      }, m.message));
+    }
     return /*#__PURE__*/React.createElement("div", {
       key: m.id,
       className: "chat-msg"
@@ -3781,22 +3810,48 @@ var SHOP_SECTIONS = [{
 }, {
   label: '💰 Win Power',
   items: [{
-    id: 'winmult_inf',
+    id: 'winmult_1',
     emoji: '💰',
-    name: 'Win Power',
-    cost: 0,
-    desc: 'Multiplies each win score',
-    infinite: true
+    name: 'Win Power I',
+    cost: 200,
+    desc: '+20% win multiplier'
+  }, {
+    id: 'winmult_2',
+    emoji: '💰',
+    name: 'Win Power II',
+    cost: 600,
+    desc: '+40% win multiplier',
+    requires: 'winmult_1'
+  }, {
+    id: 'winmult_3',
+    emoji: '💰',
+    name: 'Win Power III',
+    cost: 2000,
+    desc: '+60% win multiplier',
+    requires: 'winmult_2'
   }]
 }, {
   label: '⭐ Bonus Power',
   items: [{
-    id: 'bonusmult_inf',
+    id: 'bonusmult_1',
     emoji: '⭐',
-    name: 'Bonus Power',
-    cost: 0,
-    desc: 'Multiplies streak bonuses — ⚠️ also amplifies loss streaks',
-    infinite: true
+    name: 'Bonus Power I',
+    cost: 300,
+    desc: 'Multiplies streak bonuses'
+  }, {
+    id: 'bonusmult_2',
+    emoji: '⭐',
+    name: 'Bonus Power II',
+    cost: 900,
+    desc: 'Multiplies streak bonuses',
+    requires: 'bonusmult_1'
+  }, {
+    id: 'bonusmult_3',
+    emoji: '⭐',
+    name: 'Bonus Power III',
+    cost: 2800,
+    desc: 'Multiplies streak bonuses',
+    requires: 'bonusmult_2'
   }]
 }, {
   label: '🐟 Fishing Panel Size',
@@ -3964,13 +4019,6 @@ var SHOP_SECTIONS = [{
     desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia',
     requires: 'precise_angler_2',
     encyclopaediaLocked: true
-  }, {
-    id: 'lure_mastery_inf',
-    emoji: '✨',
-    name: 'Lure Mastery',
-    cost: 0,
-    desc: '+10% fish value per level (stacks beyond Lure V cap) — costs 🐟 Fish Bucks',
-    infinite: true
   }]
 }, {
   label: '🛡️ Protection',
@@ -3978,23 +4026,160 @@ var SHOP_SECTIONS = [{
     id: 'guard',
     emoji: '🛡️',
     name: 'Guard',
-    cost: 500,
-    desc: '50% chance to block any loss. Breaks on success, survives on failure.'
+    cost: 1000,
+    desc: 'Blocks one loss per manual trigger. Consumes a guard charge.'
   }, {
-    id: 'auto_guard',
-    emoji: '🔁',
-    name: 'Auto-Guard',
-    cost: 50000,
-    desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.',
-    requires: 'guard',
+    id: 'guard_charge',
+    emoji: '🔋',
+    name: 'Guard Charge',
+    cost: 10000,
+    desc: 'Adds a guard charge (max 3). Recharges 1 per 50 spins via Regen Shield.',
     tier: 2
   }, {
     id: 'regen_shield',
     emoji: '🔄',
     name: 'Regenerating Shield',
-    cost: 1500,
+    cost: 5000,
     desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.',
     tier: 2
+  }, {
+    id: 'resilience',
+    emoji: '💪',
+    name: 'Resilience',
+    cost: 20000,
+    desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting',
+    tier: 3
+  }]
+}, {
+  label: '🎲 Special Upgrades',
+  items: [{
+    id: 'fortune_charm',
+    emoji: '🍀',
+    name: 'Fortune Charm',
+    cost: 1000000,
+    desc: '25% chance: +25% to streak bonus payout',
+    tier: 3
+  }, {
+    id: 'lucky_seven',
+    emoji: '7️⃣',
+    name: 'Lucky Seven',
+    cost: 7000000,
+    desc: 'Every 7th spin is guaranteed a win',
+    tier: 3
+  }, {
+    id: 'win_echo',
+    emoji: '🔊',
+    name: 'Win Echo',
+    cost: 1000000,
+    desc: '20% chance to double wins earned on any win',
+    tier: 3
+  }, {
+    id: 'jackpot',
+    emoji: '🎰',
+    name: 'Jackpot',
+    cost: 3000000,
+    desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.',
+    tier: 3
+  }]
+}, {
+  label: '⚡ Season 8: Wager System',
+  items: [{
+    id: 'wager_unlock',
+    emoji: '⚡',
+    name: 'Wager Unlock',
+    cost: 500,
+    desc: 'Unlocks stake multiplier (1x-10x) for spins',
+    tier: 1
+  }, {
+    id: 'wager_safety_net',
+    emoji: '🛡️',
+    name: 'Safety Net',
+    cost: 2000,
+    desc: 'Reduces loss by 25% at stake 5x+',
+    tier: 2,
+    requires: 'wager_unlock'
+  }, {
+    id: 'wager_hot_streak',
+    emoji: '🔥',
+    name: 'Hot Streak',
+    cost: 8000,
+    desc: '+5% per consecutive same-stake win, cap +50%',
+    tier: 2,
+    requires: 'wager_unlock'
+  }, {
+    id: 'wager_double_down',
+    emoji: '⚡',
+    name: 'Double Down',
+    cost: 25000,
+    desc: 'Arm 2x stake for next spin',
+    tier: 3,
+    requires: 'wager_hot_streak'
+  }, {
+    id: 'wager_insurance',
+    emoji: '🛡️',
+    name: 'Insurance',
+    cost: 50000,
+    desc: 'Caps next loss at stake amount',
+    tier: 3,
+    requires: 'wager_unlock'
+  }]
+}, {
+  label: '🏅 Season 8: Prestige',
+  items: [{
+    id: 'prestige_unlock',
+    emoji: '🏅',
+    name: 'Prestige Unlock',
+    cost: 1000000,
+    desc: 'Unlocks prestige reset (permanent +2% per level)',
+    tier: 3
+  }, {
+    id: 'prestige_efficiency',
+    emoji: '⚡',
+    name: 'Prestige Efficiency',
+    cost: 500000,
+    desc: 'Reduces prestige threshold from 1M to 500K wins',
+    tier: 3,
+    requires: 'prestige_unlock'
+  }, {
+    id: 'prestige_legacy',
+    emoji: '📜',
+    name: 'Prestige Legacy',
+    cost: 1000000,
+    desc: 'Keep functional upgrades when prestiging',
+    tier: 3,
+    requires: 'prestige_unlock'
+  }]
+}, {
+  label: '🎣 Season 8: Fishing',
+  items: [{
+    id: 'fish_to_wager',
+    emoji: '🪙',
+    name: 'Fish-to-Wager',
+    cost: 5000,
+    desc: 'Convert caught fish to wager tokens',
+    tier: 1
+  }, {
+    id: 'catch_of_the_day',
+    emoji: '📅',
+    name: 'Catch of the Day',
+    cost: 3000,
+    desc: 'First fish conversion each day worth 5x tokens',
+    tier: 1
+  }, {
+    id: 'aquarium',
+    emoji: '🐠',
+    name: 'Aquarium',
+    cost: 15000,
+    desc: 'Each unique species adds +0.1% wheel luck',
+    tier: 2
+  }, {
+    id: 'lure_specialization',
+    emoji: '🎯',
+    name: 'Lure Specialization',
+    cost: 10000,
+    desc: 'Specialized lure techniques',
+    tier: 2,
+    requires: 'fish_to_wager'
   }]
 }, {
   label: '🎡 Wheel Theme',
@@ -4033,274 +4218,53 @@ var SHOP_SECTIONS = [{
     desc: 'Pure gold wheel',
     requires: 'theme_void'
   }, {
+    id: 'theme_tidal',
+    emoji: '🌊',
+    name: 'Tidal Theme',
+    cost: 250,
+    desc: 'Cool blue/teal with wave animation'
+  }, {
+    id: 'theme_ember',
+    emoji: '🔥',
+    name: 'Ember Theme',
+    cost: 1000,
+    desc: 'Warm orange with spark animation',
+    requires: 'theme_tidal'
+  }, {
+    id: 'theme_frost',
+    emoji: '❄️',
+    name: 'Frost Theme',
+    cost: 4000,
+    desc: 'Ice-crystal palette with crack animation',
+    requires: 'theme_ember'
+  }, {
+    id: 'theme_aurora',
+    emoji: '🌌',
+    name: 'Aurora Theme',
+    cost: 12000,
+    desc: 'Shifting greens/purples with northern lights',
+    requires: 'theme_frost'
+  }, {
+    id: 'theme_vintage',
+    emoji: '📼',
+    name: 'Vintage Theme',
+    cost: 40000,
+    desc: 'Retro-styled sepia tones'
+  }, {
     id: 'golden_wheel',
     emoji: '✨',
     name: 'Golden Wheel',
     cost: 300,
     desc: 'Radiant glow ring'
   }]
-}, {
-  label: '🎊 Confetti',
-  items: [{
-    id: 'party_mode',
-    emoji: '🎉',
-    name: 'Party Mode',
-    cost: 150,
-    desc: 'Confetti every spin'
-  }, {
-    id: 'confetti_1',
-    emoji: '🎊',
-    name: 'Confetti+',
-    cost: 75,
-    desc: '2x confetti pieces'
-  }, {
-    id: 'confetti_2',
-    emoji: '🎊',
-    name: 'Confetti++',
-    cost: 300,
-    desc: '5x confetti pieces',
-    requires: 'confetti_1'
-  }, {
-    id: 'confetti_3',
-    emoji: '🎊',
-    name: 'Confetti MAX',
-    cost: 1200,
-    desc: '15x confetti pieces',
-    requires: 'confetti_2'
-  }]
-}, {
-  label: '🎨 Atmosphere',
-  items: [{
-    id: 'bg_royal',
-    emoji: '💜',
-    name: 'Royal Casino',
-    cost: 400,
-    desc: 'Purple atmosphere'
-  }, {
-    id: 'bg_inferno',
-    emoji: '❤️',
-    name: 'Inferno Casino',
-    cost: 1600,
-    desc: 'Blood red atmosphere',
-    requires: 'bg_royal'
-  }, {
-    id: 'bg_forest',
-    emoji: '🌿',
-    name: 'Enchanted Forest',
-    cost: 5000,
-    desc: 'Mystical green depths',
-    requires: 'bg_inferno'
-  }, {
-    id: 'bg_abyss',
-    emoji: '🌑',
-    name: 'The Abyss',
-    cost: 15000,
-    desc: 'Void of darkness',
-    requires: 'bg_forest'
-  }, {
-    id: 'bg_cosmic',
-    emoji: '🌌',
-    name: 'Cosmic Casino',
-    cost: 50000,
-    desc: 'Deep space nebula',
-    requires: 'bg_abyss'
-  }]
-}, {
-  label: '🖼️ Page Theme',
-  items: [{
-    id: 'page_season1',
-    emoji: '🌟',
-    name: 'Season 1 Theme',
-    cost: 1000,
-    desc: 'Classic gold & orange casino theme (S1).'
-  }, {
-    id: 'page_season2',
-    emoji: '🟢',
-    name: 'Season 2 Theme',
-    cost: 1000,
-    desc: 'Green & red casino theme (S2).'
-  }, {
-    id: 'page_season3',
-    emoji: '🟣',
-    name: 'Season 3 Theme',
-    cost: 1000,
-    desc: 'Purple & orange casino theme (S3).'
-  }, {
-    id: 'page_season4',
-    emoji: '💜',
-    name: 'Season 4 Theme',
-    cost: 1000,
-    desc: 'Deep violet casino theme (S4).'
-  }, {
-    id: 'page_season5',
-    emoji: '🌊',
-    name: 'Season 5 Theme',
-    cost: 1000,
-    desc: 'Bioluminescent deep ocean theme (S5).'
-  }, {
-    id: 'page_season6',
-    emoji: '🌙',
-    name: 'Season 6 Theme',
-    cost: 1000,
-    desc: 'Night ocean — deep indigo & violet (S6).'
-  }, {
-    id: 'page_season7',
-    emoji: '🌌',
-    name: 'Season 7 Theme',
-    cost: 1000,
-    desc: 'Sci-fi wormhole — animated star field with parallax (S7).'
-  }]
-}, {
-  label: '🎲 Dice Charges',
-  items: [{
-    id: 'dice_charge_2',
-    emoji: '🎲',
-    name: 'Extra Charge',
-    cost: 2000,
-    desc: 'Max dice charges: 1 → 2',
-    tier: 2
-  }, {
-    id: 'dice_charge_3',
-    emoji: '🎲',
-    name: 'Max Charge',
-    cost: 15000,
-    desc: 'Max dice charges: 2 → 3',
-    requires: 'dice_charge_2',
-    tier: 3
-  }, {
-    id: 'dice_charge_4',
-    emoji: '🎲',
-    name: 'Overcharge',
-    cost: 100000,
-    desc: 'Max dice charges: 3 → 4',
-    requires: 'dice_charge_3',
-    tier: 3
-  }, {
-    id: 'dice_extra',
-    emoji: '🎲',
-    name: 'Extra Die',
-    cost: 1000000,
-    desc: 'Roll 3 dice instead of 2. Triple curses and triple blessings possible.',
-    requires: 'dice_charge_3',
-    tier: 3
-  }]
-}, {
-  label: '🎲 Special Upgrades',
-  items: [{
-    id: 'fortune_charm',
-    emoji: '🍀',
-    name: 'Fortune Charm',
-    cost: 1000000,
-    desc: '25% chance: +25% to streak bonus payout',
-    tier: 3
-  }, {
-    id: 'lucky_seven',
-    emoji: '7️⃣',
-    name: 'Lucky Seven',
-    cost: 7000000,
-    desc: 'Every 7th spin is guaranteed a win',
-    tier: 3
-  }, {
-    id: 'win_echo',
-    emoji: '🔊',
-    name: 'Win Echo',
-    cost: 1000000,
-    desc: '20% chance to double wins earned on any win',
-    tier: 3
-  }, {
-    id: 'resilience',
-    emoji: '💪',
-    name: 'Resilience',
-    cost: 10000000,
-    desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting',
-    tier: 3
-  }, {
-    id: 'jackpot',
-    emoji: '🎰',
-    name: 'Jackpot',
-    cost: 3000000,
-    desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.',
-    tier: 3
-  }, {
-    id: 'streak_armor_inf',
-    emoji: '🛡️',
-    name: 'Streak Armor',
-    cost: 0,
-    desc: '+1% to Resilience save chance per level (base 50%, cap 60%)',
-    infinite: true
-  }, {
-    id: 'jackpot_resonance_inf',
-    emoji: '🎰',
-    name: 'Jackpot Resonance',
-    cost: 0,
-    desc: 'Raises Jackpot proc rate: 1% → up to 3% cap (level 10)',
-    infinite: true
-  }, {
-    id: 'echo_amp_inf',
-    emoji: '🔊',
-    name: 'Echo Amplification',
-    cost: 0,
-    desc: 'Raises Win Echo proc rate: 20% → up to 40% cap (level 10)',
-    infinite: true
-  }, {
-    id: 'proc_streak_inf',
-    emoji: '⚡',
-    name: 'Proc Streak',
-    cost: 0,
-    desc: "Amplifies proc payouts by +0.5% per consecutive proc'd win per level",
-    infinite: true
-  }]
-}, {
-  label: '🌌 Legendary',
-  items: [{
-    id: 'singularity',
-    emoji: '🌌',
-    name: 'The Singularity',
-    cost: 1e67,
-    desc: 'Transcend reality itself. Every spin is a win.'
-  }]
 }];
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 var INF_UPGRADE_CFG = {
-  winmult_inf: {
-    tierCosts: [200, 600, 2000, 6400, 20000, 64000, 200000],
-    infBase: 400000,
-    infScale: 1.18
-  },
-  bonusmult_inf: {
-    tierCosts: [300, 900, 2800, 8500, 26000, 80000],
-    infBase: 200000,
-    infScale: 1.18
-  },
-  streak_armor_inf: {
-    tierCosts: [500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000, 2250000, 2500000, 2750000],
-    infBase: 999999999,
-    infScale: 1.0,
-    maxLevel: 10
-  },
-  lure_mastery_inf: {
-    tierCosts: [5000, 25000, 100000, 400000],
-    infBase: 1500000,
-    infScale: 1.25
-  },
-  jackpot_resonance_inf: {
-    tierCosts: [5000000, 10000000, 20000000],
-    infBase: 40000000,
-    infScale: 1.50,
-    maxLevel: 10
-  },
-  echo_amp_inf: {
-    tierCosts: [2000000, 5000000, 12000000],
-    infBase: 25000000,
-    infScale: 1.40,
-    maxLevel: 10
-  },
-  proc_streak_inf: {
-    tierCosts: [3000000, 8000000, 20000000],
-    infBase: 50000000,
-    infScale: 1.50,
-    maxLevel: 15
+  clickmult_inf: {
+    tierCosts: [75, 250, 600, 1400, 3000],
+    infBase: 10000,
+    infScale: 1.5
   }
 };
 function infCost(id, level) {
@@ -4313,23 +4277,7 @@ function infCost(id, level) {
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
 function infMultiplier(id, level) {
-  if (id === 'streak_armor_inf') return Math.min(50 + level, 60); // resilience %
-  if (id === 'lure_mastery_inf') return 1 + level * 0.10; // fish value multiplier
-  if (id === 'jackpot_resonance_inf') return parseFloat((Math.min(0.01 + level * 0.002, 0.03) * 100).toFixed(1)); // jackpot %
-  if (id === 'echo_amp_inf') return parseFloat((Math.min(0.20 + level * 0.02, 0.40) * 100).toFixed(0)); // echo %
-  if (id === 'proc_streak_inf') return level; // streak level
-  if (id === 'winmult_inf') {
-    if (level <= 0) return 1;
-    if (level <= 7) return Math.pow(2, level);
-    return 128 + (level - 7) * 16;
-  }
-  if (id === 'bonusmult_inf') {
-    // Season 7: flatter early (C2), slower past level 30 (C1)
-    var fixed = [1, 2, 4, 8, 15, 35, 70];
-    if (level <= 6) return fixed[level] || 1;
-    if (level <= 30) return 70 + (level - 6) * 8;
-    return 262 + (level - 30) * 5;
-  }
+  if (id === 'clickmult_inf') return 1 + level * 0.15;
   return 1;
 }
 var DEFAULT_FISH = {
@@ -4345,12 +4293,11 @@ function getFishData(equippedFish) {
     return s.id === equippedFish;
   }) || DEFAULT_FISH;
 }
-var COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'auto_guard']);
+var COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 var getItemCurrency = function getItemCurrency(id) {
-  if (id === 'singularity' || id === 'lure_mastery_inf') return 'fish_clicks';
   if (COSMETIC_IDS.has(id)) return 'losses';
   return 'wins';
 };
@@ -5243,135 +5190,118 @@ function GameApp(_ref33) {
     _useState136 = _slicedToArray(_useState135, 2),
     activeCosmetics = _useState136[0],
     setActiveCosmetics = _useState136[1];
-  var _useState137 = useState({
-      winmult_inf: gameState.winmult_inf_level || 0,
-      bonusmult_inf: gameState.bonusmult_inf_level || 0,
-      streak_armor_inf: gameState.streak_armor_level || 0,
-      lure_mastery_inf: gameState.lure_mastery_level || 0,
-      jackpot_resonance_inf: gameState.jackpot_resonance_level || 0,
-      echo_amp_inf: gameState.echo_amp_level || 0,
-      proc_streak_inf: gameState.proc_streak_level || 0
-    }),
+  var _useState137 = useState(gameState.equipped_class || null),
     _useState138 = _slicedToArray(_useState137, 2),
-    infLevels = _useState138[0],
-    setInfLevels = _useState138[1];
-  var _useState139 = useState(gameState.equipped_class || null),
+    equippedClass = _useState138[0],
+    setEquippedClass = _useState138[1];
+  var _useState139 = useState(gameState.proc_streak || 0),
     _useState140 = _slicedToArray(_useState139, 2),
-    equippedClass = _useState140[0],
-    setEquippedClass = _useState140[1];
-  var _useState141 = useState(gameState.proc_streak || 0),
+    procStreak = _useState140[0],
+    setProcStreak = _useState140[1];
+  var _useState141 = useState(gameState.fish_exchange_total || 0),
     _useState142 = _slicedToArray(_useState141, 2),
-    procStreak = _useState142[0],
-    setProcStreak = _useState142[1];
-  var _useState143 = useState(gameState.fish_exchange_total || 0),
+    fishExchangeTotal = _useState142[0],
+    setFishExchangeTotal = _useState142[1];
+  var _useState143 = useState(false),
     _useState144 = _slicedToArray(_useState143, 2),
-    fishExchangeTotal = _useState144[0],
-    setFishExchangeTotal = _useState144[1];
+    showStats = _useState144[0],
+    setShowStats = _useState144[1];
   var _useState145 = useState(false),
     _useState146 = _slicedToArray(_useState145, 2),
-    showStats = _useState146[0],
-    setShowStats = _useState146[1];
-  var _useState147 = useState(false),
+    showPatchNotes = _useState146[0],
+    setShowPatchNotes = _useState146[1];
+  var _useState147 = useState(null),
     _useState148 = _slicedToArray(_useState147, 2),
-    showPatchNotes = _useState148[0],
-    setShowPatchNotes = _useState148[1];
-  var _useState149 = useState(null),
+    toast = _useState148[0],
+    setToast = _useState148[1];
+  var _useState149 = useState(gameState.season || null),
     _useState150 = _slicedToArray(_useState149, 2),
-    toast = _useState150[0],
-    setToast = _useState150[1];
-  var _useState151 = useState(gameState.season || null),
-    _useState152 = _slicedToArray(_useState151, 2),
-    season = _useState152[0],
-    setSeason = _useState152[1];
-  var _useState153 = useState(gameState.community_pot || {
+    season = _useState150[0],
+    setSeason = _useState150[1];
+  var _useState151 = useState(gameState.community_pot || {
       total_contributed: 0,
       target: 1000,
       filled: false,
       active: false,
       win_chance_pct: 50.0
     }),
+    _useState152 = _slicedToArray(_useState151, 2),
+    communityPot = _useState152[0],
+    setCommunityPot = _useState152[1];
+  var _useState153 = useState(gameState.spin_count || 0),
     _useState154 = _slicedToArray(_useState153, 2),
-    communityPot = _useState154[0],
-    setCommunityPot = _useState154[1];
-  var _useState155 = useState(gameState.spin_count || 0),
+    spinCount = _useState154[0],
+    setSpinCount = _useState154[1];
+  var _useState155 = useState(gameState.win_count || 0),
     _useState156 = _slicedToArray(_useState155, 2),
-    spinCount = _useState156[0],
-    setSpinCount = _useState156[1];
-  var _useState157 = useState(gameState.win_count || 0),
-    _useState158 = _slicedToArray(_useState157, 2),
-    winCount = _useState158[0],
-    setWinCount = _useState158[1];
-  var _useState159 = useState(function () {
+    winCount = _useState156[0],
+    setWinCount = _useState156[1];
+  var _useState157 = useState(function () {
       var _gameState$low_spec_m;
       return (_gameState$low_spec_m = gameState.low_spec_mode) !== null && _gameState$low_spec_m !== void 0 ? _gameState$low_spec_m : localStorage.getItem('lowSpecMode') === 'true';
     }),
-    _useState160 = _slicedToArray(_useState159, 2),
-    lowSpec = _useState160[0],
-    setLowSpec = _useState160[1];
-  var _useState161 = useState(function () {
+    _useState158 = _slicedToArray(_useState157, 2),
+    lowSpec = _useState158[0],
+    setLowSpec = _useState158[1];
+  var _useState159 = useState(function () {
       return localStorage.getItem('parallaxEnabled') !== 'false';
     }),
+    _useState160 = _slicedToArray(_useState159, 2),
+    parallaxEnabled = _useState160[0],
+    setParallaxEnabled = _useState160[1];
+  var _useState161 = useState(false),
     _useState162 = _slicedToArray(_useState161, 2),
-    parallaxEnabled = _useState162[0],
-    setParallaxEnabled = _useState162[1];
+    shopCollapsed = _useState162[0],
+    setShopCollapsed = _useState162[1];
   var _useState163 = useState(false),
     _useState164 = _slicedToArray(_useState163, 2),
-    shopCollapsed = _useState164[0],
-    setShopCollapsed = _useState164[1];
-  var _useState165 = useState(false),
+    diceRolling = _useState164[0],
+    setDiceRolling = _useState164[1];
+  var _useState165 = useState(null),
     _useState166 = _slicedToArray(_useState165, 2),
-    diceRolling = _useState166[0],
-    setDiceRolling = _useState166[1];
-  var _useState167 = useState(null),
+    diceResult = _useState166[0],
+    setDiceResult = _useState166[1];
+  var _useState167 = useState((_gameState$dice_charg = gameState.dice_charges) !== null && _gameState$dice_charg !== void 0 ? _gameState$dice_charg : 1),
     _useState168 = _slicedToArray(_useState167, 2),
-    diceResult = _useState168[0],
-    setDiceResult = _useState168[1];
-  var _useState169 = useState((_gameState$dice_charg = gameState.dice_charges) !== null && _gameState$dice_charg !== void 0 ? _gameState$dice_charg : 1),
+    diceCharges = _useState168[0],
+    setDiceCharges = _useState168[1];
+  var _useState169 = useState(gameState.dice_last_recharge || new Date().toISOString()),
     _useState170 = _slicedToArray(_useState169, 2),
-    diceCharges = _useState170[0],
-    setDiceCharges = _useState170[1];
-  var _useState171 = useState(gameState.dice_last_recharge || new Date().toISOString()),
+    diceLastRecharge = _useState170[0],
+    setDiceLastRecharge = _useState170[1];
+  var _useState171 = useState((_gameState$dice_rolle = gameState.dice_rolled_since_spin) !== null && _gameState$dice_rolle !== void 0 ? _gameState$dice_rolle : false),
     _useState172 = _slicedToArray(_useState171, 2),
-    diceLastRecharge = _useState172[0],
-    setDiceLastRecharge = _useState172[1];
-  var _useState173 = useState((_gameState$dice_rolle = gameState.dice_rolled_since_spin) !== null && _gameState$dice_rolle !== void 0 ? _gameState$dice_rolle : false),
-    _useState174 = _slicedToArray(_useState173, 2),
-    diceRolledSinceSpin = _useState174[0],
-    setDiceRolledSinceSpin = _useState174[1];
-  var _useState175 = useState(function () {
+    diceRolledSinceSpin = _useState172[0],
+    setDiceRolledSinceSpin = _useState172[1];
+  var _useState173 = useState(function () {
       return window.innerWidth <= 768;
     }),
+    _useState174 = _slicedToArray(_useState173, 2),
+    isMobile = _useState174[0],
+    setIsMobile = _useState174[1];
+  var _useState175 = useState(null),
     _useState176 = _slicedToArray(_useState175, 2),
-    isMobile = _useState176[0],
-    setIsMobile = _useState176[1];
-  var _useState177 = useState(null),
-    _useState178 = _slicedToArray(_useState177, 2),
-    mobilePanel = _useState178[0],
-    setMobilePanel = _useState178[1];
-  var _useState179 = useState(function () {
+    mobilePanel = _useState176[0],
+    setMobilePanel = _useState176[1];
+  var _useState177 = useState(function () {
       return localStorage.getItem('chat_open') !== 'false';
     }),
-    _useState180 = _slicedToArray(_useState179, 2),
-    showChat = _useState180[0],
-    setShowChat = _useState180[1];
+    _useState178 = _slicedToArray(_useState177, 2),
+    showChat = _useState178[0],
+    setShowChat = _useState178[1];
   var fireMode = 2; // Mix mode
-  var _useState181 = useState(0),
-    _useState182 = _slicedToArray(_useState181, 2),
-    wheelRotation = _useState182[0],
-    setWheelRotation = _useState182[1];
+  var _useState179 = useState(0),
+    _useState180 = _slicedToArray(_useState179, 2),
+    wheelRotation = _useState180[0],
+    setWheelRotation = _useState180[1];
   var wheelRotationRef = useRef(0);
+  var _useState181 = useState({
+      clickmult_inf: gameState.clickmult_inf_level || 0
+    }),
+    _useState182 = _slicedToArray(_useState181, 2),
+    infLevels = _useState182[0],
+    setInfLevels = _useState182[1];
   var WHEEL_SPIN_SPEED = 1.5; // seconds
-
-  useEffect(function () {
-    var mq = window.matchMedia('(max-width: 768px)');
-    var handler = function handler(e) {
-      return setIsMobile(e.matches);
-    };
-    mq.addEventListener('change', handler);
-    return function () {
-      return mq.removeEventListener('change', handler);
-    };
-  }, []);
   var toggleMobilePanel = useCallback(function (panel) {
     setMobilePanel(function (prev) {
       return prev === panel ? null : panel;
@@ -5397,6 +5327,11 @@ function GameApp(_ref33) {
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice')) return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
+    if (activeCosmetics.includes('theme_vintage')) return 'vintage';
+    if (activeCosmetics.includes('theme_aurora')) return 'aurora';
+    if (activeCosmetics.includes('theme_frost')) return 'frost';
+    if (activeCosmetics.includes('theme_ember')) return 'ember';
+    if (activeCosmetics.includes('theme_tidal')) return 'tidal';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season6')) return 'night_ocean';
@@ -5509,13 +5444,7 @@ function GameApp(_ref33) {
               setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
               setActiveCosmetics(gs.data.active_cosmetics || []);
               setInfLevels({
-                winmult_inf: gs.data.winmult_inf_level || 0,
-                bonusmult_inf: gs.data.bonusmult_inf_level || 0,
-                streak_armor_inf: gs.data.streak_armor_level || 0,
-                lure_mastery_inf: gs.data.lure_mastery_level || 0,
-                jackpot_resonance_inf: gs.data.jackpot_resonance_level || 0,
-                echo_amp_inf: gs.data.echo_amp_level || 0,
-                proc_streak_inf: gs.data.proc_streak_level || 0
+                clickmult_inf: gs.data.clickmult_inf_level || 0
               });
               setEquippedClass(gs.data.equipped_class || null);
               setProcStreak(gs.data.proc_streak || 0);
@@ -5525,6 +5454,19 @@ function GameApp(_ref33) {
               if (gs.data.dice_charges != null) setDiceCharges(gs.data.dice_charges);
               if (gs.data.dice_last_recharge) setDiceLastRecharge(gs.data.dice_last_recharge);
               setDiceRolledSinceSpin((_gs$data$dice_rolled_ = gs.data.dice_rolled_since_spin) !== null && _gs$data$dice_rolled_ !== void 0 ? _gs$data$dice_rolled_ : false);
+              // Season 8 state sync
+              if (gs.data.prestige_level != null) setPrestigeLevel(gs.data.prestige_level);
+              if (gs.data.legacy_wins != null) setLegacyWins(gs.data.legacy_wins);
+              if (gs.data.onboarding_step != null) setOnboardingStep(gs.data.onboarding_step);
+              if (gs.data.wager_streak != null) setWagerStreak(gs.data.wager_streak);
+              if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
+              if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
+              if (gs.data.wager_tokens != null) setWagerTokens(gs.data.wager_tokens);
+              if (gs.data.aquarium_species != null) setAquariumSpecies(gs.data.aquarium_species);
+              if (gs.data.guard_charges != null) setGuardCharges(gs.data.guard_charges);
+              if (gs.data.bounties != null) setBounties(gs.data.bounties);
+              if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
+              if (gs.data.singularity != null) setSingularity(gs.data.singularity);
             }
             _context9.next = 14;
             break;
@@ -5595,18 +5537,11 @@ function GameApp(_ref33) {
               setOwnedItems(data.owned_items);
               setRegenRechargeWins((_data$regen_recharge_ = data.regen_recharge_wins) !== null && _data$regen_recharge_ !== void 0 ? _data$regen_recharge_ : 0);
               if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-              if (data.winmult_inf_level != null || data.bonusmult_inf_level != null || data.lure_mastery_level != null || data.jackpot_resonance_level != null || data.echo_amp_level != null || data.proc_streak_level != null) {
+              if (data.clickmult_inf_level != null) {
                 setInfLevels(function (prev) {
-                  var _data$winmult_inf_lev, _data$bonusmult_inf_l, _data$streak_armor_le, _data$lure_mastery_le, _data$jackpot_resonan, _data$echo_amp_level, _data$proc_streak_lev;
-                  return {
-                    winmult_inf: (_data$winmult_inf_lev = data.winmult_inf_level) !== null && _data$winmult_inf_lev !== void 0 ? _data$winmult_inf_lev : prev.winmult_inf,
-                    bonusmult_inf: (_data$bonusmult_inf_l = data.bonusmult_inf_level) !== null && _data$bonusmult_inf_l !== void 0 ? _data$bonusmult_inf_l : prev.bonusmult_inf,
-                    streak_armor_inf: (_data$streak_armor_le = data.streak_armor_level) !== null && _data$streak_armor_le !== void 0 ? _data$streak_armor_le : prev.streak_armor_inf,
-                    lure_mastery_inf: (_data$lure_mastery_le = data.lure_mastery_level) !== null && _data$lure_mastery_le !== void 0 ? _data$lure_mastery_le : prev.lure_mastery_inf,
-                    jackpot_resonance_inf: (_data$jackpot_resonan = data.jackpot_resonance_level) !== null && _data$jackpot_resonan !== void 0 ? _data$jackpot_resonan : prev.jackpot_resonance_inf,
-                    echo_amp_inf: (_data$echo_amp_level = data.echo_amp_level) !== null && _data$echo_amp_level !== void 0 ? _data$echo_amp_level : prev.echo_amp_inf,
-                    proc_streak_inf: (_data$proc_streak_lev = data.proc_streak_level) !== null && _data$proc_streak_lev !== void 0 ? _data$proc_streak_lev : prev.proc_streak_inf
-                  };
+                  return _objectSpread(_objectSpread({}, prev), {}, {
+                    clickmult_inf: data.clickmult_inf_level
+                  });
                 });
               }
             } else {
@@ -5854,7 +5789,7 @@ function GameApp(_ref33) {
     setRegenRechargeWins((_data$regen_recharge_2 = data.regen_recharge_wins) !== null && _data$regen_recharge_2 !== void 0 ? _data$regen_recharge_2 : 0);
     if (data.owned_items) {
       var spinResult = new Set(data.owned_items);
-      // Sync guard from spin result (can be removed by guard block, added by auto-guard).
+      // Sync guard from spin result (can be removed by guard block).
       // All other items kept from prev to preserve mid-spin shop purchases.
       setOwnedItems(function (prev) {
         var withoutGuard = prev.filter(function (id) {
@@ -5871,7 +5806,6 @@ function GameApp(_ref33) {
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-    if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
     setDiceRolledSinceSpin(false);
@@ -5879,6 +5813,23 @@ function GameApp(_ref33) {
       return prev + 1;
     });
     if (data.proc_streak != null) setProcStreak(data.proc_streak);
+    // Season 8: update wager state from spin result
+    if (data.wager_streak != null) setWagerStreak(data.wager_streak);
+    if (data.stake != null) setWagerLastStake(data.stake);
+    if (data.onboarding_advance) {
+      setOnboardingStep(function (prev) {
+        var next = Math.max(prev, 1);
+        if (next >= 5) setShowOnboarding(false);
+        return next;
+      });
+    }
+    // Season 8: fetch updated bounties after jackpot
+    if (data.jackpot_hit || data.wager_streak === 10) {
+      apiGame('/api/bounties').then(function (r) {
+        if (r.ok) setBounties(r.data.bounties || []);
+      });
+    }
+    // Season 8: update community goal from state poll
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -5889,7 +5840,7 @@ function GameApp(_ref33) {
     } : null);
     setShowResultSync(true);
     var cosm = activeCosmeticsRef.current;
-    if (!lowSpecRef.current) {
+    if (!lowSpecRef.current && !reducedMotion) {
       if (data.result === 'win' || data.guard_triggered && data.guard_blocked) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
@@ -5906,7 +5857,7 @@ function GameApp(_ref33) {
     fishTimerRef.current = setTimeout(function () {
       return setFishMood('idle');
     }, 2500);
-  }, [showToast]);
+  }, [showToast, reducedMotion]);
 
   // Dismiss the result banner smoothly
   var dismissResult = useCallback(function () {
@@ -6142,6 +6093,560 @@ function GameApp(_ref33) {
       return _ref44.apply(this, arguments);
     };
   }();
+
+  // ── Season 8 state ─────────────────────────────────────────────────────────
+  var _useState183 = useState(gameState.prestige_level || 0),
+    _useState184 = _slicedToArray(_useState183, 2),
+    prestigeLevel = _useState184[0],
+    setPrestigeLevel = _useState184[1];
+  var _useState185 = useState(gameState.prestige_count || 0),
+    _useState186 = _slicedToArray(_useState185, 2),
+    prestigeCount = _useState186[0],
+    setPrestigeCount = _useState186[1];
+  var _useState187 = useState(gameState.legacy_wins || 0),
+    _useState188 = _slicedToArray(_useState187, 2),
+    legacyWins = _useState188[0],
+    setLegacyWins = _useState188[1];
+  var _useState189 = useState(gameState.onboarding_step || 0),
+    _useState190 = _slicedToArray(_useState189, 2),
+    onboardingStep = _useState190[0],
+    setOnboardingStep = _useState190[1];
+  var _useState191 = useState(gameState.wager_streak || 0),
+    _useState192 = _slicedToArray(_useState191, 2),
+    wagerStreak = _useState192[0],
+    setWagerStreak = _useState192[1];
+  var _useState193 = useState(gameState.wager_last_stake || 1),
+    _useState194 = _slicedToArray(_useState193, 2),
+    wagerLastStake = _useState194[0],
+    setWagerLastStake = _useState194[1];
+  var _useState195 = useState(gameState.double_down_pending || false),
+    _useState196 = _slicedToArray(_useState195, 2),
+    doubleDownPending = _useState196[0],
+    setDoubleDownPending = _useState196[1];
+  var _useState197 = useState(gameState.wager_banked_wins || 0),
+    _useState198 = _slicedToArray(_useState197, 2),
+    wagerBankedWins = _useState198[0],
+    setWagerBankedWins = _useState198[1];
+  var _useState199 = useState(gameState.wager_insurance_charges || 0),
+    _useState200 = _slicedToArray(_useState199, 2),
+    wagerInsuranceCharges = _useState200[0],
+    setWagerInsuranceCharges = _useState200[1];
+  var _useState201 = useState(gameState.active_wheel_mode || 'steady'),
+    _useState202 = _slicedToArray(_useState201, 2),
+    activeWheelMode = _useState202[0],
+    setActiveWheelMode = _useState202[1];
+  var _useState203 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    _useState204 = _slicedToArray(_useState203, 2),
+    availableWheelModes = _useState204[0],
+    setAvailableWheelModes = _useState204[1];
+  var _useState205 = useState(gameState.wager_tokens || 0),
+    _useState206 = _slicedToArray(_useState205, 2),
+    wagerTokens = _useState206[0],
+    setWagerTokens = _useState206[1];
+  var _useState207 = useState(gameState.aquarium_species || []),
+    _useState208 = _slicedToArray(_useState207, 2),
+    aquariumSpecies = _useState208[0],
+    setAquariumSpecies = _useState208[1];
+  var _useState209 = useState(gameState.cosmetic_fragments || 0),
+    _useState210 = _slicedToArray(_useState209, 2),
+    cosmeticFragments = _useState210[0],
+    setCosmeticFragments = _useState210[1];
+  var _useState211 = useState(gameState.guard_charges || 0),
+    _useState212 = _slicedToArray(_useState211, 2),
+    guardCharges = _useState212[0],
+    setGuardCharges = _useState212[1];
+  var _useState213 = useState(gameState.bounties || []),
+    _useState214 = _slicedToArray(_useState213, 2),
+    bounties = _useState214[0],
+    setBounties = _useState214[1];
+  var _useState215 = useState(gameState.community_goal || null),
+    _useState216 = _slicedToArray(_useState215, 2),
+    communityGoal = _useState216[0],
+    setCommunityGoal = _useState216[1];
+  var _useState217 = useState(gameState.singularity || null),
+    _useState218 = _slicedToArray(_useState217, 2),
+    singularity = _useState218[0],
+    setSingularity = _useState218[1];
+  var _useState219 = useState(gameState.wager_last_stake || 1),
+    _useState220 = _slicedToArray(_useState219, 2),
+    stake = _useState220[0],
+    setStake = _useState220[1];
+  var _useState221 = useState(false),
+    _useState222 = _slicedToArray(_useState221, 2),
+    showPrestigeConfirm = _useState222[0],
+    setShowPrestigeConfirm = _useState222[1];
+  var _useState223 = useState((gameState.onboarding_step || 0) < 5),
+    _useState224 = _slicedToArray(_useState223, 2),
+    showOnboarding = _useState224[0],
+    setShowOnboarding = _useState224[1];
+  var _useState225 = useState(function () {
+      return localStorage.getItem('reducedMotion') === 'true';
+    }),
+    _useState226 = _slicedToArray(_useState225, 2),
+    reducedMotion = _useState226[0],
+    setReducedMotion = _useState226[1];
+  var _useState227 = useState(function () {
+      return localStorage.getItem('highContrast') === 'true';
+    }),
+    _useState228 = _slicedToArray(_useState227, 2),
+    highContrast = _useState228[0],
+    setHighContrast = _useState228[1];
+  var _useState229 = useState(false),
+    _useState230 = _slicedToArray(_useState229, 2),
+    showLegacyBoards = _useState230[0],
+    setShowLegacyBoards = _useState230[1];
+  var _useState231 = useState([]),
+    _useState232 = _slicedToArray(_useState231, 2),
+    legacyBoards = _useState232[0],
+    setLegacyBoards = _useState232[1];
+
+  // Season 8: apply accessibility classes
+  useEffect(function () {
+    localStorage.setItem('reducedMotion', reducedMotion);
+    document.body.classList.toggle('reduced-motion', reducedMotion);
+  }, [reducedMotion]);
+  useEffect(function () {
+    localStorage.setItem('highContrast', highContrast);
+    document.body.classList.toggle('high-contrast', highContrast);
+  }, [highContrast]);
+
+  // Season 8: sync state from /api/state poll (season change handler already updates most state)
+  // This runs on mount and when gameState changes
+  useEffect(function () {
+    if (gameState.prestige_level != null) setPrestigeLevel(gameState.prestige_level);
+    if (gameState.prestige_count != null) setPrestigeCount(gameState.prestige_count);
+    if (gameState.legacy_wins != null) setLegacyWins(gameState.legacy_wins);
+    if (gameState.onboarding_step != null) {
+      setOnboardingStep(gameState.onboarding_step);
+      setShowOnboarding(gameState.onboarding_step < 5);
+    }
+    if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
+    if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
+    if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
+    if (gameState.wager_banked_wins != null) setWagerBankedWins(gameState.wager_banked_wins);
+    if (gameState.wager_insurance_charges != null) setWagerInsuranceCharges(gameState.wager_insurance_charges);
+    if (gameState.active_wheel_mode != null) setActiveWheelMode(gameState.active_wheel_mode);
+    if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
+    if (gameState.wager_tokens != null) setWagerTokens(gameState.wager_tokens);
+    if (gameState.aquarium_species != null) setAquariumSpecies(gameState.aquarium_species);
+    if (gameState.cosmetic_fragments != null) setCosmeticFragments(gameState.cosmetic_fragments);
+    if (gameState.guard_charges != null) setGuardCharges(gameState.guard_charges);
+    if (gameState.bounties != null) setBounties(gameState.bounties);
+    if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
+    if (gameState.singularity != null) setSingularity(gameState.singularity);
+  }, []); // eslint-disable-line
+
+  // Season 8: handle stake change
+  var handleStakeChange = useCallback(/*#__PURE__*/function () {
+    var _ref45 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee18(newStake) {
+      return _regeneratorRuntime().wrap(function _callee18$(_context18) {
+        while (1) switch (_context18.prev = _context18.next) {
+          case 0:
+            setStake(newStake);
+            _context18.next = 3;
+            return apiGame('/api/wager/stake', {
+              method: 'POST',
+              body: JSON.stringify({
+                stake: newStake
+              })
+            });
+          case 3:
+          case "end":
+            return _context18.stop();
+        }
+      }, _callee18);
+    }));
+    return function (_x10) {
+      return _ref45.apply(this, arguments);
+    };
+  }(), []);
+
+  // Season 8: handle wheel mode change
+  var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
+    var _ref46 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee19(mode) {
+      var _yield$apiGame11, ok, data;
+      return _regeneratorRuntime().wrap(function _callee19$(_context19) {
+        while (1) switch (_context19.prev = _context19.next) {
+          case 0:
+            _context19.next = 2;
+            return apiGame('/api/wheel-mode', {
+              method: 'POST',
+              body: JSON.stringify({
+                mode: mode
+              })
+            });
+          case 2:
+            _yield$apiGame11 = _context19.sent;
+            ok = _yield$apiGame11.ok;
+            data = _yield$apiGame11.data;
+            if (ok) setActiveWheelMode(mode);else showToast(data.error || 'Mode change failed');
+          case 6:
+          case "end":
+            return _context19.stop();
+        }
+      }, _callee19);
+    }));
+    return function (_x11) {
+      return _ref46.apply(this, arguments);
+    };
+  }(), [showToast]);
+
+  // Season 8: handle prestige
+  var handlePrestige = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee20() {
+    var _yield$apiGame12, ok, data;
+    return _regeneratorRuntime().wrap(function _callee20$(_context20) {
+      while (1) switch (_context20.prev = _context20.next) {
+        case 0:
+          setShowPrestigeConfirm(false);
+          _context20.next = 3;
+          return apiGame('/api/prestige', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 3:
+          _yield$apiGame12 = _context20.sent;
+          ok = _yield$apiGame12.ok;
+          data = _yield$apiGame12.data;
+          if (ok) {
+            setPrestigeLevel(data.prestige_level);
+            setPrestigeCount(data.prestige_count);
+            setLegacyWins(data.legacy_wins);
+            setWins(0);
+            setLosses(0);
+            setStreak(0);
+            setSpinCount(0);
+            setWagerStreak(0);
+            setWagerLastStake(0);
+            showToast(" Prestiged to Level ".concat(data.prestige_level, "!"));
+          } else {
+            showToast(data.error || 'Prestige failed');
+          }
+        case 7:
+        case "end":
+          return _context20.stop();
+      }
+    }, _callee20);
+  })), [showToast]);
+
+  // Season 8: handle guard activation
+  var handleGuardActivate = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee21() {
+    var _yield$apiGame13, ok, data;
+    return _regeneratorRuntime().wrap(function _callee21$(_context21) {
+      while (1) switch (_context21.prev = _context21.next) {
+        case 0:
+          _context21.next = 2;
+          return apiGame('/api/guard', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 2:
+          _yield$apiGame13 = _context21.sent;
+          ok = _yield$apiGame13.ok;
+          data = _yield$apiGame13.data;
+          if (ok) {
+            setGuardCharges(function (prev) {
+              return Math.max(0, prev - 1);
+            });
+            showToast('🛡️ Guard activated');
+          } else {
+            showToast(data.error || 'Guard failed');
+          }
+        case 6:
+        case "end":
+          return _context21.stop();
+      }
+    }, _callee21);
+  })), [showToast]);
+
+  // Season 8: handle bounty claim
+  var handleBountyClaim = useCallback(/*#__PURE__*/function () {
+    var _ref49 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee22(bountyId) {
+      var _yield$apiGame14, ok, data, _data$rewards, _data$rewards2;
+      return _regeneratorRuntime().wrap(function _callee22$(_context22) {
+        while (1) switch (_context22.prev = _context22.next) {
+          case 0:
+            _context22.next = 2;
+            return apiGame('/api/bounties/claim', {
+              method: 'POST',
+              body: JSON.stringify({
+                bounty_id: bountyId
+              })
+            });
+          case 2:
+            _yield$apiGame14 = _context22.sent;
+            ok = _yield$apiGame14.ok;
+            data = _yield$apiGame14.data;
+            if (ok) {
+              if ((_data$rewards = data.rewards) !== null && _data$rewards !== void 0 && _data$rewards.cosmetic_fragments) setCosmeticFragments(function (prev) {
+                return prev + data.rewards.cosmetic_fragments;
+              });
+              if ((_data$rewards2 = data.rewards) !== null && _data$rewards2 !== void 0 && _data$rewards2.wins) setWins(function (prev) {
+                return prev + data.rewards.wins;
+              });
+              setBounties(function (prev) {
+                return prev.map(function (b) {
+                  return b.bounty_id === bountyId ? _objectSpread(_objectSpread({}, b), {}, {
+                    claimed: true
+                  }) : b;
+                });
+              });
+              showToast('Bounty claimed!');
+            } else {
+              showToast(data.error || 'Claim failed');
+            }
+          case 6:
+          case "end":
+            return _context22.stop();
+        }
+      }, _callee22);
+    }));
+    return function (_x12) {
+      return _ref49.apply(this, arguments);
+    };
+  }(), [showToast]);
+
+  // Season 8: handle singularity contribution
+  var handleSingularityContribute = useCallback(/*#__PURE__*/function () {
+    var _ref50 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee23(amount) {
+      var _yield$apiGame15, ok, data;
+      return _regeneratorRuntime().wrap(function _callee23$(_context23) {
+        while (1) switch (_context23.prev = _context23.next) {
+          case 0:
+            _context23.next = 2;
+            return apiGame('/api/singularity/contribute', {
+              method: 'POST',
+              body: JSON.stringify({
+                amount: amount
+              })
+            });
+          case 2:
+            _yield$apiGame15 = _context23.sent;
+            ok = _yield$apiGame15.ok;
+            data = _yield$apiGame15.data;
+            if (ok) {
+              setWins(function (prev) {
+                return prev - amount;
+              });
+              setSingularity(function (prev) {
+                return _objectSpread(_objectSpread({}, prev), {}, {
+                  total_contributed: data.total_contributed,
+                  filled: data.filled
+                });
+              });
+              showToast("Contributed ".concat(fmt(amount), " wins to Singularity"));
+            } else {
+              showToast(data.error || 'Contribution failed');
+            }
+          case 6:
+          case "end":
+            return _context23.stop();
+        }
+      }, _callee23);
+    }));
+    return function (_x13) {
+      return _ref50.apply(this, arguments);
+    };
+  }(), [showToast]);
+
+  // Season 8: handle fish-to-wager conversion
+  var handleFishToWager = useCallback(/*#__PURE__*/function () {
+    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee24(fishId) {
+      var _yield$apiGame16, ok, data;
+      return _regeneratorRuntime().wrap(function _callee24$(_context24) {
+        while (1) switch (_context24.prev = _context24.next) {
+          case 0:
+            _context24.next = 2;
+            return apiGame('/api/fish-to-wager', {
+              method: 'POST',
+              body: JSON.stringify({
+                fish_id: fishId
+              })
+            });
+          case 2:
+            _yield$apiGame16 = _context24.sent;
+            ok = _yield$apiGame16.ok;
+            data = _yield$apiGame16.data;
+            if (ok) {
+              setWagerTokens(data.total_wager_tokens);
+              showToast("+".concat(data.tokens_earned, " wager tokens"));
+            } else {
+              showToast(data.error || 'Conversion failed');
+            }
+          case 6:
+          case "end":
+            return _context24.stop();
+        }
+      }, _callee24);
+    }));
+    return function (_x14) {
+      return _ref51.apply(this, arguments);
+    };
+  }(), [showToast]);
+
+  // Season 8: handle double-down
+  var handleDoubleDown = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee25() {
+    var _yield$apiGame17, ok, data;
+    return _regeneratorRuntime().wrap(function _callee25$(_context25) {
+      while (1) switch (_context25.prev = _context25.next) {
+        case 0:
+          _context25.next = 2;
+          return apiGame('/api/wager/double-down', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 2:
+          _yield$apiGame17 = _context25.sent;
+          ok = _yield$apiGame17.ok;
+          data = _yield$apiGame17.data;
+          if (ok) {
+            setDoubleDownPending(true);
+            showToast('⚡ Double down armed!');
+          } else {
+            showToast(data.error || 'Double down failed');
+          }
+        case 6:
+        case "end":
+          return _context25.stop();
+      }
+    }, _callee25);
+  })), [showToast]);
+
+  // Season 8: handle insurance
+  var handleInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee26() {
+    var _yield$apiGame18, ok, data;
+    return _regeneratorRuntime().wrap(function _callee26$(_context26) {
+      while (1) switch (_context26.prev = _context26.next) {
+        case 0:
+          _context26.next = 2;
+          return apiGame('/api/wager/insurance', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 2:
+          _yield$apiGame18 = _context26.sent;
+          ok = _yield$apiGame18.ok;
+          data = _yield$apiGame18.data;
+          if (ok) {
+            setWagerInsuranceCharges(function (prev) {
+              return Math.max(0, prev - 1);
+            });
+            showToast('🛡️ Insurance activated');
+          } else {
+            showToast(data.error || 'Insurance failed');
+          }
+        case 6:
+        case "end":
+          return _context26.stop();
+      }
+    }, _callee26);
+  })), [showToast]);
+
+  // Season 8: handle loadout save
+  var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
+    var _ref54 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee27(slot, loadout) {
+      var _yield$apiGame19, ok;
+      return _regeneratorRuntime().wrap(function _callee27$(_context27) {
+        while (1) switch (_context27.prev = _context27.next) {
+          case 0:
+            _context27.next = 2;
+            return apiGame('/api/loadout', {
+              method: 'POST',
+              body: JSON.stringify({
+                slot: slot,
+                loadout: loadout
+              })
+            });
+          case 2:
+            _yield$apiGame19 = _context27.sent;
+            ok = _yield$apiGame19.ok;
+            if (ok) showToast("Loadout ".concat(slot, " saved"));else showToast('Save failed');
+          case 5:
+          case "end":
+            return _context27.stop();
+        }
+      }, _callee27);
+    }));
+    return function (_x15, _x16) {
+      return _ref54.apply(this, arguments);
+    };
+  }(), [showToast]);
+
+  // Season 8: handle loadout apply
+  var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
+    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee28(slot) {
+      var _yield$apiGame20, ok, data;
+      return _regeneratorRuntime().wrap(function _callee28$(_context28) {
+        while (1) switch (_context28.prev = _context28.next) {
+          case 0:
+            _context28.next = 2;
+            return apiGame('/api/loadout/apply', {
+              method: 'POST',
+              body: JSON.stringify({
+                slot: slot
+              })
+            });
+          case 2:
+            _yield$apiGame20 = _context28.sent;
+            ok = _yield$apiGame20.ok;
+            data = _yield$apiGame20.data;
+            if (ok) {
+              if (data.owned_items) setOwnedItems(data.owned_items);
+              if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+              showToast("Loadout ".concat(slot, " applied"));
+            } else {
+              showToast(data.error || 'Apply failed');
+            }
+          case 6:
+          case "end":
+            return _context28.stop();
+        }
+      }, _callee28);
+    }));
+    return function (_x17) {
+      return _ref55.apply(this, arguments);
+    };
+  }(), [showToast]);
+
+  // Season 8: fetch legacy boards
+  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee29() {
+    var _yield$apiGame21, ok, data;
+    return _regeneratorRuntime().wrap(function _callee29$(_context29) {
+      while (1) switch (_context29.prev = _context29.next) {
+        case 0:
+          setShowLegacyBoards(true);
+          _context29.next = 3;
+          return apiGame('/api/legacy-boards');
+        case 3:
+          _yield$apiGame21 = _context29.sent;
+          ok = _yield$apiGame21.ok;
+          data = _yield$apiGame21.data;
+          if (ok) setLegacyBoards(data.boards || []);
+        case 7:
+        case "end":
+          return _context29.stop();
+      }
+    }, _callee29);
+  })), []);
+
+  // Season 8: keyboard shortcuts (T37)
+  useEffect(function () {
+    var handler = function handler(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === ' ' && ownedItems.includes('wager_unlock')) {
+        e.preventDefault();
+        // Spacebar could trigger spin — but game auto-spins, so this is for manual stake
+      }
+      // Number keys 1-0 select stake
+      if (e.key >= '0' && e.key <= '9' && ownedItems.includes('wager_unlock')) {
+        var newStake = e.key === '0' ? 10 : parseInt(e.key);
+        handleStakeChange(newStake);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return function () {
+      return window.removeEventListener('keydown', handler);
+    };
+  }, [ownedItems, handleStakeChange]);
   var hasGuard = ownedItems.includes('guard');
   var hasRegen = ownedItems.includes('regen_shield');
 
@@ -6178,7 +6683,268 @@ function GameApp(_ref33) {
     className: "catchup-banner"
   }, catchUpSummary), fishCatchUpSummary && /*#__PURE__*/React.createElement("div", {
     className: "catchup-banner catchup-banner--fish"
-  }, fishCatchUpSummary), /*#__PURE__*/React.createElement(Confetti, {
+  }, fishCatchUpSummary), /*#__PURE__*/React.createElement("div", {
+    className: "aria-live-region",
+    "aria-live": "polite",
+    "aria-atomic": "true"
+  }, result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'jackpot' ? 'Jackpot!' : ''), showOnboarding && onboardingStep < 5 && /*#__PURE__*/React.createElement("div", {
+    className: "onboarding-overlay"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "onboarding-modal"
+  }, /*#__PURE__*/React.createElement("h3", null, "Welcome to Season 8!"), /*#__PURE__*/React.createElement("p", null, "Step ", onboardingStep + 1, " of 5: ", onboardingStep === 0 ? 'Spin the wheel to get started!' : onboardingStep === 1 ? 'Try setting a wager stake!' : onboardingStep === 2 ? 'Catch a fish!' : onboardingStep === 3 ? 'Check your bounties!' : 'Explore the new features!'), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      setShowOnboarding(false);
+      setOnboardingStep(5);
+    }
+  }, "Skip"))), showPrestigeConfirm && /*#__PURE__*/React.createElement("div", {
+    className: "onboarding-overlay"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "onboarding-modal"
+  }, /*#__PURE__*/React.createElement("h3", null, "\u26A0\uFE0F Prestige Reset"), /*#__PURE__*/React.createElement("p", null, "This will reset your wins, losses, streak, and non-cosmetic upgrades. Your legacy wins will be preserved. Continue?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '10px',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: handlePrestige
+  }, "Confirm Prestige"), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setShowPrestigeConfirm(false);
+    }
+  }, "Cancel")))), showLegacyBoards && /*#__PURE__*/React.createElement("div", {
+    className: "onboarding-overlay",
+    onClick: function onClick() {
+      return setShowLegacyBoards(false);
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "onboarding-modal",
+    onClick: function onClick(e) {
+      return e.stopPropagation();
+    },
+    style: {
+      maxWidth: '500px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", null, "\uD83C\uDFC6 Hall of Fame \u2014 Legacy Wins"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: '400px',
+      overflowY: 'auto'
+    }
+  }, legacyBoards.length === 0 ? /*#__PURE__*/React.createElement("p", null, "No legacy wins recorded yet.") : /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse'
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
+    style: {
+      textAlign: 'left'
+    }
+  }, "#"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      textAlign: 'left'
+    }
+  }, "Player"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      textAlign: 'right'
+    }
+  }, "Legacy Wins"))), /*#__PURE__*/React.createElement("tbody", null, legacyBoards.map(function (b, i) {
+    return /*#__PURE__*/React.createElement("tr", {
+      key: i,
+      style: {
+        borderBottom: '1px solid #333'
+      }
+    }, /*#__PURE__*/React.createElement("td", null, i + 1), /*#__PURE__*/React.createElement("td", null, b.username), /*#__PURE__*/React.createElement("td", {
+      style: {
+        textAlign: 'right'
+      }
+    }, fmt(b.legacy_wins)));
+  })))), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setShowLegacyBoards(false);
+    }
+  }, "Close"))), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-wager-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "wager-stake-control"
+  }, /*#__PURE__*/React.createElement("label", null, "Stake: "), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "1",
+    max: "10",
+    value: stake,
+    onChange: function onChange(e) {
+      return handleStakeChange(parseInt(e.target.value));
+    },
+    className: "wager-slider"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "stake-label stake-".concat(stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless')
+  }, stake, "\xD7 ", stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless')), wagerStreak > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-hotstreak"
+  }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " wins (+", Math.min(wagerStreak * 5, 50), "% bonus)"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn",
+    onClick: handleDoubleDown
+  }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn",
+    onClick: handleInsurance
+  }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")")), /*#__PURE__*/React.createElement("div", {
+    className: "season8-wheel-mode"
+  }, /*#__PURE__*/React.createElement("select", {
+    value: activeWheelMode,
+    onChange: function onChange(e) {
+      return handleWheelModeChange(e.target.value);
+    },
+    className: "wheel-mode-select"
+  }, availableWheelModes.map(function (mode) {
+    return /*#__PURE__*/React.createElement("option", {
+      key: mode,
+      value: mode
+    }, mode.charAt(0).toUpperCase() + mode.slice(1));
+  }))), ownedItems.includes('prestige_unlock') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-prestige-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "prestige-badge"
+  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "%)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "legacy-badge"
+  }, "Seasons 1-7: ", fmt(legacyWins), " wins"), prestigeLevel < 20 && /*#__PURE__*/React.createElement("button", {
+    className: "prestige-btn",
+    disabled: wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000),
+    onClick: function onClick() {
+      return setShowPrestigeConfirm(true);
+    }
+  }, "Prestige")), ownedItems.includes('guard') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-guard-panel"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "guard-charges"
+  }, "\uD83D\uDEE1\uFE0F ", guardCharges, "/3"), /*#__PURE__*/React.createElement("button", {
+    className: "guard-activate-btn",
+    disabled: guardCharges === 0,
+    onClick: handleGuardActivate
+  }, "Block")), bounties && bounties.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "season8-bounties-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bounties-header"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Daily Bounties"), cosmeticFragments > 0 && /*#__PURE__*/React.createElement("span", {
+    className: "fragment-count"
+  }, "\uD83D\uDC8E ", cosmeticFragments)), bounties.map(function (b) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: b.bounty_id,
+      className: "bounty-card"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bounty-desc"
+    }, b.description || b.bounty_id), /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-bar"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-fill",
+      style: {
+        width: "".concat(Math.min(100, b.progress / b.target * 100), "%")
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-text"
+    }, fmt(b.progress), " / ", fmt(b.target)), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
+      className: "bounty-claim-btn",
+      onClick: function onClick() {
+        return handleBountyClaim(b.bounty_id);
+      }
+    }, "Claim"));
+  })), communityGoal && /*#__PURE__*/React.createElement("div", {
+    className: "season8-community-goal"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-label"
+  }, "\uD83C\uDF0D Community Goal"), /*#__PURE__*/React.createElement("div", {
+    className: "goal-desc"
+  }, communityGoal.description), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-text"
+  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target)), /*#__PURE__*/React.createElement("div", {
+    className: "goal-contrib"
+  }, "You: ", fmt(communityGoal.player_contribution), " / ", fmt(communityGoal.per_player_cap))), singularity && /*#__PURE__*/React.createElement("div", {
+    className: "season8-singularity-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-label"
+  }, "\uD83C\uDF00 Singularity Meter"), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-text"
+  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target)), singularity.fill_count > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "singularity-fills"
+  }, "Convergences: ", singularity.fill_count), /*#__PURE__*/React.createElement("button", {
+    className: "singularity-contribute-btn",
+    onClick: function onClick() {
+      var amt = prompt('How many wins to contribute?');
+      if (amt) handleSingularityContribute(parseInt(amt));
+    }
+  }, "Contribute")), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-aquarium-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "aquarium-header"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium (", aquariumSpecies.length, " species)"), /*#__PURE__*/React.createElement("span", {
+    className: "aquarium-luck"
+  }, "+", (aquariumSpecies.length * 0.1).toFixed(1), "% luck")), /*#__PURE__*/React.createElement("div", {
+    className: "aquarium-grid"
+  }, aquariumSpecies.map(function (s) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: s,
+      className: "aquarium-species",
+      title: s
+    }, s);
+  })), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-tokens"
+  }, "\uD83E\uDE99 Wager Tokens: ", fmt(wagerTokens))), /*#__PURE__*/React.createElement("div", {
+    className: "season8-loadout-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "loadout-label"
+  }, "\u2699\uFE0F Loadouts"), /*#__PURE__*/React.createElement("div", {
+    className: "loadout-slots"
+  }, [1, 2, 3].map(function (slot) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: slot,
+      className: "loadout-slot"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "loadout-save-btn",
+      onClick: function onClick() {
+        return handleLoadoutSave(slot, {
+          owned_items: ownedItems,
+          active_cosmetics: activeCosmetics
+        });
+      }
+    }, "Save ", slot), /*#__PURE__*/React.createElement("button", {
+      className: "loadout-apply-btn",
+      onClick: function onClick() {
+        return handleLoadoutApply(slot);
+      }
+    }, "Equip ", slot));
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "season8-a11y-panel"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "a11y-toggle"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: reducedMotion,
+    onChange: function onChange(e) {
+      return setReducedMotion(e.target.checked);
+    }
+  }), "Reduced Motion"), /*#__PURE__*/React.createElement("label", {
+    className: "a11y-toggle"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: highContrast,
+    onChange: function onChange(e) {
+      return setHighContrast(e.target.checked);
+    }
+  }), "High Contrast"), /*#__PURE__*/React.createElement("button", {
+    className: "legacy-boards-btn",
+    onClick: handleShowLegacyBoards
+  }, "\uD83C\uDFC6 Hall of Fame")), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), wormholeActive && /*#__PURE__*/React.createElement("div", {
@@ -6557,66 +7323,66 @@ function GameApp(_ref33) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState183 = useState(undefined),
-    _useState184 = _slicedToArray(_useState183, 2),
-    user = _useState184[0],
-    setUser = _useState184[1];
-  var _useState185 = useState(null),
-    _useState186 = _slicedToArray(_useState185, 2),
-    gameState = _useState186[0],
-    setGameState = _useState186[1];
-  var _useState187 = useState(''),
-    _useState188 = _slicedToArray(_useState187, 2),
-    sessionMsg = _useState188[0],
-    setSessionMsg = _useState188[1];
+  var _useState233 = useState(undefined),
+    _useState234 = _slicedToArray(_useState233, 2),
+    user = _useState234[0],
+    setUser = _useState234[1];
+  var _useState235 = useState(null),
+    _useState236 = _slicedToArray(_useState235, 2),
+    gameState = _useState236[0],
+    setGameState = _useState236[1];
+  var _useState237 = useState(''),
+    _useState238 = _slicedToArray(_useState237, 2),
+    sessionMsg = _useState238[0],
+    setSessionMsg = _useState238[1];
   useEffect(function () {
-    _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee18() {
+    _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee30() {
       var _yield$apiFetch2, ok, data, gs;
-      return _regeneratorRuntime().wrap(function _callee18$(_context18) {
-        while (1) switch (_context18.prev = _context18.next) {
+      return _regeneratorRuntime().wrap(function _callee30$(_context30) {
+        while (1) switch (_context30.prev = _context30.next) {
           case 0:
-            _context18.next = 2;
+            _context30.next = 2;
             return apiFetch('/api/me');
           case 2:
-            _yield$apiFetch2 = _context18.sent;
+            _yield$apiFetch2 = _context30.sent;
             ok = _yield$apiFetch2.ok;
             data = _yield$apiFetch2.data;
             storeCsrf(data);
             if (!(ok && data.username)) {
-              _context18.next = 13;
+              _context30.next = 13;
               break;
             }
-            _context18.next = 9;
+            _context30.next = 9;
             return apiFetch('/api/state');
           case 9:
-            gs = _context18.sent;
+            gs = _context30.sent;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(data.username);
             } else {
               setUser(null);
             }
-            _context18.next = 14;
+            _context30.next = 14;
             break;
           case 13:
             setUser(null);
           case 14:
           case "end":
-            return _context18.stop();
+            return _context30.stop();
         }
-      }, _callee18);
+      }, _callee30);
     }))();
   }, []);
   var handleAuth = /*#__PURE__*/function () {
-    var _ref46 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee19(username) {
+    var _ref58 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee31(username) {
       var gs;
-      return _regeneratorRuntime().wrap(function _callee19$(_context19) {
-        while (1) switch (_context19.prev = _context19.next) {
+      return _regeneratorRuntime().wrap(function _callee31$(_context31) {
+        while (1) switch (_context31.prev = _context31.next) {
           case 0:
-            _context19.next = 2;
+            _context31.next = 2;
             return apiFetch('/api/state');
           case 2:
-            gs = _context19.sent;
+            gs = _context31.sent;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(username);
@@ -6624,12 +7390,12 @@ function App() {
             }
           case 4:
           case "end":
-            return _context19.stop();
+            return _context31.stop();
         }
-      }, _callee19);
+      }, _callee31);
     }));
-    return function handleAuth(_x10) {
-      return _ref46.apply(this, arguments);
+    return function handleAuth(_x18) {
+      return _ref58.apply(this, arguments);
     };
   }();
   var handleLogout = function handleLogout() {

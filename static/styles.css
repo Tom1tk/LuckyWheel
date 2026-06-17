@@ -4040,3 +4040,238 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   .hiatus-col  { min-width: unset; width: 100%; max-width: 320px; }
   .hiatus-lb.leaderboard-panel { max-width: 100%; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEASON 8 — WHEEL THEMES & ACCESSIBILITY (T19/T23/T37/T38/T39)
+   New wheel-container themes (.wheel-theme-<name>) and a11y utilities.
+   All rules appended below; no existing rules modified.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── T19 · Tidal — cool blue/teal, animated wave gradient, smooth flow ────── */
+.wheel-theme-tidal {
+  background: linear-gradient(135deg, #001f3f 0%, #003d5c 25%, #006d77 50%, #00a8a8 75%, #0a9396 100%);
+  background-size: 300% 300%;
+  border: 4px solid #0a9396;
+  color: #caf0f8;
+  box-shadow: 0 0 24px rgba(10,147,150,0.5), inset 0 0 30px rgba(0,168,168,0.15);
+  animation: tidal-wave 8s ease-in-out infinite;
+}
+.wheel-theme-tidal.win {
+  animation: tidal-wave 8s ease-in-out infinite, tidal-surge 0.8s ease-out;
+  border-color: #94f0e6;
+  box-shadow: 0 0 48px rgba(148,240,230,0.8), inset 0 0 40px rgba(0,213,213,0.3);
+}
+.wheel-theme-tidal.lose {
+  animation: tidal-recede 0.7s ease-in forwards;
+  border-color: #2c6e7f;
+  box-shadow: 0 0 12px rgba(44,110,127,0.4), inset 0 0 30px rgba(0,30,50,0.4);
+}
+@keyframes tidal-wave {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes tidal-surge {
+  0%   { transform: scale(1); filter: brightness(1); }
+  40%  { transform: scale(1.04); filter: brightness(1.35); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+@keyframes tidal-recede {
+  0%   { transform: scale(1); filter: brightness(1) saturate(1); }
+  50%  { transform: scale(0.97); filter: brightness(0.7) saturate(0.5); }
+  100% { transform: scale(1); filter: brightness(0.8) saturate(0.7); }
+}
+
+/* ── T23 · Ember — warm orange/red, spark animation on volatile wins ──────── */
+.wheel-theme-ember {
+  background: linear-gradient(135deg, #1a0000 0%, #4a0e0e 30%, #8b1a1a 60%, #d62828 85%, #f77f00 100%);
+  border: 4px solid #f77f00;
+  color: #ffd6a5;
+  box-shadow: 0 0 24px rgba(247,127,0,0.5), inset 0 0 30px rgba(214,40,40,0.2);
+}
+.wheel-theme-ember.win {
+  animation: ember-spark 0.6s ease-out;
+  border-color: #ffba08;
+  box-shadow: 0 0 48px rgba(255,186,8,0.85), inset 0 0 40px rgba(247,127,0,0.4);
+}
+.wheel-theme-ember.lose {
+  animation: ember-smolder 0.8s ease-in forwards;
+  border-color: #6a040f;
+  box-shadow: 0 0 12px rgba(106,4,15,0.5), inset 0 0 30px rgba(26,0,0,0.5);
+}
+@keyframes ember-spark {
+  0%   { transform: scale(1) skewX(0); filter: brightness(1); }
+  15%  { transform: scale(1.05) skewX(-2deg); filter: brightness(1.6) drop-shadow(0 0 12px #ffba08); }
+  30%  { transform: scale(1.02) skewX(2deg); filter: brightness(1.4) drop-shadow(0 0 18px #f77f00); }
+  50%  { transform: scale(1.04) skewX(-1deg); filter: brightness(1.5) drop-shadow(0 0 14px #ffd60a); }
+  70%  { transform: scale(1.01) skewX(1deg); filter: brightness(1.3) drop-shadow(0 0 10px #f48c06); }
+  100% { transform: scale(1) skewX(0); filter: brightness(1); }
+}
+@keyframes ember-smolder {
+  0%   { filter: brightness(1) saturate(1); transform: scale(1); }
+  50%  { filter: brightness(0.6) saturate(0.6); transform: scale(0.98); }
+  100% { filter: brightness(0.75) saturate(0.8); transform: scale(1); }
+}
+
+/* ── T23 · Frost — ice-crystal cyan/white, cracking animation on losses ───── */
+.wheel-theme-frost {
+  background: linear-gradient(135deg, #03045e 0%, #0077b6 30%, #00b4d8 60%, #90e0ef 85%, #caf0f8 100%);
+  border: 4px solid #90e0ef;
+  color: #f1faff;
+  box-shadow: 0 0 24px rgba(144,224,239,0.5), inset 0 0 30px rgba(0,180,216,0.2);
+}
+.wheel-theme-frost.win {
+  animation: frost-shimmer 0.8s ease-out;
+  border-color: #caf0f8;
+  box-shadow: 0 0 48px rgba(202,240,248,0.85), inset 0 0 40px rgba(144,224,239,0.4);
+}
+.wheel-theme-frost.lose {
+  animation: frost-crack 0.6s ease-in forwards;
+  border-color: #5390b8;
+  box-shadow: 0 0 12px rgba(83,144,184,0.4), inset 0 0 30px rgba(3,4,94,0.4);
+}
+@keyframes frost-shimmer {
+  0%   { filter: brightness(1); }
+  40%  { filter: brightness(1.4) drop-shadow(0 0 16px #ffffff); }
+  100% { filter: brightness(1); }
+}
+@keyframes frost-crack {
+  0%   { transform: translateX(0) scale(1); filter: brightness(1); }
+  10%  { transform: translateX(-4px) scale(1.01); filter: brightness(1.5) drop-shadow(0 0 8px #ffffff); }
+  20%  { transform: translateX(5px) scale(0.99); filter: brightness(1.3) drop-shadow(0 0 10px #caf0f8); }
+  35%  { transform: translateX(-3px) scale(1.01); filter: brightness(1.4) drop-shadow(0 0 6px #90e0ef); }
+  50%  { transform: translateX(3px) scale(0.98); filter: brightness(1.1); }
+  70%  { transform: translateX(-2px) scale(1); filter: brightness(0.9); }
+  100% { transform: translateX(0) scale(1); filter: brightness(0.75) saturate(0.7); }
+}
+
+/* ── T38 · Aurora — shifting greens/purples, northern-lights pointer trail ── */
+.wheel-theme-aurora {
+  background: linear-gradient(135deg, #03071e 0%, #1b2a4a 25%, #2d6a4f 50%, #5a189a 75%, #3c096c 100%);
+  background-size: 200% 200%;
+  border: 4px solid #52b788;
+  color: #d8f3dc;
+  box-shadow: 0 0 24px rgba(82,183,136,0.5), inset 0 0 30px rgba(90,24,154,0.25);
+  animation: aurora-shift 10s ease-in-out infinite;
+}
+/* Northern-lights trail rides the wheel pointer */
+.wheel-theme-aurora .pointer {
+  animation: aurora-shift 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px #52b788) drop-shadow(0 0 16px #5a189a);
+}
+.wheel-theme-aurora.win {
+  animation: aurora-shift 10s ease-in-out infinite, aurora-flare 0.8s ease-out;
+  border-color: #95d5b2;
+  box-shadow: 0 0 48px rgba(149,213,178,0.85), inset 0 0 40px rgba(82,183,136,0.35);
+}
+.wheel-theme-aurora.lose {
+  animation: aurora-fade 0.8s ease-in forwards;
+  border-color: #3a4a5a;
+  box-shadow: 0 0 12px rgba(58,74,90,0.4), inset 0 0 30px rgba(3,7,30,0.5);
+}
+@keyframes aurora-shift {
+  0%   { background-position: 0% 50%; filter: hue-rotate(0deg); }
+  33%  { background-position: 50% 100%; filter: hue-rotate(40deg); }
+  66%  { background-position: 100% 50%; filter: hue-rotate(-30deg); }
+  100% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+}
+@keyframes aurora-flare {
+  0%   { filter: brightness(1); transform: scale(1); }
+  40%  { filter: brightness(1.5) saturate(1.3); transform: scale(1.03); }
+  100% { filter: brightness(1); transform: scale(1); }
+}
+@keyframes aurora-fade {
+  0%   { filter: brightness(1) saturate(1); }
+  100% { filter: brightness(0.7) saturate(0.5); }
+}
+
+/* ── T39 · Vintage — retro sepia, Season 1-2 aesthetic callback ───────────── */
+.wheel-theme-vintage {
+  background: linear-gradient(135deg, #2b1d0e 0%, #4a3320 30%, #6b4423 60%, #8b6f47 85%, #c9a875 100%);
+  border: 4px solid #c9a875;
+  color: #f4e4bc;
+  box-shadow: 0 0 20px rgba(201,168,117,0.4), inset 0 0 30px rgba(74,51,32,0.3);
+  filter: sepia(0.15) contrast(0.95);
+}
+.wheel-theme-vintage.win {
+  animation: vintage-glow 0.8s ease-out;
+  border-color: #ffd700;
+  box-shadow: 0 0 44px rgba(255,215,0,0.8), inset 0 0 40px rgba(201,168,117,0.4);
+}
+.wheel-theme-vintage.lose {
+  animation: vintage-fade 0.8s ease-in forwards;
+  border-color: #5c4423;
+  box-shadow: 0 0 12px rgba(92,68,35,0.4), inset 0 0 30px rgba(43,29,14,0.5);
+}
+@keyframes vintage-glow {
+  0%   { filter: sepia(0.15) contrast(0.95) brightness(1); transform: scale(1); }
+  40%  { filter: sepia(0.1) contrast(1.1) brightness(1.3) drop-shadow(0 0 16px #ffd700); transform: scale(1.03); }
+  100% { filter: sepia(0.15) contrast(0.95) brightness(1); transform: scale(1); }
+}
+@keyframes vintage-fade {
+  0%   { filter: sepia(0.15) contrast(0.95) brightness(1); }
+  100% { filter: sepia(0.4) contrast(0.85) brightness(0.75); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   T37 · ACCESSIBILITY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Reduced motion — OS preference disables ALL animations/transitions */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* .reduced-motion — manual toggle mirrors the OS preference */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* High contrast — darker backgrounds, brighter text, thicker borders */
+.high-contrast {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-width: 3px !important;
+  border-color: #ffffff !important;
+}
+.high-contrast .wheel-theme-tidal,
+.high-contrast .wheel-theme-ember,
+.high-contrast .wheel-theme-frost,
+.high-contrast .wheel-theme-aurora,
+.high-contrast .wheel-theme-vintage {
+  background: #000000 !important;
+  border-width: 3px !important;
+  box-shadow: none !important;
+}
+.high-contrast .wheel-theme-tidal   { border-color: #00ffff !important; color: #00ffff !important; }
+.high-contrast .wheel-theme-ember   { border-color: #ff7700 !important; color: #ffaa00 !important; }
+.high-contrast .wheel-theme-frost   { border-color: #66ffff !important; color: #ffffff !important; }
+.high-contrast .wheel-theme-aurora  { border-color: #00ff66 !important; color: #66ff99 !important; }
+.high-contrast .wheel-theme-vintage { border-color: #ffdd00 !important; color: #ffee99 !important; }
+
+/* aria-live region — visually hidden, available to screen readers */
+.aria-live-region {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Keyboard focus — visible outline for keyboard navigation */
+.keyboard-focus:focus,
+.keyboard-focus:focus-visible {
+  outline: 3px solid #ffd700;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(255,215,0,0.4);
+}
