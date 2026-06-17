@@ -2228,10 +2228,29 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   font-size: 0.85rem;
   font-weight: 800;
   text-align: center;
-  padding: 10px 20px;
+  padding: 10px 40px;
   letter-spacing: 1px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.4);
   text-transform: uppercase;
+}
+
+.happy-hour-banner-close {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.8;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.happy-hour-banner-close:hover {
+  opacity: 1;
 }
 
 @keyframes happyHourSlide {

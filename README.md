@@ -568,7 +568,7 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 
 **Mobile layout** is handled entirely in CSS (`@media (max-width: 768px)`) and a small amount of React state (`isMobile`, `mobilePanel`) in `GameApp`. No separate mobile components — the same components are reused, conditionally positioned via CSS class toggles.
 
-**No localStorage** — all state lives in PostgreSQL. Legacy `localStorage` keys are cleared on mount.
+**Minimal localStorage** — game state lives in PostgreSQL, but UI preferences (low-spec mode, parallax toggle, chat panel size/open state, patch-notes-seen dismissal) persist in `localStorage`. Legacy keys from older versions are cleared on mount.
 
 ---
 

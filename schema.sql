@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS game_state (
     streak         INTEGER NOT NULL DEFAULT 0,
     owned_items          TEXT[] NOT NULL DEFAULT '{}',
     equipped_fish        VARCHAR(32) NOT NULL DEFAULT 'default',
-    shield_charges       INTEGER NOT NULL DEFAULT 0,    -- iron_shield remaining charges (0 when not owned)
     regen_recharge_wins  INTEGER NOT NULL DEFAULT 0,    -- regen_shield: wins until recharged (0 = ready)
     active_cosmetics     TEXT[] NOT NULL DEFAULT '{}',  -- which cosmetic items are currently equipped/active
     spin_count           BIGINT NOT NULL DEFAULT 0,     -- total spins ever

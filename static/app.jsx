@@ -331,10 +331,12 @@ function renderInferno(ctx, w, h, intensity, state) {
 
 function WormholeBackground({
   className = "", intensity = 1, speed = 1, starCount = 950, streakCount = 240,
-  nebulaStrength = 0.95, starDriftSpeed = 0.18,
+  nebulaStrength = 0.95, starDriftSpeed = 0.18, parallaxStrength = 28, parallaxSmoothing = 0.065,
+  parallax = false, static: staticMode = false,
 }) {
   const canvasRef = useRef(null);
   const animationRef = useRef(0);
+  const parallaxRef = useRef({ currentX: 0, currentY: 0, targetX: 0, targetY: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -347,6 +349,7 @@ function WormholeBackground({
     const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
     const rand = (min, max) => Math.random() * (max - min) + min;
     const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+    const depth = { background: 0.16, vignette: 0.2, focal: 0.12, nebula: 0.3, slowStars: 0.62, streaks: 1.0 };
     const movingStars = [], streaks = [];
 
     function createMovingStar(index = 0) {
@@ -531,91 +534,6 @@ function WormholeBackground({
       vig.addColorStop(0,"rgba(0,0,0,0)"); vig.addColorStop(0.65,"rgba(0,0,0,0.08)"); vig.addColorStop(1,"rgba(0,0,0,0.42)");
       ctx.fillStyle = vig; ctx.fillRect(0,0,width,height);
     }
-    function frame(now) {
-      const dt = Math.min(32, now - lastTime); lastTime = now; time += dt;
-      ctx.clearRect(0,0,width,height);
-      drawBackgroundGradient(); drawNebulaClouds(time); drawSlowMovingStars(time); drawStreaks(time); drawCentreFlare(time); drawVignette();
-      animationRef.current = requestAnimationFrame(frame);
-    }
-    resize();
-    const ro = new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
-    animationRef.current = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(animationRef.current); ro.disconnect(); window.removeEventListener("resize", resize); };
-  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed]);
-
-  return (
-    <canvas ref={canvasRef} className={className} aria-hidden="true"
-      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
-  );
-}
-
-function WormholeBackgroundParallax({
-  className = "", intensity = 1, speed = 1, starCount = 950, streakCount = 240,
-  nebulaStrength = 0.95, starDriftSpeed = 0.18, parallaxStrength = 28, parallaxSmoothing = 0.065,
-}) {
-  const canvasRef = useRef(null);
-  const animationRef = useRef(0);
-  const parallaxRef = useRef({ currentX: 0, currentY: 0, targetX: 0, targetY: 0 });
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: true });
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let width = 0, height = 0, cx = 0, cy = 0;
-    let lastTime = performance.now(), time = 0;
-    const lerp = (a, b, t) => a + (b - a) * t;
-    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-    const rand = (min, max) => Math.random() * (max - min) + min;
-    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
-    const depth = { background: 0.16, vignette: 0.2, focal: 0.12, nebula: 0.3, slowStars: 0.62, streaks: 1.0 };
-    const movingStars = [], streaks = [];
-
-    function createMovingStar(index = 0) {
-      const colourBand = Math.random();
-      return {
-        angle: rand(0, Math.PI*2), z: Math.random() ** 0.55,
-        speed: rand(0.0012, 0.0045) * speed * starDriftSpeed * (0.75 + intensity*0.45),
-        size: rand(0.45, 1.7), alpha: rand(0.18, 0.95),
-        twinkle: rand(0.35, 2.1), phase: rand(0, Math.PI*2),
-        colour: colourBand < 0.48 ? [165,215,255] : colourBand < 0.82 ? [255,240,255] : [255,185,235],
-        seed: index + Math.random() * 1000,
-      };
-    }
-    function createStars() {
-      movingStars.length = 0;
-      const total = Math.floor(starCount * intensity);
-      for (let i = 0; i < total; i++) movingStars.push(createMovingStar(i));
-    }
-    function createStreak(index = 0) {
-      const baseAngle = Math.atan2(rand(-height*0.55, height*0.55), rand(-width*0.55, width*0.55));
-      const hueWeight = Math.random();
-      return {
-        angle: baseAngle + rand(-0.3, 0.3), z: rand(0.02, 1),
-        speed: rand(0.003, 0.018) * speed * (0.8 + intensity*0.65),
-        width: rand(0.5, 2.6), length: rand(22, 180),
-        alpha: rand(0.12, 0.85), drift: rand(-0.12, 0.12),
-        pulse: rand(0.5, 2.3), pulseOffset: rand(0, Math.PI*2),
-        colour: hueWeight < 0.18 ? [255,255,255] : hueWeight < 0.39 ? [95,205,255] : hueWeight < 0.56 ? [0,255,220] : hueWeight < 0.68 ? [120,255,160] : hueWeight < 0.84 ? [255,90,210] : [165,110,255],
-        seed: index + Math.random() * 1000,
-      };
-    }
-    function createStreaks() {
-      streaks.length = 0;
-      const total = Math.floor(streakCount * intensity);
-      for (let i = 0; i < total; i++) streaks.push(createStreak(i));
-    }
-    function resize() {
-      const rect = canvas.getBoundingClientRect();
-      width = Math.max(1, Math.floor(rect.width || window.innerWidth));
-      height = Math.max(1, Math.floor(rect.height || window.innerHeight));
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.floor(width*dpr); canvas.height = Math.floor(height*dpr);
-      canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      cx = width*0.5; cy = height*0.5;
-      createStars(); createStreaks();
-    }
     function onPointerMove(event) {
       const rect = canvas.getBoundingClientRect();
       const xNorm = rect.width > 0 ? ((event.clientX - rect.left) / rect.width) * 2 - 1 : 0;
@@ -630,7 +548,7 @@ function WormholeBackgroundParallax({
       p.currentY = lerp(p.currentY, p.targetY, parallaxSmoothing);
       return p;
     }
-    function drawBackgroundGradient(p) {
+    function drawBackgroundGradientP(p) {
       const shiftX = p.currentX * depth.background, shiftY = p.currentY * depth.background;
       const bg = ctx.createLinearGradient(shiftX*0.8, shiftY*0.8, width+shiftX*0.5, height+shiftY*0.5);
       bg.addColorStop(0,"rgba(2,6,18,1)"); bg.addColorStop(0.28,"rgba(5,12,30,1)");
@@ -638,7 +556,7 @@ function WormholeBackgroundParallax({
       bg.addColorStop(1,"rgba(6,2,12,1)");
       ctx.fillStyle = bg; ctx.fillRect(0,0,width,height);
     }
-    function drawNebulaClouds(t, p) {
+    function drawNebulaCloudsP(t, p) {
       ctx.save(); ctx.globalCompositeOperation = "screen";
       const nx = p.currentX * depth.nebula, ny = p.currentY * depth.nebula;
       const leftGrad = ctx.createRadialGradient(width*0.18+nx,height*0.48+ny,10,width*0.18+nx,height*0.48+ny,width*0.55);
@@ -669,7 +587,7 @@ function WormholeBackgroundParallax({
       });
       ctx.restore();
     }
-    function drawSlowMovingStars(t, p) {
+    function drawSlowMovingStarsP(t, p) {
       ctx.save(); ctx.globalCompositeOperation = "screen";
       const maxRadius = Math.hypot(width,height)*0.77;
       const povX = cx + p.currentX*depth.slowStars, povY = cy + p.currentY*depth.slowStars;
@@ -692,7 +610,7 @@ function WormholeBackgroundParallax({
       }
       ctx.restore();
     }
-    function drawStreaks(t, p) {
+    function drawStreaksP(t, p) {
       ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
       const maxRadius = Math.hypot(width,height)*0.75;
       const povX = cx+p.currentX*depth.streaks, povY = cy+p.currentY*depth.streaks;
@@ -714,7 +632,7 @@ function WormholeBackgroundParallax({
       }
       ctx.restore();
     }
-    function buildSparklePath(x, y, sizeOuter, sizeInner) {
+    function buildSparklePathP(x, y, sizeOuter, sizeInner) {
       ctx.beginPath();
       ctx.moveTo(x, y-sizeOuter);
       ctx.quadraticCurveTo(x+sizeInner*0.45, y-sizeInner*0.75, x+sizeOuter, y);
@@ -723,7 +641,7 @@ function WormholeBackgroundParallax({
       ctx.quadraticCurveTo(x-sizeInner*0.75, y-sizeInner*0.45, x, y-sizeOuter);
       ctx.closePath();
     }
-    function drawCentreFlare(t, p) {
+    function drawCentreFlareP(t, p) {
       ctx.save(); ctx.globalCompositeOperation = "screen";
       const focalX = cx+p.currentX*depth.focal, focalY = cy+p.currentY*depth.focal;
       const pulse = 0.94+Math.sin(t*0.0034)*0.05+Math.sin(t*0.0017)*0.035;
@@ -737,13 +655,13 @@ function WormholeBackgroundParallax({
       const starGlowA=ctx.createRadialGradient(focalX,focalY,0,focalX,focalY,starOuter*1.45);
       starGlowA.addColorStop(0,rgba(255,255,255,0.78)); starGlowA.addColorStop(0.42,rgba(255,245,255,0.28));
       starGlowA.addColorStop(0.7,rgba(255,170,235,0.16)); starGlowA.addColorStop(1,rgba(0,0,0,0));
-      ctx.fillStyle=starGlowA; buildSparklePath(focalX,focalY,starOuter*1.22,starInner*1.22); ctx.fill();
+      ctx.fillStyle=starGlowA; buildSparklePathP(focalX,focalY,starOuter*1.22,starInner*1.22); ctx.fill();
       const starFill=ctx.createRadialGradient(focalX,focalY,0,focalX,focalY,starOuter);
       starFill.addColorStop(0,rgba(255,255,255,1)); starFill.addColorStop(0.28,rgba(255,255,255,0.96));
       starFill.addColorStop(0.62,rgba(255,230,245,0.82)); starFill.addColorStop(0.86,rgba(190,225,255,0.52));
       starFill.addColorStop(1,rgba(160,215,255,0.18));
-      ctx.fillStyle=starFill; buildSparklePath(focalX,focalY,starOuter,starInner); ctx.fill();
-      ctx.strokeStyle=rgba(255,255,255,0.28); ctx.lineWidth=1.1; buildSparklePath(focalX,focalY,starOuter,starInner); ctx.stroke();
+      ctx.fillStyle=starFill; buildSparklePathP(focalX,focalY,starOuter,starInner); ctx.fill();
+      ctx.strokeStyle=rgba(255,255,255,0.28); ctx.lineWidth=1.1; buildSparklePathP(focalX,focalY,starOuter,starInner); ctx.stroke();
       const verticalH=Math.min(height*0.42,360), verticalW=Math.max(6,Math.min(width*0.014,16));
       const vertFlare=ctx.createLinearGradient(focalX,focalY-verticalH*0.5,focalX,focalY+verticalH*0.5);
       vertFlare.addColorStop(0,rgba(255,255,255,0)); vertFlare.addColorStop(0.18,rgba(255,185,235,0.22));
@@ -763,75 +681,47 @@ function WormholeBackgroundParallax({
       ctx.fillStyle=innerGlow; ctx.beginPath(); ctx.arc(focalX,focalY,starOuter*0.9,0,Math.PI*2); ctx.fill();
       ctx.restore();
     }
-    function drawVignette(p) {
+    function drawVignetteP(p) {
       const sx=p.currentX*depth.vignette, sy=p.currentY*depth.vignette;
       const vig=ctx.createRadialGradient(cx+sx,cy+sy,Math.min(width,height)*0.2,cx+sx,cy+sy,Math.max(width,height)*0.8);
       vig.addColorStop(0,"rgba(0,0,0,0)"); vig.addColorStop(0.65,"rgba(0,0,0,0.08)"); vig.addColorStop(1,"rgba(0,0,0,0.42)");
       ctx.fillStyle=vig; ctx.fillRect(0,0,width,height);
     }
     function frame(now) {
+      const dt = Math.min(32, now - lastTime); lastTime = now; time += dt;
+      ctx.clearRect(0,0,width,height);
+      drawBackgroundGradient(); drawNebulaClouds(time); drawSlowMovingStars(time); drawStreaks(time); drawCentreFlare(time); drawVignette();
+      animationRef.current = requestAnimationFrame(frame);
+    }
+    function frameParallax(now) {
       const dt=Math.min(32,now-lastTime); lastTime=now; time+=dt;
       const p=updateParallax();
       ctx.clearRect(0,0,width,height);
-      drawBackgroundGradient(p); drawCentreFlare(time,p); drawNebulaClouds(time,p); drawSlowMovingStars(time,p); drawStreaks(time,p); drawVignette(p);
-      animationRef.current=requestAnimationFrame(frame);
+      drawBackgroundGradientP(p); drawCentreFlareP(time,p); drawNebulaCloudsP(time,p); drawSlowMovingStarsP(time,p); drawStreaksP(time,p); drawVignetteP(p);
+      animationRef.current=requestAnimationFrame(frameParallax);
     }
-    resize();
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("pointerleave", onPointerLeave);
-    window.addEventListener("blur", onPointerLeave);
-    const ro=new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
-    animationRef.current=requestAnimationFrame(frame);
-    return () => {
-      cancelAnimationFrame(animationRef.current); ro.disconnect(); window.removeEventListener("resize", resize);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerleave", onPointerLeave);
-      window.removeEventListener("blur", onPointerLeave);
-    };
-  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed, parallaxStrength, parallaxSmoothing]);
 
-  return (
-    <canvas ref={canvasRef} className={className} aria-hidden="true"
-      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
-  );
-}
-
-function WormholeBackgroundStatic({
-  className = "", intensity = 1, starCount = 950, streakCount = 240, nebulaStrength = 0.95, seed = 1337,
-}) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: true });
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let width = 0, height = 0, cx = 0, cy = 0;
     function mulberry32(a) {
       return function() { let t=(a+=0x6d2b79f5); t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return((t^(t>>>14))>>>0)/4294967296; };
     }
-    let rng = mulberry32(Number(seed)||1337);
-    const rand = (min, max) => rng()*(max-min)+min;
-    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-    const lerp = (a, b, t) => a+(b-a)*t;
-    const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
-
-    function resize() {
+    let rng = mulberry32(1337);
+    const srand = (min, max) => rng()*(max-min)+min;
+    function resizeStatic() {
       const rect=canvas.getBoundingClientRect();
       width=Math.max(1,Math.floor(rect.width||window.innerWidth)); height=Math.max(1,Math.floor(rect.height||window.innerHeight));
       dpr=Math.min(window.devicePixelRatio||1,2);
       canvas.width=Math.floor(width*dpr); canvas.height=Math.floor(height*dpr);
       canvas.style.width=`${width}px`; canvas.style.height=`${height}px`;
-      ctx.setTransform(dpr,0,0,dpr,0,0); cx=width*0.5; cy=height*0.5; draw();
+      ctx.setTransform(dpr,0,0,dpr,0,0); cx=width*0.5; cy=height*0.5; drawStatic();
     }
-    function drawBackgroundGradient() {
+    function drawBackgroundGradientS() {
       const bg=ctx.createLinearGradient(0,0,width,height);
       bg.addColorStop(0,"rgba(2,6,18,1)"); bg.addColorStop(0.28,"rgba(5,12,30,1)");
       bg.addColorStop(0.55,"rgba(9,8,24,1)"); bg.addColorStop(0.78,"rgba(20,7,28,1)");
       bg.addColorStop(1,"rgba(6,2,12,1)");
       ctx.fillStyle=bg; ctx.fillRect(0,0,width,height);
     }
-    function drawNebulaClouds() {
+    function drawNebulaCloudsS() {
       ctx.save(); ctx.globalCompositeOperation="screen";
       const leftGrad=ctx.createRadialGradient(width*0.18,height*0.48,10,width*0.18,height*0.48,width*0.55);
       leftGrad.addColorStop(0,`rgba(40,140,255,${0.18*nebulaStrength})`);
@@ -852,7 +742,7 @@ function WormholeBackgroundStatic({
         {x:width*0.86,y:height*0.66,rx:width*0.26,ry:height*0.16,c1:"rgba(180,70,255,0.08)",c2:"rgba(0,0,0,0)"},
       ];
       blobs.forEach(b => {
-        const driftX=rand(-18,18), driftY=rand(-12,12);
+        const driftX=srand(-18,18), driftY=srand(-12,12);
         const g=ctx.createRadialGradient(b.x+driftX,b.y+driftY,0,b.x+driftX,b.y+driftY,Math.max(b.rx,b.ry));
         g.addColorStop(0,b.c1); g.addColorStop(1,b.c2);
         ctx.save(); ctx.translate(b.x+driftX,b.y+driftY); ctx.scale(1,b.ry/b.rx);
@@ -860,16 +750,16 @@ function WormholeBackgroundStatic({
       });
       ctx.restore();
     }
-    function drawStars() {
+    function drawStarsS() {
       ctx.save(); ctx.globalCompositeOperation="screen";
       const total=Math.floor(starCount*intensity);
       for (let i=0;i<total;i++) {
-        const sideBias=rng(), x=rand(0,width), y=rand(0,height);
-        const base=rng()**1.6, r=rand(0.35,1.8)*(0.7+base);
-        const a=rand(0.15,0.95)*rand(0.82,1);
+        const sideBias=rng(), x=srand(0,width), y=srand(0,height);
+        const base=rng()**1.6, r=srand(0.35,1.8)*(0.7+base);
+        const a=srand(0.15,0.95)*srand(0.82,1);
         let tint="rgba(255,255,255,1)";
-        if (sideBias<0.46) tint=`rgba(${Math.floor(rand(140,210))},${Math.floor(rand(190,240))},255,1)`;
-        else if (sideBias>0.62) tint=`rgba(255,${Math.floor(rand(150,205))},${Math.floor(rand(220,255))},1)`;
+        if (sideBias<0.46) tint=`rgba(${Math.floor(srand(140,210))},${Math.floor(srand(190,240))},255,1)`;
+        else if (sideBias>0.62) tint=`rgba(255,${Math.floor(srand(150,205))},${Math.floor(srand(220,255))},1)`;
         ctx.fillStyle=tint.replace(/,\s*1\)$/,`,${a})`);
         ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
         if (r>1.15) {
@@ -880,22 +770,22 @@ function WormholeBackgroundStatic({
       }
       ctx.restore();
     }
-    function drawStreaks() {
+    function drawStreaksS() {
       ctx.save(); ctx.globalCompositeOperation="lighter"; ctx.lineCap="round";
       const total=Math.floor(streakCount*intensity);
       const maxRadius=Math.hypot(width,height)*0.75;
       for (let i=0;i<total;i++) {
         const hueWeight=rng();
-        const baseAngle=Math.atan2(rand(-height*0.55,height*0.55),rand(-width*0.55,width*0.55));
-        const angle=baseAngle+rand(-0.3,0.3);
-        const z=rand(0.04,1), eased=z*z, radius=lerp(6,maxRadius,eased);
+        const baseAngle=Math.atan2(srand(-height*0.55,height*0.55),srand(-width*0.55,width*0.55));
+        const angle=baseAngle+srand(-0.3,0.3);
+        const z=srand(0.04,1), eased=z*z, radius=lerp(6,maxRadius,eased);
         const x=cx+Math.cos(angle)*radius, y=cy+Math.sin(angle)*radius;
         const dirX=x-cx, dirY=y-cy, dirLen=Math.max(1,Math.hypot(dirX,dirY));
         const ux=dirX/dirLen, uy=dirY/dirLen;
-        const widthPx=rand(0.5,2.6)*(0.3+eased*1.4);
-        const trail=rand(22,180)*(0.18+eased*1.75);
+        const widthPx=srand(0.5,2.6)*(0.3+eased*1.4);
+        const trail=srand(22,180)*(0.18+eased*1.75);
         const x2=x-ux*trail, y2=y-uy*trail;
-        const alpha=clamp(rand(0.12,0.85)*(0.3+eased*1.15),0.05,1);
+        const alpha=clamp(srand(0.12,0.85)*(0.3+eased*1.15),0.05,1);
         let colour=[165,110,255];
         if (hueWeight<0.18) colour=[255,255,255];
         else if (hueWeight<0.39) colour=[95,205,255];
@@ -910,7 +800,7 @@ function WormholeBackgroundStatic({
       }
       ctx.restore();
     }
-    function buildSparklePath(x, y, sizeOuter, sizeInner) {
+    function buildSparklePathS(x, y, sizeOuter, sizeInner) {
       ctx.beginPath();
       ctx.moveTo(x,y-sizeOuter);
       ctx.quadraticCurveTo(x+sizeInner*0.45,y-sizeInner*0.75,x+sizeOuter,y);
@@ -919,7 +809,7 @@ function WormholeBackgroundStatic({
       ctx.quadraticCurveTo(x-sizeInner*0.75,y-sizeInner*0.45,x,y-sizeOuter);
       ctx.closePath();
     }
-    function drawCentreFlare() {
+    function drawCentreFlareS() {
       ctx.save(); ctx.globalCompositeOperation="screen";
       const minSide=Math.min(width,height);
       const outerGlow=ctx.createRadialGradient(cx,cy,0,cx,cy,minSide*0.24);
@@ -931,13 +821,13 @@ function WormholeBackgroundStatic({
       const starGlowA=ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter*1.45);
       starGlowA.addColorStop(0,rgba(255,255,255,0.78)); starGlowA.addColorStop(0.42,rgba(255,245,255,0.28));
       starGlowA.addColorStop(0.7,rgba(255,170,235,0.16)); starGlowA.addColorStop(1,rgba(0,0,0,0));
-      ctx.fillStyle=starGlowA; buildSparklePath(cx,cy,starOuter*1.22,starInner*1.22); ctx.fill();
+      ctx.fillStyle=starGlowA; buildSparklePathS(cx,cy,starOuter*1.22,starInner*1.22); ctx.fill();
       const starFill=ctx.createRadialGradient(cx,cy,0,cx,cy,starOuter);
       starFill.addColorStop(0,rgba(255,255,255,1)); starFill.addColorStop(0.28,rgba(255,255,255,0.96));
       starFill.addColorStop(0.62,rgba(255,230,245,0.82)); starFill.addColorStop(0.86,rgba(190,225,255,0.52));
       starFill.addColorStop(1,rgba(160,215,255,0.18));
-      ctx.fillStyle=starFill; buildSparklePath(cx,cy,starOuter,starInner); ctx.fill();
-      ctx.strokeStyle=rgba(255,255,255,0.28); ctx.lineWidth=1.1; buildSparklePath(cx,cy,starOuter,starInner); ctx.stroke();
+      ctx.fillStyle=starFill; buildSparklePathS(cx,cy,starOuter,starInner); ctx.fill();
+      ctx.strokeStyle=rgba(255,255,255,0.28); ctx.lineWidth=1.1; buildSparklePathS(cx,cy,starOuter,starInner); ctx.stroke();
       const verticalH=Math.min(height*0.42,360), verticalW=Math.max(6,Math.min(width*0.014,16));
       const vertFlare=ctx.createLinearGradient(cx,cy-verticalH*0.5,cx,cy+verticalH*0.5);
       vertFlare.addColorStop(0,rgba(255,255,255,0)); vertFlare.addColorStop(0.18,rgba(255,185,235,0.22));
@@ -957,20 +847,39 @@ function WormholeBackgroundStatic({
       ctx.fillStyle=innerGlow; ctx.beginPath(); ctx.arc(cx,cy,starOuter*0.9,0,Math.PI*2); ctx.fill();
       ctx.restore();
     }
-    function drawVignette() {
+    function drawVignetteS() {
       const vig=ctx.createRadialGradient(cx,cy,Math.min(width,height)*0.2,cx,cy,Math.max(width,height)*0.8);
       vig.addColorStop(0,"rgba(0,0,0,0)"); vig.addColorStop(0.65,"rgba(0,0,0,0.08)"); vig.addColorStop(1,"rgba(0,0,0,0.42)");
       ctx.fillStyle=vig; ctx.fillRect(0,0,width,height);
     }
-    function draw() {
-      rng=mulberry32(Number(seed)||1337);
+    function drawStatic() {
+      rng=mulberry32(1337);
       ctx.clearRect(0,0,width,height);
-      drawBackgroundGradient(); drawNebulaClouds(); drawStars(); drawStreaks(); drawCentreFlare(); drawVignette();
+      drawBackgroundGradientS(); drawNebulaCloudsS(); drawStarsS(); drawStreaksS(); drawCentreFlareS(); drawVignetteS();
+    }
+
+    if (staticMode) {
+      resizeStatic();
+      const ro = new ResizeObserver(resizeStatic); ro.observe(canvas); window.addEventListener("resize", resizeStatic);
+      return () => { ro.disconnect(); window.removeEventListener("resize", resizeStatic); };
     }
     resize();
-    const ro=new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
-    return () => { ro.disconnect(); window.removeEventListener("resize", resize); };
-  }, [intensity, starCount, streakCount, nebulaStrength, seed]);
+    const ro = new ResizeObserver(resize); ro.observe(canvas); window.addEventListener("resize", resize);
+    if (parallax) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      window.addEventListener("pointerleave", onPointerLeave);
+      window.addEventListener("blur", onPointerLeave);
+      animationRef.current = requestAnimationFrame(frameParallax);
+      return () => {
+        cancelAnimationFrame(animationRef.current); ro.disconnect(); window.removeEventListener("resize", resize);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerleave", onPointerLeave);
+        window.removeEventListener("blur", onPointerLeave);
+      };
+    }
+    animationRef.current = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(animationRef.current); ro.disconnect(); window.removeEventListener("resize", resize); };
+  }, [intensity, speed, starCount, streakCount, nebulaStrength, starDriftSpeed, parallaxStrength, parallaxSmoothing, parallax, staticMode]);
 
   return (
     <canvas ref={canvasRef} className={className} aria-hidden="true"
@@ -2502,7 +2411,6 @@ const SHOP_SECTIONS = [
 const INF_UPGRADE_CFG = {
   winmult_inf:           { tierCosts: [200, 600, 2000, 6400, 20000, 64000, 200000],   infBase: 400_000,     infScale: 1.18 },
   bonusmult_inf:         { tierCosts: [300, 900, 2800, 8500, 26000, 80000],           infBase: 200_000,     infScale: 1.18 },
-  clickmult_inf:         { tierCosts: [75, 250, 600, 1400, 3000],                     infBase: 10_000,      infScale: 1.5 },
   streak_armor_inf:      { tierCosts: [500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000, 2250000, 2500000, 2750000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
   lure_mastery_inf:      { tierCosts: [5000, 25000, 100000, 400000],                  infBase: 1_500_000,   infScale: 1.25 },
   jackpot_resonance_inf: { tierCosts: [5000000, 10000000, 20000000],                  infBase: 40_000_000,  infScale: 1.50, maxLevel: 10 },
@@ -2534,7 +2442,6 @@ function infMultiplier(id, level) {
     if (level <= 30) return 70 + (level - 6) * 8;
     return 262 + (level - 30) * 5;
   }
-  if (id === 'clickmult_inf') return 1 + level * 0.25;
   return 1;
 }
 
@@ -2553,7 +2460,6 @@ const COSMETIC_SECTION_IDS = new Set([
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'golden_wheel',
   'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7',
-  'final_frenzy',
   'auto_guard',
 ]);
 
@@ -3094,6 +3000,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [catchUpSummary, setCatchUpSummary] = useState(null);
   const [fishCatchUpSummary, setFishCatchUpSummary] = useState(null);
   const [happyHour, setHappyHour]     = useState(gameState.happy_hour || false);
+  const [happyHourDismissed, setHappyHourDismissed] = useState(false);
   const [catchupBonus, setCatchupBonus] = useState(false);
   const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
@@ -3101,7 +3008,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [infLevels, setInfLevels]     = useState({
     winmult_inf:           gameState.winmult_inf_level          || 0,
     bonusmult_inf:         gameState.bonusmult_inf_level        || 0,
-    clickmult_inf:         gameState.clickmult_inf_level        || 0,
     streak_armor_inf:      gameState.streak_armor_level         || 0,
     lure_mastery_inf:      gameState.lure_mastery_level         || 0,
     jackpot_resonance_inf: gameState.jackpot_resonance_level    || 0,
@@ -3264,7 +3170,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           setInfLevels({
             winmult_inf:           gs.data.winmult_inf_level          || 0,
             bonusmult_inf:         gs.data.bonusmult_inf_level        || 0,
-            clickmult_inf:         gs.data.clickmult_inf_level        || 0,
             streak_armor_inf:      gs.data.streak_armor_level         || 0,
             lure_mastery_inf:      gs.data.lure_mastery_level         || 0,
             jackpot_resonance_inf: gs.data.jackpot_resonance_level    || 0,
@@ -3330,13 +3235,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
       if (data.winmult_inf_level != null || data.bonusmult_inf_level != null ||
-          data.clickmult_inf_level != null || data.streak_armor_level != null ||
           data.lure_mastery_level != null || data.jackpot_resonance_level != null ||
           data.echo_amp_level != null || data.proc_streak_level != null) {
         setInfLevels(prev => ({
           winmult_inf:           data.winmult_inf_level          ?? prev.winmult_inf,
           bonusmult_inf:         data.bonusmult_inf_level        ?? prev.bonusmult_inf,
-          clickmult_inf:         data.clickmult_inf_level        ?? prev.clickmult_inf,
           streak_armor_inf:      data.streak_armor_level         ?? prev.streak_armor_inf,
           lure_mastery_inf:      data.lure_mastery_level         ?? prev.lure_mastery_inf,
           jackpot_resonance_inf: data.jackpot_resonance_level    ?? prev.jackpot_resonance_inf,
@@ -3657,9 +3560,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
       <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
       {toast && <div className="toast-notification">{toast}</div>}
-      {happyHour && (
+      {happyHour && !happyHourDismissed && (
         <div className="happy-hour-banner">
           ⭐ Happy Hour! 9–10pm — 2× pot contributions · boosted legendary fish ⭐
+          <button className="happy-hour-banner-close" onClick={() => setHappyHourDismissed(true)}>✕</button>
         </div>
       )}
       {catchUpSummary && (
@@ -3671,12 +3575,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <Confetti active={confetti} count={confettiCount} />
       {wormholeActive && (
         <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
-          {lowSpec
-            ? <WormholeBackgroundStatic />
-            : parallaxEnabled
-              ? <WormholeBackgroundParallax />
-              : <WormholeBackground />
-          }
+          <WormholeBackground
+            static={lowSpec}
+            parallax={parallaxEnabled} />
         </div>
       )}
       <div className={`overlay ${showResult ? 'active' : ''}`} />

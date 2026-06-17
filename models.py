@@ -156,18 +156,6 @@ SHOP_ITEMS = {
     'trail_4':        {'cost': 7_000,        'requires': 'trail_3'},
     'trail_5':        {'cost': 22_000,       'requires': 'trail_4'},
     'trail_6':        {'cost': 70_000,       'requires': 'trail_5'},
-    # Click power
-    'double_click':   {'cost': 100,         'requires': None},
-    'double_click_2': {'cost': 400,         'requires': 'double_click'},
-    'double_click_3': {'cost': 900,         'requires': 'double_click_2'},
-    'double_click_4': {'cost': 2000,        'requires': 'double_click_3'},
-    'double_click_5': {'cost': 4500,        'requires': 'double_click_4'},
-    'clickfrenzy_1':  {'cost': 300,          'requires': None},
-    'clickfrenzy_2':  {'cost': 3_000,        'requires': 'clickfrenzy_1'},
-    'clickfrenzy_3':  {'cost': 30_000,       'requires': 'clickfrenzy_2'},
-    'clickfrenzy_4':  {'cost': 300_000,      'requires': 'clickfrenzy_3'},
-    'clickfrenzy_5':  {'cost': 3_000_000,    'requires': 'clickfrenzy_4'},
-    'final_frenzy':   {'cost': 30_000_000,   'requires': 'clickfrenzy_5'},
     # Protection
     'guard':          {'cost': 500,          'requires': None},
     'auto_guard':     {'cost': 50_000,       'requires': 'guard'},
@@ -239,7 +227,7 @@ SHOP_ITEMS = {
 # Thresholds are based on win_count (total wins earned all-time this season)
 UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 5_000}
 UPGRADE_TIER_2 = {
-    'regen_shield', 'auto_guard', 'final_frenzy', 'dice_charge_2',
+    'regen_shield', 'auto_guard', 'dice_charge_2',
     'precise_angler_1',
 }
 UPGRADE_TIER_3 = {
@@ -264,35 +252,28 @@ VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
 
 # Season 3: currency classification for each item.
 # 'wins'       — functional items; purchasing deducts from the player's win count.
-# 'losses'     — cosmetic items; purchasing deducts from the player's loss count.
+# 'losses'     — cosmetic items (fish skins + cosmetic shop items); deducts from loss count.
 # 'fish_clicks'— singularity only (too legendary to change).
-_COSMETIC_ITEM_IDS = {
-    # Fish skins
-    'fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark',
-    'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab',
-    'fish_lobster', 'fish_whale',
-    'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc',
-    'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo',
-    # Fish size
-    'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3',
-    # Trails
-    'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6',
-    # Wheel themes
-    'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold',
-    'golden_wheel',
-    # Page themes
-    'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7',
-    # Party / confetti
-    'party_mode', 'confetti_1', 'confetti_2', 'confetti_3',
-    # Backgrounds
-    'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic',
+# Functional shop items are the exception; everything else in SHOP_ITEMS is cosmetic.
+# FISH_SKINS are all cosmetic by definition.
+_FUNCTIONAL_SHOP_ITEMS = {
+    'guard', 'auto_guard', 'regen_shield',
+    'winmult_1', 'winmult_2', 'winmult_3', 'winmult_4', 'winmult_5', 'winmult_6', 'winmult_7',
+    'bonusmult_1', 'bonusmult_2', 'bonusmult_3', 'bonusmult_4', 'bonusmult_5', 'bonusmult_6',
+    'fortune_charm', 'lucky_seven', 'win_echo', 'resilience', 'jackpot',
+    'class_earth', 'class_moon', 'class_star',
+    'auto_cast',
+    'lure_1', 'lure_2', 'lure_3', 'lure_4', 'lure_5',
+    'autofisher_1', 'autofisher_2', 'autofisher_3', 'autofisher_4',
+    'precise_angler_1', 'precise_angler_2', 'precise_angler_3',
+    'dice_charge_2', 'dice_charge_3', 'dice_charge_4', 'dice_extra',
 }
 
 ITEM_CURRENCY = {}
 for _id in ALL_ITEMS:
     if _id == 'singularity':
         ITEM_CURRENCY[_id] = 'fish_clicks'
-    elif _id in _COSMETIC_ITEM_IDS:
+    elif _id in FISH_SKINS or _id not in _FUNCTIONAL_SHOP_ITEMS:
         ITEM_CURRENCY[_id] = 'losses'
     else:
         ITEM_CURRENCY[_id] = 'wins'
@@ -301,7 +282,6 @@ for _id in ALL_ITEMS:
 INFINITE_UPGRADE_CURRENCY = {
     'winmult_inf':           'wins',
     'bonusmult_inf':         'wins',
-    'clickmult_inf':         'wins',
     'streak_armor_inf':      'wins',
     'lure_mastery_inf':      'fish_clicks',
     'jackpot_resonance_inf': 'wins',
@@ -324,12 +304,6 @@ INFINITE_UPGRADES = {
         'tier_costs':   [300, 900, 2800, 8500, 26000, 80000],
         'inf_base_cost': 200_000,
         'inf_scale':     1.18,
-    },
-    'clickmult_inf': {
-        'db_column':    'clickmult_inf_level',
-        'tier_costs':   [75, 250, 600, 1400, 3000],
-        'inf_base_cost': 10_000,
-        'inf_scale':     1.5,
     },
     # Streak Armor: +1% to Resilience save chance per level, base 50%, cap 60% (10 levels).
     # Requires owning 'resilience'.
@@ -398,10 +372,6 @@ def bonus_mult_from_level(level: int) -> int:
     if level <= 30: return 70 + (level - 6) * 8   # 78, 86, …, 262
     return 262 + (level - 30) * 5                  # 267, 272, … (slower past 30)
 
-
-def click_mult_from_level(level: int) -> float:
-    if level <= 0: return 1
-    return 1 + level * 0.25                    # 1.25, 1.5, 1.75, 2.0, 2.25, …
 
 
 # ── Season 7 upgrade multipliers ──────────────────────────────────────────────
