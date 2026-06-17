@@ -1063,7 +1063,10 @@ function drawGuardWheel(canvas) {
 
 // ── Number formatter ──────────────────────────────────────────────────────
 function fmt(n) {
-  if (!isFinite(n) || isNaN(n)) return '???';
+  // T15: Use shared format_wins() from format.js for consistency
+  if (typeof window.format_wins === 'function') return window.format_wins(n);
+  // Fallback if format.js not loaded
+  if (!isFinite(n) || isNaN(n)) return '0';
   if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
   if (n >= 1e12) return parseFloat((n / 1e12).toPrecision(3)) + 'T';
   if (n >= 1e9)  return parseFloat((n / 1e9) .toPrecision(3)) + 'B';
@@ -2229,13 +2232,36 @@ function ChatPanel({ extraClass = '', onClose }) {
         {onClose && <button className="chat-close-btn" onClick={onClose} title="Close Chat">✕</button>}
       </div>
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
-        {messages.map(m => (
-          <div key={m.id} className="chat-msg">
-            {m.created_at && <span className="chat-msg-time">{fmtChatTime(m.created_at)}</span>}
-            <span className="chat-msg-name">{m.username}: </span>
-            <span className="chat-msg-text">{m.message}</span>
-          </div>
-        ))}
+        {messages.map(m => {
+          const isSystem = m.message_type && m.message_type !== 'user';
+          const isReplay = m.message_type === 'replay';
+          if (isReplay) {
+            return (
+              <div key={m.id} className="chat-msg chat-msg-replay">
+                {m.created_at && <span className="chat-msg-time">{fmtChatTime(m.created_at)}</span>}
+                <div className="replay-card">
+                  <span className="replay-icon">🎬</span>
+                  <span className="replay-text">{m.message}</span>
+                </div>
+              </div>
+            );
+          }
+          if (isSystem) {
+            return (
+              <div key={m.id} className="chat-msg chat-msg-system">
+                {m.created_at && <span className="chat-msg-time">{fmtChatTime(m.created_at)}</span>}
+                <span className="chat-msg-text chat-system-text">{m.message}</span>
+              </div>
+            );
+          }
+          return (
+            <div key={m.id} className="chat-msg">
+              {m.created_at && <span className="chat-msg-time">{fmtChatTime(m.created_at)}</span>}
+              <span className="chat-msg-name">{m.username}: </span>
+              <span className="chat-msg-text">{m.message}</span>
+            </div>
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
       {error && <div className="chat-error">{error}</div>}
@@ -2314,10 +2340,14 @@ const SHOP_SECTIONS = [
     { id: 'class_star',  emoji: '⭐', name: 'Star',  cost: 10000000, tier: 3, desc: '+20% to Win Power payout while equipped' },
   ]},
   { label: '💰 Win Power', items: [
-    { id: 'winmult_inf', emoji: '💰', name: 'Win Power', cost: 0, desc: 'Multiplies each win score', infinite: true },
+    { id: 'winmult_1', emoji: '💰', name: 'Win Power I',  cost: 200,    desc: '+20% win multiplier' },
+    { id: 'winmult_2', emoji: '💰', name: 'Win Power II', cost: 600,    desc: '+40% win multiplier', requires: 'winmult_1' },
+    { id: 'winmult_3', emoji: '💰', name: 'Win Power III',cost: 2000,   desc: '+60% win multiplier', requires: 'winmult_2' },
   ]},
   { label: '⭐ Bonus Power', items: [
-    { id: 'bonusmult_inf', emoji: '⭐', name: 'Bonus Power', cost: 0, desc: 'Multiplies streak bonuses — ⚠️ also amplifies loss streaks', infinite: true },
+    { id: 'bonusmult_1', emoji: '⭐', name: 'Bonus Power I',  cost: 300,   desc: 'Multiplies streak bonuses' },
+    { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Power II', cost: 900,   desc: 'Multiplies streak bonuses', requires: 'bonusmult_1' },
+    { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: 'Multiplies streak bonuses', requires: 'bonusmult_2' },
   ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
@@ -2347,12 +2377,36 @@ const SHOP_SECTIONS = [
     { id: 'precise_angler_1', emoji: '🎯', name: 'Precise Angler',        cost: 50000,  desc: 'Reel within the first 50% of the bite window for 1.2× catch value', tier: 2 },
     { id: 'precise_angler_2', emoji: '🎯', name: 'Precise Angler II',     cost: 100000, desc: 'Also: reel within the first 20% for 1.5× catch value', requires: 'precise_angler_1' },
     { id: 'precise_angler_3', emoji: '🎯', name: 'Master Angler',         cost: 500000, desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia', requires: 'precise_angler_2', encyclopaediaLocked: true },
-    { id: 'lure_mastery_inf', emoji: '✨', name: 'Lure Mastery', cost: 0, desc: '+10% fish value per level (stacks beyond Lure V cap) — costs 🐟 Fish Bucks', infinite: true },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 500,    desc: '50% chance to block any loss. Breaks on success, survives on failure.' },
-    { id: 'auto_guard',    emoji: '🔁', name: 'Auto-Guard',         cost: 50000,  desc: 'Automatically re-buys a Guard for 500 Wins when one breaks. Toggle to enable/disable.', requires: 'guard', tier: 2 },
-    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 1500,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
+    { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 1000,   desc: 'Blocks one loss per manual trigger. Consumes a guard charge.' },
+    { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Recharges 1 per 50 spins via Regen Shield.', tier: 2 },
+    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 5000,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
+    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 20000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
+  ]},
+  { label: '🎲 Special Upgrades', items: [
+    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 1000000,  desc: '25% chance: +25% to streak bonus payout', tier: 3 },
+    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 7000000,  desc: 'Every 7th spin is guaranteed a win', tier: 3 },
+    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
+    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
+  ]},
+  { label: '⚡ Season 8: Wager System', items: [
+    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake multiplier (1x-10x) for spins', tier: 1 },
+    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Reduces loss by 25% at stake 5x+', tier: 2, requires: 'wager_unlock' },
+    { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
+    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Arm 2x stake for next spin', tier: 3, requires: 'wager_hot_streak' },
+    { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Caps next loss at stake amount', tier: 3, requires: 'wager_unlock' },
+  ]},
+  { label: '🏅 Season 8: Prestige', items: [
+    { id: 'prestige_unlock',     emoji: '🏅', name: 'Prestige Unlock',     cost: 1000000, desc: 'Unlocks prestige reset (permanent +2% per level)', tier: 3 },
+    { id: 'prestige_efficiency', emoji: '⚡', name: 'Prestige Efficiency', cost: 500000,  desc: 'Reduces prestige threshold from 1M to 500K wins', tier: 3, requires: 'prestige_unlock' },
+    { id: 'prestige_legacy',     emoji: '📜', name: 'Prestige Legacy',     cost: 1000000, desc: 'Keep functional upgrades when prestiging', tier: 3, requires: 'prestige_unlock' },
+  ]},
+  { label: '🎣 Season 8: Fishing', items: [
+    { id: 'fish_to_wager',      emoji: '🪙', name: 'Fish-to-Wager',      cost: 5000,   desc: 'Convert caught fish to wager tokens', tier: 1 },
+    { id: 'catch_of_the_day',   emoji: '📅', name: 'Catch of the Day',   cost: 3000,   desc: 'First fish conversion each day worth 5x tokens', tier: 1 },
+    { id: 'aquarium',           emoji: '🐠', name: 'Aquarium',           cost: 15000,  desc: 'Each unique species adds +0.1% wheel luck', tier: 2 },
+    { id: 'lure_specialization',emoji: '🎯', name: 'Lure Specialization',cost: 10000,  desc: 'Specialized lure techniques', tier: 2, requires: 'fish_to_wager' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -2360,62 +2414,18 @@ const SHOP_SECTIONS = [
     { id: 'theme_neon',  emoji: '🟣', name: 'Neon Theme',    cost: 4000,  desc: 'Cyberpunk wheel colors',  requires: 'theme_ice' },
     { id: 'theme_void',  emoji: '🌑', name: 'Void Theme',    cost: 12000, desc: 'Dark matter wheel',       requires: 'theme_neon' },
     { id: 'theme_gold',  emoji: '🟡', name: 'Gold Theme',    cost: 40000, desc: 'Pure gold wheel',         requires: 'theme_void' },
+    { id: 'theme_tidal',  emoji: '🌊', name: 'Tidal Theme',   cost: 250,    desc: 'Cool blue/teal with wave animation' },
+    { id: 'theme_ember',  emoji: '🔥', name: 'Ember Theme',   cost: 1000,   desc: 'Warm orange with spark animation', requires: 'theme_tidal' },
+    { id: 'theme_frost',  emoji: '❄️', name: 'Frost Theme',   cost: 4000,   desc: 'Ice-crystal palette with crack animation', requires: 'theme_ember' },
+    { id: 'theme_aurora', emoji: '🌌', name: 'Aurora Theme',  cost: 12000,  desc: 'Shifting greens/purples with northern lights', requires: 'theme_frost' },
+    { id: 'theme_vintage',emoji: '📼', name: 'Vintage Theme', cost: 40000,  desc: 'Retro-styled sepia tones' },
     { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel',  cost: 300,   desc: 'Radiant glow ring' },
-  ]},
-  { label: '🎊 Confetti', items: [
-    { id: 'party_mode',  emoji: '🎉', name: 'Party Mode',    cost: 150,  desc: 'Confetti every spin' },
-    { id: 'confetti_1',  emoji: '🎊', name: 'Confetti+',     cost: 75,   desc: '2x confetti pieces' },
-    { id: 'confetti_2',  emoji: '🎊', name: 'Confetti++',    cost: 300,  desc: '5x confetti pieces',      requires: 'confetti_1' },
-    { id: 'confetti_3',  emoji: '🎊', name: 'Confetti MAX',  cost: 1200, desc: '15x confetti pieces',     requires: 'confetti_2' },
-  ]},
-  { label: '🎨 Atmosphere', items: [
-    { id: 'bg_royal',    emoji: '💜', name: 'Royal Casino',    cost: 400,   desc: 'Purple atmosphere' },
-    { id: 'bg_inferno',  emoji: '❤️', name: 'Inferno Casino',  cost: 1600,  desc: 'Blood red atmosphere',    requires: 'bg_royal' },
-    { id: 'bg_forest',   emoji: '🌿', name: 'Enchanted Forest',cost: 5000,  desc: 'Mystical green depths',   requires: 'bg_inferno' },
-    { id: 'bg_abyss',    emoji: '🌑', name: 'The Abyss',       cost: 15000, desc: 'Void of darkness',        requires: 'bg_forest' },
-    { id: 'bg_cosmic',   emoji: '🌌', name: 'Cosmic Casino',   cost: 50000, desc: 'Deep space nebula',       requires: 'bg_abyss' },
-  ]},
-  { label: '🖼️ Page Theme', items: [
-    { id: 'page_season1', emoji: '🌟', name: 'Season 1 Theme', cost: 1000, desc: 'Classic gold & orange casino theme (S1).' },
-    { id: 'page_season2', emoji: '🟢', name: 'Season 2 Theme', cost: 1000, desc: 'Green & red casino theme (S2).' },
-    { id: 'page_season3', emoji: '🟣', name: 'Season 3 Theme', cost: 1000, desc: 'Purple & orange casino theme (S3).' },
-    { id: 'page_season4', emoji: '💜', name: 'Season 4 Theme', cost: 1000, desc: 'Deep violet casino theme (S4).' },
-    { id: 'page_season5', emoji: '🌊', name: 'Season 5 Theme', cost: 1000, desc: 'Bioluminescent deep ocean theme (S5).' },
-    { id: 'page_season6', emoji: '🌙', name: 'Season 6 Theme', cost: 1000, desc: 'Night ocean — deep indigo & violet (S6).' },
-    { id: 'page_season7', emoji: '🌌', name: 'Season 7 Theme', cost: 1000, desc: 'Sci-fi wormhole — animated star field with parallax (S7).' },
-  ]},
-  { label: '🎲 Dice Charges', items: [
-    { id: 'dice_charge_2', emoji: '🎲', name: 'Extra Charge',    cost: 2000,    desc: 'Max dice charges: 1 → 2', tier: 2 },
-    { id: 'dice_charge_3', emoji: '🎲', name: 'Max Charge',      cost: 15000,   desc: 'Max dice charges: 2 → 3', requires: 'dice_charge_2', tier: 3 },
-    { id: 'dice_charge_4', emoji: '🎲', name: 'Overcharge',      cost: 100000,  desc: 'Max dice charges: 3 → 4', requires: 'dice_charge_3', tier: 3 },
-    { id: 'dice_extra',    emoji: '🎲', name: 'Extra Die',        cost: 1000000, desc: 'Roll 3 dice instead of 2. Triple curses and triple blessings possible.', requires: 'dice_charge_3', tier: 3 },
-  ]},
-  { label: '🎲 Special Upgrades', items: [
-    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 1000000,  desc: '25% chance: +25% to streak bonus payout', tier: 3 },
-    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 7000000,  desc: 'Every 7th spin is guaranteed a win', tier: 3 },
-    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
-    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 10000000, desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
-    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
-    { id: 'streak_armor_inf',      emoji: '🛡️', name: 'Streak Armor',       cost: 0, desc: '+1% to Resilience save chance per level (base 50%, cap 60%)', infinite: true },
-    { id: 'jackpot_resonance_inf', emoji: '🎰', name: 'Jackpot Resonance',  cost: 0, desc: 'Raises Jackpot proc rate: 1% → up to 3% cap (level 10)', infinite: true },
-    { id: 'echo_amp_inf',          emoji: '🔊', name: 'Echo Amplification', cost: 0, desc: 'Raises Win Echo proc rate: 20% → up to 40% cap (level 10)', infinite: true },
-    { id: 'proc_streak_inf',       emoji: '⚡', name: 'Proc Streak',        cost: 0, desc: "Amplifies proc payouts by +0.5% per consecutive proc'd win per level", infinite: true },
-  ]},
-  { label: '🌌 Legendary', items: [
-    { id: 'singularity', emoji: '🌌', name: 'The Singularity', cost: 1e67,
-      desc: 'Transcend reality itself. Every spin is a win.' },
   ]},
 ];
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
 const INF_UPGRADE_CFG = {
-  winmult_inf:           { tierCosts: [200, 600, 2000, 6400, 20000, 64000, 200000],   infBase: 400_000,     infScale: 1.18 },
-  bonusmult_inf:         { tierCosts: [300, 900, 2800, 8500, 26000, 80000],           infBase: 200_000,     infScale: 1.18 },
-  streak_armor_inf:      { tierCosts: [500000, 750000, 1000000, 1250000, 1500000, 1750000, 2000000, 2250000, 2500000, 2750000], infBase: 999_999_999, infScale: 1.0, maxLevel: 10 },
-  lure_mastery_inf:      { tierCosts: [5000, 25000, 100000, 400000],                  infBase: 1_500_000,   infScale: 1.25 },
-  jackpot_resonance_inf: { tierCosts: [5000000, 10000000, 20000000],                  infBase: 40_000_000,  infScale: 1.50, maxLevel: 10 },
-  echo_amp_inf:          { tierCosts: [2000000, 5000000, 12000000],                   infBase: 25_000_000,  infScale: 1.40, maxLevel: 10 },
-  proc_streak_inf:       { tierCosts: [3000000, 8000000, 20000000],                   infBase: 50_000_000,  infScale: 1.50, maxLevel: 15 },
+  clickmult_inf:         { tierCosts: [75, 250, 600, 1400, 3000], infBase: 10_000, infScale: 1.5 },
 };
 function infCost(id, level) {
   const cfg = INF_UPGRADE_CFG[id];
@@ -2425,23 +2435,7 @@ function infCost(id, level) {
   return Math.floor(infBase * Math.pow(infScale, level - tierCosts.length));
 }
 function infMultiplier(id, level) {
-  if (id === 'streak_armor_inf')      return Math.min(50 + level, 60);  // resilience %
-  if (id === 'lure_mastery_inf')      return 1 + level * 0.10;          // fish value multiplier
-  if (id === 'jackpot_resonance_inf') return parseFloat((Math.min(0.01 + level * 0.002, 0.03) * 100).toFixed(1)); // jackpot %
-  if (id === 'echo_amp_inf')          return parseFloat((Math.min(0.20 + level * 0.02, 0.40) * 100).toFixed(0));  // echo %
-  if (id === 'proc_streak_inf')       return level;                      // streak level
-  if (id === 'winmult_inf') {
-    if (level <= 0) return 1;
-    if (level <= 7) return Math.pow(2, level);
-    return 128 + (level - 7) * 16;
-  }
-  if (id === 'bonusmult_inf') {
-    // Season 7: flatter early (C2), slower past level 30 (C1)
-    const fixed = [1, 2, 4, 8, 15, 35, 70];
-    if (level <= 6) return fixed[level] || 1;
-    if (level <= 30) return 70 + (level - 6) * 8;
-    return 262 + (level - 30) * 5;
-  }
+  if (id === 'clickmult_inf') return 1 + level * 0.15;
   return 1;
 }
 
@@ -2458,9 +2452,9 @@ const COSMETIC_SECTION_IDS = new Set([
   'party_mode',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
+  'theme_tidal','theme_ember','theme_frost','theme_aurora','theme_vintage',
   'golden_wheel',
   'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7',
-  'auto_guard',
 ]);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
@@ -2472,11 +2466,11 @@ const COSMETIC_IDS = new Set([
   'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
+  'theme_tidal','theme_ember','theme_frost','theme_aurora','theme_vintage',
   'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','page_season7','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => {
-  if (id === 'singularity' || id === 'lure_mastery_inf') return 'fish_clicks';
   if (COSMETIC_IDS.has(id)) return 'losses';
   return 'wins';
 };
@@ -3005,15 +2999,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
-  const [infLevels, setInfLevels]     = useState({
-    winmult_inf:           gameState.winmult_inf_level          || 0,
-    bonusmult_inf:         gameState.bonusmult_inf_level        || 0,
-    streak_armor_inf:      gameState.streak_armor_level         || 0,
-    lure_mastery_inf:      gameState.lure_mastery_level         || 0,
-    jackpot_resonance_inf: gameState.jackpot_resonance_level    || 0,
-    echo_amp_inf:          gameState.echo_amp_level             || 0,
-    proc_streak_inf:       gameState.proc_streak_level          || 0,
-  });
   const [equippedClass, setEquippedClass]   = useState(gameState.equipped_class || null);
   const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
   const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
@@ -3038,15 +3023,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const fireMode = 2; // Mix mode
   const [wheelRotation, setWheelRotation] = useState(0);
   const wheelRotationRef = useRef(0);
+  const [infLevels, setInfLevels]     = useState({
+    clickmult_inf: gameState.clickmult_inf_level || 0,
+  });
   const WHEEL_SPIN_SPEED = 1.5; // seconds
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)');
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
   const toggleMobilePanel = useCallback((panel) => {
     setMobilePanel(prev => prev === panel ? null : panel);
   }, []);
@@ -3076,6 +3056,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_neon')) return 'neon';
     if (activeCosmetics.includes('theme_ice'))  return 'ice';
     if (activeCosmetics.includes('theme_fire')) return 'fire';
+    if (activeCosmetics.includes('theme_vintage')) return 'vintage';
+    if (activeCosmetics.includes('theme_aurora')) return 'aurora';
+    if (activeCosmetics.includes('theme_frost')) return 'frost';
+    if (activeCosmetics.includes('theme_ember')) return 'ember';
+    if (activeCosmetics.includes('theme_tidal')) return 'tidal';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season6')) return 'night_ocean';
@@ -3168,13 +3153,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           setRegenRechargeWins(gs.data.regen_recharge_wins || 0);
           setActiveCosmetics(gs.data.active_cosmetics || []);
           setInfLevels({
-            winmult_inf:           gs.data.winmult_inf_level          || 0,
-            bonusmult_inf:         gs.data.bonusmult_inf_level        || 0,
-            streak_armor_inf:      gs.data.streak_armor_level         || 0,
-            lure_mastery_inf:      gs.data.lure_mastery_level         || 0,
-            jackpot_resonance_inf: gs.data.jackpot_resonance_level    || 0,
-            echo_amp_inf:          gs.data.echo_amp_level             || 0,
-            proc_streak_inf:       gs.data.proc_streak_level          || 0,
+            clickmult_inf: gs.data.clickmult_inf_level || 0,
           });
           setEquippedClass(gs.data.equipped_class || null);
           setProcStreak(gs.data.proc_streak || 0);
@@ -3184,6 +3163,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.dice_charges != null) setDiceCharges(gs.data.dice_charges);
           if (gs.data.dice_last_recharge) setDiceLastRecharge(gs.data.dice_last_recharge);
           setDiceRolledSinceSpin(gs.data.dice_rolled_since_spin ?? false);
+          // Season 8 state sync
+          if (gs.data.prestige_level != null) setPrestigeLevel(gs.data.prestige_level);
+          if (gs.data.legacy_wins != null) setLegacyWins(gs.data.legacy_wins);
+          if (gs.data.onboarding_step != null) setOnboardingStep(gs.data.onboarding_step);
+          if (gs.data.wager_streak != null) setWagerStreak(gs.data.wager_streak);
+          if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
+          if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
+          if (gs.data.wager_tokens != null) setWagerTokens(gs.data.wager_tokens);
+          if (gs.data.aquarium_species != null) setAquariumSpecies(gs.data.aquarium_species);
+          if (gs.data.guard_charges != null) setGuardCharges(gs.data.guard_charges);
+          if (gs.data.bounties != null) setBounties(gs.data.bounties);
+          if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
+          if (gs.data.singularity != null) setSingularity(gs.data.singularity);
         }
       } else {
         setSeason(r.data);
@@ -3234,18 +3226,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setOwnedItems(data.owned_items);
       setRegenRechargeWins(data.regen_recharge_wins ?? 0);
       if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-      if (data.winmult_inf_level != null || data.bonusmult_inf_level != null ||
-          data.lure_mastery_level != null || data.jackpot_resonance_level != null ||
-          data.echo_amp_level != null || data.proc_streak_level != null) {
-        setInfLevels(prev => ({
-          winmult_inf:           data.winmult_inf_level          ?? prev.winmult_inf,
-          bonusmult_inf:         data.bonusmult_inf_level        ?? prev.bonusmult_inf,
-          streak_armor_inf:      data.streak_armor_level         ?? prev.streak_armor_inf,
-          lure_mastery_inf:      data.lure_mastery_level         ?? prev.lure_mastery_inf,
-          jackpot_resonance_inf: data.jackpot_resonance_level    ?? prev.jackpot_resonance_inf,
-          echo_amp_inf:          data.echo_amp_level             ?? prev.echo_amp_inf,
-          proc_streak_inf:       data.proc_streak_level          ?? prev.proc_streak_inf,
-        }));
+      if (data.clickmult_inf_level != null) {
+        setInfLevels(prev => ({ ...prev, clickmult_inf: data.clickmult_inf_level }));
       }
     } else {
       showToast(data.error || 'Purchase failed');
@@ -3352,7 +3334,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
     if (data.owned_items) {
       const spinResult = new Set(data.owned_items);
-      // Sync guard from spin result (can be removed by guard block, added by auto-guard).
+      // Sync guard from spin result (can be removed by guard block).
       // All other items kept from prev to preserve mid-spin shop purchases.
       setOwnedItems(prev => {
         const withoutGuard = prev.filter(id => id !== 'guard');
@@ -3367,12 +3349,26 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
-    if (data.auto_guard_failed) showToast('Not enough wins — Auto-Guard disabled');
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
     setDiceRolledSinceSpin(false);
     if (data.wins_delta > 0) setWinCount(prev => prev + 1);
     if (data.proc_streak != null) setProcStreak(data.proc_streak);
+    // Season 8: update wager state from spin result
+    if (data.wager_streak != null) setWagerStreak(data.wager_streak);
+    if (data.stake != null) setWagerLastStake(data.stake);
+    if (data.onboarding_advance) {
+      setOnboardingStep(prev => {
+        const next = Math.max(prev, 1);
+        if (next >= 5) setShowOnboarding(false);
+        return next;
+      });
+    }
+    // Season 8: fetch updated bounties after jackpot
+    if (data.jackpot_hit || (data.wager_streak === 10)) {
+      apiGame('/api/bounties').then(r => { if (r.ok) setBounties(r.data.bounties || []); });
+    }
+    // Season 8: update community goal from state poll
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
       broke: data.shield_broke,
@@ -3384,7 +3380,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setShowResultSync(true);
 
     const cosm = activeCosmeticsRef.current;
-    if (!lowSpecRef.current) {
+    if (!lowSpecRef.current && !reducedMotion) {
       if (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
@@ -3398,7 +3394,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
-  }, [showToast]);
+  }, [showToast, reducedMotion]);
 
   // Dismiss the result banner smoothly
   const dismissResult = useCallback(() => {
@@ -3545,6 +3541,215 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     onLogout();
   };
 
+  // ── Season 8 state ─────────────────────────────────────────────────────────
+  const [prestigeLevel, setPrestigeLevel]           = useState(gameState.prestige_level || 0);
+  const [prestigeCount, setPrestigeCount]           = useState(gameState.prestige_count || 0);
+  const [legacyWins, setLegacyWins]                 = useState(gameState.legacy_wins || 0);
+  const [onboardingStep, setOnboardingStep]         = useState(gameState.onboarding_step || 0);
+  const [wagerStreak, setWagerStreak]               = useState(gameState.wager_streak || 0);
+  const [wagerLastStake, setWagerLastStake]         = useState(gameState.wager_last_stake || 1);
+  const [doubleDownPending, setDoubleDownPending]   = useState(gameState.double_down_pending || false);
+  const [wagerBankedWins, setWagerBankedWins]       = useState(gameState.wager_banked_wins || 0);
+  const [wagerInsuranceCharges, setWagerInsuranceCharges] = useState(gameState.wager_insurance_charges || 0);
+  const [activeWheelMode, setActiveWheelMode]       = useState(gameState.active_wheel_mode || 'steady');
+  const [availableWheelModes, setAvailableWheelModes] = useState(gameState.available_wheel_modes || ['steady', 'volatile']);
+  const [wagerTokens, setWagerTokens]               = useState(gameState.wager_tokens || 0);
+  const [aquariumSpecies, setAquariumSpecies]       = useState(gameState.aquarium_species || []);
+  const [cosmeticFragments, setCosmeticFragments]   = useState(gameState.cosmetic_fragments || 0);
+  const [guardCharges, setGuardCharges]             = useState(gameState.guard_charges || 0);
+  const [bounties, setBounties]                     = useState(gameState.bounties || []);
+  const [communityGoal, setCommunityGoal]           = useState(gameState.community_goal || null);
+  const [singularity, setSingularity]               = useState(gameState.singularity || null);
+  const [stake, setStake]                           = useState(gameState.wager_last_stake || 1);
+  const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
+  const [showOnboarding, setShowOnboarding]         = useState((gameState.onboarding_step || 0) < 5);
+  const [reducedMotion, setReducedMotion]           = useState(() => localStorage.getItem('reducedMotion') === 'true');
+  const [highContrast, setHighContrast]             = useState(() => localStorage.getItem('highContrast') === 'true');
+  const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
+  const [legacyBoards, setLegacyBoards]             = useState([]);
+
+  // Season 8: apply accessibility classes
+  useEffect(() => {
+    localStorage.setItem('reducedMotion', reducedMotion);
+    document.body.classList.toggle('reduced-motion', reducedMotion);
+  }, [reducedMotion]);
+  useEffect(() => {
+    localStorage.setItem('highContrast', highContrast);
+    document.body.classList.toggle('high-contrast', highContrast);
+  }, [highContrast]);
+
+  // Season 8: sync state from /api/state poll (season change handler already updates most state)
+  // This runs on mount and when gameState changes
+  useEffect(() => {
+    if (gameState.prestige_level != null) setPrestigeLevel(gameState.prestige_level);
+    if (gameState.prestige_count != null) setPrestigeCount(gameState.prestige_count);
+    if (gameState.legacy_wins != null) setLegacyWins(gameState.legacy_wins);
+    if (gameState.onboarding_step != null) {
+      setOnboardingStep(gameState.onboarding_step);
+      setShowOnboarding(gameState.onboarding_step < 5);
+    }
+    if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
+    if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
+    if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
+    if (gameState.wager_banked_wins != null) setWagerBankedWins(gameState.wager_banked_wins);
+    if (gameState.wager_insurance_charges != null) setWagerInsuranceCharges(gameState.wager_insurance_charges);
+    if (gameState.active_wheel_mode != null) setActiveWheelMode(gameState.active_wheel_mode);
+    if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
+    if (gameState.wager_tokens != null) setWagerTokens(gameState.wager_tokens);
+    if (gameState.aquarium_species != null) setAquariumSpecies(gameState.aquarium_species);
+    if (gameState.cosmetic_fragments != null) setCosmeticFragments(gameState.cosmetic_fragments);
+    if (gameState.guard_charges != null) setGuardCharges(gameState.guard_charges);
+    if (gameState.bounties != null) setBounties(gameState.bounties);
+    if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
+    if (gameState.singularity != null) setSingularity(gameState.singularity);
+  }, []); // eslint-disable-line
+
+  // Season 8: handle stake change
+  const handleStakeChange = useCallback(async (newStake) => {
+    setStake(newStake);
+    await apiGame('/api/wager/stake', { method: 'POST', body: JSON.stringify({ stake: newStake }) });
+  }, []);
+
+  // Season 8: handle wheel mode change
+  const handleWheelModeChange = useCallback(async (mode) => {
+    const { ok, data } = await apiGame('/api/wheel-mode', { method: 'POST', body: JSON.stringify({ mode }) });
+    if (ok) setActiveWheelMode(mode);
+    else showToast(data.error || 'Mode change failed');
+  }, [showToast]);
+
+  // Season 8: handle prestige
+  const handlePrestige = useCallback(async () => {
+    setShowPrestigeConfirm(false);
+    const { ok, data } = await apiGame('/api/prestige', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setPrestigeLevel(data.prestige_level);
+      setPrestigeCount(data.prestige_count);
+      setLegacyWins(data.legacy_wins);
+      setWins(0);
+      setLosses(0);
+      setStreak(0);
+      setSpinCount(0);
+      setWagerStreak(0);
+      setWagerLastStake(0);
+      showToast(` Prestiged to Level ${data.prestige_level}!`);
+    } else {
+      showToast(data.error || 'Prestige failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle guard activation
+  const handleGuardActivate = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/guard', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setGuardCharges(prev => Math.max(0, prev - 1));
+      showToast('🛡️ Guard activated');
+    } else {
+      showToast(data.error || 'Guard failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle bounty claim
+  const handleBountyClaim = useCallback(async (bountyId) => {
+    const { ok, data } = await apiGame('/api/bounties/claim', { method: 'POST', body: JSON.stringify({ bounty_id: bountyId }) });
+    if (ok) {
+      if (data.rewards?.cosmetic_fragments) setCosmeticFragments(prev => prev + data.rewards.cosmetic_fragments);
+      if (data.rewards?.wins) setWins(prev => prev + data.rewards.wins);
+      setBounties(prev => prev.map(b => b.bounty_id === bountyId ? { ...b, claimed: true } : b));
+      showToast('Bounty claimed!');
+    } else {
+      showToast(data.error || 'Claim failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle singularity contribution
+  const handleSingularityContribute = useCallback(async (amount) => {
+    const { ok, data } = await apiGame('/api/singularity/contribute', { method: 'POST', body: JSON.stringify({ amount }) });
+    if (ok) {
+      setWins(prev => prev - amount);
+      setSingularity(prev => ({ ...prev, total_contributed: data.total_contributed, filled: data.filled }));
+      showToast(`Contributed ${fmt(amount)} wins to Singularity`);
+    } else {
+      showToast(data.error || 'Contribution failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle fish-to-wager conversion
+  const handleFishToWager = useCallback(async (fishId) => {
+    const { ok, data } = await apiGame('/api/fish-to-wager', { method: 'POST', body: JSON.stringify({ fish_id: fishId }) });
+    if (ok) {
+      setWagerTokens(data.total_wager_tokens);
+      showToast(`+${data.tokens_earned} wager tokens`);
+    } else {
+      showToast(data.error || 'Conversion failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle double-down
+  const handleDoubleDown = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/wager/double-down', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setDoubleDownPending(true);
+      showToast('⚡ Double down armed!');
+    } else {
+      showToast(data.error || 'Double down failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle insurance
+  const handleInsurance = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/wager/insurance', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setWagerInsuranceCharges(prev => Math.max(0, prev - 1));
+      showToast('🛡️ Insurance activated');
+    } else {
+      showToast(data.error || 'Insurance failed');
+    }
+  }, [showToast]);
+
+  // Season 8: handle loadout save
+  const handleLoadoutSave = useCallback(async (slot, loadout) => {
+    const { ok } = await apiGame('/api/loadout', { method: 'POST', body: JSON.stringify({ slot, loadout }) });
+    if (ok) showToast(`Loadout ${slot} saved`);
+    else showToast('Save failed');
+  }, [showToast]);
+
+  // Season 8: handle loadout apply
+  const handleLoadoutApply = useCallback(async (slot) => {
+    const { ok, data } = await apiGame('/api/loadout/apply', { method: 'POST', body: JSON.stringify({ slot }) });
+    if (ok) {
+      if (data.owned_items) setOwnedItems(data.owned_items);
+      if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+      showToast(`Loadout ${slot} applied`);
+    } else {
+      showToast(data.error || 'Apply failed');
+    }
+  }, [showToast]);
+
+  // Season 8: fetch legacy boards
+  const handleShowLegacyBoards = useCallback(async () => {
+    setShowLegacyBoards(true);
+    const { ok, data } = await apiGame('/api/legacy-boards');
+    if (ok) setLegacyBoards(data.boards || []);
+  }, []);
+
+  // Season 8: keyboard shortcuts (T37)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === ' ' && ownedItems.includes('wager_unlock')) {
+        e.preventDefault();
+        // Spacebar could trigger spin — but game auto-spins, so this is for manual stake
+      }
+      // Number keys 1-0 select stake
+      if (e.key >= '0' && e.key <= '9' && ownedItems.includes('wager_unlock')) {
+        const newStake = e.key === '0' ? 10 : parseInt(e.key);
+        handleStakeChange(newStake);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [ownedItems, handleStakeChange]);
+
   const hasGuard = ownedItems.includes('guard');
   const hasRegen = ownedItems.includes('regen_shield');
 
@@ -3572,6 +3777,241 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       {fishCatchUpSummary && (
         <div className="catchup-banner catchup-banner--fish">{fishCatchUpSummary}</div>
       )}
+      {/* ── Season 8 UI ─────────────────────────────────────────────────── */}
+      {/* aria-live region for screen readers (T37) */}
+      <div className="aria-live-region" aria-live="polite" aria-atomic="true">
+        {result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'jackpot' ? 'Jackpot!' : ''}
+      </div>
+
+      {/* Onboarding overlay (T16) */}
+      {showOnboarding && onboardingStep < 5 && (
+        <div className="onboarding-overlay">
+          <div className="onboarding-modal">
+            <h3>Welcome to Season 8!</h3>
+            <p>Step {onboardingStep + 1} of 5: {
+              onboardingStep === 0 ? 'Spin the wheel to get started!' :
+              onboardingStep === 1 ? 'Try setting a wager stake!' :
+              onboardingStep === 2 ? 'Catch a fish!' :
+              onboardingStep === 3 ? 'Check your bounties!' :
+              'Explore the new features!'
+            }</p>
+            <button onClick={() => { setShowOnboarding(false); setOnboardingStep(5); }}>Skip</button>
+          </div>
+        </div>
+      )}
+
+      {/* Prestige confirmation modal (T14) */}
+      {showPrestigeConfirm && (
+        <div className="onboarding-overlay">
+          <div className="onboarding-modal">
+            <h3>⚠️ Prestige Reset</h3>
+            <p>This will reset your wins, losses, streak, and non-cosmetic upgrades. Your legacy wins will be preserved. Continue?</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button onClick={handlePrestige}>Confirm Prestige</button>
+              <button onClick={() => setShowPrestigeConfirm(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legacy boards modal (T36) */}
+      {showLegacyBoards && (
+        <div className="onboarding-overlay" onClick={() => setShowLegacyBoards(false)}>
+          <div className="onboarding-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <h3>🏆 Hall of Fame — Legacy Wins</h3>
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {legacyBoards.length === 0 ? <p>No legacy wins recorded yet.</p> : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead><tr><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Player</th><th style={{ textAlign: 'right' }}>Legacy Wins</th></tr></thead>
+                  <tbody>
+                    {legacyBoards.map((b, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #333' }}>
+                        <td>{i + 1}</td>
+                        <td>{b.username}</td>
+                        <td style={{ textAlign: 'right' }}>{fmt(b.legacy_wins)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <button onClick={() => setShowLegacyBoards(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Wager panel (T09) — shown if wager_unlock owned */}
+      {ownedItems.includes('wager_unlock') && (
+        <div className="season8-wager-panel">
+          <div className="wager-stake-control">
+            <label>Stake: </label>
+            <input
+              type="range" min="1" max="10" value={stake}
+              onChange={e => handleStakeChange(parseInt(e.target.value))}
+              className="wager-slider"
+            />
+            <span className={`stake-label stake-${stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless'}`}>
+              {stake}× {stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless'}
+            </span>
+          </div>
+          {wagerStreak > 0 && (
+            <div className="wager-hotstreak">
+              🔥 Hot Streak: {wagerStreak} wins (+{Math.min(wagerStreak * 5, 50)}% bonus)
+            </div>
+          )}
+          {ownedItems.includes('wager_double_down') && !doubleDownPending && (
+            <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Double Down</button>
+          )}
+          {ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && (
+            <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+          )}
+        </div>
+      )}
+
+      {/* Wheel mode selector (T12) */}
+      <div className="season8-wheel-mode">
+        <select
+          value={activeWheelMode}
+          onChange={e => handleWheelModeChange(e.target.value)}
+          className="wheel-mode-select"
+        >
+          {availableWheelModes.map(mode => (
+            <option key={mode} value={mode}>
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Prestige panel (T14) */}
+      {ownedItems.includes('prestige_unlock') && (
+        <div className="season8-prestige-panel">
+          <div className="prestige-badge">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}%)</div>
+          {legacyWins > 0 && <div className="legacy-badge">Seasons 1-7: {fmt(legacyWins)} wins</div>}
+          {prestigeLevel < 20 && (
+            <button
+              className="prestige-btn"
+              disabled={wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000)}
+              onClick={() => setShowPrestigeConfirm(true)}
+            >Prestige</button>
+          )}
+        </div>
+      )}
+
+      {/* Guard charges (T22) */}
+      {ownedItems.includes('guard') && (
+        <div className="season8-guard-panel">
+          <span className="guard-charges">🛡️ {guardCharges}/3</span>
+          <button
+            className="guard-activate-btn"
+            disabled={guardCharges === 0}
+            onClick={handleGuardActivate}
+          >Block</button>
+        </div>
+      )}
+
+      {/* Bounties panel (T41) */}
+      {bounties && bounties.length > 0 && (
+        <div className="season8-bounties-panel">
+          <div className="bounties-header">
+            <span>📋 Daily Bounties</span>
+            {cosmeticFragments > 0 && <span className="fragment-count">💎 {cosmeticFragments}</span>}
+          </div>
+          {bounties.map(b => (
+            <div key={b.bounty_id} className="bounty-card">
+              <div className="bounty-desc">{b.description || b.bounty_id}</div>
+              <div className="bounty-progress-bar">
+                <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
+              </div>
+              <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
+              {b.completed && !b.claimed && (
+                <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>Claim</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Community goal widget (T29) */}
+      {communityGoal && (
+        <div className="season8-community-goal">
+          <div className="goal-label">🌍 Community Goal</div>
+          <div className="goal-desc">{communityGoal.description}</div>
+          <div className="goal-progress-bar">
+            <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
+          </div>
+          <div className="goal-progress-text">
+            {fmt(communityGoal.current)} / {fmt(communityGoal.target)}
+          </div>
+          <div className="goal-contrib">You: {fmt(communityGoal.player_contribution)} / {fmt(communityGoal.per_player_cap)}</div>
+        </div>
+      )}
+
+      {/* Singularity meter (T31) */}
+      {singularity && (
+        <div className="season8-singularity-panel">
+          <div className="singularity-label">🌀 Singularity Meter</div>
+          <div className="singularity-progress-bar">
+            <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
+          </div>
+          <div className="singularity-progress-text">
+            {fmt(singularity.total_contributed)} / {fmt(singularity.target)}
+          </div>
+          {singularity.fill_count > 0 && <div className="singularity-fills">Convergences: {singularity.fill_count}</div>}
+          <button
+            className="singularity-contribute-btn"
+            onClick={() => {
+              const amt = prompt('How many wins to contribute?');
+              if (amt) handleSingularityContribute(parseInt(amt));
+            }}
+          >Contribute</button>
+        </div>
+      )}
+
+      {/* Aquarium panel (T26) */}
+      {ownedItems.includes('aquarium') && (
+        <div className="season8-aquarium-panel">
+          <div className="aquarium-header">
+            <span>🐠 Aquarium ({aquariumSpecies.length} species)</span>
+            <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}% luck</span>
+          </div>
+          <div className="aquarium-grid">
+            {aquariumSpecies.map(s => (
+              <div key={s} className="aquarium-species" title={s}>{s}</div>
+            ))}
+          </div>
+          {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
+            <div className="wager-tokens">🪙 Wager Tokens: {fmt(wagerTokens)}</div>
+          )}
+        </div>
+      )}
+
+      {/* Loadout slots (T33) */}
+      <div className="season8-loadout-panel">
+        <div className="loadout-label">⚙️ Loadouts</div>
+        <div className="loadout-slots">
+          {[1, 2, 3].map(slot => (
+            <div key={slot} className="loadout-slot">
+              <button className="loadout-save-btn" onClick={() => handleLoadoutSave(slot, { owned_items: ownedItems, active_cosmetics: activeCosmetics })}>Save {slot}</button>
+              <button className="loadout-apply-btn" onClick={() => handleLoadoutApply(slot)}>Equip {slot}</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Accessibility controls (T37) */}
+      <div className="season8-a11y-panel">
+        <label className="a11y-toggle">
+          <input type="checkbox" checked={reducedMotion} onChange={e => setReducedMotion(e.target.checked)} />
+          Reduced Motion
+        </label>
+        <label className="a11y-toggle">
+          <input type="checkbox" checked={highContrast} onChange={e => setHighContrast(e.target.checked)} />
+          High Contrast
+        </label>
+        <button className="legacy-boards-btn" onClick={handleShowLegacyBoards}>🏆 Hall of Fame</button>
+      </div>
+
       <Confetti active={confetti} count={confettiCount} />
       {wormholeActive && (
         <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
