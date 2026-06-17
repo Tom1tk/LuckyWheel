@@ -140,7 +140,16 @@ def _perform_rollover(conn, season):
                    fastest_catch_pct = NULL,
                    auto_spin_since = CASE WHEN season_registered THEN %s ELSE NULL END,
                    last_spin_at    = CASE WHEN season_registered THEN %s ELSE NULL END,
-                   season_registered = FALSE""",
+                   season_registered = FALSE,
+                   -- Season 8: preserve legacy_wins (accumulate), reset prestige per-season
+                   legacy_wins = legacy_wins + wins,
+                   prestige_level = 0, prestige_count = 0,
+                   onboarding_step = 0, auto_spin_budget = 0,
+                   wager_streak = 0, wager_last_stake = 0, double_down_pending = FALSE,
+                   wager_banked_wins = 0, wager_insurance_charges = 0,
+                   active_wheel_mode = 'steady',
+                   guard_charges = 0, guard_last_regen_spin = 0,
+                   resilience_last_use_spin = 0""",
             ([new_theme], [new_theme], next_starts, next_starts),
         )
 

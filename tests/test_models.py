@@ -146,20 +146,19 @@ def test_bonus_mult_non_decreasing():
 # ── inf_upgrade_cost ──────────────────────────────────────────────────────────
 
 def test_inf_upgrade_cost_tier_levels():
-    cfg = INFINITE_UPGRADES['winmult_inf']
+    cfg = INFINITE_UPGRADES['clickmult_inf']
     for i, cost in enumerate(cfg['tier_costs']):
-        assert inf_upgrade_cost('winmult_inf', i) == cost
+        assert inf_upgrade_cost('clickmult_inf', i) == cost
 
 def test_inf_upgrade_cost_beyond_tiers_increases():
-    n = len(INFINITE_UPGRADES['winmult_inf']['tier_costs'])
-    cost_n   = inf_upgrade_cost('winmult_inf', n)
-    cost_n1  = inf_upgrade_cost('winmult_inf', n + 1)
+    n = len(INFINITE_UPGRADES['clickmult_inf']['tier_costs'])
+    cost_n   = inf_upgrade_cost('clickmult_inf', n)
+    cost_n1  = inf_upgrade_cost('clickmult_inf', n + 1)
     assert cost_n1 > cost_n
 
-def test_inf_upgrade_cost_max_level_respected():
-    cfg = INFINITE_UPGRADES['streak_armor_inf']
-    # At max_level there's still a (very high) cost defined
-    assert inf_upgrade_cost('streak_armor_inf', cfg['max_level'] - 1) > 0
+def test_inf_upgrade_cost_only_clickmult_remains():
+    # Season 8: only clickmult_inf remains in INFINITE_UPGRADES
+    assert set(INFINITE_UPGRADES.keys()) == {'clickmult_inf'}
 
 
 # ── dice_max_charges ──────────────────────────────────────────────────────────
