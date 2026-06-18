@@ -184,8 +184,8 @@ body::before {
 /* Wheel wrapper */
 .wheel-wrapper {
   position: relative;
-  width: min(380px, calc(100vw - 120px), calc(100vh - 440px));
-  height: min(380px, calc(100vw - 120px), calc(100vh - 440px));
+  width: min(380px, calc(100vw - 120px), calc(100vh - 490px));
+  height: min(380px, calc(100vw - 120px), calc(100vh - 490px));
 }
 
 /* Glow ring behind wheel */
@@ -2400,8 +2400,8 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .casino-container { padding: 8px 0 70px 0; flex: 1; min-width: 0; width: auto; }
   .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
   .wheel-wrapper {
-    width:  min(300px, calc(100vw - 20px), calc(100vh - 380px));
-    height: min(300px, calc(100vw - 20px), calc(100vh - 380px));
+    width:  min(300px, calc(100vw - 20px), calc(100vh - 430px));
+    height: min(300px, calc(100vw - 20px), calc(100vh - 430px));
   }
 
   /* Below-wheel row: streak (left 50%) + dice (right 50%) */
