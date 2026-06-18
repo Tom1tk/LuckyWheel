@@ -43,17 +43,17 @@ function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
 function _apiFetch() {
-  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee36(path) {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee33(path) {
     var opts,
       method,
       headers,
       res,
       json,
-      _args36 = arguments;
-    return _regeneratorRuntime().wrap(function _callee36$(_context36) {
-      while (1) switch (_context36.prev = _context36.next) {
+      _args33 = arguments;
+    return _regeneratorRuntime().wrap(function _callee33$(_context33) {
+      while (1) switch (_context33.prev = _context33.next) {
         case 0:
-          opts = _args36.length > 1 && _args36[1] !== undefined ? _args36[1] : {};
+          opts = _args33.length > 1 && _args33[1] !== undefined ? _args33[1] : {};
           method = (opts.method || 'GET').toUpperCase();
           headers = {
             'Content-Type': 'application/json'
@@ -61,28 +61,28 @@ function _apiFetch() {
           if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
             headers['X-CSRFToken'] = _csrfToken;
           }
-          _context36.next = 6;
+          _context33.next = 6;
           return fetch(path, _objectSpread({
             headers: headers
           }, opts));
         case 6:
-          res = _context36.sent;
-          _context36.next = 9;
+          res = _context33.sent;
+          _context33.next = 9;
           return res.json()["catch"](function () {
             return {};
           });
         case 9:
-          json = _context36.sent;
-          return _context36.abrupt("return", {
+          json = _context33.sent;
+          return _context33.abrupt("return", {
             ok: res.ok,
             status: res.status,
             data: json
           });
         case 11:
         case "end":
-          return _context36.stop();
+          return _context33.stop();
       }
-    }, _callee36);
+    }, _callee33);
   }));
   return _apiFetch.apply(this, arguments);
 }
@@ -5416,10 +5416,7 @@ function GameApp(_ref33) {
     return id;
   }());
   // Season 8: auto-spin budget (0 = inactive)
-  var _useState185 = useState(gameState.auto_spin_budget || 0),
-    _useState186 = _slicedToArray(_useState185, 2),
-    autoSpinBudget = _useState186[0],
-    setAutoSpinBudget = _useState186[1];
+
   var toggleMobilePanel = useCallback(function (panel) {
     setMobilePanel(function (prev) {
       return prev === panel ? null : panel;
@@ -5589,7 +5586,6 @@ function GameApp(_ref33) {
               if (gs.data.bounties != null) setBounties(gs.data.bounties);
               if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
               if (gs.data.singularity != null) setSingularity(gs.data.singularity);
-              if (gs.data.auto_spin_budget != null) setAutoSpinBudget(gs.data.auto_spin_budget);
             }
             _context9.next = 14;
             break;
@@ -6128,23 +6124,21 @@ function GameApp(_ref33) {
           return _context16.abrupt("return");
         case 9:
           data = res.data;
-          if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
           if (!(data.auto_spin_active === false)) {
-            _context16.next = 14;
+            _context16.next = 12;
             break;
           }
-          setAutoSpinBudget(0);
           return _context16.abrupt("return");
-        case 14:
+        case 12:
           if (data.happy_hour != null) setHappyHour(data.happy_hour);
           if (!data.started) {
-            _context16.next = 17;
+            _context16.next = 15;
             break;
           }
           return _context16.abrupt("return");
-        case 17:
+        case 15:
           if (!data.catch_up) {
-            _context16.next = 26;
+            _context16.next = 24;
             break;
           }
           // Many spins processed offline — show summary, update state silently
@@ -6177,13 +6171,13 @@ function GameApp(_ref33) {
           }, 5000);
           if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
           return _context16.abrupt("return");
-        case 26:
+        case 24:
           if (!(!data.spins || data.spins.length === 0)) {
-            _context16.next = 28;
+            _context16.next = 26;
             break;
           }
           return _context16.abrupt("return");
-        case 28:
+        case 26:
           spinResult = data.spins[data.spins.length - 1]; // Dismiss any lingering result before showing the new one
           if (showResultRef.current) dismissResult();
           setBonusEarned(0);
@@ -6222,57 +6216,16 @@ function GameApp(_ref33) {
             }
           }
           if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
-        case 43:
-          _context16.prev = 43;
+        case 41:
+          _context16.prev = 41;
           tickPendingRef.current = false;
-          return _context16.finish(43);
-        case 46:
+          return _context16.finish(41);
+        case 44:
         case "end":
           return _context16.stop();
       }
-    }, _callee16, null, [[3,, 43, 46]]);
+    }, _callee16, null, [[3,, 41, 44]]);
   })), [applySpinResult, applyFishCatchUp, dismissResult, scheduleResultDismiss]);
-
-  // Season 8: auto-spin tick — only run while the player has activated auto-spin (budget > 0).
-  // Manual spins go through handleManualSpin → /api/spin directly.
-  useEffect(function () {
-    if (autoSpinBudget <= 0) return;
-    var busy = false;
-    var doTick = /*#__PURE__*/function () {
-      var _ref44 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee17() {
-        return _regeneratorRuntime().wrap(function _callee17$(_context17) {
-          while (1) switch (_context17.prev = _context17.next) {
-            case 0:
-              if (!(busy || document.hidden)) {
-                _context17.next = 2;
-                break;
-              }
-              return _context17.abrupt("return");
-            case 2:
-              busy = true;
-              _context17.prev = 3;
-              _context17.next = 6;
-              return tick();
-            case 6:
-              _context17.prev = 6;
-              busy = false;
-              return _context17.finish(6);
-            case 9:
-            case "end":
-              return _context17.stop();
-          }
-        }, _callee17, null, [[3,, 6, 9]]);
-      }));
-      return function doTick() {
-        return _ref44.apply(this, arguments);
-      };
-    }();
-    doTick();
-    var id = setInterval(doTick, 3000);
-    return function () {
-      return clearInterval(id);
-    };
-  }, [autoSpinBudget > 0]); // eslint-disable-line
 
   // Poll happy_hour status every minute (in case of time zone changes or missed state update)
   useEffect(function () {
@@ -6286,11 +6239,11 @@ function GameApp(_ref33) {
     };
   }, []);
   var handleLogout = /*#__PURE__*/function () {
-    var _ref45 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee18() {
-      return _regeneratorRuntime().wrap(function _callee18$(_context18) {
-        while (1) switch (_context18.prev = _context18.next) {
+    var _ref44 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee17() {
+      return _regeneratorRuntime().wrap(function _callee17$(_context17) {
+        while (1) switch (_context17.prev = _context17.next) {
           case 0:
-            _context18.next = 2;
+            _context17.next = 2;
             return apiFetch('/api/logout', {
               method: 'POST',
               body: '{}'
@@ -6299,108 +6252,108 @@ function GameApp(_ref33) {
             onLogout();
           case 3:
           case "end":
-            return _context18.stop();
+            return _context17.stop();
         }
-      }, _callee18);
+      }, _callee17);
     }));
     return function handleLogout() {
-      return _ref45.apply(this, arguments);
+      return _ref44.apply(this, arguments);
     };
   }();
 
   // ── Season 8 state ─────────────────────────────────────────────────────────
-  var _useState187 = useState(gameState.prestige_level || 0),
+  var _useState185 = useState(gameState.prestige_level || 0),
+    _useState186 = _slicedToArray(_useState185, 2),
+    prestigeLevel = _useState186[0],
+    setPrestigeLevel = _useState186[1];
+  var _useState187 = useState(gameState.prestige_count || 0),
     _useState188 = _slicedToArray(_useState187, 2),
-    prestigeLevel = _useState188[0],
-    setPrestigeLevel = _useState188[1];
-  var _useState189 = useState(gameState.prestige_count || 0),
+    prestigeCount = _useState188[0],
+    setPrestigeCount = _useState188[1];
+  var _useState189 = useState(gameState.legacy_wins || 0),
     _useState190 = _slicedToArray(_useState189, 2),
-    prestigeCount = _useState190[0],
-    setPrestigeCount = _useState190[1];
-  var _useState191 = useState(gameState.legacy_wins || 0),
+    legacyWins = _useState190[0],
+    setLegacyWins = _useState190[1];
+  var _useState191 = useState(gameState.onboarding_step || 0),
     _useState192 = _slicedToArray(_useState191, 2),
-    legacyWins = _useState192[0],
-    setLegacyWins = _useState192[1];
-  var _useState193 = useState(gameState.onboarding_step || 0),
+    onboardingStep = _useState192[0],
+    setOnboardingStep = _useState192[1];
+  var _useState193 = useState(gameState.wager_streak || 0),
     _useState194 = _slicedToArray(_useState193, 2),
-    onboardingStep = _useState194[0],
-    setOnboardingStep = _useState194[1];
-  var _useState195 = useState(gameState.wager_streak || 0),
+    wagerStreak = _useState194[0],
+    setWagerStreak = _useState194[1];
+  var _useState195 = useState(gameState.wager_last_stake || 1),
     _useState196 = _slicedToArray(_useState195, 2),
-    wagerStreak = _useState196[0],
-    setWagerStreak = _useState196[1];
-  var _useState197 = useState(gameState.wager_last_stake || 1),
+    wagerLastStake = _useState196[0],
+    setWagerLastStake = _useState196[1];
+  var _useState197 = useState(gameState.double_down_pending || false),
     _useState198 = _slicedToArray(_useState197, 2),
-    wagerLastStake = _useState198[0],
-    setWagerLastStake = _useState198[1];
-  var _useState199 = useState(gameState.double_down_pending || false),
+    doubleDownPending = _useState198[0],
+    setDoubleDownPending = _useState198[1];
+  var _useState199 = useState(gameState.wager_banked_wins || 0),
     _useState200 = _slicedToArray(_useState199, 2),
-    doubleDownPending = _useState200[0],
-    setDoubleDownPending = _useState200[1];
-  var _useState201 = useState(gameState.wager_banked_wins || 0),
+    wagerBankedWins = _useState200[0],
+    setWagerBankedWins = _useState200[1];
+  var _useState201 = useState(gameState.wager_insurance_charges || 0),
     _useState202 = _slicedToArray(_useState201, 2),
-    wagerBankedWins = _useState202[0],
-    setWagerBankedWins = _useState202[1];
-  var _useState203 = useState(gameState.wager_insurance_charges || 0),
+    wagerInsuranceCharges = _useState202[0],
+    setWagerInsuranceCharges = _useState202[1];
+  var _useState203 = useState(gameState.active_wheel_mode || 'steady'),
     _useState204 = _slicedToArray(_useState203, 2),
-    wagerInsuranceCharges = _useState204[0],
-    setWagerInsuranceCharges = _useState204[1];
-  var _useState205 = useState(gameState.active_wheel_mode || 'steady'),
+    activeWheelMode = _useState204[0],
+    setActiveWheelMode = _useState204[1];
+  var _useState205 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
     _useState206 = _slicedToArray(_useState205, 2),
-    activeWheelMode = _useState206[0],
-    setActiveWheelMode = _useState206[1];
-  var _useState207 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    availableWheelModes = _useState206[0],
+    setAvailableWheelModes = _useState206[1];
+  var _useState207 = useState(gameState.wager_tokens || 0),
     _useState208 = _slicedToArray(_useState207, 2),
-    availableWheelModes = _useState208[0],
-    setAvailableWheelModes = _useState208[1];
-  var _useState209 = useState(gameState.wager_tokens || 0),
+    wagerTokens = _useState208[0],
+    setWagerTokens = _useState208[1];
+  var _useState209 = useState(gameState.aquarium_species || []),
     _useState210 = _slicedToArray(_useState209, 2),
-    wagerTokens = _useState210[0],
-    setWagerTokens = _useState210[1];
-  var _useState211 = useState(gameState.aquarium_species || []),
+    aquariumSpecies = _useState210[0],
+    setAquariumSpecies = _useState210[1];
+  var _useState211 = useState(gameState.cosmetic_fragments || 0),
     _useState212 = _slicedToArray(_useState211, 2),
-    aquariumSpecies = _useState212[0],
-    setAquariumSpecies = _useState212[1];
-  var _useState213 = useState(gameState.cosmetic_fragments || 0),
+    cosmeticFragments = _useState212[0],
+    setCosmeticFragments = _useState212[1];
+  var _useState213 = useState(gameState.guard_charges || 0),
     _useState214 = _slicedToArray(_useState213, 2),
-    cosmeticFragments = _useState214[0],
-    setCosmeticFragments = _useState214[1];
-  var _useState215 = useState(gameState.guard_charges || 0),
+    guardCharges = _useState214[0],
+    setGuardCharges = _useState214[1];
+  var _useState215 = useState(gameState.bounties || []),
     _useState216 = _slicedToArray(_useState215, 2),
-    guardCharges = _useState216[0],
-    setGuardCharges = _useState216[1];
-  var _useState217 = useState(gameState.bounties || []),
+    bounties = _useState216[0],
+    setBounties = _useState216[1];
+  var _useState217 = useState(gameState.community_goal || null),
     _useState218 = _slicedToArray(_useState217, 2),
-    bounties = _useState218[0],
-    setBounties = _useState218[1];
-  var _useState219 = useState(gameState.community_goal || null),
+    communityGoal = _useState218[0],
+    setCommunityGoal = _useState218[1];
+  var _useState219 = useState(gameState.singularity || null),
     _useState220 = _slicedToArray(_useState219, 2),
-    communityGoal = _useState220[0],
-    setCommunityGoal = _useState220[1];
-  var _useState221 = useState(gameState.singularity || null),
+    singularity = _useState220[0],
+    setSingularity = _useState220[1];
+  var _useState221 = useState(gameState.wager_last_stake || 1),
     _useState222 = _slicedToArray(_useState221, 2),
-    singularity = _useState222[0],
-    setSingularity = _useState222[1];
-  var _useState223 = useState(gameState.wager_last_stake || 1),
+    stake = _useState222[0],
+    setStake = _useState222[1];
+  var _useState223 = useState(false),
     _useState224 = _slicedToArray(_useState223, 2),
-    stake = _useState224[0],
-    setStake = _useState224[1];
-  var _useState225 = useState(false),
+    showPrestigeConfirm = _useState224[0],
+    setShowPrestigeConfirm = _useState224[1];
+  var _useState225 = useState((gameState.onboarding_step || 0) < 5),
     _useState226 = _slicedToArray(_useState225, 2),
-    showPrestigeConfirm = _useState226[0],
-    setShowPrestigeConfirm = _useState226[1];
-  var _useState227 = useState((gameState.onboarding_step || 0) < 5),
+    showOnboarding = _useState226[0],
+    setShowOnboarding = _useState226[1];
+  var _useState227 = useState(false),
     _useState228 = _slicedToArray(_useState227, 2),
-    showOnboarding = _useState228[0],
-    setShowOnboarding = _useState228[1];
-  var _useState229 = useState(false),
+    showLegacyBoards = _useState228[0],
+    setShowLegacyBoards = _useState228[1];
+  var _useState229 = useState([]),
     _useState230 = _slicedToArray(_useState229, 2),
-    showLegacyBoards = _useState230[0],
-    setShowLegacyBoards = _useState230[1];
-  var _useState231 = useState([]),
-    _useState232 = _slicedToArray(_useState231, 2),
-    legacyBoards = _useState232[0],
-    setLegacyBoards = _useState232[1];
+    legacyBoards = _useState230[0],
+    setLegacyBoards = _useState230[1];
 
   // Clear any previously-set accessibility classes from localStorage
   useEffect(function () {
@@ -6433,17 +6386,16 @@ function GameApp(_ref33) {
     if (gameState.bounties != null) setBounties(gameState.bounties);
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
     if (gameState.singularity != null) setSingularity(gameState.singularity);
-    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
   }, []); // eslint-disable-line
 
   // Season 8: handle stake change
   var handleStakeChange = useCallback(/*#__PURE__*/function () {
-    var _ref46 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee19(newStake) {
-      return _regeneratorRuntime().wrap(function _callee19$(_context19) {
-        while (1) switch (_context19.prev = _context19.next) {
+    var _ref45 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee18(newStake) {
+      return _regeneratorRuntime().wrap(function _callee18$(_context18) {
+        while (1) switch (_context18.prev = _context18.next) {
           case 0:
             setStake(newStake);
-            _context19.next = 3;
+            _context18.next = 3;
             return apiGame('/api/wager/stake', {
               method: 'POST',
               body: JSON.stringify({
@@ -6452,12 +6404,12 @@ function GameApp(_ref33) {
             });
           case 3:
           case "end":
-            return _context19.stop();
+            return _context18.stop();
         }
-      }, _callee19);
+      }, _callee18);
     }));
     return function (_x10) {
-      return _ref46.apply(this, arguments);
+      return _ref45.apply(this, arguments);
     };
   }(), []);
 
@@ -6491,15 +6443,15 @@ function GameApp(_ref33) {
 
   // Season 8: handle wheel mode change
   var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
-    var _ref47 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee20(mode) {
+    var _ref46 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee19(mode) {
       var prev, _yield$apiGame11, ok, data;
-      return _regeneratorRuntime().wrap(function _callee20$(_context20) {
-        while (1) switch (_context20.prev = _context20.next) {
+      return _regeneratorRuntime().wrap(function _callee19$(_context19) {
+        while (1) switch (_context19.prev = _context19.next) {
           case 0:
             prev = activeWheelMode;
             setActiveWheelMode(mode);
             if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', mode);
-            _context20.next = 5;
+            _context19.next = 5;
             return apiGame('/api/wheel-mode', {
               method: 'POST',
               body: JSON.stringify({
@@ -6507,7 +6459,7 @@ function GameApp(_ref33) {
               })
             });
           case 5:
-            _yield$apiGame11 = _context20.sent;
+            _yield$apiGame11 = _context19.sent;
             ok = _yield$apiGame11.ok;
             data = _yield$apiGame11.data;
             if (!ok) {
@@ -6517,29 +6469,29 @@ function GameApp(_ref33) {
             }
           case 9:
           case "end":
-            return _context20.stop();
+            return _context19.stop();
         }
-      }, _callee20);
+      }, _callee19);
     }));
     return function (_x11) {
-      return _ref47.apply(this, arguments);
+      return _ref46.apply(this, arguments);
     };
   }(), [showToast, activeWheelMode]);
 
   // Season 8: handle prestige
-  var handlePrestige = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee21() {
+  var handlePrestige = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee20() {
     var _yield$apiGame12, ok, data;
-    return _regeneratorRuntime().wrap(function _callee21$(_context21) {
-      while (1) switch (_context21.prev = _context21.next) {
+    return _regeneratorRuntime().wrap(function _callee20$(_context20) {
+      while (1) switch (_context20.prev = _context20.next) {
         case 0:
           setShowPrestigeConfirm(false);
-          _context21.next = 3;
+          _context20.next = 3;
           return apiGame('/api/prestige', {
             method: 'POST',
             body: JSON.stringify({})
           });
         case 3:
-          _yield$apiGame12 = _context21.sent;
+          _yield$apiGame12 = _context20.sent;
           ok = _yield$apiGame12.ok;
           data = _yield$apiGame12.data;
           if (ok) {
@@ -6558,24 +6510,24 @@ function GameApp(_ref33) {
           }
         case 7:
         case "end":
-          return _context21.stop();
+          return _context20.stop();
       }
-    }, _callee21);
+    }, _callee20);
   })), [showToast]);
 
   // Season 8: handle guard activation
-  var handleGuardActivate = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee22() {
+  var handleGuardActivate = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee21() {
     var _yield$apiGame13, ok, data;
-    return _regeneratorRuntime().wrap(function _callee22$(_context22) {
-      while (1) switch (_context22.prev = _context22.next) {
+    return _regeneratorRuntime().wrap(function _callee21$(_context21) {
+      while (1) switch (_context21.prev = _context21.next) {
         case 0:
-          _context22.next = 2;
+          _context21.next = 2;
           return apiGame('/api/guard', {
             method: 'POST',
             body: JSON.stringify({})
           });
         case 2:
-          _yield$apiGame13 = _context22.sent;
+          _yield$apiGame13 = _context21.sent;
           ok = _yield$apiGame13.ok;
           data = _yield$apiGame13.data;
           if (ok) {
@@ -6588,19 +6540,19 @@ function GameApp(_ref33) {
           }
         case 6:
         case "end":
-          return _context22.stop();
+          return _context21.stop();
       }
-    }, _callee22);
+    }, _callee21);
   })), [showToast]);
 
   // Season 8: handle bounty claim
   var handleBountyClaim = useCallback(/*#__PURE__*/function () {
-    var _ref50 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee23(bountyId) {
+    var _ref49 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee22(bountyId) {
       var _yield$apiGame14, ok, data, _data$rewards, _data$rewards2;
-      return _regeneratorRuntime().wrap(function _callee23$(_context23) {
-        while (1) switch (_context23.prev = _context23.next) {
+      return _regeneratorRuntime().wrap(function _callee22$(_context22) {
+        while (1) switch (_context22.prev = _context22.next) {
           case 0:
-            _context23.next = 2;
+            _context22.next = 2;
             return apiGame('/api/bounties/claim', {
               method: 'POST',
               body: JSON.stringify({
@@ -6608,7 +6560,7 @@ function GameApp(_ref33) {
               })
             });
           case 2:
-            _yield$apiGame14 = _context23.sent;
+            _yield$apiGame14 = _context22.sent;
             ok = _yield$apiGame14.ok;
             data = _yield$apiGame14.data;
             if (ok) {
@@ -6631,23 +6583,23 @@ function GameApp(_ref33) {
             }
           case 6:
           case "end":
-            return _context23.stop();
+            return _context22.stop();
         }
-      }, _callee23);
+      }, _callee22);
     }));
     return function (_x12) {
-      return _ref50.apply(this, arguments);
+      return _ref49.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
   var handleSingularityContribute = useCallback(/*#__PURE__*/function () {
-    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee24(amount) {
+    var _ref50 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee23(amount) {
       var _yield$apiGame15, ok, data;
-      return _regeneratorRuntime().wrap(function _callee24$(_context24) {
-        while (1) switch (_context24.prev = _context24.next) {
+      return _regeneratorRuntime().wrap(function _callee23$(_context23) {
+        while (1) switch (_context23.prev = _context23.next) {
           case 0:
-            _context24.next = 2;
+            _context23.next = 2;
             return apiGame('/api/singularity/contribute', {
               method: 'POST',
               body: JSON.stringify({
@@ -6655,7 +6607,7 @@ function GameApp(_ref33) {
               })
             });
           case 2:
-            _yield$apiGame15 = _context24.sent;
+            _yield$apiGame15 = _context23.sent;
             ok = _yield$apiGame15.ok;
             data = _yield$apiGame15.data;
             if (ok) {
@@ -6674,23 +6626,23 @@ function GameApp(_ref33) {
             }
           case 6:
           case "end":
-            return _context24.stop();
+            return _context23.stop();
         }
-      }, _callee24);
+      }, _callee23);
     }));
     return function (_x13) {
-      return _ref51.apply(this, arguments);
+      return _ref50.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle fish-to-wager conversion
   var handleFishToWager = useCallback(/*#__PURE__*/function () {
-    var _ref52 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee25(fishId) {
+    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee24(fishId) {
       var _yield$apiGame16, ok, data;
-      return _regeneratorRuntime().wrap(function _callee25$(_context25) {
-        while (1) switch (_context25.prev = _context25.next) {
+      return _regeneratorRuntime().wrap(function _callee24$(_context24) {
+        while (1) switch (_context24.prev = _context24.next) {
           case 0:
-            _context25.next = 2;
+            _context24.next = 2;
             return apiGame('/api/fish-to-wager', {
               method: 'POST',
               body: JSON.stringify({
@@ -6698,7 +6650,7 @@ function GameApp(_ref33) {
               })
             });
           case 2:
-            _yield$apiGame16 = _context25.sent;
+            _yield$apiGame16 = _context24.sent;
             ok = _yield$apiGame16.ok;
             data = _yield$apiGame16.data;
             if (ok) {
@@ -6709,28 +6661,28 @@ function GameApp(_ref33) {
             }
           case 6:
           case "end":
-            return _context25.stop();
+            return _context24.stop();
         }
-      }, _callee25);
+      }, _callee24);
     }));
     return function (_x14) {
-      return _ref52.apply(this, arguments);
+      return _ref51.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle double-down
-  var handleDoubleDown = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee26() {
+  var handleDoubleDown = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee25() {
     var _yield$apiGame17, ok, data;
-    return _regeneratorRuntime().wrap(function _callee26$(_context26) {
-      while (1) switch (_context26.prev = _context26.next) {
+    return _regeneratorRuntime().wrap(function _callee25$(_context25) {
+      while (1) switch (_context25.prev = _context25.next) {
         case 0:
-          _context26.next = 2;
+          _context25.next = 2;
           return apiGame('/api/wager/double-down', {
             method: 'POST',
             body: JSON.stringify({})
           });
         case 2:
-          _yield$apiGame17 = _context26.sent;
+          _yield$apiGame17 = _context25.sent;
           ok = _yield$apiGame17.ok;
           data = _yield$apiGame17.data;
           if (ok) {
@@ -6741,24 +6693,24 @@ function GameApp(_ref33) {
           }
         case 6:
         case "end":
-          return _context26.stop();
+          return _context25.stop();
       }
-    }, _callee26);
+    }, _callee25);
   })), [showToast]);
 
   // Season 8: handle insurance
-  var handleInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee27() {
+  var handleInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee26() {
     var _yield$apiGame18, ok, data;
-    return _regeneratorRuntime().wrap(function _callee27$(_context27) {
-      while (1) switch (_context27.prev = _context27.next) {
+    return _regeneratorRuntime().wrap(function _callee26$(_context26) {
+      while (1) switch (_context26.prev = _context26.next) {
         case 0:
-          _context27.next = 2;
+          _context26.next = 2;
           return apiGame('/api/wager/insurance', {
             method: 'POST',
             body: JSON.stringify({})
           });
         case 2:
-          _yield$apiGame18 = _context27.sent;
+          _yield$apiGame18 = _context26.sent;
           ok = _yield$apiGame18.ok;
           data = _yield$apiGame18.data;
           if (ok) {
@@ -6771,19 +6723,19 @@ function GameApp(_ref33) {
           }
         case 6:
         case "end":
-          return _context27.stop();
+          return _context26.stop();
       }
-    }, _callee27);
+    }, _callee26);
   })), [showToast]);
 
   // Season 8: handle loadout save
   var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
-    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee28(slot, loadout) {
+    var _ref54 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee27(slot, loadout) {
       var _yield$apiGame19, ok;
-      return _regeneratorRuntime().wrap(function _callee28$(_context28) {
-        while (1) switch (_context28.prev = _context28.next) {
+      return _regeneratorRuntime().wrap(function _callee27$(_context27) {
+        while (1) switch (_context27.prev = _context27.next) {
           case 0:
-            _context28.next = 2;
+            _context27.next = 2;
             return apiGame('/api/loadout', {
               method: 'POST',
               body: JSON.stringify({
@@ -6792,28 +6744,28 @@ function GameApp(_ref33) {
               })
             });
           case 2:
-            _yield$apiGame19 = _context28.sent;
+            _yield$apiGame19 = _context27.sent;
             ok = _yield$apiGame19.ok;
             if (ok) showToast("Loadout ".concat(slot, " saved"));else showToast('Save failed');
           case 5:
           case "end":
-            return _context28.stop();
+            return _context27.stop();
         }
-      }, _callee28);
+      }, _callee27);
     }));
     return function (_x15, _x16) {
-      return _ref55.apply(this, arguments);
+      return _ref54.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle loadout apply
   var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
-    var _ref56 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee29(slot) {
+    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee28(slot) {
       var _yield$apiGame20, ok, data;
-      return _regeneratorRuntime().wrap(function _callee29$(_context29) {
-        while (1) switch (_context29.prev = _context29.next) {
+      return _regeneratorRuntime().wrap(function _callee28$(_context28) {
+        while (1) switch (_context28.prev = _context28.next) {
           case 0:
-            _context29.next = 2;
+            _context28.next = 2;
             return apiGame('/api/loadout/apply', {
               method: 'POST',
               body: JSON.stringify({
@@ -6821,7 +6773,7 @@ function GameApp(_ref33) {
               })
             });
           case 2:
-            _yield$apiGame20 = _context29.sent;
+            _yield$apiGame20 = _context28.sent;
             ok = _yield$apiGame20.ok;
             data = _yield$apiGame20.data;
             if (ok) {
@@ -6833,34 +6785,34 @@ function GameApp(_ref33) {
             }
           case 6:
           case "end":
-            return _context29.stop();
+            return _context28.stop();
         }
-      }, _callee29);
+      }, _callee28);
     }));
     return function (_x17) {
-      return _ref56.apply(this, arguments);
+      return _ref55.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: fetch legacy boards
-  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee30() {
+  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee29() {
     var _yield$apiGame21, ok, data;
-    return _regeneratorRuntime().wrap(function _callee30$(_context30) {
-      while (1) switch (_context30.prev = _context30.next) {
+    return _regeneratorRuntime().wrap(function _callee29$(_context29) {
+      while (1) switch (_context29.prev = _context29.next) {
         case 0:
           setShowLegacyBoards(true);
-          _context30.next = 3;
+          _context29.next = 3;
           return apiGame('/api/legacy-boards');
         case 3:
-          _yield$apiGame21 = _context30.sent;
+          _yield$apiGame21 = _context29.sent;
           ok = _yield$apiGame21.ok;
           data = _yield$apiGame21.data;
           if (ok) setLegacyBoards(data.boards || []);
         case 7:
         case "end":
-          return _context30.stop();
+          return _context29.stop();
       }
-    }, _callee30);
+    }, _callee29);
   })), []);
 
   // Season 8: keyboard shortcuts (T37)
@@ -7206,8 +7158,8 @@ function GameApp(_ref33) {
     className: "pointer"
   }), /*#__PURE__*/React.createElement("canvas", {
     ref: canvasRef,
-    width: 380,
-    height: 380,
+    width: 420,
+    height: 420,
     className: "wheel-canvas",
     style: {
       transform: "rotate(".concat(wheelRotation, "deg)"),
@@ -7218,56 +7170,8 @@ function GameApp(_ref33) {
   }, "\u2605")), /*#__PURE__*/React.createElement("button", {
     className: "spin-btn",
     onClick: handleManualSpin,
-    disabled: spinning || autoSpinBudget > 0,
-    title: autoSpinBudget > 0 ? 'Stop auto-spin to spin manually' : ''
-  }, spinning ? '● ● ●' : autoSpinBudget > 0 ? "Auto (".concat(autoSpinBudget, " left)") : '▶ Spin ◀'), /*#__PURE__*/React.createElement("div", {
-    className: "auto-spin-controls"
-  }, autoSpinBudget > 0 ? /*#__PURE__*/React.createElement("button", {
-    className: "auto-spin-stop-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee31() {
-      var _yield$apiGame22, ok;
-      return _regeneratorRuntime().wrap(function _callee31$(_context31) {
-        while (1) switch (_context31.prev = _context31.next) {
-          case 0:
-            _context31.next = 2;
-            return apiGame('/api/auto-spin/stop', {
-              method: 'POST',
-              body: '{}'
-            });
-          case 2:
-            _yield$apiGame22 = _context31.sent;
-            ok = _yield$apiGame22.ok;
-            if (ok) setAutoSpinBudget(0);
-          case 5:
-          case "end":
-            return _context31.stop();
-        }
-      }, _callee31);
-    }))
-  }, "\u23F9 Stop Auto-Spin") : /*#__PURE__*/React.createElement("button", {
-    className: "auto-spin-start-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee32() {
-      var _yield$apiGame23, ok, data;
-      return _regeneratorRuntime().wrap(function _callee32$(_context32) {
-        while (1) switch (_context32.prev = _context32.next) {
-          case 0:
-            _context32.next = 2;
-            return apiGame('/api/auto-spin/start', {
-              method: 'POST',
-              body: '{}'
-            });
-          case 2:
-            _yield$apiGame23 = _context32.sent;
-            ok = _yield$apiGame23.ok;
-            data = _yield$apiGame23.data;
-            if (ok) setAutoSpinBudget(data.auto_spin_budget || 100);
-          case 6:
-          case "end":
-            return _context32.stop();
-        }
-      }, _callee32);
-    }))
-  }, "\u23E9 Auto-Spin (100 spins)")), catchupBonus && /*#__PURE__*/React.createElement("div", {
+    disabled: spinning
+  }, spinning ? '● ● ●' : '▶ Spin ◀'), catchupBonus && /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt",
     style: {
       opacity: 0.7,
@@ -7293,20 +7197,20 @@ function GameApp(_ref33) {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee33() {
-      var _yield$apiGame24, ok, data;
-      return _regeneratorRuntime().wrap(function _callee33$(_context33) {
-        while (1) switch (_context33.prev = _context33.next) {
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee30() {
+      var _yield$apiGame22, ok, data;
+      return _regeneratorRuntime().wrap(function _callee30$(_context30) {
+        while (1) switch (_context30.prev = _context30.next) {
           case 0:
-            _context33.next = 2;
+            _context30.next = 2;
             return apiGame('/api/wager/bank', {
               method: 'POST',
               body: '{}'
             });
           case 2:
-            _yield$apiGame24 = _context33.sent;
-            ok = _yield$apiGame24.ok;
-            data = _yield$apiGame24.data;
+            _yield$apiGame22 = _context30.sent;
+            ok = _yield$apiGame22.ok;
+            data = _yield$apiGame22.data;
             if (ok) {
               setWins(data.wins);
               setWagerBankedWins(0);
@@ -7315,9 +7219,9 @@ function GameApp(_ref33) {
             } else showToast(data.error || 'Bank failed');
           case 6:
           case "end":
-            return _context33.stop();
+            return _context30.stop();
         }
-      }, _callee33);
+      }, _callee30);
     }))
   }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("div", {
     className: "wager-double-down-armed"
@@ -7617,66 +7521,66 @@ function GameApp(_ref33) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState233 = useState(undefined),
+  var _useState231 = useState(undefined),
+    _useState232 = _slicedToArray(_useState231, 2),
+    user = _useState232[0],
+    setUser = _useState232[1];
+  var _useState233 = useState(null),
     _useState234 = _slicedToArray(_useState233, 2),
-    user = _useState234[0],
-    setUser = _useState234[1];
-  var _useState235 = useState(null),
+    gameState = _useState234[0],
+    setGameState = _useState234[1];
+  var _useState235 = useState(''),
     _useState236 = _slicedToArray(_useState235, 2),
-    gameState = _useState236[0],
-    setGameState = _useState236[1];
-  var _useState237 = useState(''),
-    _useState238 = _slicedToArray(_useState237, 2),
-    sessionMsg = _useState238[0],
-    setSessionMsg = _useState238[1];
+    sessionMsg = _useState236[0],
+    setSessionMsg = _useState236[1];
   useEffect(function () {
-    _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee34() {
+    _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee31() {
       var _yield$apiFetch2, ok, data, gs;
-      return _regeneratorRuntime().wrap(function _callee34$(_context34) {
-        while (1) switch (_context34.prev = _context34.next) {
+      return _regeneratorRuntime().wrap(function _callee31$(_context31) {
+        while (1) switch (_context31.prev = _context31.next) {
           case 0:
-            _context34.next = 2;
+            _context31.next = 2;
             return apiFetch('/api/me');
           case 2:
-            _yield$apiFetch2 = _context34.sent;
+            _yield$apiFetch2 = _context31.sent;
             ok = _yield$apiFetch2.ok;
             data = _yield$apiFetch2.data;
             storeCsrf(data);
             if (!(ok && data.username)) {
-              _context34.next = 13;
+              _context31.next = 13;
               break;
             }
-            _context34.next = 9;
+            _context31.next = 9;
             return apiFetch('/api/state');
           case 9:
-            gs = _context34.sent;
+            gs = _context31.sent;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(data.username);
             } else {
               setUser(null);
             }
-            _context34.next = 14;
+            _context31.next = 14;
             break;
           case 13:
             setUser(null);
           case 14:
           case "end":
-            return _context34.stop();
+            return _context31.stop();
         }
-      }, _callee34);
+      }, _callee31);
     }))();
   }, []);
   var handleAuth = /*#__PURE__*/function () {
-    var _ref62 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee35(username) {
+    var _ref59 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee32(username) {
       var gs;
-      return _regeneratorRuntime().wrap(function _callee35$(_context35) {
-        while (1) switch (_context35.prev = _context35.next) {
+      return _regeneratorRuntime().wrap(function _callee32$(_context32) {
+        while (1) switch (_context32.prev = _context32.next) {
           case 0:
-            _context35.next = 2;
+            _context32.next = 2;
             return apiFetch('/api/state');
           case 2:
-            gs = _context35.sent;
+            gs = _context32.sent;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(username);
@@ -7684,12 +7588,12 @@ function App() {
             }
           case 4:
           case "end":
-            return _context35.stop();
+            return _context32.stop();
         }
-      }, _callee35);
+      }, _callee32);
     }));
     return function handleAuth(_x18) {
-      return _ref62.apply(this, arguments);
+      return _ref59.apply(this, arguments);
     };
   }();
   var handleLogout = function handleLogout() {

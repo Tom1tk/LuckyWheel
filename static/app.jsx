@@ -3049,7 +3049,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return id;
   })());
   // Season 8: auto-spin budget (0 = inactive)
-  const [autoSpinBudget, setAutoSpinBudget] = useState(gameState.auto_spin_budget || 0);
 
   const toggleMobilePanel = useCallback((panel) => {
     setMobilePanel(prev => prev === panel ? null : panel);
@@ -3202,7 +3201,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
           if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
           if (gs.data.singularity != null) setSingularity(gs.data.singularity);
-          if (gs.data.auto_spin_budget != null) setAutoSpinBudget(gs.data.auto_spin_budget);
         }
       } else {
         setSeason(r.data);
@@ -3515,8 +3513,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       if (!res.ok) return;
       const data = res.data;
 
-      if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
-      if (data.auto_spin_active === false) { setAutoSpinBudget(0); return; }
+      if (data.auto_spin_active === false) return;
 
       if (data.happy_hour != null) setHappyHour(data.happy_hour);
 
@@ -3595,20 +3592,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [applySpinResult, applyFishCatchUp, dismissResult, scheduleResultDismiss]);
 
-  // Season 8: auto-spin tick — only run while the player has activated auto-spin (budget > 0).
-  // Manual spins go through handleManualSpin → /api/spin directly.
-  useEffect(() => {
-    if (autoSpinBudget <= 0) return;
-    let busy = false;
-    const doTick = async () => {
-      if (busy || document.hidden) return;
-      busy = true;
-      try { await tick(); } finally { busy = false; }
-    };
-    doTick();
-    const id = setInterval(doTick, 3000);
-    return () => clearInterval(id);
-  }, [autoSpinBudget > 0]); // eslint-disable-line
 
   // Poll happy_hour status every minute (in case of time zone changes or missed state update)
   useEffect(() => {
@@ -3681,7 +3664,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.bounties != null) setBounties(gameState.bounties);
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
     if (gameState.singularity != null) setSingularity(gameState.singularity);
-    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
   }, []); // eslint-disable-line
 
   // Season 8: handle stake change
@@ -4104,8 +4086,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="pointer" />
             <canvas
               ref={canvasRef}
-              width={380}
-              height={380}
+              width={420}
+              height={420}
               className="wheel-canvas"
               style={{ transform: `rotate(${wheelRotation}deg)`, transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
             />
@@ -4116,26 +4098,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <button
             className="spin-btn"
             onClick={handleManualSpin}
-            disabled={spinning || autoSpinBudget > 0}
-            title={autoSpinBudget > 0 ? 'Stop auto-spin to spin manually' : ''}
+            disabled={spinning}
           >
-            {spinning ? '● ● ●' : autoSpinBudget > 0 ? `Auto (${autoSpinBudget} left)` : '▶ Spin ◀'}
+            {spinning ? '● ● ●' : '▶ Spin ◀'}
           </button>
-
-          {/* Season 8: auto-spin controls */}
-          <div className="auto-spin-controls">
-            {autoSpinBudget > 0 ? (
-              <button className="auto-spin-stop-btn" onClick={async () => {
-                const { ok } = await apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' });
-                if (ok) setAutoSpinBudget(0);
-              }}>⏹ Stop Auto-Spin</button>
-            ) : (
-              <button className="auto-spin-start-btn" onClick={async () => {
-                const { ok, data } = await apiGame('/api/auto-spin/start', { method: 'POST', body: '{}' });
-                if (ok) setAutoSpinBudget(data.auto_spin_budget || 100);
-              }}>⏩ Auto-Spin (100 spins)</button>
-            )}
-          </div>
 
           {catchupBonus && (
             <div className="spin-prompt" style={{ opacity: 0.7, fontSize: '0.7rem', pointerEvents: 'none' }}>
