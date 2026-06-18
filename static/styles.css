@@ -4275,3 +4275,60 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   outline-offset: 3px;
   box-shadow: 0 0 0 5px rgba(255,215,0,0.4);
 }
+
+/* Season 8: manual spin button */
+.spin-btn {
+  display: block;
+  margin: 12px auto 0;
+  background: none;
+  border: 2px solid var(--p-lt, #b388ff);
+  color: var(--p-lt, #b388ff);
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+  min-width: 160px;
+}
+.spin-btn:hover:not(:disabled) { background: rgba(179,136,255,0.12); }
+.spin-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Season 8: auto-spin controls */
+.auto-spin-controls {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 0;
+}
+.auto-spin-start-btn, .auto-spin-stop-btn {
+  background: none;
+  border: 1px solid #555;
+  color: #888;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.auto-spin-start-btn:hover { color: #aaa; border-color: #888; }
+.auto-spin-stop-btn { border-color: #e57; color: #e57; }
+.auto-spin-stop-btn:hover { opacity: 0.8; }
+
+/* Season 8: double-down armed indicator */
+.wager-double-down-armed {
+  font-size: 0.8rem;
+  color: #ffd700;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #ffd700;
+  border-radius: 4px;
+  animation: pulse-glow 1.2s ease-in-out infinite alternate;
+}
+.wager-bank-btn {
+  background: rgba(40,200,120,0.15);
+  border-color: #28c878;
+  color: #28c878;
+}

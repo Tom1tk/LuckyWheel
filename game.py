@@ -664,9 +664,10 @@ def spin():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 gs = _load_game_state(cur, current_user.id, for_update=True)
 
-            # Block manual spins when server-side auto-spin is active
-            if gs['auto_spin_since'] is not None:
-                return jsonify({'error': 'Auto-spin is active — use /api/tick'}), 403
+            # Block manual spins when server-side auto-spin is currently running (budget > 0 + auto_spin_since set).
+            # Season 8: auto-spin is opt-in (budget only > 0 when user explicitly started it).
+            if gs['auto_spin_since'] is not None and int(gs.get('auto_spin_budget', 0)) > 0:
+                return jsonify({'error': 'Auto-spin is active. Stop it first to spin manually.'}), 403
 
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute('SELECT filled, filled_at, win_chance_pct, last_decay_check, total_contributed, target FROM community_pot WHERE id = 1')
@@ -933,7 +934,13 @@ def tick():
                 )
                 pot_row = cur.fetchone()
 
-            # First tick of the season — start the wheel now
+            # Season 8: only process auto-spin when the player has started it (budget > 0).
+            # If budget is 0, return immediately — manual spins go through /api/spin directly.
+            budget = int(gs.get('auto_spin_budget', 0))
+            if budget == 0:
+                return jsonify({'spins': [], 'auto_spin_active': False, 'elapsed_ms': 0})
+
+            # First auto-spin tick of the session — start the clock now
             if gs['auto_spin_since'] is None:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -941,26 +948,26 @@ def tick():
                         (now_utc, now_utc, current_user.id),
                     )
                 conn.commit()
-                return jsonify({'started': True, 'auto_spin_since': now_utc.isoformat()})
+                return jsonify({'started': True, 'auto_spin_since': now_utc.isoformat(),
+                                'auto_spin_active': True, 'auto_spin_budget': budget})
 
             auto_spin_since = gs['auto_spin_since']
             auto_spin_since = _aware(auto_spin_since)
 
             last_spin = gs['last_spin_at'] or auto_spin_since
             last_spin = _aware(last_spin)
-            # Never count time before the wheel started this season
+            # Never count time before the wheel started this session
             cursor = max(auto_spin_since, last_spin)
 
             elapsed = (now_utc - cursor).total_seconds()
             spins_due = min(int(elapsed // AUTO_SPIN_INTERVAL_SECONDS), MAX_SPINS_PER_TICK)
 
-            # Season 8: cap by auto_spin_budget
-            budget = int(gs.get('auto_spin_budget', 0))
-            if budget > 0:
-                spins_due = min(spins_due, budget)
+            # Cap by remaining budget (Season 8: max 100 spins per activation)
+            spins_due = min(spins_due, budget)
 
             if spins_due == 0:
-                return jsonify({'spins': [], 'elapsed_ms': int(elapsed * 1000)})
+                return jsonify({'spins': [], 'auto_spin_active': True,
+                                'auto_spin_budget': budget, 'elapsed_ms': int(elapsed * 1000)})
 
             is_catch_up = spins_due > CATCH_UP_THRESHOLD
 
