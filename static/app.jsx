@@ -2421,6 +2421,34 @@ const SHOP_SECTIONS = [
     { id: 'theme_vintage',emoji: '📼', name: 'Vintage Theme', cost: 40000,  desc: 'Retro-styled sepia tones' },
     { id: 'golden_wheel',emoji: '✨', name: 'Golden Wheel',  cost: 300,   desc: 'Radiant glow ring' },
   ]},
+  { label: '🎊 Confetti', items: [
+    { id: 'party_mode', emoji: '🎊', name: 'Party Mode',  cost: 150,  desc: 'Win confetti burst every spin' },
+    { id: 'confetti_1', emoji: '✨', name: 'Confetti I',  cost: 75,   desc: 'Light confetti on wins' },
+    { id: 'confetti_2', emoji: '🌟', name: 'Confetti II', cost: 300,  desc: 'Heavier confetti shower', requires: 'confetti_1' },
+    { id: 'confetti_3', emoji: '💫', name: 'Confetti III',cost: 1200, desc: 'Maximum confetti eruption', requires: 'confetti_2' },
+  ]},
+  { label: '🎨 Atmosphere', items: [
+    { id: 'bg_royal',   emoji: '👑', name: 'Royal',   cost: 400,   desc: 'Deep purple radial atmosphere' },
+    { id: 'bg_inferno', emoji: '🔥', name: 'Inferno', cost: 1600,  desc: 'Red hellscape atmosphere', requires: 'bg_royal' },
+    { id: 'bg_forest',  emoji: '🌲', name: 'Forest',  cost: 5000,  desc: 'Dark forest atmosphere', requires: 'bg_inferno' },
+    { id: 'bg_abyss',   emoji: '🌑', name: 'Abyss',   cost: 15000, desc: 'Void atmosphere', requires: 'bg_forest' },
+    { id: 'bg_cosmic',  emoji: '🌌', name: 'Cosmic',  cost: 50000, desc: 'Cosmic void atmosphere', requires: 'bg_abyss' },
+  ]},
+  { label: '🖼️ Page Theme', items: [
+    { id: 'page_season1', emoji: '1️⃣', name: 'Season 1', cost: 1000, desc: 'Season 1 page theme' },
+    { id: 'page_season2', emoji: '2️⃣', name: 'Season 2', cost: 1000, desc: 'Season 2 page theme' },
+    { id: 'page_season3', emoji: '3️⃣', name: 'Season 3', cost: 1000, desc: 'Season 3 page theme' },
+    { id: 'page_season4', emoji: '4️⃣', name: 'Season 4', cost: 1000, desc: 'Season 4 page theme' },
+    { id: 'page_season5', emoji: '5️⃣', name: 'Season 5', cost: 1000, desc: 'Season 5 page theme — Bioluminescence' },
+    { id: 'page_season6', emoji: '6️⃣', name: 'Season 6', cost: 1000, desc: 'Season 6 page theme — Night Ocean' },
+    { id: 'page_season7', emoji: '7️⃣', name: 'Season 7', cost: 1000, desc: 'Season 7 page theme — Wormhole' },
+  ]},
+  { label: '🎲 Dice Charges', items: [
+    { id: 'dice_charge_2', emoji: '🎲', name: 'Dice Charge +1', cost: 2000,    desc: 'Max dice charges: 2' },
+    { id: 'dice_charge_3', emoji: '🎲', name: 'Dice Charge +2', cost: 15000,   desc: 'Max dice charges: 3', requires: 'dice_charge_2' },
+    { id: 'dice_charge_4', emoji: '🎲', name: 'Dice Charge +3', cost: 100000,  desc: 'Max dice charges: 4', requires: 'dice_charge_3' },
+    { id: 'dice_extra',    emoji: '🎰', name: 'Extra Die',      cost: 1000000, desc: 'Roll 3 dice — take the best result', requires: 'dice_charge_3' },
+  ]},
 ];
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
@@ -3910,187 +3938,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       )}
 
-      {/* Wager panel (T09) — shown if wager_unlock owned */}
-      {ownedItems.includes('wager_unlock') && (
-        <div className="season8-wager-panel">
-          <div className="wager-stake-control">
-            <label>Stake: </label>
-            <input
-              type="range" min="1" max="10" value={stake}
-              onChange={e => handleStakeChange(parseInt(e.target.value))}
-              className="wager-slider"
-            />
-            <span className={`stake-label stake-${stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless'}`}>
-              {stake}× {stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless'}
-            </span>
-          </div>
-          {wagerStreak > 0 && (
-            <div className="wager-hotstreak">
-              🔥 Hot Streak: {wagerStreak} wins (+{Math.min(wagerStreak * 5, 50)}% bonus)
-            </div>
-          )}
-          {wagerBankedWins > 0 && (
-            <button className="wager-action-btn wager-bank-btn" onClick={async () => {
-              const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
-              if (ok) { setWins(data.wins); setWagerBankedWins(0); setWagerStreak(0); showToast(`Banked ${fmt(data.banked)} wins!`); }
-              else showToast(data.error || 'Bank failed');
-            }}>🏦 Bank {fmt(wagerBankedWins)} wins</button>
-          )}
-          {ownedItems.includes('wager_double_down') && doubleDownPending && (
-            <div className="wager-double-down-armed">⚡ Double-Down armed — next spin is 2× stake!</div>
-          )}
-          {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-            <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double Down</button>
-          )}
-          {ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && (
-            <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
-          )}
-        </div>
-      )}
-
-      {/* Wheel mode selector (T12) */}
-      <div className="season8-wheel-mode">
-        <select
-          value={activeWheelMode}
-          onChange={e => handleWheelModeChange(e.target.value)}
-          className="wheel-mode-select"
-        >
-          {availableWheelModes.map(mode => (
-            <option key={mode} value={mode}>
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Prestige panel (T14) */}
-      {ownedItems.includes('prestige_unlock') && (
-        <div className="season8-prestige-panel">
-          <div className="prestige-badge">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}%)</div>
-          {legacyWins > 0 && <div className="legacy-badge">Seasons 1-7: {fmt(legacyWins)} wins</div>}
-          {prestigeLevel < 20 && (
-            <button
-              className="prestige-btn"
-              disabled={wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000)}
-              onClick={() => setShowPrestigeConfirm(true)}
-            >Prestige</button>
-          )}
-        </div>
-      )}
-
-      {/* Guard charges (T22) */}
-      {ownedItems.includes('guard') && (
-        <div className="season8-guard-panel">
-          <span className="guard-charges">🛡️ {guardCharges}/3</span>
-          <button
-            className="guard-activate-btn"
-            disabled={guardCharges === 0}
-            onClick={handleGuardActivate}
-          >Block</button>
-        </div>
-      )}
-
-      {/* Bounties panel (T41) */}
-      {bounties && bounties.length > 0 && (
-        <div className="season8-bounties-panel">
-          <div className="bounties-header">
-            <span>📋 Daily Bounties</span>
-            {cosmeticFragments > 0 && <span className="fragment-count">💎 {cosmeticFragments}</span>}
-          </div>
-          {bounties.map(b => (
-            <div key={b.bounty_id} className="bounty-card">
-              <div className="bounty-desc">{b.description || b.bounty_id}</div>
-              <div className="bounty-progress-bar">
-                <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
-              </div>
-              <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
-              {b.completed && !b.claimed && (
-                <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>Claim</button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Community goal widget (T29) */}
-      {communityGoal && (
-        <div className="season8-community-goal">
-          <div className="goal-label">🌍 Community Goal</div>
-          <div className="goal-desc">{communityGoal.description}</div>
-          <div className="goal-progress-bar">
-            <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
-          </div>
-          <div className="goal-progress-text">
-            {fmt(communityGoal.current)} / {fmt(communityGoal.target)}
-          </div>
-          <div className="goal-contrib">You: {fmt(communityGoal.player_contribution)} / {fmt(communityGoal.per_player_cap)}</div>
-        </div>
-      )}
-
-      {/* Singularity meter (T31) */}
-      {singularity && (
-        <div className="season8-singularity-panel">
-          <div className="singularity-label">🌀 Singularity Meter</div>
-          <div className="singularity-progress-bar">
-            <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
-          </div>
-          <div className="singularity-progress-text">
-            {fmt(singularity.total_contributed)} / {fmt(singularity.target)}
-          </div>
-          {singularity.fill_count > 0 && <div className="singularity-fills">Convergences: {singularity.fill_count}</div>}
-          <button
-            className="singularity-contribute-btn"
-            onClick={() => {
-              const amt = prompt('How many wins to contribute?');
-              if (amt) handleSingularityContribute(parseInt(amt));
-            }}
-          >Contribute</button>
-        </div>
-      )}
-
-      {/* Aquarium panel (T26) */}
-      {ownedItems.includes('aquarium') && (
-        <div className="season8-aquarium-panel">
-          <div className="aquarium-header">
-            <span>🐠 Aquarium ({aquariumSpecies.length} species)</span>
-            <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}% luck</span>
-          </div>
-          <div className="aquarium-grid">
-            {aquariumSpecies.map(s => (
-              <div key={s} className="aquarium-species" title={s}>{s}</div>
-            ))}
-          </div>
-          {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
-            <div className="wager-tokens">🪙 Wager Tokens: {fmt(wagerTokens)}</div>
-          )}
-        </div>
-      )}
-
-      {/* Loadout slots (T33) */}
-      <div className="season8-loadout-panel">
-        <div className="loadout-label">⚙️ Loadouts</div>
-        <div className="loadout-slots">
-          {[1, 2, 3].map(slot => (
-            <div key={slot} className="loadout-slot">
-              <button className="loadout-save-btn" onClick={() => handleLoadoutSave(slot, { owned_items: ownedItems, active_cosmetics: activeCosmetics })}>Save {slot}</button>
-              <button className="loadout-apply-btn" onClick={() => handleLoadoutApply(slot)}>Equip {slot}</button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Accessibility controls (T37) */}
-      <div className="season8-a11y-panel">
-        <label className="a11y-toggle">
-          <input type="checkbox" checked={reducedMotion} onChange={e => setReducedMotion(e.target.checked)} />
-          Reduced Motion
-        </label>
-        <label className="a11y-toggle">
-          <input type="checkbox" checked={highContrast} onChange={e => setHighContrast(e.target.checked)} />
-          High Contrast
-        </label>
-        <button className="legacy-boards-btn" onClick={handleShowLegacyBoards}>🏆 Hall of Fame</button>
-      </div>
 
       <Confetti active={confetti} count={confettiCount} />
       {wormholeActive && (
@@ -4147,6 +3994,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           >💬</button>
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
+        <button
+          className="stats-btn"
+          onClick={() => setReducedMotion(v => !v)}
+          title={reducedMotion ? 'Reduced Motion: ON — click to disable' : 'Reduced Motion: OFF — click to enable'}
+          style={{ opacity: reducedMotion ? 1 : 0.4 }}
+        >🌀</button>
+        <button
+          className="stats-btn"
+          onClick={() => setHighContrast(v => !v)}
+          title={highContrast ? 'High Contrast: ON — click to disable' : 'High Contrast: OFF — click to enable'}
+          style={{ opacity: highContrast ? 1 : 0.4 }}
+        >⬛</button>
+        <button className="stats-btn" title="Hall of Fame — Legacy Wins" onClick={handleShowLegacyBoards}>🏆</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         {season && <SeasonInfo seasonName={season.season_name || season.season_number} endsAt={season.ends_at} />}
       </div>
@@ -4297,6 +4157,58 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             </div>
           )}
 
+          {/* Season 8: Wager panel — shown when wager_unlock is owned */}
+          {ownedItems.includes('wager_unlock') && (
+            <div className="season8-wager-panel">
+              <div className="wager-stake-control">
+                <label>Stake</label>
+                <input
+                  type="range" min="1" max="10" value={stake}
+                  onChange={e => handleStakeChange(parseInt(e.target.value))}
+                  className="wager-slider"
+                />
+                <span className={`stake-label stake-${stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless'}`}>
+                  {stake}× {stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless'}
+                </span>
+              </div>
+              {wagerStreak > 0 && (
+                <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
+              )}
+              {wagerBankedWins > 0 && (
+                <button className="wager-action-btn wager-bank-btn" onClick={async () => {
+                  const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
+                  if (ok) { setWins(data.wins); setWagerBankedWins(0); setWagerStreak(0); showToast(`Banked ${fmt(data.banked)} wins!`); }
+                  else showToast(data.error || 'Bank failed');
+                }}>🏦 Bank {fmt(wagerBankedWins)}</button>
+              )}
+              {ownedItems.includes('wager_double_down') && doubleDownPending && (
+                <div className="wager-double-down-armed">⚡ Double-Down armed!</div>
+              )}
+              {ownedItems.includes('wager_double_down') && !doubleDownPending && (
+                <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double Down</button>
+              )}
+              {ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && (
+                <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+              )}
+            </div>
+          )}
+
+          {/* Season 8: Wheel mode selector */}
+          <div className="season8-wheel-mode">
+            <span className="wheel-mode-label">Mode:</span>
+            <select
+              value={activeWheelMode}
+              onChange={e => handleWheelModeChange(e.target.value)}
+              className="wheel-mode-select"
+            >
+              {availableWheelModes.map(mode => (
+                <option key={mode} value={mode}>
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
 
           {isMobile && (
@@ -4344,7 +4256,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="game-right-sidebar">
               {(hasGuard || hasRegen) && (
                 <div className="shield-indicator">
-                  {hasGuard && <div>🛡️ Guard ready</div>}
+                  {hasGuard && (
+                    <>
+                      <div className="guard-charges">🛡️ Guard {guardCharges}/3</div>
+                      <button
+                        className="guard-activate-btn"
+                        disabled={guardCharges === 0}
+                        onClick={handleGuardActivate}
+                      >Block</button>
+                    </>
+                  )}
                   {hasRegen && (
                     <div>{regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'}</div>
                   )}
@@ -4367,6 +4288,108 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 hasDiceExtra={ownedItems.includes('dice_extra')}
                 rolledSinceSpin={diceRolledSinceSpin}
               />
+
+              {/* Season 8: Prestige panel */}
+              {ownedItems.includes('prestige_unlock') && (
+                <div className="season8-prestige-panel">
+                  <div className="prestige-badge">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}%)</div>
+                  {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
+                  {prestigeLevel < 20 && (
+                    <button
+                      className="prestige-btn"
+                      disabled={wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000)}
+                      onClick={() => setShowPrestigeConfirm(true)}
+                    >Prestige</button>
+                  )}
+                </div>
+              )}
+
+              {/* Season 8: Bounties panel */}
+              {bounties && bounties.length > 0 && (
+                <div className="season8-bounties-panel">
+                  <div className="bounties-header">
+                    <span>📋 Bounties</span>
+                    {cosmeticFragments > 0 && <span className="fragment-count">💎 {cosmeticFragments}</span>}
+                  </div>
+                  {bounties.map(b => (
+                    <div key={b.bounty_id} className="bounty-card">
+                      <div className="bounty-desc">{b.description || b.bounty_id}</div>
+                      <div className="bounty-progress-bar">
+                        <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
+                      </div>
+                      <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
+                      {b.completed && !b.claimed && (
+                        <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>Claim</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Season 8: Community goal */}
+              {communityGoal && (
+                <div className="season8-community-goal">
+                  <div className="goal-label">🌍 Community Goal</div>
+                  <div className="goal-desc">{communityGoal.description}</div>
+                  <div className="goal-progress-bar">
+                    <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
+                  </div>
+                  <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)}</div>
+                  <div className="goal-contrib">You: {fmt(communityGoal.player_contribution)}</div>
+                </div>
+              )}
+
+              {/* Season 8: Singularity meter */}
+              {singularity && (
+                <div className="season8-singularity-panel">
+                  <div className="singularity-label">🌀 Singularity</div>
+                  <div className="singularity-progress-bar">
+                    <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
+                  </div>
+                  <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}</div>
+                  {singularity.fill_count > 0 && <div className="singularity-fills">Convergences: {singularity.fill_count}</div>}
+                  <button
+                    className="singularity-contribute-btn"
+                    onClick={() => {
+                      const amt = prompt('How many fish to contribute?');
+                      if (amt) handleSingularityContribute(parseInt(amt));
+                    }}
+                  >Contribute</button>
+                </div>
+              )}
+
+              {/* Season 8: Aquarium */}
+              {ownedItems.includes('aquarium') && (
+                <div className="season8-aquarium-panel">
+                  <div className="aquarium-header">
+                    <span>🐠 Aquarium</span>
+                    <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}%</span>
+                  </div>
+                  <div className="aquarium-grid">
+                    {aquariumSpecies.map(s => (
+                      <div key={s} className="aquarium-species" title={s}>{s}</div>
+                    ))}
+                  </div>
+                  {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
+                    <div className="wager-tokens">🪙 {fmt(wagerTokens)} tokens</div>
+                  )}
+                </div>
+              )}
+
+              {/* Season 8: Loadout (shown once something is owned) */}
+              {ownedItems.length > 0 && (
+                <div className="season8-loadout-panel">
+                  <div className="loadout-label">⚙️ Loadouts</div>
+                  <div className="loadout-slots">
+                    {[1, 2, 3].map(slot => (
+                      <div key={slot} className="loadout-slot">
+                        <button className="loadout-save-btn" onClick={() => handleLoadoutSave(slot, { owned_items: ownedItems, active_cosmetics: activeCosmetics })}>Save {slot}</button>
+                        <button className="loadout-apply-btn" onClick={() => handleLoadoutApply(slot)}>Equip {slot}</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
