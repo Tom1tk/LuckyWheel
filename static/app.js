@@ -6002,7 +6002,7 @@ function GameApp(_ref33) {
     } : null);
     setShowResultSync(true);
     var cosm = activeCosmeticsRef.current;
-    if (!lowSpecRef.current && !reducedMotion) {
+    if (!lowSpecRef.current) {
       if (data.result === 'win' || data.guard_triggered && data.guard_blocked) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
@@ -6019,7 +6019,7 @@ function GameApp(_ref33) {
     fishTimerRef.current = setTimeout(function () {
       return setFishMood('idle');
     }, 2500);
-  }, [showToast, reducedMotion]);
+  }, [showToast]);
 
   // Dismiss the result banner smoothly
   var dismissResult = useCallback(function () {
@@ -6096,7 +6096,7 @@ function GameApp(_ref33) {
         case 13:
           data = res.data; // Animate wheel to the returned segment angle
           seg = data.angle % 360;
-          nextRot = Math.ceil((wheelRotationRef.current + 5 * 360 - seg) / 360) * 360 + seg;
+          nextRot = Math.ceil((wheelRotationRef.current + 2 * 360 - seg) / 360) * 360 + seg;
           wheelRotationRef.current = nextRot;
           setWheelRotation(nextRot);
           if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
@@ -6432,36 +6432,21 @@ function GameApp(_ref33) {
     _useState228 = _slicedToArray(_useState227, 2),
     showOnboarding = _useState228[0],
     setShowOnboarding = _useState228[1];
-  var _useState229 = useState(function () {
-      return localStorage.getItem('reducedMotion') === 'true';
-    }),
+  var _useState229 = useState(false),
     _useState230 = _slicedToArray(_useState229, 2),
-    reducedMotion = _useState230[0],
-    setReducedMotion = _useState230[1];
-  var _useState231 = useState(function () {
-      return localStorage.getItem('highContrast') === 'true';
-    }),
+    showLegacyBoards = _useState230[0],
+    setShowLegacyBoards = _useState230[1];
+  var _useState231 = useState([]),
     _useState232 = _slicedToArray(_useState231, 2),
-    highContrast = _useState232[0],
-    setHighContrast = _useState232[1];
-  var _useState233 = useState(false),
-    _useState234 = _slicedToArray(_useState233, 2),
-    showLegacyBoards = _useState234[0],
-    setShowLegacyBoards = _useState234[1];
-  var _useState235 = useState([]),
-    _useState236 = _slicedToArray(_useState235, 2),
-    legacyBoards = _useState236[0],
-    setLegacyBoards = _useState236[1];
+    legacyBoards = _useState232[0],
+    setLegacyBoards = _useState232[1];
 
-  // Season 8: apply accessibility classes
+  // Clear any previously-set accessibility classes from localStorage
   useEffect(function () {
-    localStorage.setItem('reducedMotion', reducedMotion);
-    document.body.classList.toggle('reduced-motion', reducedMotion);
-  }, [reducedMotion]);
-  useEffect(function () {
-    localStorage.setItem('highContrast', highContrast);
-    document.body.classList.toggle('high-contrast', highContrast);
-  }, [highContrast]);
+    localStorage.removeItem('reducedMotion');
+    localStorage.removeItem('highContrast');
+    document.body.classList.remove('reduced-motion', 'high-contrast');
+  }, []);
 
   // Season 8: sync state from /api/state poll (season change handler already updates most state)
   // This runs on mount and when gameState changes
@@ -7108,28 +7093,6 @@ function GameApp(_ref33) {
     }
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
     className: "stats-btn",
-    onClick: function onClick() {
-      return setReducedMotion(function (v) {
-        return !v;
-      });
-    },
-    title: reducedMotion ? 'Reduced Motion: ON — click to disable' : 'Reduced Motion: OFF — click to enable',
-    style: {
-      opacity: reducedMotion ? 1 : 0.4
-    }
-  }, "\uD83C\uDF00"), /*#__PURE__*/React.createElement("button", {
-    className: "stats-btn",
-    onClick: function onClick() {
-      return setHighContrast(function (v) {
-        return !v;
-      });
-    },
-    title: highContrast ? 'High Contrast: ON — click to disable' : 'High Contrast: OFF — click to enable',
-    style: {
-      opacity: highContrast ? 1 : 0.4
-    }
-  }, "\u2B1B"), /*#__PURE__*/React.createElement("button", {
-    className: "stats-btn",
     title: "Hall of Fame \u2014 Legacy Wins",
     onClick: handleShowLegacyBoards
   }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
@@ -7651,18 +7614,18 @@ function GameApp(_ref33) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState237 = useState(undefined),
+  var _useState233 = useState(undefined),
+    _useState234 = _slicedToArray(_useState233, 2),
+    user = _useState234[0],
+    setUser = _useState234[1];
+  var _useState235 = useState(null),
+    _useState236 = _slicedToArray(_useState235, 2),
+    gameState = _useState236[0],
+    setGameState = _useState236[1];
+  var _useState237 = useState(''),
     _useState238 = _slicedToArray(_useState237, 2),
-    user = _useState238[0],
-    setUser = _useState238[1];
-  var _useState239 = useState(null),
-    _useState240 = _slicedToArray(_useState239, 2),
-    gameState = _useState240[0],
-    setGameState = _useState240[1];
-  var _useState241 = useState(''),
-    _useState242 = _slicedToArray(_useState241, 2),
-    sessionMsg = _useState242[0],
-    setSessionMsg = _useState242[1];
+    sessionMsg = _useState238[0],
+    setSessionMsg = _useState238[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee34() {
       var _yield$apiFetch2, ok, data, gs;

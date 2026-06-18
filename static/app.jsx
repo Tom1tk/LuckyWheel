@@ -3421,7 +3421,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setShowResultSync(true);
 
     const cosm = activeCosmeticsRef.current;
-    if (!lowSpecRef.current && !reducedMotion) {
+    if (!lowSpecRef.current) {
       if (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
@@ -3435,7 +3435,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
-  }, [showToast, reducedMotion]);
+  }, [showToast]);
 
   // Dismiss the result banner smoothly
   const dismissResult = useCallback(() => {
@@ -3488,7 +3488,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       const data = res.data;
       // Animate wheel to the returned segment angle
       const seg = data.angle % 360;
-      const nextRot = Math.ceil((wheelRotationRef.current + 5 * 360 - seg) / 360) * 360 + seg;
+      const nextRot = Math.ceil((wheelRotationRef.current + 2 * 360 - seg) / 360) * 360 + seg;
       wheelRotationRef.current = nextRot;
       setWheelRotation(nextRot);
 
@@ -3661,20 +3661,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [stake, setStake]                           = useState(gameState.wager_last_stake || 1);
   const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
   const [showOnboarding, setShowOnboarding]         = useState((gameState.onboarding_step || 0) < 5);
-  const [reducedMotion, setReducedMotion]           = useState(() => localStorage.getItem('reducedMotion') === 'true');
-  const [highContrast, setHighContrast]             = useState(() => localStorage.getItem('highContrast') === 'true');
   const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
   const [legacyBoards, setLegacyBoards]             = useState([]);
 
-  // Season 8: apply accessibility classes
+  // Clear any previously-set accessibility classes from localStorage
   useEffect(() => {
-    localStorage.setItem('reducedMotion', reducedMotion);
-    document.body.classList.toggle('reduced-motion', reducedMotion);
-  }, [reducedMotion]);
-  useEffect(() => {
-    localStorage.setItem('highContrast', highContrast);
-    document.body.classList.toggle('high-contrast', highContrast);
-  }, [highContrast]);
+    localStorage.removeItem('reducedMotion');
+    localStorage.removeItem('highContrast');
+    document.body.classList.remove('reduced-motion', 'high-contrast');
+  }, []);
 
   // Season 8: sync state from /api/state poll (season change handler already updates most state)
   // This runs on mount and when gameState changes
@@ -3996,18 +3991,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           >💬</button>
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
-        <button
-          className="stats-btn"
-          onClick={() => setReducedMotion(v => !v)}
-          title={reducedMotion ? 'Reduced Motion: ON — click to disable' : 'Reduced Motion: OFF — click to enable'}
-          style={{ opacity: reducedMotion ? 1 : 0.4 }}
-        >🌀</button>
-        <button
-          className="stats-btn"
-          onClick={() => setHighContrast(v => !v)}
-          title={highContrast ? 'High Contrast: ON — click to disable' : 'High Contrast: OFF — click to enable'}
-          style={{ opacity: highContrast ? 1 : 0.4 }}
-        >⬛</button>
         <button className="stats-btn" title="Hall of Fame — Legacy Wins" onClick={handleShowLegacyBoards}>🏆</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         {season && <SeasonInfo seasonName={season.season_name || season.season_number} endsAt={season.ends_at} />}
