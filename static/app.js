@@ -1447,179 +1447,178 @@ function WormholeBackground(_ref2) {
 }
 
 // ── Draw main wheel ────────────────────────────────────────────────────────
+// Wheel mode percentages mirrored from wheel_modes.py — used for drawing only.
+var WHEEL_MODE_DRAW = {
+  steady: {
+    win_pct: 70,
+    lose_pct: 28,
+    jackpot_pct: 2
+  },
+  "volatile": {
+    win_pct: 45,
+    lose_pct: 50,
+    jackpot_pct: 5
+  },
+  inverted: {
+    win_pct: 60,
+    lose_pct: 35,
+    jackpot_pct: 5
+  },
+  gravity: {
+    win_pct: 55,
+    lose_pct: 40,
+    jackpot_pct: 5
+  },
+  mirror: {
+    win_pct: 65,
+    lose_pct: 30,
+    jackpot_pct: 5
+  },
+  singularity: {
+    win_pct: 75,
+    lose_pct: 10,
+    jackpot_pct: 15
+  }
+};
 function drawWheel(canvas) {
   var theme = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'default';
+  var wheelMode = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'steady';
   var ctx = canvas.getContext('2d');
   var size = canvas.width;
   var cx = size / 2,
     cy = size / 2,
     r = size / 2 - 4;
   ctx.clearRect(0, 0, size, size);
-  var THEMES = {
-    "default": [{
-      label: 'WIN',
-      color: '#550088',
-      bright: '#AA00FF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#7a3300',
-      bright: '#FF6600',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    fire: [{
-      label: 'WIN',
-      color: '#993300',
-      bright: '#FF6600',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#440000',
-      bright: '#CC2200',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    ice: [{
-      label: 'WIN',
-      color: '#005577',
-      bright: '#00CCFF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#002244',
-      bright: '#0066CC',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    neon: [{
-      label: 'WIN',
-      color: '#440088',
-      bright: '#CC00FF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#003300',
-      bright: '#00FF66',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    "void": [{
-      label: 'WIN',
-      color: '#0a0a1a',
-      bright: '#6633FF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#0d0010',
-      bright: '#330066',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    gold: [{
-      label: 'WIN',
-      color: '#7a5c00',
-      bright: '#FFE566',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#3d2000',
-      bright: '#CC8800',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    bioluminescence: [{
-      label: 'WIN',
-      color: '#003a4d',
-      bright: '#00E5FF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#4d1020',
-      bright: '#FF6B6B',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    night_ocean: [{
-      label: 'WIN',
-      color: '#1a0d4d',
-      bright: '#5533FF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#3d0011',
-      bright: '#CC2244',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }],
-    wormhole: [{
-      label: 'WIN',
-      color: '#1a0044',
-      bright: '#BB88FF',
-      start: -Math.PI / 2,
-      end: Math.PI / 2
-    }, {
-      label: 'LOSE',
-      color: '#3d0022',
-      bright: '#FF44AA',
-      start: Math.PI / 2,
-      end: Math.PI * 1.5
-    }]
+
+  // Per-theme colours for WIN and LOSE segments
+  var THEME_COLORS = {
+    "default": {
+      win: ['#550088', '#AA00FF'],
+      lose: ['#7a3300', '#FF6600']
+    },
+    fire: {
+      win: ['#993300', '#FF6600'],
+      lose: ['#440000', '#CC2200']
+    },
+    ice: {
+      win: ['#005577', '#00CCFF'],
+      lose: ['#002244', '#0066CC']
+    },
+    neon: {
+      win: ['#440088', '#CC00FF'],
+      lose: ['#003300', '#00FF66']
+    },
+    "void": {
+      win: ['#0a0a1a', '#6633FF'],
+      lose: ['#0d0010', '#330066']
+    },
+    gold: {
+      win: ['#7a5c00', '#FFE566'],
+      lose: ['#3d2000', '#CC8800']
+    },
+    bioluminescence: {
+      win: ['#003a4d', '#00E5FF'],
+      lose: ['#4d1020', '#FF6B6B']
+    },
+    night_ocean: {
+      win: ['#1a0d4d', '#5533FF'],
+      lose: ['#3d0011', '#CC2244']
+    },
+    wormhole: {
+      win: ['#1a0044', '#BB88FF'],
+      lose: ['#3d0022', '#FF44AA']
+    }
   };
-  var segments = THEMES[theme] || THEMES["default"];
+  var colors = THEME_COLORS[theme] || THEME_COLORS["default"];
+
+  // Compute arc spans from mode percentages.
+  // Segments radiate clockwise from -π/2 (12-o'clock): WIN → LOSE → JACKPOT
+  var modeConfig = WHEEL_MODE_DRAW[wheelMode] || WHEEL_MODE_DRAW.steady;
+  var winSpan = modeConfig.win_pct / 100 * Math.PI * 2;
+  var loseSpan = modeConfig.lose_pct / 100 * Math.PI * 2;
+  var jpSpan = modeConfig.jackpot_pct / 100 * Math.PI * 2;
+  var origin = -Math.PI / 2; // 12-o'clock start
+  var segments = [{
+    label: 'WIN',
+    color: colors.win[0],
+    bright: colors.win[1],
+    start: origin,
+    span: winSpan
+  }, {
+    label: 'LOSE',
+    color: colors.lose[0],
+    bright: colors.lose[1],
+    start: origin + winSpan,
+    span: loseSpan
+  }, {
+    label: '★',
+    color: '#4a3800',
+    bright: '#FFD700',
+    start: origin + winSpan + loseSpan,
+    span: jpSpan
+  }];
   segments.forEach(function (seg) {
+    var end = seg.start + seg.span;
+
+    // Fill
     var grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
     grad.addColorStop(0, seg.bright);
     grad.addColorStop(1, seg.color);
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, seg.start, seg.end);
+    ctx.arc(cx, cy, r, seg.start, end);
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
+
+    // Segment border
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, seg.start, seg.end);
+    ctx.arc(cx, cy, r, seg.start, end);
     ctx.closePath();
     ctx.strokeStyle = '#222';
     ctx.lineWidth = 3;
     ctx.stroke();
+
+    // Dividing line at start of segment
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    var mx = cx + r * Math.cos(seg.start);
-    var my = cy + r * Math.sin(seg.start);
-    ctx.lineTo(mx, my);
+    ctx.lineTo(cx + r * Math.cos(seg.start), cy + r * Math.sin(seg.start));
     ctx.strokeStyle = '#111';
     ctx.lineWidth = 4;
     ctx.stroke();
-    var midAngle = (seg.start + seg.end) / 2;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(midAngle);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = "bold ".concat(size * 0.1, "px 'Oswald', Arial Black, sans-serif");
-    ctx.fillStyle = '#FFF';
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 8;
-    ctx.fillText(seg.label, r * 0.55, 0);
-    ctx.restore();
-    var dotCount = 8;
+
+    // Label — omit if segment is too narrow for text
+    var midAngle = seg.start + seg.span / 2;
+    var spanDeg = seg.span * 180 / Math.PI;
+    if (spanDeg >= 8) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(midAngle);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 8;
+      if (spanDeg < 25) {
+        // Tiny segment — small symbol only
+        ctx.font = "bold ".concat(size * 0.07, "px 'Oswald', Arial Black, sans-serif");
+        ctx.fillStyle = '#FFF';
+        ctx.fillText(seg.label === '★' ? '★' : seg.label[0], r * 0.55, 0);
+      } else {
+        ctx.font = "bold ".concat(size * 0.1, "px 'Oswald', Arial Black, sans-serif");
+        ctx.fillStyle = '#FFF';
+        ctx.fillText(seg.label, r * 0.55, 0);
+      }
+      ctx.restore();
+    }
+
+    // Rim dots — scaled to segment size
+    var dotCount = Math.max(2, Math.round(seg.span / (Math.PI * 2) * 28));
     for (var i = 0; i <= dotCount; i++) {
-      var a = seg.start + (seg.end - seg.start) * (i / dotCount);
+      var a = seg.start + seg.span * (i / dotCount);
       var dr = r * 0.88;
-      var dx = cx + dr * Math.cos(a);
-      var dy = cy + dr * Math.sin(a);
       ctx.beginPath();
-      ctx.arc(dx, dy, 5, 0, Math.PI * 2);
+      ctx.arc(cx + dr * Math.cos(a), cy + dr * Math.sin(a), 5, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.fill();
     }
@@ -5662,8 +5661,8 @@ function GameApp(_ref33) {
   }, [bgClass, pageThemeClass]);
   useEffect(function () {
     var canvas = canvasRef.current;
-    if (canvas) drawWheel(canvas, wheelTheme);
-  }, [wheelTheme]);
+    if (canvas) drawWheel(canvas, wheelTheme, activeWheelMode);
+  }, [wheelTheme, activeWheelMode]);
   var showToast = useCallback(function (msg) {
     setToast(msg);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
