@@ -6500,6 +6500,34 @@ function GameApp(_ref33) {
     };
   }(), []);
 
+  // Season 8: wheel mode descriptions for tooltips
+  var WHEEL_MODE_INFO = {
+    steady: {
+      label: 'Steady',
+      desc: '70% win · 28% loss · 2% jackpot (×25). Consistent and predictable.'
+    },
+    "volatile": {
+      label: 'Volatile',
+      desc: '45% win · 50% loss · 5% jackpot (×50). High variance — bigger swings both ways.'
+    },
+    inverted: {
+      label: 'Inverted',
+      desc: '60% win · 35% loss · 5% jackpot. Losses still build your streak bonus.'
+    },
+    gravity: {
+      label: 'Gravity',
+      desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.'
+    },
+    mirror: {
+      label: 'Mirror',
+      desc: '65% win · 30% loss · 5% jackpot. Two spins resolved; the better result wins.'
+    },
+    singularity: {
+      label: 'Singularity',
+      desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.'
+    }
+  };
+
   // Season 8: handle wheel mode change
   var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
     var _ref47 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee20(mode) {
@@ -7335,17 +7363,18 @@ function GameApp(_ref33) {
     className: "season8-wheel-mode"
   }, /*#__PURE__*/React.createElement("span", {
     className: "wheel-mode-label"
-  }, "Mode:"), /*#__PURE__*/React.createElement("select", {
-    value: activeWheelMode,
-    onChange: function onChange(e) {
-      return handleWheelModeChange(e.target.value);
-    },
-    className: "wheel-mode-select"
+  }, "Mode"), /*#__PURE__*/React.createElement("div", {
+    className: "wheel-mode-btns"
   }, availableWheelModes.map(function (mode) {
-    return /*#__PURE__*/React.createElement("option", {
+    var info = WHEEL_MODE_INFO[mode];
+    return /*#__PURE__*/React.createElement("button", {
       key: mode,
-      value: mode
-    }, mode.charAt(0).toUpperCase() + mode.slice(1));
+      className: "wheel-mode-btn".concat(activeWheelMode === mode ? ' active' : ''),
+      "data-tooltip": info ? info.desc : mode,
+      onClick: function onClick() {
+        return handleWheelModeChange(mode);
+      }
+    }, info ? info.label : mode);
   }))), /*#__PURE__*/React.createElement(Scoreboard, {
     wins: wins,
     losses: losses,
@@ -7493,13 +7522,19 @@ function GameApp(_ref33) {
     className: "singularity-progress-text"
   }, fmt(singularity.total_contributed), " / ", fmt(singularity.target)), singularity.fill_count > 0 && /*#__PURE__*/React.createElement("div", {
     className: "singularity-fills"
-  }, "Convergences: ", singularity.fill_count), /*#__PURE__*/React.createElement("button", {
-    className: "singularity-contribute-btn",
+  }, "Convergences: ", singularity.fill_count), !singularity.filled && /*#__PURE__*/React.createElement("div", {
+    className: "singularity-buttons"
+  }, /*#__PURE__*/React.createElement("button", {
     onClick: function onClick() {
-      var amt = prompt('How many fish to contribute?');
-      if (amt) handleSingularityContribute(parseInt(amt));
-    }
-  }, "Contribute")), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
+      return handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)));
+    },
+    disabled: fishClicks < 1
+  }, "+", fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return handleSingularityContribute(fishClicks);
+    },
+    disabled: fishClicks < 1
+  }, "All"))), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
     className: "season8-aquarium-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "aquarium-header"
