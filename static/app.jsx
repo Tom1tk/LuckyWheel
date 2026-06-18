@@ -3704,6 +3704,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     await apiGame('/api/wager/stake', { method: 'POST', body: JSON.stringify({ stake: newStake }) });
   }, []);
 
+  // Season 8: wheel mode descriptions for tooltips
+  const WHEEL_MODE_INFO = {
+    steady:      { label: 'Steady',      desc: '70% win · 28% loss · 2% jackpot (×25). Consistent and predictable.' },
+    volatile:    { label: 'Volatile',    desc: '45% win · 50% loss · 5% jackpot (×50). High variance — bigger swings both ways.' },
+    inverted:    { label: 'Inverted',    desc: '60% win · 35% loss · 5% jackpot. Losses still build your streak bonus.' },
+    gravity:     { label: 'Gravity',     desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.' },
+    mirror:      { label: 'Mirror',      desc: '65% win · 30% loss · 5% jackpot. Two spins resolved; the better result wins.' },
+    singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
+  };
+
   // Season 8: handle wheel mode change
   const handleWheelModeChange = useCallback(async (mode) => {
     const { ok, data } = await apiGame('/api/wheel-mode', { method: 'POST', body: JSON.stringify({ mode }) });
@@ -4180,18 +4190,20 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
           {/* Season 8: Wheel mode selector */}
           <div className="season8-wheel-mode">
-            <span className="wheel-mode-label">Mode:</span>
-            <select
-              value={activeWheelMode}
-              onChange={e => handleWheelModeChange(e.target.value)}
-              className="wheel-mode-select"
-            >
-              {availableWheelModes.map(mode => (
-                <option key={mode} value={mode}>
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </option>
-              ))}
-            </select>
+            <span className="wheel-mode-label">Mode</span>
+            <div className="wheel-mode-btns">
+              {availableWheelModes.map(mode => {
+                const info = WHEEL_MODE_INFO[mode];
+                return (
+                  <button
+                    key={mode}
+                    className={`wheel-mode-btn${activeWheelMode === mode ? ' active' : ''}`}
+                    data-tooltip={info ? info.desc : mode}
+                    onClick={() => handleWheelModeChange(mode)}
+                  >{info ? info.label : mode}</button>
+                );
+              })}
+            </div>
           </div>
 
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
@@ -4333,13 +4345,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   </div>
                   <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}</div>
                   {singularity.fill_count > 0 && <div className="singularity-fills">Convergences: {singularity.fill_count}</div>}
-                  <button
-                    className="singularity-contribute-btn"
-                    onClick={() => {
-                      const amt = prompt('How many fish to contribute?');
-                      if (amt) handleSingularityContribute(parseInt(amt));
-                    }}
-                  >Contribute</button>
+                  {!singularity.filled && (
+                    <div className="singularity-buttons">
+                      <button
+                        onClick={() => handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
+                        disabled={fishClicks < 1}
+                      >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
+                      <button
+                        onClick={() => handleSingularityContribute(fishClicks)}
+                        disabled={fishClicks < 1}
+                      >All</button>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -4452,6 +4452,7 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .wheel-mode-label {
@@ -4459,23 +4460,61 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   letter-spacing: 2px;
   color: #666;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
-.wheel-mode-select {
-  background: rgba(8,4,18,0.92);
-  border: 1px solid rgba(var(--p-rgb),0.35);
-  color: var(--p-lt);
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.72rem;
-  letter-spacing: 1px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  outline: none;
-  text-transform: uppercase;
+.wheel-mode-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
-.wheel-mode-select:focus { border-color: var(--p); }
-.wheel-mode-select option { background: #0a0518; color: var(--p-lt); }
+
+.wheel-mode-btn {
+  position: relative;
+  background: none;
+  border: 1px solid rgba(var(--p-rgb), 0.25);
+  color: #555;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: border-color 0.15s, color 0.15s;
+  outline: none;
+}
+.wheel-mode-btn.active {
+  border-color: var(--p);
+  color: var(--p);
+  text-shadow: 0 0 6px rgba(var(--p-rgb), 0.5);
+}
+.wheel-mode-btn:hover:not(.active) {
+  border-color: rgba(var(--p-rgb), 0.5);
+  color: #999;
+}
+.wheel-mode-btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0d0d1a;
+  border: 1px solid var(--p);
+  color: #eee;
+  font-size: 0.6rem;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: normal;
+  width: max-content;
+  max-width: 200px;
+  z-index: 999;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  font-family: 'Oswald', sans-serif;
+}
 
 /* ── Season 8: prestige panel (in sidebar) ───────────────────────────────── */
 .season8-prestige-panel {
@@ -4725,7 +4764,12 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   letter-spacing: 0.4px;
 }
 
-.singularity-contribute-btn {
+.singularity-buttons {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.singularity-buttons button {
   background: none;
   border: 1px solid rgba(120,60,200,0.45);
   color: #aa66ff;
@@ -4736,11 +4780,10 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   cursor: pointer;
   text-transform: uppercase;
   font-family: inherit;
-  align-self: flex-start;
-  margin-top: 2px;
   transition: background 0.15s;
 }
-.singularity-contribute-btn:hover { background: rgba(120,60,200,0.12); }
+.singularity-buttons button:hover:not(:disabled) { background: rgba(120,60,200,0.12); }
+.singularity-buttons button:disabled { opacity: 0.35; cursor: default; }
 
 /* ── Season 8: aquarium panel (in sidebar) ───────────────────────────────── */
 .season8-aquarium-panel {
