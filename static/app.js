@@ -5534,12 +5534,16 @@ function GameApp(_ref33) {
   var lowSpecRef = useRef(lowSpec);
   var tickPendingRef = useRef(false);
   var resultAutoCloseRef = useRef(null);
+  var wheelThemeRef = useRef(null);
   useEffect(function () {
     activeCosmeticsRef.current = activeCosmetics;
   }, [activeCosmetics]);
   useEffect(function () {
     lowSpecRef.current = lowSpec;
   }, [lowSpec]);
+  useEffect(function () {
+    wheelThemeRef.current = wheelTheme;
+  }, [wheelTheme]);
   useEffect(function () {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -6530,23 +6534,30 @@ function GameApp(_ref33) {
   // Season 8: handle wheel mode change
   var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
     var _ref47 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee20(mode) {
-      var _yield$apiGame11, ok, data;
+      var prev, _yield$apiGame11, ok, data;
       return _regeneratorRuntime().wrap(function _callee20$(_context20) {
         while (1) switch (_context20.prev = _context20.next) {
           case 0:
-            _context20.next = 2;
+            prev = activeWheelMode;
+            setActiveWheelMode(mode);
+            if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', mode);
+            _context20.next = 5;
             return apiGame('/api/wheel-mode', {
               method: 'POST',
               body: JSON.stringify({
                 mode: mode
               })
             });
-          case 2:
+          case 5:
             _yield$apiGame11 = _context20.sent;
             ok = _yield$apiGame11.ok;
             data = _yield$apiGame11.data;
-            if (ok) setActiveWheelMode(mode);else showToast(data.error || 'Mode change failed');
-          case 6:
+            if (!ok) {
+              setActiveWheelMode(prev);
+              if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', prev);
+              showToast(data && data.error || 'Mode change failed');
+            }
+          case 9:
           case "end":
             return _context20.stop();
         }
@@ -6555,7 +6566,7 @@ function GameApp(_ref33) {
     return function (_x11) {
       return _ref47.apply(this, arguments);
     };
-  }(), [showToast]);
+  }(), [showToast, activeWheelMode]);
 
   // Season 8: handle prestige
   var handlePrestige = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee21() {
