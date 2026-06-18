@@ -364,7 +364,25 @@ def _resolve_spin(
     new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
     wins = min(wins, _MAX_WINS)
 
-    segment_angle = random.uniform(200, 340) if outcome in ('win', 'jackpot') else random.uniform(20, 160)
+    # Map outcome to a CSS rotation angle that lands the pointer in the correct
+    # visual segment.  Segments are arranged clockwise from 12-o'clock:
+    #   WIN  → LOSE → JACKPOT (tiny sliver back to 12-o'clock)
+    # CSS rotation range per zone:
+    #   JACKPOT : [0,   J)
+    #   LOSE    : [J,   J+L)
+    #   WIN     : [J+L, 360)
+    _m = WHEEL_MODES.get(active_wheel_mode, WHEEL_MODES['steady'])
+    _j_deg = _m['jackpot_pct'] / 100 * 360
+    _l_deg = _m['loss_pct']    / 100 * 360
+    _w_deg = _m['win_pct']     / 100 * 360
+    _lose_start = _j_deg
+    _win_start  = _j_deg + _l_deg
+    if outcome == 'jackpot':
+        segment_angle = random.uniform(max(1.0, _j_deg * 0.1), max(2.0, _j_deg - 1.0))
+    elif outcome == 'lose':
+        segment_angle = random.uniform(_lose_start + 1.0, _lose_start + _l_deg - 1.0)
+    else:  # win
+        segment_angle = random.uniform(_win_start + 1.0, _win_start + _w_deg - 1.0)
 
     new_state = {
         'owned':              new_owned,
