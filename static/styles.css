@@ -806,11 +806,12 @@ body::before {
   position: absolute;
   font-size: 1.5rem;
   filter: brightness(0);
+  animation: shadowSwim 4s ease-in-out infinite;
 }
 
-.shadow-fish-1 { animation: shadowSwimA 3.8s ease-in-out infinite; animation-delay: 0s;    top: 20%; }
-.shadow-fish-2 { animation: shadowSwimB 5.2s ease-in-out infinite; animation-delay: -1.4s; top: 50%; font-size: 1.1rem; }
-.shadow-fish-3 { animation: shadowSwimC 4.5s ease-in-out infinite; animation-delay: -2.7s; top: 70%; font-size: 1.6rem; }
+.shadow-fish:nth-child(1) { animation-duration: 3.8s; animation-delay: 0s;    top: 20%; animation-name: shadowSwimA; }
+.shadow-fish:nth-child(2) { animation-duration: 5.2s; animation-delay: -1.4s; top: 50%; font-size: 1.1rem; animation-name: shadowSwimB; }
+.shadow-fish:nth-child(3) { animation-duration: 4.5s; animation-delay: -2.7s; top: 70%; font-size: 1.6rem; animation-name: shadowSwimC; }
 
 /* Each fish has a distinct peak opacity: subtle, mid, and most visible */
 /* scaleX(-1) held throughout so fish always face right (direction of travel) */
@@ -4235,6 +4236,14 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   transition: none !important;
   scroll-behavior: auto !important;
 }
+/* Wheel spin and fish are gameplay-critical — preserve a minimal transition even in reduced-motion */
+.reduced-motion .wheel-canvas {
+  transition: transform 0.4s ease-out !important;
+}
+.reduced-motion .shadow-fish { animation: shadowSwim 4s ease-in-out infinite !important; }
+.reduced-motion .shadow-fish:nth-child(1) { animation-name: shadowSwimA !important; animation-duration: 3.8s !important; }
+.reduced-motion .shadow-fish:nth-child(2) { animation-name: shadowSwimB !important; animation-duration: 5.2s !important; }
+.reduced-motion .shadow-fish:nth-child(3) { animation-name: shadowSwimC !important; animation-duration: 4.5s !important; }
 
 /* High contrast — darker backgrounds, brighter text, thicker borders */
 .high-contrast {
@@ -4281,15 +4290,16 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   margin: 12px auto 0;
   background: none;
   border: none;
-  color: var(--p);
+  outline: none;
+  padding: 0;
+  font-family: inherit;
   font-size: 1.5rem;
+  color: var(--p);
   letter-spacing: 4px;
   text-transform: uppercase;
-  padding: 0;
+  animation: promptPulse 1s ease-in-out infinite;
   cursor: pointer;
   text-shadow: 0 0 10px var(--p);
-  animation: promptPulse 1s ease-in-out infinite;
-  font-family: inherit;
 }
 .spin-btn:hover:not(:disabled) { opacity: 0.85; }
 .spin-btn:disabled { animation: none; opacity: 0.5; cursor: default; text-shadow: none; }
