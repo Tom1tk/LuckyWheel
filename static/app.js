@@ -4257,6 +4257,147 @@ var SHOP_SECTIONS = [{
     cost: 300,
     desc: 'Radiant glow ring'
   }]
+}, {
+  label: '🎊 Confetti',
+  items: [{
+    id: 'party_mode',
+    emoji: '🎊',
+    name: 'Party Mode',
+    cost: 150,
+    desc: 'Win confetti burst every spin'
+  }, {
+    id: 'confetti_1',
+    emoji: '✨',
+    name: 'Confetti I',
+    cost: 75,
+    desc: 'Light confetti on wins'
+  }, {
+    id: 'confetti_2',
+    emoji: '🌟',
+    name: 'Confetti II',
+    cost: 300,
+    desc: 'Heavier confetti shower',
+    requires: 'confetti_1'
+  }, {
+    id: 'confetti_3',
+    emoji: '💫',
+    name: 'Confetti III',
+    cost: 1200,
+    desc: 'Maximum confetti eruption',
+    requires: 'confetti_2'
+  }]
+}, {
+  label: '🎨 Atmosphere',
+  items: [{
+    id: 'bg_royal',
+    emoji: '👑',
+    name: 'Royal',
+    cost: 400,
+    desc: 'Deep purple radial atmosphere'
+  }, {
+    id: 'bg_inferno',
+    emoji: '🔥',
+    name: 'Inferno',
+    cost: 1600,
+    desc: 'Red hellscape atmosphere',
+    requires: 'bg_royal'
+  }, {
+    id: 'bg_forest',
+    emoji: '🌲',
+    name: 'Forest',
+    cost: 5000,
+    desc: 'Dark forest atmosphere',
+    requires: 'bg_inferno'
+  }, {
+    id: 'bg_abyss',
+    emoji: '🌑',
+    name: 'Abyss',
+    cost: 15000,
+    desc: 'Void atmosphere',
+    requires: 'bg_forest'
+  }, {
+    id: 'bg_cosmic',
+    emoji: '🌌',
+    name: 'Cosmic',
+    cost: 50000,
+    desc: 'Cosmic void atmosphere',
+    requires: 'bg_abyss'
+  }]
+}, {
+  label: '🖼️ Page Theme',
+  items: [{
+    id: 'page_season1',
+    emoji: '1️⃣',
+    name: 'Season 1',
+    cost: 1000,
+    desc: 'Season 1 page theme'
+  }, {
+    id: 'page_season2',
+    emoji: '2️⃣',
+    name: 'Season 2',
+    cost: 1000,
+    desc: 'Season 2 page theme'
+  }, {
+    id: 'page_season3',
+    emoji: '3️⃣',
+    name: 'Season 3',
+    cost: 1000,
+    desc: 'Season 3 page theme'
+  }, {
+    id: 'page_season4',
+    emoji: '4️⃣',
+    name: 'Season 4',
+    cost: 1000,
+    desc: 'Season 4 page theme'
+  }, {
+    id: 'page_season5',
+    emoji: '5️⃣',
+    name: 'Season 5',
+    cost: 1000,
+    desc: 'Season 5 page theme — Bioluminescence'
+  }, {
+    id: 'page_season6',
+    emoji: '6️⃣',
+    name: 'Season 6',
+    cost: 1000,
+    desc: 'Season 6 page theme — Night Ocean'
+  }, {
+    id: 'page_season7',
+    emoji: '7️⃣',
+    name: 'Season 7',
+    cost: 1000,
+    desc: 'Season 7 page theme — Wormhole'
+  }]
+}, {
+  label: '🎲 Dice Charges',
+  items: [{
+    id: 'dice_charge_2',
+    emoji: '🎲',
+    name: 'Dice Charge +1',
+    cost: 2000,
+    desc: 'Max dice charges: 2'
+  }, {
+    id: 'dice_charge_3',
+    emoji: '🎲',
+    name: 'Dice Charge +2',
+    cost: 15000,
+    desc: 'Max dice charges: 3',
+    requires: 'dice_charge_2'
+  }, {
+    id: 'dice_charge_4',
+    emoji: '🎲',
+    name: 'Dice Charge +3',
+    cost: 100000,
+    desc: 'Max dice charges: 4',
+    requires: 'dice_charge_3'
+  }, {
+    id: 'dice_extra',
+    emoji: '🎰',
+    name: 'Extra Die',
+    cost: 1000000,
+    desc: 'Roll 3 dice — take the best result',
+    requires: 'dice_charge_3'
+  }]
 }];
 
 // Infinite upgrade config (mirrors INFINITE_UPGRADES in models.py)
@@ -6879,219 +7020,7 @@ function GameApp(_ref33) {
     onClick: function onClick() {
       return setShowLegacyBoards(false);
     }
-  }, "Close"))), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-wager-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "wager-stake-control"
-  }, /*#__PURE__*/React.createElement("label", null, "Stake: "), /*#__PURE__*/React.createElement("input", {
-    type: "range",
-    min: "1",
-    max: "10",
-    value: stake,
-    onChange: function onChange(e) {
-      return handleStakeChange(parseInt(e.target.value));
-    },
-    className: "wager-slider"
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "stake-label stake-".concat(stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless')
-  }, stake, "\xD7 ", stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless')), wagerStreak > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "wager-hotstreak"
-  }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " wins (+", Math.min(wagerStreak * 5, 50), "% bonus)"), wagerBankedWins > 0 && /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee31() {
-      var _yield$apiGame22, ok, data;
-      return _regeneratorRuntime().wrap(function _callee31$(_context31) {
-        while (1) switch (_context31.prev = _context31.next) {
-          case 0:
-            _context31.next = 2;
-            return apiGame('/api/wager/bank', {
-              method: 'POST',
-              body: '{}'
-            });
-          case 2:
-            _yield$apiGame22 = _context31.sent;
-            ok = _yield$apiGame22.ok;
-            data = _yield$apiGame22.data;
-            if (ok) {
-              setWins(data.wins);
-              setWagerBankedWins(0);
-              setWagerStreak(0);
-              showToast("Banked ".concat(fmt(data.banked), " wins!"));
-            } else showToast(data.error || 'Bank failed');
-          case 6:
-          case "end":
-            return _context31.stop();
-        }
-      }, _callee31);
-    }))
-  }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins), " wins"), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("div", {
-    className: "wager-double-down-armed"
-  }, "\u26A1 Double-Down armed \u2014 next spin is 2\xD7 stake!"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn",
-    onClick: handleDoubleDown
-  }, "\u26A1 Arm Double Down"), ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn",
-    onClick: handleInsurance
-  }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")")), /*#__PURE__*/React.createElement("div", {
-    className: "season8-wheel-mode"
-  }, /*#__PURE__*/React.createElement("select", {
-    value: activeWheelMode,
-    onChange: function onChange(e) {
-      return handleWheelModeChange(e.target.value);
-    },
-    className: "wheel-mode-select"
-  }, availableWheelModes.map(function (mode) {
-    return /*#__PURE__*/React.createElement("option", {
-      key: mode,
-      value: mode
-    }, mode.charAt(0).toUpperCase() + mode.slice(1));
-  }))), ownedItems.includes('prestige_unlock') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-prestige-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "prestige-badge"
-  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "%)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "legacy-badge"
-  }, "Seasons 1-7: ", fmt(legacyWins), " wins"), prestigeLevel < 20 && /*#__PURE__*/React.createElement("button", {
-    className: "prestige-btn",
-    disabled: wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000),
-    onClick: function onClick() {
-      return setShowPrestigeConfirm(true);
-    }
-  }, "Prestige")), ownedItems.includes('guard') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-guard-panel"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "guard-charges"
-  }, "\uD83D\uDEE1\uFE0F ", guardCharges, "/3"), /*#__PURE__*/React.createElement("button", {
-    className: "guard-activate-btn",
-    disabled: guardCharges === 0,
-    onClick: handleGuardActivate
-  }, "Block")), bounties && bounties.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "season8-bounties-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bounties-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Daily Bounties"), cosmeticFragments > 0 && /*#__PURE__*/React.createElement("span", {
-    className: "fragment-count"
-  }, "\uD83D\uDC8E ", cosmeticFragments)), bounties.map(function (b) {
-    return /*#__PURE__*/React.createElement("div", {
-      key: b.bounty_id,
-      className: "bounty-card"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "bounty-desc"
-    }, b.description || b.bounty_id), /*#__PURE__*/React.createElement("div", {
-      className: "bounty-progress-bar"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "bounty-progress-fill",
-      style: {
-        width: "".concat(Math.min(100, b.progress / b.target * 100), "%")
-      }
-    })), /*#__PURE__*/React.createElement("div", {
-      className: "bounty-progress-text"
-    }, fmt(b.progress), " / ", fmt(b.target)), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
-      className: "bounty-claim-btn",
-      onClick: function onClick() {
-        return handleBountyClaim(b.bounty_id);
-      }
-    }, "Claim"));
-  })), communityGoal && /*#__PURE__*/React.createElement("div", {
-    className: "season8-community-goal"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "goal-label"
-  }, "\uD83C\uDF0D Community Goal"), /*#__PURE__*/React.createElement("div", {
-    className: "goal-desc"
-  }, communityGoal.description), /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-text"
-  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target)), /*#__PURE__*/React.createElement("div", {
-    className: "goal-contrib"
-  }, "You: ", fmt(communityGoal.player_contribution), " / ", fmt(communityGoal.per_player_cap))), singularity && /*#__PURE__*/React.createElement("div", {
-    className: "season8-singularity-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-label"
-  }, "\uD83C\uDF00 Singularity Meter"), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-text"
-  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target)), singularity.fill_count > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "singularity-fills"
-  }, "Convergences: ", singularity.fill_count), /*#__PURE__*/React.createElement("button", {
-    className: "singularity-contribute-btn",
-    onClick: function onClick() {
-      var amt = prompt('How many wins to contribute?');
-      if (amt) handleSingularityContribute(parseInt(amt));
-    }
-  }, "Contribute")), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-aquarium-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "aquarium-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium (", aquariumSpecies.length, " species)"), /*#__PURE__*/React.createElement("span", {
-    className: "aquarium-luck"
-  }, "+", (aquariumSpecies.length * 0.1).toFixed(1), "% luck")), /*#__PURE__*/React.createElement("div", {
-    className: "aquarium-grid"
-  }, aquariumSpecies.map(function (s) {
-    return /*#__PURE__*/React.createElement("div", {
-      key: s,
-      className: "aquarium-species",
-      title: s
-    }, s);
-  })), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "wager-tokens"
-  }, "\uD83E\uDE99 Wager Tokens: ", fmt(wagerTokens))), /*#__PURE__*/React.createElement("div", {
-    className: "season8-loadout-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "loadout-label"
-  }, "\u2699\uFE0F Loadouts"), /*#__PURE__*/React.createElement("div", {
-    className: "loadout-slots"
-  }, [1, 2, 3].map(function (slot) {
-    return /*#__PURE__*/React.createElement("div", {
-      key: slot,
-      className: "loadout-slot"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "loadout-save-btn",
-      onClick: function onClick() {
-        return handleLoadoutSave(slot, {
-          owned_items: ownedItems,
-          active_cosmetics: activeCosmetics
-        });
-      }
-    }, "Save ", slot), /*#__PURE__*/React.createElement("button", {
-      className: "loadout-apply-btn",
-      onClick: function onClick() {
-        return handleLoadoutApply(slot);
-      }
-    }, "Equip ", slot));
-  }))), /*#__PURE__*/React.createElement("div", {
-    className: "season8-a11y-panel"
-  }, /*#__PURE__*/React.createElement("label", {
-    className: "a11y-toggle"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: reducedMotion,
-    onChange: function onChange(e) {
-      return setReducedMotion(e.target.checked);
-    }
-  }), "Reduced Motion"), /*#__PURE__*/React.createElement("label", {
-    className: "a11y-toggle"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: highContrast,
-    onChange: function onChange(e) {
-      return setHighContrast(e.target.checked);
-    }
-  }), "High Contrast"), /*#__PURE__*/React.createElement("button", {
-    className: "legacy-boards-btn",
-    onClick: handleShowLegacyBoards
-  }, "\uD83C\uDFC6 Hall of Fame")), /*#__PURE__*/React.createElement(Confetti, {
+  }, "Close"))), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), wormholeActive && /*#__PURE__*/React.createElement("div", {
@@ -7181,6 +7110,32 @@ function GameApp(_ref33) {
       return setShowPatchNotes(true);
     }
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
+    className: "stats-btn",
+    onClick: function onClick() {
+      return setReducedMotion(function (v) {
+        return !v;
+      });
+    },
+    title: reducedMotion ? 'Reduced Motion: ON — click to disable' : 'Reduced Motion: OFF — click to enable',
+    style: {
+      opacity: reducedMotion ? 1 : 0.4
+    }
+  }, "\uD83C\uDF00"), /*#__PURE__*/React.createElement("button", {
+    className: "stats-btn",
+    onClick: function onClick() {
+      return setHighContrast(function (v) {
+        return !v;
+      });
+    },
+    title: highContrast ? 'High Contrast: ON — click to disable' : 'High Contrast: OFF — click to enable',
+    style: {
+      opacity: highContrast ? 1 : 0.4
+    }
+  }, "\u2B1B"), /*#__PURE__*/React.createElement("button", {
+    className: "stats-btn",
+    title: "Hall of Fame \u2014 Legacy Wins",
+    onClick: handleShowLegacyBoards
+  }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
     className: "logout-btn",
     onClick: handleLogout
   }, "Logout"), season && /*#__PURE__*/React.createElement(SeasonInfo, {
@@ -7313,48 +7268,48 @@ function GameApp(_ref33) {
     className: "auto-spin-controls"
   }, autoSpinBudget > 0 ? /*#__PURE__*/React.createElement("button", {
     className: "auto-spin-stop-btn",
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee31() {
+      var _yield$apiGame22, ok;
+      return _regeneratorRuntime().wrap(function _callee31$(_context31) {
+        while (1) switch (_context31.prev = _context31.next) {
+          case 0:
+            _context31.next = 2;
+            return apiGame('/api/auto-spin/stop', {
+              method: 'POST',
+              body: '{}'
+            });
+          case 2:
+            _yield$apiGame22 = _context31.sent;
+            ok = _yield$apiGame22.ok;
+            if (ok) setAutoSpinBudget(0);
+          case 5:
+          case "end":
+            return _context31.stop();
+        }
+      }, _callee31);
+    }))
+  }, "\u23F9 Stop Auto-Spin") : /*#__PURE__*/React.createElement("button", {
+    className: "auto-spin-start-btn",
     onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee32() {
-      var _yield$apiGame23, ok;
+      var _yield$apiGame23, ok, data;
       return _regeneratorRuntime().wrap(function _callee32$(_context32) {
         while (1) switch (_context32.prev = _context32.next) {
           case 0:
             _context32.next = 2;
-            return apiGame('/api/auto-spin/stop', {
+            return apiGame('/api/auto-spin/start', {
               method: 'POST',
               body: '{}'
             });
           case 2:
             _yield$apiGame23 = _context32.sent;
             ok = _yield$apiGame23.ok;
-            if (ok) setAutoSpinBudget(0);
-          case 5:
+            data = _yield$apiGame23.data;
+            if (ok) setAutoSpinBudget(data.auto_spin_budget || 100);
+          case 6:
           case "end":
             return _context32.stop();
         }
       }, _callee32);
-    }))
-  }, "\u23F9 Stop Auto-Spin") : /*#__PURE__*/React.createElement("button", {
-    className: "auto-spin-start-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee33() {
-      var _yield$apiGame24, ok, data;
-      return _regeneratorRuntime().wrap(function _callee33$(_context33) {
-        while (1) switch (_context33.prev = _context33.next) {
-          case 0:
-            _context33.next = 2;
-            return apiGame('/api/auto-spin/start', {
-              method: 'POST',
-              body: '{}'
-            });
-          case 2:
-            _yield$apiGame24 = _context33.sent;
-            ok = _yield$apiGame24.ok;
-            data = _yield$apiGame24.data;
-            if (ok) setAutoSpinBudget(data.auto_spin_budget || 100);
-          case 6:
-          case "end":
-            return _context33.stop();
-        }
-      }, _callee33);
     }))
   }, "\u23E9 Auto-Spin (100 spins)")), catchupBonus && /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt",
@@ -7363,7 +7318,75 @@ function GameApp(_ref33) {
       fontSize: '0.7rem',
       pointerEvents: 'none'
     }
-  }, "\uD83D\uDD3C Catch-up bonus active"), /*#__PURE__*/React.createElement(Scoreboard, {
+  }, "\uD83D\uDD3C Catch-up bonus active"), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-wager-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "wager-stake-control"
+  }, /*#__PURE__*/React.createElement("label", null, "Stake"), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "1",
+    max: "10",
+    value: stake,
+    onChange: function onChange(e) {
+      return handleStakeChange(parseInt(e.target.value));
+    },
+    className: "wager-slider"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "stake-label stake-".concat(stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless')
+  }, stake, "\xD7 ", stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless')), wagerStreak > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-hotstreak"
+  }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn wager-bank-btn",
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee33() {
+      var _yield$apiGame24, ok, data;
+      return _regeneratorRuntime().wrap(function _callee33$(_context33) {
+        while (1) switch (_context33.prev = _context33.next) {
+          case 0:
+            _context33.next = 2;
+            return apiGame('/api/wager/bank', {
+              method: 'POST',
+              body: '{}'
+            });
+          case 2:
+            _yield$apiGame24 = _context33.sent;
+            ok = _yield$apiGame24.ok;
+            data = _yield$apiGame24.data;
+            if (ok) {
+              setWins(data.wins);
+              setWagerBankedWins(0);
+              setWagerStreak(0);
+              showToast("Banked ".concat(fmt(data.banked), " wins!"));
+            } else showToast(data.error || 'Bank failed');
+          case 6:
+          case "end":
+            return _context33.stop();
+        }
+      }, _callee33);
+    }))
+  }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("div", {
+    className: "wager-double-down-armed"
+  }, "\u26A1 Double-Down armed!"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn",
+    onClick: handleDoubleDown
+  }, "\u26A1 Arm Double Down"), ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn",
+    onClick: handleInsurance
+  }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")")), /*#__PURE__*/React.createElement("div", {
+    className: "season8-wheel-mode"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "wheel-mode-label"
+  }, "Mode:"), /*#__PURE__*/React.createElement("select", {
+    value: activeWheelMode,
+    onChange: function onChange(e) {
+      return handleWheelModeChange(e.target.value);
+    },
+    className: "wheel-mode-select"
+  }, availableWheelModes.map(function (mode) {
+    return /*#__PURE__*/React.createElement("option", {
+      key: mode,
+      value: mode
+    }, mode.charAt(0).toUpperCase() + mode.slice(1));
+  }))), /*#__PURE__*/React.createElement(Scoreboard, {
     wins: wins,
     losses: losses,
     lastResult: result
@@ -7416,7 +7439,13 @@ function GameApp(_ref33) {
     className: "game-right-sidebar"
   }, (hasGuard || hasRegen) && /*#__PURE__*/React.createElement("div", {
     className: "shield-indicator"
-  }, hasGuard && /*#__PURE__*/React.createElement("div", null, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? "\uD83D\uDD04 ".concat(regenRechargeWins, " win").concat(regenRechargeWins !== 1 ? 's' : '') : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
+  }, hasGuard && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "guard-charges"
+  }, "\uD83D\uDEE1\uFE0F Guard ", guardCharges, "/3"), /*#__PURE__*/React.createElement("button", {
+    className: "guard-activate-btn",
+    disabled: guardCharges === 0,
+    onClick: handleGuardActivate
+  }, "Block")), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? "\uD83D\uDD04 ".concat(regenRechargeWins, " win").concat(regenRechargeWins !== 1 ? 's' : '') : '🔄 ready')), ownedItems.includes('lucky_seven') && /*#__PURE__*/React.createElement(LuckySevenCounter, {
     spinCount: spinCount
   }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
@@ -7433,7 +7462,124 @@ function GameApp(_ref33) {
     diceLastRecharge: diceLastRecharge,
     hasDiceExtra: ownedItems.includes('dice_extra'),
     rolledSinceSpin: diceRolledSinceSpin
-  })), /*#__PURE__*/React.createElement(ShopPanel, {
+  }), ownedItems.includes('prestige_unlock') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-prestige-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "prestige-badge"
+  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "%)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "legacy-badge"
+  }, "Legacy: ", fmt(legacyWins), " wins"), prestigeLevel < 20 && /*#__PURE__*/React.createElement("button", {
+    className: "prestige-btn",
+    disabled: wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000),
+    onClick: function onClick() {
+      return setShowPrestigeConfirm(true);
+    }
+  }, "Prestige")), bounties && bounties.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "season8-bounties-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bounties-header"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties"), cosmeticFragments > 0 && /*#__PURE__*/React.createElement("span", {
+    className: "fragment-count"
+  }, "\uD83D\uDC8E ", cosmeticFragments)), bounties.map(function (b) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: b.bounty_id,
+      className: "bounty-card"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bounty-desc"
+    }, b.description || b.bounty_id), /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-bar"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-fill",
+      style: {
+        width: "".concat(Math.min(100, b.progress / b.target * 100), "%")
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-text"
+    }, fmt(b.progress), " / ", fmt(b.target)), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
+      className: "bounty-claim-btn",
+      onClick: function onClick() {
+        return handleBountyClaim(b.bounty_id);
+      }
+    }, "Claim"));
+  })), communityGoal && /*#__PURE__*/React.createElement("div", {
+    className: "season8-community-goal"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-label"
+  }, "\uD83C\uDF0D Community Goal"), /*#__PURE__*/React.createElement("div", {
+    className: "goal-desc"
+  }, communityGoal.description), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-text"
+  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target)), /*#__PURE__*/React.createElement("div", {
+    className: "goal-contrib"
+  }, "You: ", fmt(communityGoal.player_contribution))), singularity && /*#__PURE__*/React.createElement("div", {
+    className: "season8-singularity-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-label"
+  }, "\uD83C\uDF00 Singularity"), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-text"
+  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target)), singularity.fill_count > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "singularity-fills"
+  }, "Convergences: ", singularity.fill_count), /*#__PURE__*/React.createElement("button", {
+    className: "singularity-contribute-btn",
+    onClick: function onClick() {
+      var amt = prompt('How many fish to contribute?');
+      if (amt) handleSingularityContribute(parseInt(amt));
+    }
+  }, "Contribute")), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
+    className: "season8-aquarium-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "aquarium-header"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium"), /*#__PURE__*/React.createElement("span", {
+    className: "aquarium-luck"
+  }, "+", (aquariumSpecies.length * 0.1).toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
+    className: "aquarium-grid"
+  }, aquariumSpecies.map(function (s) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: s,
+      className: "aquarium-species",
+      title: s
+    }, s);
+  })), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-tokens"
+  }, "\uD83E\uDE99 ", fmt(wagerTokens), " tokens")), ownedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "season8-loadout-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "loadout-label"
+  }, "\u2699\uFE0F Loadouts"), /*#__PURE__*/React.createElement("div", {
+    className: "loadout-slots"
+  }, [1, 2, 3].map(function (slot) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: slot,
+      className: "loadout-slot"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "loadout-save-btn",
+      onClick: function onClick() {
+        return handleLoadoutSave(slot, {
+          owned_items: ownedItems,
+          active_cosmetics: activeCosmetics
+        });
+      }
+    }, "Save ", slot), /*#__PURE__*/React.createElement("button", {
+      className: "loadout-apply-btn",
+      onClick: function onClick() {
+        return handleLoadoutApply(slot);
+      }
+    }, "Equip ", slot));
+  })))), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
     losses: losses,

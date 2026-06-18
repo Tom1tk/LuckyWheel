@@ -4332,3 +4332,605 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   border-color: #28c878;
   color: #28c878;
 }
+
+/* ── Season 8: missing keyframes ─────────────────────────────────────────── */
+@keyframes pulse-glow {
+  from { box-shadow: 0 0 4px rgba(255,215,0,0.4); }
+  to   { box-shadow: 0 0 14px rgba(255,215,0,0.9); }
+}
+
+@keyframes s8-fade-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Season 8: modals (onboarding, prestige confirm, legacy boards) ───────── */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: s8-fade-in 0.2s ease;
+}
+
+.onboarding-modal {
+  background: rgba(2,5,22,0.98);
+  border: 1px solid var(--p-dk);
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 460px;
+  width: 90vw;
+  box-shadow: 0 0 50px rgba(var(--p-rgb),0.22), 0 12px 40px rgba(0,0,0,0.85);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: s8-fade-in 0.2s ease;
+}
+
+.onboarding-modal h3 {
+  font-size: 1.2rem;
+  color: var(--p);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px var(--p);
+}
+
+.onboarding-modal p {
+  font-size: 0.85rem;
+  color: #aaa;
+  letter-spacing: 1px;
+  line-height: 1.55;
+}
+
+.onboarding-modal button {
+  background: linear-gradient(135deg, var(--p-xs), var(--p));
+  border: none;
+  color: #fff;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  padding: 9px 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: opacity 0.15s;
+}
+.onboarding-modal button:hover { opacity: 0.85; }
+
+.onboarding-modal table th,
+.onboarding-modal table td {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  color: #ccc;
+}
+.onboarding-modal table th { color: var(--p-lt); font-size: 0.75rem; letter-spacing: 1px; }
+
+/* ── Season 8: wager panel (in casino-container) ─────────────────────────── */
+.season8-wager-panel {
+  width: 100%;
+  max-width: 340px;
+  background: rgba(15,5,32,0.82);
+  border: 1px solid rgba(var(--p-rgb),0.28);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.wager-stake-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wager-stake-control label {
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  color: var(--p-lt);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.wager-slider {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(var(--p-rgb),0.18);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.wager-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--p-lt);
+  box-shadow: 0 0 7px var(--p);
+  cursor: pointer;
+}
+.wager-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--p-lt);
+  border: none;
+  cursor: pointer;
+}
+
+.stake-label {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  font-weight: 700;
+  min-width: 80px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.stake-safe     { color: #44dd88; text-shadow: 0 0 6px rgba(68,221,136,0.4); }
+.stake-bold     { color: #ffcc44; text-shadow: 0 0 6px rgba(255,204,68,0.4); }
+.stake-reckless { color: var(--s-lt); text-shadow: 0 0 6px rgba(var(--s-rgb),0.4); }
+
+.wager-hotstreak {
+  font-size: 0.7rem;
+  color: #ff8844;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 3px 0;
+}
+
+.wager-action-btn {
+  background: none;
+  border: 1px solid rgba(var(--p-rgb),0.35);
+  color: var(--p-lt);
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+  text-transform: uppercase;
+}
+.wager-action-btn:hover { background: rgba(var(--p-rgb),0.1); }
+
+/* ── Season 8: wheel mode selector ───────────────────────────────────────── */
+.season8-wheel-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wheel-mode-label {
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.wheel-mode-select {
+  background: rgba(8,4,18,0.92);
+  border: 1px solid rgba(var(--p-rgb),0.35);
+  color: var(--p-lt);
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  text-transform: uppercase;
+}
+.wheel-mode-select:focus { border-color: var(--p); }
+.wheel-mode-select option { background: #0a0518; color: var(--p-lt); }
+
+/* ── Season 8: prestige panel (in sidebar) ───────────────────────────────── */
+.season8-prestige-panel {
+  padding: 7px 10px;
+  background: rgba(5,4,22,0.88);
+  border: 1px solid rgba(255,215,0,0.22);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.prestige-badge {
+  font-size: 0.65rem;
+  color: #ffd700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(255,215,0,0.45);
+}
+
+.legacy-badge {
+  font-size: 0.58rem;
+  color: #888;
+  letter-spacing: 0.5px;
+}
+
+.prestige-btn {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.18));
+  border: 1px solid rgba(255,215,0,0.6);
+  color: #ffd700;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+.prestige-btn:hover:not(:disabled) { background: rgba(255,215,0,0.22); }
+.prestige-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Season 8: guard charges (inside shield-indicator) ───────────────────── */
+.guard-charges {
+  font-size: 0.65rem;
+  color: var(--p-lt);
+  letter-spacing: 1px;
+}
+
+.guard-activate-btn {
+  background: none;
+  border: 1px solid rgba(var(--p-rgb),0.4);
+  color: var(--p-lt);
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  margin-top: 2px;
+  transition: background 0.15s;
+}
+.guard-activate-btn:hover:not(:disabled) { background: rgba(var(--p-rgb),0.1); }
+.guard-activate-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Season 8: bounties panel (in sidebar) ───────────────────────────────── */
+.season8-bounties-panel {
+  padding: 7px 10px;
+  background: rgba(5,5,25,0.88);
+  border: 1px solid rgba(var(--p-rgb),0.18);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bounties-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.62rem;
+  color: var(--p-lt);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.fragment-count {
+  font-size: 0.6rem;
+  color: #b388ff;
+  letter-spacing: 1px;
+}
+
+.bounty-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 6px;
+  border-left: 2px solid rgba(var(--p-rgb),0.25);
+}
+
+.bounty-desc {
+  font-size: 0.6rem;
+  color: #bbb;
+  letter-spacing: 0.4px;
+  line-height: 1.3;
+}
+
+.bounty-progress-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bounty-progress-fill {
+  height: 100%;
+  background: var(--p);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.bounty-progress-text {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+.bounty-claim-btn {
+  background: linear-gradient(135deg, var(--p-xs), var(--p-md));
+  border: none;
+  color: #fff;
+  font-size: 0.58rem;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  align-self: flex-start;
+  transition: opacity 0.15s;
+}
+.bounty-claim-btn:hover { opacity: 0.82; }
+
+/* ── Season 8: community goal widget (in sidebar) ───────────────────────── */
+.season8-community-goal {
+  padding: 7px 10px;
+  background: rgba(2,12,4,0.88);
+  border: 1px solid rgba(50,200,80,0.22);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.goal-label {
+  font-size: 0.62rem;
+  color: #44bb66;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.goal-desc {
+  font-size: 0.58rem;
+  color: #777;
+  letter-spacing: 0.4px;
+  line-height: 1.3;
+}
+
+.goal-progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #228844, #44dd88);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+
+.goal-progress-text {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+.goal-contrib {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+/* ── Season 8: singularity meter (in sidebar) ────────────────────────────── */
+.season8-singularity-panel {
+  padding: 7px 10px;
+  background: rgba(8,4,18,0.88);
+  border: 1px solid rgba(120,60,200,0.28);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.singularity-label {
+  font-size: 0.62rem;
+  color: #aa66ff;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.singularity-progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.singularity-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5511bb, #aa44ff);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+
+.singularity-progress-text {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+.singularity-fills {
+  font-size: 0.54rem;
+  color: #777;
+  letter-spacing: 0.4px;
+}
+
+.singularity-contribute-btn {
+  background: none;
+  border: 1px solid rgba(120,60,200,0.45);
+  color: #aa66ff;
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  align-self: flex-start;
+  margin-top: 2px;
+  transition: background 0.15s;
+}
+.singularity-contribute-btn:hover { background: rgba(120,60,200,0.12); }
+
+/* ── Season 8: aquarium panel (in sidebar) ───────────────────────────────── */
+.season8-aquarium-panel {
+  padding: 7px 10px;
+  background: rgba(0,8,18,0.88);
+  border: 1px solid rgba(0,150,200,0.22);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.aquarium-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.aquarium-header > span:first-child {
+  font-size: 0.62rem;
+  color: #44aacc;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.aquarium-luck {
+  font-size: 0.6rem;
+  color: #44dd88;
+  letter-spacing: 0.5px;
+}
+
+.aquarium-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-height: 48px;
+  overflow: hidden;
+}
+
+.aquarium-species {
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.wager-tokens {
+  font-size: 0.6rem;
+  color: #ffd700;
+  letter-spacing: 0.5px;
+}
+
+/* ── Season 8: loadout panel (in sidebar) ────────────────────────────────── */
+.season8-loadout-panel {
+  padding: 7px 10px;
+  background: rgba(5,5,25,0.88);
+  border: 1px solid rgba(var(--p-rgb),0.14);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.loadout-label {
+  font-size: 0.62rem;
+  color: #777;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.loadout-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loadout-slot {
+  display: flex;
+  gap: 3px;
+}
+
+.loadout-save-btn,
+.loadout-apply-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid rgba(var(--p-rgb),0.2);
+  color: #666;
+  font-size: 0.58rem;
+  letter-spacing: 0.5px;
+  padding: 3px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s;
+}
+.loadout-save-btn:hover { color: var(--p-lt); border-color: rgba(var(--p-rgb),0.45); }
+.loadout-apply-btn:hover { color: #44dd88; border-color: rgba(68,221,136,0.45); }
+
+/* ── Season 8: chat system & replay messages ─────────────────────────────── */
+.chat-msg-system {
+  background: rgba(var(--p-rgb),0.06);
+  border-left: 2px solid rgba(var(--p-rgb),0.45);
+  border-radius: 2px;
+  padding: 5px 8px;
+}
+
+.chat-system-text {
+  font-size: 0.7rem;
+  color: var(--p-lt);
+  letter-spacing: 0.5px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.chat-msg-replay {
+  padding: 4px 6px;
+}
+
+.replay-card {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(var(--p-rgb),0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.replay-card:hover { border-color: rgba(var(--p-rgb),0.45); }
+
+.replay-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.replay-text {
+  font-size: 0.7rem;
+  color: #999;
+  letter-spacing: 0.4px;
+  line-height: 1.3;
+}
