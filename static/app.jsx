@@ -3481,6 +3481,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       });
       if (!res.ok) {
         showToast(res.data?.error || 'Spin failed');
+        spinningRef.current = false;
+        setSpinning(false);
         return;
       }
       const data = res.data;
@@ -3514,8 +3516,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
     } catch {
       showToast('Spin failed');
-    } finally {
-      if (spinningRef.current) { spinningRef.current = false; setSpinning(false); }
+      spinningRef.current = false;
+      setSpinning(false);
     }
   }, [stake, showToast, applySpinResult, scheduleResultDismiss, dismissResult]);
 
