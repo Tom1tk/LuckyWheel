@@ -3159,9 +3159,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const lowSpecRef         = useRef(lowSpec);
   const tickPendingRef     = useRef(false);
   const resultAutoCloseRef = useRef(null);
+  const wheelThemeRef      = useRef(null);
 
   useEffect(() => { activeCosmeticsRef.current = activeCosmetics; }, [activeCosmetics]);
   useEffect(() => { lowSpecRef.current = lowSpec; }, [lowSpec]);
+  useEffect(() => { wheelThemeRef.current = wheelTheme; }, [wheelTheme]);
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -3727,10 +3729,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   // Season 8: handle wheel mode change
   const handleWheelModeChange = useCallback(async (mode) => {
+    const prev = activeWheelMode;
+    setActiveWheelMode(mode);
+    if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', mode);
     const { ok, data } = await apiGame('/api/wheel-mode', { method: 'POST', body: JSON.stringify({ mode }) });
-    if (ok) setActiveWheelMode(mode);
-    else showToast(data.error || 'Mode change failed');
-  }, [showToast]);
+    if (!ok) {
+      setActiveWheelMode(prev);
+      if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', prev);
+      showToast((data && data.error) || 'Mode change failed');
+    }
+  }, [showToast, activeWheelMode]);
 
   // Season 8: handle prestige
   const handlePrestige = useCallback(async () => {
