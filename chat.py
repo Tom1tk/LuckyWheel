@@ -166,8 +166,8 @@ def post_chat():
 
         with conn.cursor() as cur:
             cur.execute(
-                'INSERT INTO chat_messages (user_id, username, message) VALUES (%s, %s, %s)',
-                (current_user.id, current_user.username, message),
+                'INSERT INTO chat_messages (user_id, username, message, message_type) VALUES (%s, %s, %s, %s)',
+                (current_user.id, current_user.username, message, 'user'),
             )
             # Trim to 50 most recent messages
             cur.execute(

@@ -6086,12 +6086,14 @@ function GameApp(_ref33) {
         case 7:
           res = _context15.sent;
           if (res.ok) {
-            _context15.next = 11;
+            _context15.next = 13;
             break;
           }
           showToast(((_res$data = res.data) === null || _res$data === void 0 ? void 0 : _res$data.error) || 'Spin failed');
+          spinningRef.current = false;
+          setSpinning(false);
           return _context15.abrupt("return");
-        case 11:
+        case 13:
           data = res.data; // Animate wheel to the returned segment angle
           seg = data.angle % 360;
           nextRot = Math.ceil((wheelRotationRef.current + 5 * 360 - seg) / 360) * 360 + seg;
@@ -6124,24 +6126,19 @@ function GameApp(_ref33) {
             spinningRef.current = false;
             setSpinning(false);
           }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
-          _context15.next = 30;
+          _context15.next = 34;
           break;
-        case 27:
-          _context15.prev = 27;
+        case 29:
+          _context15.prev = 29;
           _context15.t0 = _context15["catch"](4);
           showToast('Spin failed');
-        case 30:
-          _context15.prev = 30;
-          if (spinningRef.current) {
-            spinningRef.current = false;
-            setSpinning(false);
-          }
-          return _context15.finish(30);
-        case 33:
+          spinningRef.current = false;
+          setSpinning(false);
+        case 34:
         case "end":
           return _context15.stop();
       }
-    }, _callee15, null, [[4, 27, 30, 33]]);
+    }, _callee15, null, [[4, 29]]);
   })), [stake, showToast, applySpinResult, scheduleResultDismiss, dismissResult]);
   var tick = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee16() {
     var res, data, hrs, mins, timeStr, spinResult, seg, nextRot;

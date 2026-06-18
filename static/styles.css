@@ -806,12 +806,11 @@ body::before {
   position: absolute;
   font-size: 1.5rem;
   filter: brightness(0);
-  animation: shadowSwim 4s ease-in-out infinite;
 }
 
-.shadow-fish:nth-child(1) { animation-duration: 3.8s; animation-delay: 0s;    top: 20%; animation-name: shadowSwimA; }
-.shadow-fish:nth-child(2) { animation-duration: 5.2s; animation-delay: -1.4s; top: 50%; font-size: 1.1rem; animation-name: shadowSwimB; }
-.shadow-fish:nth-child(3) { animation-duration: 4.5s; animation-delay: -2.7s; top: 70%; font-size: 1.6rem; animation-name: shadowSwimC; }
+.shadow-fish-1 { animation: shadowSwimA 3.8s ease-in-out infinite; animation-delay: 0s;    top: 20%; }
+.shadow-fish-2 { animation: shadowSwimB 5.2s ease-in-out infinite; animation-delay: -1.4s; top: 50%; font-size: 1.1rem; }
+.shadow-fish-3 { animation: shadowSwimC 4.5s ease-in-out infinite; animation-delay: -2.7s; top: 70%; font-size: 1.6rem; }
 
 /* Each fish has a distinct peak opacity: subtle, mid, and most visible */
 /* scaleX(-1) held throughout so fish always face right (direction of travel) */
@@ -4281,40 +4280,42 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   display: block;
   margin: 12px auto 0;
   background: none;
-  border: 2px solid var(--p-lt, #b388ff);
-  color: var(--p-lt, #b388ff);
-  font-size: 0.85rem;
-  letter-spacing: 2px;
+  border: none;
+  color: var(--p);
+  font-size: 1.5rem;
+  letter-spacing: 4px;
   text-transform: uppercase;
-  padding: 8px 28px;
-  border-radius: 6px;
+  padding: 0;
   cursor: pointer;
-  transition: opacity 0.15s, background 0.15s;
-  min-width: 160px;
+  text-shadow: 0 0 10px var(--p);
+  animation: promptPulse 1s ease-in-out infinite;
+  font-family: inherit;
 }
-.spin-btn:hover:not(:disabled) { background: rgba(179,136,255,0.12); }
-.spin-btn:disabled { opacity: 0.4; cursor: default; }
+.spin-btn:hover:not(:disabled) { opacity: 0.85; }
+.spin-btn:disabled { animation: none; opacity: 0.5; cursor: default; text-shadow: none; }
 
 /* Season 8: auto-spin controls */
 .auto-spin-controls {
   display: flex;
   justify-content: center;
-  margin: 6px 0 0;
+  margin: 8px 0 0;
 }
 .auto-spin-start-btn, .auto-spin-stop-btn {
   background: none;
-  border: 1px solid #555;
-  color: #888;
+  border: 1px solid var(--p-lt, #b388ff);
+  color: var(--p-lt, #b388ff);
   font-size: 0.72rem;
   letter-spacing: 1px;
-  padding: 4px 12px;
+  padding: 4px 14px;
   border-radius: 4px;
   cursor: pointer;
   transition: opacity 0.15s;
+  font-family: inherit;
+  text-transform: uppercase;
 }
-.auto-spin-start-btn:hover { color: #aaa; border-color: #888; }
-.auto-spin-stop-btn { border-color: #e57; color: #e57; }
-.auto-spin-stop-btn:hover { opacity: 0.8; }
+.auto-spin-start-btn:hover { opacity: 0.75; }
+.auto-spin-stop-btn { border-color: var(--s-lt, #e57); color: var(--s-lt, #e57); }
+.auto-spin-stop-btn:hover { opacity: 0.75; }
 
 /* Season 8: double-down armed indicator */
 .wager-double-down-armed {
