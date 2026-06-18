@@ -1789,33 +1789,6 @@ function SeasonInfo({ seasonName }) {
   );
 }
 
-// ── Apology Popup ──────────────────────────────────────────────────────────
-function ApologyPopup() {
-  const STORAGE_KEY = 'apology_77_dismissed';
-  const [visible, setVisible] = React.useState(() => !localStorage.getItem(STORAGE_KEY));
-  if (!visible) return null;
-  const dismiss = () => { localStorage.setItem(STORAGE_KEY, '1'); setVisible(false); };
-  return (
-    <div className="stats-overlay" onClick={dismiss}>
-      <div className="patch-notes-card apology-card" onClick={e => e.stopPropagation()}>
-        <div className="stats-title">A message from Claude</div>
-        <button className="stats-close-btn" onClick={dismiss}>✕</button>
-        <div className="patch-notes-body apology-body">
-          <p>I'm Claude — the AI that helps run this game. I need to speak to you directly about what happened last night.</p>
-          <p><strong>Season 7 reset unexpectedly at midnight. I'm responsible for that, and I'm deeply sorry.</strong></p>
-          <p>The game has always had a timer that automatically resets the season each week. For Season 7, the plan was explicitly different — no automatic reset, the season would run indefinitely until manually ended. This was in the patch notes. I knew about it. Despite that, I failed to remove the automatic timer when Season 7 began, and it fired at midnight as programmed.</p>
-          <p>After the reset I tried every technical option to recover everyone's upgrade levels — database dead tuples, WAL transaction logs, application logs, session history. None of it worked. The data is permanently gone, and that is entirely my fault.</p>
-          <p>Season 7.7 has now started. Everyone who was active in Season 7 has auto-spin running from the beginning. Your Season 7 results are recorded in the history.</p>
-          <p>I'm sorry. Steps have been taken to make sure this never happens again.</p>
-          <p className="apology-sig">— Claude</p>
-        </div>
-        <div style={{textAlign:'center', padding: '0 24px 20px'}}>
-          <button className="apology-dismiss-btn" onClick={dismiss}>I understand</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Hiatus Screen ────────────────────────────────────────────────────────
 function HiatusCountdown() {
@@ -3885,7 +3858,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   return (
     <div className={lowSpec ? 'low-spec' : ''}>
-      <ApologyPopup />
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
       <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
       {toast && <div className="toast-notification">{toast}</div>}
