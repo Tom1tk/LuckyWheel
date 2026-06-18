@@ -34,6 +34,7 @@ from prestige import get_prestige_bonus, get_starting_prestige, can_prestige, ge
 from replays import generate_replay, should_generate_replay, decode_replay
 from bounties import get_daily_bounties, increment_bounty, get_bounty_status, get_claim_rewards, BOUNTY_DEFS
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
+from chat import post_system_message
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
@@ -490,7 +491,7 @@ def get_state():
         now_utc = dt.datetime.now(timezone.utc)
         pot_celebrate = bool(
             pot and pot['filled'] and pot['filled_at'] and
-            pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
+            pot['filled_at'] > now_utc - dt.timedelta(days=7)
         )
         owned_items     = list(gs['owned_items'])
         max_charges     = dice_max_charges(owned_items)
@@ -690,7 +691,7 @@ def spin():
 
             pot_active = bool(
                 pot_row and pot_row['filled'] and pot_row['filled_at'] and
-                pot_row['filled_at'] > now_utc - dt.timedelta(minutes=30)
+                pot_row['filled_at'] > now_utc - dt.timedelta(days=7)
             )
             if pot_row and pot_row['filled'] and not pot_active:
                 _reset_expired_pot(conn, pot_row)
@@ -711,8 +712,11 @@ def spin():
             ctx = _build_spin_context(gs)
             pot_win_pct_frac = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.505
 
-            # Season 8: get stake from request body
+            # Season 8: get stake from request body; resolve double-down if pending
             req_stake = (request.json or {}).get('stake', 1)
+            double_down_active = bool(gs.get('double_down_pending', False))
+            if double_down_active:
+                req_stake = req_stake * 2  # double-down doubles the stake
 
             new_spin_count = gs['spin_count'] + 1
             new_state, events = _resolve_spin(
@@ -754,6 +758,12 @@ def spin():
                     current_user.username, gs.get('active_wheel_mode', 'steady'),
                     events.get('stake', 1), events['result'], events['wins_delta']
                 )
+            # Season 8: post system message on jackpot
+            if events['jackpot_hit']:
+                post_system_message(conn, f'🎰 {current_user.username} hit a JACKPOT for {int(events["wins_delta"]):,} wins!', 'event')
+            # Season 8: post system message on big double-down win (5x+ stake doubled = 10x+)
+            if double_down_active and events['result'] in ('win', 'jackpot') and events.get('stake', 1) >= 10:
+                post_system_message(conn, f'🔥 {current_user.username} won a 10x double-down for {int(events["wins_delta"]):,} wins!', 'event')
 
             # Season 8: bounty tracking
             bounty_date = dt.datetime.now(timezone.utc).date()
@@ -763,11 +773,25 @@ def spin():
                 increment_bounty(conn, current_user.id, 'bounty_wager5', bounty_date)
             if events.get('wager_streak', 0) == 10:
                 increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date)
+            # Season 8: community goal contribution hooks
+            season_info = get_season_info(conn)
+            season_num = season_info.get('season_number', 8) if season_info else 8
+            week_num = get_week_number(now_utc)
+            _, goal_def = get_active_goal(conn, season_num, week_num)
+            if goal_def:
+                if goal_def['metric'] == 'jackpots_landed' and events['jackpot_hit']:
+                    increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
+                    check_goal_completion(conn, goal_def['goal_id'])
+                elif goal_def['metric'] == 'wins_wagered' and events['result'] in ('win', 'jackpot'):
+                    increment_goal(conn, goal_def['goal_id'], current_user.id, int(events.get('wins_delta', 0)))
+                    check_goal_completion(conn, goal_def['goal_id'])
 
             # Season 8: onboarding advance
             onboarding_advance = False
             if gs.get('onboarding_step', 0) == 0:
                 onboarding_advance = True
+                # Season 8: post system message for new player first spin
+                post_system_message(conn, f'🎉 {current_user.username} spun the wheel for the first time! Welcome to Season 8!', 'event')
 
             # Manual spin: add extra full rotations for the wheel animation
             total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
@@ -784,9 +808,10 @@ def spin():
                            dice_rolled_since_spin = FALSE,
                            last_spin_at = NOW(),
                            active_tab_id = %s, tab_last_seen = NOW(),
-                           wager_streak = %s, wager_last_stake = %s,
-                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
-                       WHERE user_id = %s''',
+                          wager_streak = %s, wager_last_stake = %s,
+                          double_down_pending = FALSE,
+                          onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
+                      WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
                      new_state['streak'], new_state['best_streak'],
                      new_state['regen_recharge_wins'],
@@ -809,6 +834,7 @@ def spin():
         resp['stake'] = new_state.get('wager_last_stake', 1)
         resp['replay_string'] = replay_string
         resp['onboarding_advance'] = onboarding_advance
+        resp['double_down_active'] = double_down_active
         return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -928,6 +954,11 @@ def tick():
             elapsed = (now_utc - cursor).total_seconds()
             spins_due = min(int(elapsed // AUTO_SPIN_INTERVAL_SECONDS), MAX_SPINS_PER_TICK)
 
+            # Season 8: cap by auto_spin_budget
+            budget = int(gs.get('auto_spin_budget', 0))
+            if budget > 0:
+                spins_due = min(spins_due, budget)
+
             if spins_due == 0:
                 return jsonify({'spins': [], 'elapsed_ms': int(elapsed * 1000)})
 
@@ -954,7 +985,7 @@ def tick():
 
             pot_active = bool(
                 pot_row and pot_row['filled'] and pot_row['filled_at'] and
-                pot_row['filled_at'] > now_utc - dt.timedelta(minutes=30)
+                pot_row['filled_at'] > now_utc - dt.timedelta(days=7)
             )
             pot_win_pct = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.50
 
@@ -1055,15 +1086,18 @@ def tick():
                            active_cosmetics = %s, jackpot_echo_next = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            proc_streak = %s,
-                           dice_rolled_since_spin = FALSE, pending_dice = NULL,
-                           last_spin_at = %s
-                       WHERE user_id = %s''',
+                       dice_rolled_since_spin = FALSE, pending_dice = NULL,
+                       auto_spin_budget = GREATEST(auto_spin_budget - %s, 0),
+                       auto_spin_since = CASE WHEN auto_spin_budget - %s <= 0 THEN NULL ELSE auto_spin_since END,
+                       last_spin_at = %s
+                      WHERE user_id = %s''',
                     (current_wins, current_losses, streak, best_streak,
                      regen_recharge_wins,
                      owned, new_spin_count, new_win_count, new_loss_count,
                      active_cosmetics, jackpot_echo_next,
                      dice_charges, last_recharge,
                      current_proc_streak,
+                     spins_due, spins_due,
                      new_last_spin,
                      current_user.id),
                 )
@@ -1118,6 +1152,7 @@ def tick():
 
             conn.commit()
 
+        budget_remaining = max(budget - spins_due, 0) if budget > 0 else 0
         final_state = {
             'wins':                  int(current_wins),
             'losses':                current_losses,
@@ -1133,6 +1168,8 @@ def tick():
             'catchup_bonus_active':  catchup_bonus_active,
             'dice_rolled_since_spin': False,
             'proc_streak':           current_proc_streak,
+            'auto_spin_budget':      budget_remaining,
+            'auto_spin_active':      budget_remaining > 0,
         }
 
         if is_catch_up:
@@ -1457,7 +1494,7 @@ def community_pot_state():
             now_utc = dt.datetime.now(timezone.utc)
             pot_active = bool(
                 pot['filled'] and pot['filled_at'] and
-                pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
+                pot['filled_at'] > now_utc - dt.timedelta(days=7)
             )
             if pot['filled'] and not pot_active:
                 new_pot_target = _reset_expired_pot(conn, pot)
@@ -1511,7 +1548,7 @@ def community_pot_contribute():
             now_utc = dt.datetime.now(timezone.utc)
 
             if pot['filled']:
-                pot_window_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(minutes=30)
+                pot_window_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(days=7)
                 if pot_window_active:
                     return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
                 new_exp_target = _reset_expired_pot(conn, pot)
@@ -1741,8 +1778,9 @@ def reel_line():
                     '''SELECT owned_items, fishing_cast_at, fishing_bite_at,
                               fishing_lucky_next, caught_species, fish_clicks,
                               fastest_catch_pct,
-                              suspicious_catches, catch_count, catch_pct_ewma
-                       FROM game_state WHERE user_id = %s FOR UPDATE''',
+                              suspicious_catches, catch_count, catch_pct_ewma,
+                              catch_of_the_day_date
+                     FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
                 gs = cur.fetchone()
@@ -1830,16 +1868,57 @@ def reel_line():
                     log.warning('SUSPICIOUS_REEL user_id=%s pct=%.1f ewma=%.1f catch_count=%d suspicious=%d',
                                 current_user.id, precise_pct, new_ewma, new_catch_count, new_suspicious)
 
+            # Season 8: award wager_tokens if fish_to_wager owned
+            wager_tokens_awarded = 0
+            catch_of_day_bonus = False
+            if 'fish_to_wager' in owned:
+                tier_map = {'Common': 0, 'Uncommon': 1, 'Rare': 2, 'Legendary': 3}
+                tier_idx = tier_map.get(species.get('tier', 'Common'), 0)
+                wager_tokens_awarded = FISH_TO_WAGER_RATES[tier_idx]
+                # catch_of_the_day: first catch each UTC day worth 5x
+                if 'catch_of_the_day' in owned:
+                    today = now_utc.date().isoformat()
+                    last_cotd = gs.get('catch_of_the_day_date') or ''
+                    if last_cotd != today:
+                        wager_tokens_awarded *= 5
+                        catch_of_day_bonus = True
+
             with conn.cursor() as cur:
-                cur.execute(
-                    '''UPDATE game_state
-                       SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
-                           fastest_catch_pct = %s,
-                           suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s
-                       WHERE user_id = %s''',
-                    (new_fish_clicks, new_lucky_next, caught_species, new_best,
-                     new_suspicious, new_catch_count, new_ewma, current_user.id),
-                )
+                if wager_tokens_awarded > 0 and catch_of_day_bonus:
+                    cur.execute(
+                        '''UPDATE game_state
+                           SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
+                               fastest_catch_pct = %s,
+                               suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s,
+                               wager_tokens = wager_tokens + %s,
+                               catch_of_the_day_date = %s
+                           WHERE user_id = %s''',
+                        (new_fish_clicks, new_lucky_next, caught_species, new_best,
+                         new_suspicious, new_catch_count, new_ewma,
+                         wager_tokens_awarded, now_utc.date(), current_user.id),
+                    )
+                elif wager_tokens_awarded > 0:
+                    cur.execute(
+                        '''UPDATE game_state
+                           SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
+                               fastest_catch_pct = %s,
+                               suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s,
+                               wager_tokens = wager_tokens + %s
+                           WHERE user_id = %s''',
+                        (new_fish_clicks, new_lucky_next, caught_species, new_best,
+                         new_suspicious, new_catch_count, new_ewma,
+                         wager_tokens_awarded, current_user.id),
+                    )
+                else:
+                    cur.execute(
+                        '''UPDATE game_state
+                           SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
+                               fastest_catch_pct = %s,
+                               suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s
+                           WHERE user_id = %s''',
+                        (new_fish_clicks, new_lucky_next, caught_species, new_best,
+                         new_suspicious, new_catch_count, new_ewma, current_user.id),
+                    )
             conn.commit()
 
         return jsonify({
@@ -1855,6 +1934,8 @@ def reel_line():
             'precise_pct':      precise_pct,
             'lucky_next_active': new_lucky_next,
             'fish_clicks':      new_fish_clicks,
+            'wager_tokens':     wager_tokens_awarded,
+            'catch_of_day_bonus': catch_of_day_bonus,
         })
     except Exception:
         log.exception('REEL_ERROR  user_id=%s', current_user.id)
@@ -2312,6 +2393,26 @@ def admin_advance_season():
 # Season 8 API Endpoints
 # ════════════════════════════════════════════════════════════════════════════
 
+@game_bp.route('/api/wager/bank', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_bank():
+    """Bank wager_banked_wins into wins, reset wager_streak to 0."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            banked = int(gs.get('wager_banked_wins', 0))
+            if banked <= 0:
+                return jsonify({'error': 'No banked wins to claim'}), 400
+            new_wins = int(gs['wins']) + banked
+            cur.execute(
+                '''UPDATE game_state SET wins = %s, wager_banked_wins = 0, wager_streak = 0
+                   WHERE user_id = %s''',
+                (new_wins, current_user.id),
+            )
+        conn.commit()
+    return jsonify({'wins': new_wins, 'wager_streak': 0, 'banked': banked})
+
 @game_bp.route('/api/wager/stake', methods=['POST'])
 @login_required
 @csrf.exempt
@@ -2412,7 +2513,9 @@ def prestige_reset():
                    WHERE user_id = %s''',
                 (new_level, new_prestige_count, new_legacy_wins, current_user.id),
             )
-        conn.commit()
+        # Season 8: post system message on prestige
+        post_system_message(conn, f'⭐ {current_user.username} reached Prestige Level {new_level}!', 'event')
+    conn.commit()
     return jsonify({
         'prestige_level': new_level,
         'prestige_count': new_prestige_count,
@@ -2478,7 +2581,9 @@ def claim_bounty():
             if rewards.get('wins', 0) > 0:
                 cur.execute('UPDATE game_state SET wins = wins + %s WHERE user_id = %s',
                             (rewards['wins'], current_user.id))
-        conn.commit()
+        # Season 8: post system message on bounty claim
+        post_system_message(conn, f'🎯 {current_user.username} completed a bounty: {bounty_id}!', 'event')
+    conn.commit()
     return jsonify({'ok': True, 'rewards': rewards})
 
 
@@ -2552,8 +2657,9 @@ def singularity_contribute():
                 (amount, amount, amount),
             )
             row = cur.fetchone()
-            cur.execute('UPDATE game_state SET wins = wins - %s WHERE user_id = %s',
-                        (amount, current_user.id))
+            # Season 8: post system message if meter just filled (crossed threshold this contribution)
+            if row['filled'] and (row['total_contributed'] - amount) < row['target']:
+                post_system_message(conn, f'🌀 The Singularity has converged! Total contributed: {int(row["total_contributed"]):,}', 'event')
         conn.commit()
     return jsonify({
         'total_contributed': row['total_contributed'],

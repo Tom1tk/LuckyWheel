@@ -142,7 +142,11 @@ def increment_goal(conn, goal_id, user_id, amount):
 
 
 def check_goal_completion(conn, goal_id):
-    """Check if the goal is complete and mark it. Returns True if newly completed."""
+    """Check if the goal is complete and mark it. Returns True if newly completed.
+
+    On completion, activates the community pot buff (+5% win% for a week)
+    to replace the old community pot mechanism.
+    """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             '''UPDATE community_goals
@@ -152,6 +156,15 @@ def check_goal_completion(conn, goal_id):
             (goal_id,),
         )
         row = cur.fetchone()
+
+    if row:
+        # Activate the community pot buff: +5% win% for 1 week
+        with conn.cursor() as cur:
+            cur.execute(
+                '''UPDATE community_pot
+                   SET filled = TRUE, filled_at = NOW(), win_chance_pct = 55.0
+                   WHERE id = 1''',
+            )
 
     return row is not None
 
