@@ -3027,6 +3027,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     clickmult_inf: gameState.clickmult_inf_level || 0,
   });
   const WHEEL_SPIN_SPEED = 1.5; // seconds
+
+  // Season 8: manual spin state (tab-lock ID mirrors HiatusWheel pattern)
+  const [spinning, setSpinning]         = useState(false);
+  const spinningRef                     = useRef(false);
+  const tabIdRef                        = useRef((() => {
+    let id = sessionStorage.getItem('wheel_tab_id');
+    if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('wheel_tab_id', id); }
+    return id;
+  })());
+  // Season 8: auto-spin budget (0 = inactive)
+  const [autoSpinBudget, setAutoSpinBudget] = useState(gameState.auto_spin_budget || 0);
+
   const toggleMobilePanel = useCallback((panel) => {
     setMobilePanel(prev => prev === panel ? null : panel);
   }, []);
@@ -3176,6 +3188,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
           if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
           if (gs.data.singularity != null) setSingularity(gs.data.singularity);
+          if (gs.data.auto_spin_budget != null) setAutoSpinBudget(gs.data.auto_spin_budget);
         }
       } else {
         setSeason(r.data);
@@ -3428,6 +3441,56 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setTimeout(() => setFishCatchUpSummary(null), 5000);
   }, []);
 
+  // Season 8: manual spin (replaces always-on auto-spin as the primary game action)
+  const handleManualSpin = useCallback(async () => {
+    if (spinningRef.current) return;
+    spinningRef.current = true;
+    setSpinning(true);
+    try {
+      const res = await apiGame('/api/spin', {
+        method: 'POST',
+        body: JSON.stringify({ tab_id: tabIdRef.current, stake }),
+      });
+      if (!res.ok) {
+        showToast(res.data?.error || 'Spin failed');
+        return;
+      }
+      const data = res.data;
+      // Animate wheel to the returned segment angle
+      const seg = data.angle % 360;
+      const nextRot = Math.ceil((wheelRotationRef.current + 5 * 360 - seg) / 360) * 360 + seg;
+      wheelRotationRef.current = nextRot;
+      setWheelRotation(nextRot);
+
+      if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
+
+      // Dismiss lingering result before showing new one
+      if (showResultRef.current) dismissResult();
+      setBonusEarned(0); setEchoTriggered(false); setJackpotHit(false);
+      setResilienceTriggered(false); setLuckySevenTriggered(false); setFortuneCharmTriggered(false);
+
+      setTimeout(() => {
+        if (data.guard_triggered) {
+          setGuardState({ blocked: data.guard_blocked });
+          guardCompleteRef.current = () => {
+            setGuardState(null);
+            applySpinResult(data);
+            scheduleResultDismiss();
+          };
+        } else {
+          applySpinResult(data);
+          scheduleResultDismiss();
+        }
+        spinningRef.current = false;
+        setSpinning(false);
+      }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
+    } catch {
+      showToast('Spin failed');
+    } finally {
+      if (spinningRef.current) { spinningRef.current = false; setSpinning(false); }
+    }
+  }, [stake, showToast, applySpinResult, scheduleResultDismiss, dismissResult]);
+
   const tick = useCallback(async () => {
     if (tickPendingRef.current) return;
     tickPendingRef.current = true;
@@ -3435,6 +3498,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       const res = await apiGame('/api/tick', { method: 'POST', body: JSON.stringify({}) });
       if (!res.ok) return;
       const data = res.data;
+
+      if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
+      if (data.auto_spin_active === false) { setAutoSpinBudget(0); return; }
 
       if (data.happy_hour != null) setHappyHour(data.happy_hour);
 
@@ -3513,8 +3579,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [applySpinResult, applyFishCatchUp, dismissResult, scheduleResultDismiss]);
 
-  // Tick every 3 seconds
+  // Season 8: auto-spin tick — only run while the player has activated auto-spin (budget > 0).
+  // Manual spins go through handleManualSpin → /api/spin directly.
   useEffect(() => {
+    if (autoSpinBudget <= 0) return;
     let busy = false;
     const doTick = async () => {
       if (busy || document.hidden) return;
@@ -3524,7 +3592,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     doTick();
     const id = setInterval(doTick, 3000);
     return () => clearInterval(id);
-  }, []); // eslint-disable-line
+  }, [autoSpinBudget > 0]); // eslint-disable-line
 
   // Poll happy_hour status every minute (in case of time zone changes or missed state update)
   useEffect(() => {
@@ -3602,6 +3670,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.bounties != null) setBounties(gameState.bounties);
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
     if (gameState.singularity != null) setSingularity(gameState.singularity);
+    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
   }, []); // eslint-disable-line
 
   // Season 8: handle stake change
@@ -3661,13 +3730,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
-  // Season 8: handle singularity contribution
+  // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
   const handleSingularityContribute = useCallback(async (amount) => {
     const { ok, data } = await apiGame('/api/singularity/contribute', { method: 'POST', body: JSON.stringify({ amount }) });
     if (ok) {
-      setWins(prev => prev - amount);
+      setFishClicks(prev => prev - amount);
       setSingularity(prev => ({ ...prev, total_contributed: data.total_contributed, filled: data.filled }));
-      showToast(`Contributed ${fmt(amount)} wins to Singularity`);
+      showToast(`Contributed ${fmt(amount)} fish to Singularity`);
     } else {
       showToast(data.error || 'Contribution failed');
     }
@@ -3736,9 +3805,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === ' ' && ownedItems.includes('wager_unlock')) {
+      // Spacebar triggers manual spin (Season 8: spin is an active decision)
+      if (e.key === ' ') {
         e.preventDefault();
-        // Spacebar could trigger spin — but game auto-spins, so this is for manual stake
+        handleManualSpin();
       }
       // Number keys 1-0 select stake
       if (e.key >= '0' && e.key <= '9' && ownedItems.includes('wager_unlock')) {
@@ -3748,7 +3818,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [ownedItems, handleStakeChange]);
+  }, [ownedItems, handleStakeChange, handleManualSpin]);
 
   const hasGuard = ownedItems.includes('guard');
   const hasRegen = ownedItems.includes('regen_shield');
@@ -3859,8 +3929,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               🔥 Hot Streak: {wagerStreak} wins (+{Math.min(wagerStreak * 5, 50)}% bonus)
             </div>
           )}
+          {wagerBankedWins > 0 && (
+            <button className="wager-action-btn wager-bank-btn" onClick={async () => {
+              const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
+              if (ok) { setWins(data.wins); setWagerBankedWins(0); setWagerStreak(0); showToast(`Banked ${fmt(data.banked)} wins!`); }
+              else showToast(data.error || 'Bank failed');
+            }}>🏦 Bank {fmt(wagerBankedWins)} wins</button>
+          )}
+          {ownedItems.includes('wager_double_down') && doubleDownPending && (
+            <div className="wager-double-down-armed">⚡ Double-Down armed — next spin is 2× stake!</div>
+          )}
           {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-            <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Double Down</button>
+            <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double Down</button>
           )}
           {ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && (
             <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
@@ -4068,11 +4148,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
-        <CommunityPot
-          pot={communityPot}
-          fishClicks={fishClicks}
-          onContribute={newClicks => setFishClicks(newClicks)}
-        />
         {season && <SeasonInfo seasonName={season.season_name || season.season_number} endsAt={season.ends_at} />}
       </div>
 
@@ -4107,11 +4182,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             fishPanelScale={fishPanelScale}
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
-          />
-          <CommunityPot
-            pot={communityPot}
-            fishClicks={fishClicks}
-            onContribute={newClicks => setFishClicks(newClicks)}
           />
         </div>
       )}
@@ -4177,11 +4247,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="casino-title">
               <span className="title-lucky-wrap">
                 <span className="title-lucky">Lucky</span>
-                <span className="title-endless">ENDLESS</span>
+                <span className="title-endless">SEASON 8</span>
               </span>
               {' '}Wheel
             </div>
-            <div className="subtitle">Where we&apos;re going, we won&apos;t need luck to win</div>
+            <div className="subtitle">Season 8 — Make every spin count</div>
           </div>
 
           <div className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}>
@@ -4196,6 +4266,31 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="center-hub">★</div>
           </div>
 
+          {/* Season 8: manual spin button — the primary game action */}
+          <button
+            className="spin-btn"
+            onClick={handleManualSpin}
+            disabled={spinning || autoSpinBudget > 0}
+            title={autoSpinBudget > 0 ? 'Stop auto-spin to spin manually' : ''}
+          >
+            {spinning ? '● ● ●' : autoSpinBudget > 0 ? `Auto (${autoSpinBudget} left)` : '▶ Spin ◀'}
+          </button>
+
+          {/* Season 8: auto-spin controls */}
+          <div className="auto-spin-controls">
+            {autoSpinBudget > 0 ? (
+              <button className="auto-spin-stop-btn" onClick={async () => {
+                const { ok } = await apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' });
+                if (ok) setAutoSpinBudget(0);
+              }}>⏹ Stop Auto-Spin</button>
+            ) : (
+              <button className="auto-spin-start-btn" onClick={async () => {
+                const { ok, data } = await apiGame('/api/auto-spin/start', { method: 'POST', body: '{}' });
+                if (ok) setAutoSpinBudget(data.auto_spin_budget || 100);
+              }}>⏩ Auto-Spin (100 spins)</button>
+            )}
+          </div>
+
           {catchupBonus && (
             <div className="spin-prompt" style={{ opacity: 0.7, fontSize: '0.7rem', pointerEvents: 'none' }}>
               🔼 Catch-up bonus active
@@ -4206,7 +4301,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
           {isMobile && (
             <div className="mobile-below-wheel">
-              <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
+              <StreakPanel streak={streak} bonusmultLevel={0} />
               <DicePanel
                 streak={streak}
                 onRoll={handleDiceRoll}
@@ -4258,10 +4353,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {ownedItems.includes('lucky_seven') && (
                 <LuckySevenCounter spinCount={spinCount} />
               )}
-              {infLevels.proc_streak_inf > 0 && (
-                <ProcStreakCounter streak={procStreak} />
-              )}
-              <StreakPanel streak={streak} bonusmultLevel={infLevels.bonusmult_inf} />
+              <StreakPanel streak={streak} bonusmultLevel={0} />
               <DicePanel
                 streak={streak}
                 onRoll={handleDiceRoll}
