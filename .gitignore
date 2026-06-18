@@ -5,3 +5,5 @@ gunicorn.ctl
 *.pyc
 gunicorn.log
 gunicorn.pid
+gunicorn-access.log
+gunicorn.log

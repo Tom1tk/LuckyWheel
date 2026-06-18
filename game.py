@@ -488,6 +488,7 @@ def get_state():
                 # Season 8: singularity meter
                 cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
                 singularity = cur.fetchone()
+
         now_utc = dt.datetime.now(timezone.utc)
         pot_celebrate = bool(
             pot and pot['filled'] and pot['filled_at'] and
@@ -505,14 +506,13 @@ def get_state():
         if singularity and singularity['filled']:
             available_modes = available_modes + ['singularity']
 
-        # Season 8: bounty status
+        # Season 8: bounty status + community goal (needs a connection)
         bounty_date = now_utc.date()
-        bounties = get_bounty_status(conn, current_user.id, bounty_date)
-
-        # Season 8: community goal
         season_num = full_info.get('season_number', 8) if full_info else 8
-        goal_row, goal_def = get_active_goal(conn, season_num, week_num)
-        player_contrib = get_player_contribution(conn, goal_def['goal_id'], current_user.id) if goal_row else 0
+        with db_connection() as conn2:
+            bounties = get_bounty_status(conn2, current_user.id, bounty_date)
+            goal_row, goal_def = get_active_goal(conn2, season_num, week_num)
+            player_contrib = get_player_contribution(conn2, goal_def['goal_id'], current_user.id) if goal_row else 0
 
         return jsonify({
             'wins':               int(gs['wins']),
