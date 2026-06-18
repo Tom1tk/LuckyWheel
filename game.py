@@ -2495,14 +2495,14 @@ def prestige_reset():
             current_level = gs.get('prestige_level', 0)
             if current_level >= MAX_PRESTIGE_LEVEL:
                 return jsonify({'error': 'Already at max prestige'}), 403
-            threshold = get_prestige_threshold(current_level)
+            threshold = get_prestige_threshold(gs['owned_items'])
             if int(gs['wins']) < threshold:
                 return jsonify({'error': f'Need {threshold} wins to prestige', 'current_wins': int(gs['wins'])}), 403
             new_level = current_level + 1
             new_prestige_count = gs.get('prestige_count', 0) + 1
-            legacy_keep = get_legacy_keep_count(new_level, 'prestige_legacy' in gs['owned_items'])
+            legacy_keep = get_legacy_keep_count(gs['owned_items'])
             new_legacy_wins = int(gs.get('legacy_wins', 0)) + int(gs['wins'])
-            starting_prestige = get_starting_prestige(new_prestige_count, 'prestige_efficiency' in gs['owned_items'])
+            starting_prestige = get_starting_prestige(new_legacy_wins)
             cur.execute(
                 '''UPDATE game_state
                    SET prestige_level = %s, prestige_count = %s,
@@ -2532,8 +2532,9 @@ def prestige_info():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id)
             level = gs.get('prestige_level', 0)
-            threshold = get_prestige_threshold(level) if level < MAX_PRESTIGE_LEVEL else None
-            can = can_prestige(int(gs['wins']), level, 'prestige_unlock' in gs['owned_items'])
+            owned = gs.get('owned_items', [])
+            threshold = get_prestige_threshold(owned) if level < MAX_PRESTIGE_LEVEL else None
+            can = can_prestige(int(gs['wins']), owned, level)
     return jsonify({
         'prestige_level': level,
         'prestige_count': gs.get('prestige_count', 0),
