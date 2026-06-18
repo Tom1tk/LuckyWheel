@@ -3177,21 +3177,6 @@ body.low-spec::before                 { display: none; }
 /* Pointer drop-shadow is expensive; replace with simpler border color */
 .low-spec .pointer                    { filter: none; border-top-color: #4422EE; }
 
-/* ── Respect OS-level reduced motion preference ──────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .casino-title, .pointer, .spin-prompt, .bulb, .fish-body,
-  .streak-fire, .shop-item.singularity-item,
-  [class*="trail-"] .fish-body {
-    animation: none !important;
-  }
-  .fish-aura           { display: none; }
-  .wheel-wrapper::before { box-shadow: none; }
-  body::before         { display: none; }
-  .pointer             { filter: none; }
-  .confetti-container  { display: none; }
-  .fire-canvas         { display: none; }
-}
-
 /* ── Fire Effect ─────────────────────────────────────────────────────────── */
 .fire-canvas {
   position: fixed;
@@ -4217,55 +4202,6 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
    T37 · ACCESSIBILITY
    ════════════════════════════════════════════════════════════════════════════ */
 
-/* Reduced motion — OS preference disables ALL animations/transitions */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* .reduced-motion — manual toggle mirrors the OS preference */
-.reduced-motion *,
-.reduced-motion *::before,
-.reduced-motion *::after {
-  animation: none !important;
-  transition: none !important;
-  scroll-behavior: auto !important;
-}
-/* Wheel spin and fish are gameplay-critical — preserve a minimal transition even in reduced-motion */
-.reduced-motion .wheel-canvas {
-  transition: transform 0.4s ease-out !important;
-}
-.reduced-motion .shadow-fish { animation: shadowSwim 4s ease-in-out infinite !important; }
-.reduced-motion .shadow-fish:nth-child(1) { animation-name: shadowSwimA !important; animation-duration: 3.8s !important; }
-.reduced-motion .shadow-fish:nth-child(2) { animation-name: shadowSwimB !important; animation-duration: 5.2s !important; }
-.reduced-motion .shadow-fish:nth-child(3) { animation-name: shadowSwimC !important; animation-duration: 4.5s !important; }
-
-/* High contrast — darker backgrounds, brighter text, thicker borders */
-.high-contrast {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border-width: 3px !important;
-  border-color: #ffffff !important;
-}
-.high-contrast .wheel-theme-tidal,
-.high-contrast .wheel-theme-ember,
-.high-contrast .wheel-theme-frost,
-.high-contrast .wheel-theme-aurora,
-.high-contrast .wheel-theme-vintage {
-  background: #000000 !important;
-  border-width: 3px !important;
-  box-shadow: none !important;
-}
-.high-contrast .wheel-theme-tidal   { border-color: #00ffff !important; color: #00ffff !important; }
-.high-contrast .wheel-theme-ember   { border-color: #ff7700 !important; color: #ffaa00 !important; }
-.high-contrast .wheel-theme-frost   { border-color: #66ffff !important; color: #ffffff !important; }
-.high-contrast .wheel-theme-aurora  { border-color: #00ff66 !important; color: #66ff99 !important; }
-.high-contrast .wheel-theme-vintage { border-color: #ffdd00 !important; color: #ffee99 !important; }
 
 /* aria-live region — visually hidden, available to screen readers */
 .aria-live-region {
