@@ -184,8 +184,8 @@ body::before {
 /* Wheel wrapper */
 .wheel-wrapper {
   position: relative;
-  width: min(380px, calc(100vw - 120px), calc(100vh - 490px));
-  height: min(380px, calc(100vw - 120px), calc(100vh - 490px));
+  width: min(420px, calc(100vw - 120px), calc(100vh - 460px));
+  height: min(420px, calc(100vw - 120px), calc(100vh - 460px));
 }
 
 /* Glow ring behind wheel */
@@ -2400,8 +2400,8 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .casino-container { padding: 8px 0 70px 0; flex: 1; min-width: 0; width: auto; }
   .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
   .wheel-wrapper {
-    width:  min(300px, calc(100vw - 20px), calc(100vh - 430px));
-    height: min(300px, calc(100vw - 20px), calc(100vh - 430px));
+    width:  min(320px, calc(100vw - 20px), calc(100vh - 400px));
+    height: min(320px, calc(100vw - 20px), calc(100vh - 400px));
   }
 
   /* Below-wheel row: streak (left 50%) + dice (right 50%) */
@@ -4225,27 +4225,7 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 .spin-btn:disabled { animation: none; opacity: 0.5; cursor: default; text-shadow: none; }
 
 /* Season 8: auto-spin controls */
-.auto-spin-controls {
-  display: flex;
-  justify-content: center;
-  margin: 8px 0 0;
-}
-.auto-spin-start-btn, .auto-spin-stop-btn {
-  background: none;
-  border: 1px solid var(--p-lt, #b388ff);
-  color: var(--p-lt, #b388ff);
-  font-size: 0.72rem;
-  letter-spacing: 1px;
-  padding: 4px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  font-family: inherit;
-  text-transform: uppercase;
-}
-.auto-spin-start-btn:hover { opacity: 0.75; }
-.auto-spin-stop-btn { border-color: var(--s-lt, #e57); color: var(--s-lt, #e57); }
-.auto-spin-stop-btn:hover { opacity: 0.75; }
+
 
 /* Season 8: double-down armed indicator */
 .wager-double-down-armed {
