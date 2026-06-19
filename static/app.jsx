@@ -1237,7 +1237,7 @@ function FishEncyclopedia({ caughtSpecies, onClose }) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate }) {
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught }) {
   const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
@@ -1304,6 +1304,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
         setLastCatch({ emoji, name, value: data.value, isNew: !!data.first_catch, isLucky: false, doubled: false });
         onFishBucksUpdate(data.fish_clicks);
         if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+        if (onFishCaught) onFishCaught();
         showAutoFishPopup({ type: 'hit', emoji, value: data.value, isNew: !!data.first_catch });
       } else {
         showAutoFishPopup({ type: 'miss' });
@@ -1422,6 +1423,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
       setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled, preciseMult: data.precise_bonus ? data.precise_mult : null, precisePct: data.precise_pct != null ? data.precise_pct : null });
       onFishBucksUpdate(data.fish_clicks);
       if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+      if (onFishCaught) onFishCaught();
       setLuckyNextActive(!!data.lucky_next_active);
       setPhase('success');
       setTimeout(() => setPhase('idle'), 2000);
@@ -3389,10 +3391,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         return next;
       });
     }
-    // Season 8: fetch updated bounties after jackpot
-    if (data.jackpot_hit || (data.wager_streak === 10)) {
-      apiGame('/api/bounties').then(r => { if (r.ok) setBounties(r.data.bounties || []); });
-    }
+    // Season 8: refresh bounties & community goal after every spin
+    refreshBountiesAndGoal();
     // Season 8: update community goal from state poll
     setShieldFeedback(data.shield_used ? {
       type: data.shield_used_type,
@@ -3633,6 +3633,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
   const [legacyBoards, setLegacyBoards]             = useState([]);
 
+  const refreshBountiesAndGoal = useCallback(async () => {
+    const [bountyRes, goalRes] = await Promise.all([
+      apiGame('/api/bounties'),
+      apiGame('/api/community-goal'),
+    ]);
+    if (bountyRes.ok) setBounties(bountyRes.data.bounties || []);
+    if (goalRes.ok && goalRes.data.goal) setCommunityGoal(goalRes.data.goal);
+  }, []);
+
   // Clear any previously-set accessibility classes from localStorage
   useEffect(() => {
     localStorage.removeItem('reducedMotion');
@@ -3665,6 +3674,31 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
     if (gameState.singularity != null) setSingularity(gameState.singularity);
   }, []); // eslint-disable-line
+
+  // Season 8: community goal background poll (15s interval, respects document.hidden)
+  useEffect(() => {
+    let ctrl = new AbortController();
+
+    const load = async () => {
+      if (document.hidden) return;
+      ctrl.abort();
+      ctrl = new AbortController();
+      try {
+        const { ok, data } = await apiGame('/api/community-goal', { signal: ctrl.signal });
+        if (ok && data.goal) setCommunityGoal(data.goal);
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error('Community goal poll failed', e);
+      }
+    };
+
+    load();
+    const intervalId = setInterval(load, 15000);
+
+    return () => {
+      clearInterval(intervalId);
+      ctrl.abort();
+    };
+  }, []);
 
   // Season 8: handle stake change
   const handleStakeChange = useCallback(async (newStake) => {
@@ -3710,6 +3744,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setWagerStreak(0);
       setWagerLastStake(0);
       showToast(` Prestiged to Level ${data.prestige_level}!`);
+      refreshBountiesAndGoal();
     } else {
       showToast(data.error || 'Prestige failed');
     }
@@ -3996,6 +4031,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           fishPanelScale={fishPanelScale}
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
+          onFishCaught={refreshBountiesAndGoal}
         />
       )}
 
@@ -4010,6 +4046,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             fishPanelScale={fishPanelScale}
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
+            onFishCaught={refreshBountiesAndGoal}
           />
         </div>
       )}
@@ -4128,7 +4165,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {wagerBankedWins > 0 && (
                 <button className="wager-action-btn wager-bank-btn" onClick={async () => {
                   const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
-                  if (ok) { setWins(data.wins); setWagerBankedWins(0); setWagerStreak(0); showToast(`Banked ${fmt(data.banked)} wins!`); }
+                  if (ok) { setWins(data.wins); setWagerBankedWins(0); setWagerStreak(0); showToast(`Banked ${fmt(data.banked)} wins!`); refreshBountiesAndGoal(); }
                   else showToast(data.error || 'Bank failed');
                 }}>🏦 Bank {fmt(wagerBankedWins)}</button>
               )}
