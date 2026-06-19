@@ -7172,7 +7172,7 @@ function GameApp(_ref33) {
   }, "\u2605")), /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
     onClick: !spinning ? handleManualSpin : undefined
-  }, spinning ? '' : '▶ Click to Spin ◀'), catchupBonus && /*#__PURE__*/React.createElement("div", {
+  }, "\u25B6 Click to Spin \u25C0"), catchupBonus && /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt",
     style: {
       opacity: 0.7,

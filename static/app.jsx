@@ -4099,7 +4099,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           </div>
 
           <div className={`spin-prompt ${spinning ? 'hidden' : ''}`} onClick={!spinning ? handleManualSpin : undefined}>
-            {spinning ? '' : '▶ Click to Spin ◀'}
+            ▶ Click to Spin ◀
           </div>
 
           {catchupBonus && (
