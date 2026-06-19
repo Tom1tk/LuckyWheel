@@ -7556,8 +7556,10 @@ function GameApp(_ref33) {
     procStreak: procStreak
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
-  }, !isMobile && communityGoal && /*#__PURE__*/React.createElement("div", {
-    className: "season8-community-goal mini-panel"
+  }, !isMobile && (communityGoal || singularity) && /*#__PURE__*/React.createElement("div", {
+    className: "season8-meta-panel mini-panel"
+  }, communityGoal && /*#__PURE__*/React.createElement("div", {
+    className: "meta-goal-row"
   }, /*#__PURE__*/React.createElement("div", {
     className: "goal-label"
   }, "\uD83C\uDF0D ", communityGoal.description), /*#__PURE__*/React.createElement("div", {
@@ -7569,20 +7571,15 @@ function GameApp(_ref33) {
     }
   })), /*#__PURE__*/React.createElement("div", {
     className: "goal-progress-text"
-  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution))), !isMobile && singularity && /*#__PURE__*/React.createElement("div", {
-    className: "season8-singularity-panel mini-panel"
+  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution))), communityGoal && singularity && /*#__PURE__*/React.createElement("div", {
+    className: "meta-divider"
+  }), singularity && /*#__PURE__*/React.createElement("div", {
+    className: "meta-goal-row"
   }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-label-row"
+  }, /*#__PURE__*/React.createElement("span", {
     className: "singularity-label"
-  }, "\uD83C\uDF00 Singularity"), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-text"
-  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target), singularity.fill_count > 0 ? " \xB7 Convergences: ".concat(singularity.fill_count) : ''), !singularity.filled && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF00 Singularity"), !singularity.filled && /*#__PURE__*/React.createElement("span", {
     className: "singularity-buttons"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: function onClick() {
@@ -7595,6 +7592,15 @@ function GameApp(_ref33) {
     },
     disabled: fishClicks < 1
   }, "All"))), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-text"
+  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target), singularity.fill_count > 0 ? " \xB7 Convergences: ".concat(singularity.fill_count) : ''))), /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"

@@ -4430,33 +4430,40 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <div className="bottom-left-stack">
-        {/* Season 8: Community goal + Singularity — moved out of the right sidebar (was causing overflow scroll) */}
-        {!isMobile && communityGoal && (
-          <div className="season8-community-goal mini-panel">
-            <div className="goal-label">🌍 {communityGoal.description}</div>
-            <div className="goal-progress-bar">
-              <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
-            </div>
-            <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
-          </div>
-        )}
-        {!isMobile && singularity && (
-          <div className="season8-singularity-panel mini-panel">
-            <div className="singularity-label">🌀 Singularity</div>
-            <div className="singularity-progress-bar">
-              <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
-            </div>
-            <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}{singularity.fill_count > 0 ? ` · Convergences: ${singularity.fill_count}` : ''}</div>
-            {!singularity.filled && (
-              <div className="singularity-buttons">
-                <button
-                  onClick={() => handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
-                  disabled={fishClicks < 1}
-                >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
-                <button
-                  onClick={() => handleSingularityContribute(fishClicks)}
-                  disabled={fishClicks < 1}
-                >All</button>
+        {/* Season 8: Community goal + Singularity — merged into one slim panel (was two tall panels in the right sidebar, causing overflow scroll, then collided with the fishing panel on short viewports when first relocated here) */}
+        {!isMobile && (communityGoal || singularity) && (
+          <div className="season8-meta-panel mini-panel">
+            {communityGoal && (
+              <div className="meta-goal-row">
+                <div className="goal-label">🌍 {communityGoal.description}</div>
+                <div className="goal-progress-bar">
+                  <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
+                </div>
+                <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
+              </div>
+            )}
+            {communityGoal && singularity && <div className="meta-divider" />}
+            {singularity && (
+              <div className="meta-goal-row">
+                <div className="singularity-label-row">
+                  <span className="singularity-label">🌀 Singularity</span>
+                  {!singularity.filled && (
+                    <span className="singularity-buttons">
+                      <button
+                        onClick={() => handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
+                        disabled={fishClicks < 1}
+                      >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
+                      <button
+                        onClick={() => handleSingularityContribute(fishClicks)}
+                        disabled={fishClicks < 1}
+                      >All</button>
+                    </span>
+                  )}
+                </div>
+                <div className="singularity-progress-bar">
+                  <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
+                </div>
+                <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}{singularity.fill_count > 0 ? ` · Convergences: ${singularity.fill_count}` : ''}</div>
               </div>
             )}
           </div>

@@ -697,7 +697,13 @@ body::before {
 .fishing-panel {
   position: fixed;
   left: 40px;
-  top: 50%;
+  /* Centered on tall viewports; on short ones (laptop heights ~650-800px,
+     common once browser chrome eats into innerHeight), pulled up so it can't
+     collide with .bottom-left-stack below it. 426px keeps ~20px clearance
+     between this panel's bottom edge and the stack's top edge at any height
+     up to ~850px. Recompute (= stack height + ~168) if .bottom-left-stack's
+     content grows. */
+  top: min(50%, calc(100vh - 426px));
   /* transform is applied via inline style (translateY(-50%) scale(N)) */
   display: flex;
   flex-direction: column;
@@ -4653,16 +4659,35 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 }
 .bounty-claim-btn:hover { opacity: 0.82; }
 
-/* ── Season 8: community goal widget (in .bottom-left-stack) ─────────────── */
-.season8-community-goal {
-  padding: 7px 10px;
-  background: rgba(2,12,4,0.88);
-  border: 1px solid rgba(50,200,80,0.22);
+/* ── Season 8: community goal + singularity, merged into one slim panel in .bottom-left-stack ─────────────── */
+/* Two separate bordered panels used to sit here and collided with the vertically-centered
+   .fishing-panel on shorter viewports (e.g. 1366x768) — merged into one shell to cut the
+   duplicate padding/border/gap overhead. */
+.mini-panel {
+  width: 265px;
+}
+
+.season8-meta-panel {
+  padding: 5px 10px;
+  background: rgba(4,8,12,0.9);
+  border: 1px solid rgba(120,120,170,0.2);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   flex-shrink: 0;
+}
+
+.meta-goal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 1px 0;
 }
 
 .goal-label {
@@ -4673,11 +4698,11 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 }
 
 .goal-progress-bar {
-  height: 4px;
+  height: 3px;
   background: rgba(255,255,255,0.06);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .goal-progress-fill {
@@ -4694,21 +4719,11 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   letter-spacing: 0.4px;
 }
 
-/* Season 8: community goal + singularity, relocated to .bottom-left-stack (was in the right sidebar, causing overflow) */
-.mini-panel {
-  width: 265px;
-}
-
-/* ── Season 8: singularity meter ──────────────────────────────────────────── */
-.season8-singularity-panel {
-  padding: 7px 10px;
-  background: rgba(8,4,18,0.88);
-  border: 1px solid rgba(120,60,200,0.28);
-  border-radius: 6px;
+.singularity-label-row {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .singularity-label {
@@ -4719,11 +4734,11 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 }
 
 .singularity-progress-bar {
-  height: 4px;
+  height: 3px;
   background: rgba(255,255,255,0.06);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .singularity-progress-fill {
@@ -4743,15 +4758,15 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 .singularity-buttons {
   display: flex;
   gap: 4px;
-  margin-top: 4px;
+  flex-shrink: 0;
 }
 .singularity-buttons button {
   background: none;
   border: 1px solid rgba(120,60,200,0.45);
   color: #aa66ff;
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   letter-spacing: 1px;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 3px;
   cursor: pointer;
   text-transform: uppercase;
