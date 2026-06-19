@@ -144,8 +144,8 @@ def increment_goal(conn, goal_id, user_id, amount):
 def check_goal_completion(conn, goal_id):
     """Check if the goal is complete and mark it. Returns True if newly completed.
 
-    On completion, activates the community pot buff (+5% win% for a week)
-    to replace the old community pot mechanism.
+    On completion, distributes reward_tokens and reward_fragments to all
+    players who contributed at least 1 unit to the goal.
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
@@ -158,6 +158,30 @@ def check_goal_completion(conn, goal_id):
         row = cur.fetchone()
 
     if row:
+        # Find the goal definition for reward info
+        goal_def = next((g for g in COMMUNITY_GOAL_DEFS if g['goal_id'] == goal_id), None)
+        if goal_def:
+            tokens_per_player = goal_def.get('reward_tokens', 500)
+            fragments_per_player = goal_def.get('reward_fragments', 1)
+
+            # Distribute rewards to all contributors
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    '''SELECT user_id FROM community_goal_contributions
+                       WHERE goal_id = %s AND contributed >= 1''',
+                    (goal_id,),
+                )
+                contributors = cur.fetchall()
+
+                for c in contributors:
+                    cur.execute(
+                        '''UPDATE game_state
+                           SET wager_tokens = wager_tokens + %s,
+                               cosmetic_fragments = cosmetic_fragments + %s
+                           WHERE user_id = %s''',
+                        (tokens_per_player, fragments_per_player, c['user_id']),
+                    )
+
         # Activate the community pot buff: +5% win% for 1 week
         with conn.cursor() as cur:
             cur.execute(

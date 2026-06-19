@@ -423,6 +423,7 @@ def _resolve_spin(
         'proc_streak':             proc_streak,
         'wager_streak':            wager_streak,
         'stake':                   actual_stake,
+        'active_wheel_mode':       active_wheel_mode,
     }
     return new_state, events
 
@@ -792,6 +793,10 @@ def spin():
                 increment_bounty(conn, current_user.id, 'bounty_wager5', bounty_date)
             if events.get('wager_streak', 0) == 10:
                 increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date)
+            if events.get('active_wheel_mode') == 'mirror' and events['result'] in ('win', 'jackpot'):
+                increment_bounty(conn, current_user.id, 'bounty_mirror', bounty_date)
+            if double_down_active and events['result'] in ('win', 'jackpot'):
+                increment_bounty(conn, current_user.id, 'bounty_double', bounty_date)
             # Season 8: community goal contribution hooks
             season_info = get_season_info(conn)
             season_num = season_info.get('season_number', 8) if season_info else 8
@@ -1944,6 +1949,23 @@ def reel_line():
                         (new_fish_clicks, new_lucky_next, caught_species, new_best,
                          new_suspicious, new_catch_count, new_ewma, current_user.id),
                     )
+            # Bounty tracking
+            bounty_date = now_utc.date()
+            increment_bounty(conn, current_user.id, 'bounty_fish10', bounty_date)
+
+            # Community goal tracking
+            season_info = get_season_info(conn)
+            season_num = season_info.get('season_number', 8) if season_info else 8
+            week_num = get_week_number(now_utc)
+            _, goal_def = get_active_goal(conn, season_num, week_num)
+            if goal_def:
+                if goal_def['metric'] == 'fish_caught':
+                    increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
+                    check_goal_completion(conn, goal_def['goal_id'])
+                elif goal_def['metric'] == 'unique_species' and first_catch:
+                    increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
+                    check_goal_completion(conn, goal_def['goal_id'])
+
             conn.commit()
 
         return jsonify({
@@ -2435,6 +2457,8 @@ def wager_bank():
                    WHERE user_id = %s''',
                 (new_wins, current_user.id),
             )
+        bounty_date = dt.datetime.now(timezone.utc).date()
+        increment_bounty(conn, current_user.id, 'bounty_bank', bounty_date)
         conn.commit()
     return jsonify({'wins': new_wins, 'wager_streak': 0, 'banked': banked})
 
@@ -2540,6 +2564,18 @@ def prestige_reset():
             )
         # Season 8: post system message on prestige
         post_system_message(conn, f'⭐ {current_user.username} reached Prestige Level {new_level}!', 'event')
+        # Bounty tracking
+        bounty_date = dt.datetime.now(timezone.utc).date()
+        increment_bounty(conn, current_user.id, 'bounty_prestige', bounty_date)
+        # Community goal tracking
+        season_info = get_season_info(conn)
+        season_num = season_info.get('season_number', 8) if season_info else 8
+        now_utc = dt.datetime.now(timezone.utc)
+        week_num = get_week_number(now_utc)
+        _, goal_def = get_active_goal(conn, season_num, week_num)
+        if goal_def and goal_def['metric'] == 'prestiges':
+            increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
+            check_goal_completion(conn, goal_def['goal_id'])
     conn.commit()
     return jsonify({
         'prestige_level': new_level,
@@ -2597,16 +2633,15 @@ def claim_bounty():
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
-            rewards = get_claim_rewards(conn, current_user.id, bounty_id, bounty_date)
+            rewards = get_claim_rewards(conn, current_user.id, bounty_date)
             if rewards is None:
                 return jsonify({'error': 'Bounty not claimable'}), 400
             cur.execute(
-                '''UPDATE game_state SET cosmetic_fragments = cosmetic_fragments + %s WHERE user_id = %s''',
-                (rewards.get('cosmetic_fragments', 0), current_user.id),
+                '''UPDATE game_state SET cosmetic_fragments = cosmetic_fragments + %s,
+                    wager_tokens = wager_tokens + %s
+                   WHERE user_id = %s''',
+                (rewards['cosmetic_fragments'], rewards['tokens'], current_user.id),
             )
-            if rewards.get('wins', 0) > 0:
-                cur.execute('UPDATE game_state SET wins = wins + %s WHERE user_id = %s',
-                            (rewards['wins'], current_user.id))
         # Season 8: post system message on bounty claim
         post_system_message(conn, f'🎯 {current_user.username} completed a bounty: {bounty_id}!', 'event')
     conn.commit()

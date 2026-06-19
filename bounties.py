@@ -161,17 +161,28 @@ def get_bounty_status(conn, user_id, bounty_date=None):
     return result
 
 
-def get_claim_rewards(completed_count):
-    """Return (tokens, fragments) for the given number of completed bounties.
+def get_claim_rewards(conn, user_id, bounty_date=None):
+    """Return a dict of rewards for the given user on the given date.
 
+    Rewards are based on how many of today's 3 bounties are completed:
     | 1 bounty | 100 tokens, 0 fragments |
     | 2 bounties | 250 tokens, 0 fragments |
     | 3 bounties (all) | 500 tokens, 1 fragment |
     """
-    if completed_count >= 3:
-        return 500, 1
-    if completed_count == 2:
-        return 250, 0
-    if completed_count == 1:
-        return 100, 0
-    return 0, 0
+    if bounty_date is None:
+        bounty_date = date.today()
+    import psycopg2.extras
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            '''SELECT COUNT(*) AS cnt FROM bounty_progress
+               WHERE user_id = %s AND bounty_date = %s AND completed = TRUE''',
+            (user_id, bounty_date),
+        )
+        row = cur.fetchone()
+        completed_count = row['cnt'] if row else 0
+    tokens, fragments = {
+        3: (500, 1),
+        2: (250, 0),
+        1: (100, 0),
+    }.get(completed_count, (0, 0))
+    return {'tokens': tokens, 'cosmetic_fragments': fragments}
