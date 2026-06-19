@@ -50,8 +50,14 @@ def apply_safety_net(base_loss, stake, owns_safety_net):
 
 
 def compute_wager_payout(base_payout, stake, hot_streak_bonus):
-    """Multiply base payout by stake and hot-streak bonus."""
-    return int(base_payout * stake * (1 + hot_streak_bonus))
+    """Return (direct_wins, banked_wins).
+
+    The base payout (no hot-streak bonus) goes to wins directly.
+    The hot-streak bonus portion goes to wager_banked_wins (at risk).
+    """
+    total = int(base_payout * stake * (1 + hot_streak_bonus))
+    base = int(base_payout * stake)
+    return base, total - base
 
 
 def compute_wager_loss(base_loss, stake):
