@@ -3712,12 +3712,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
   };
 
-  const WAGER_TOOLTIP = 'Stake: multiply your wins and losses by 1×-10×. ' +
-    'Hot Streak: consecutive wins at the same stake give +5% bonus per win (max +50%). ' +
-    'Changing stake resets your streak. Safety Net: at 5×+ stake, losses are reduced by 25%. ' +
-    'Double-Down: after a win, arm double-down to make your next spin at 2× stake. ' +
-    'Insurance: guarantees no loss on your next spin (consumes a charge). ' +
-    'Bank: lock in your hot-streak winnings so a future loss cannot take them back.';
+  const WAGER_TOOLTIP = 'Stake: risk a percentage of your wins each spin — ' +
+    '2% at 1× scaling to 20% at 10×. ' +
+    'Win → your risk is returned plus the full payout. ' +
+    'Loss → your risk is gone (wins are actually deducted). ' +
+    'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' +
+    'Safety Net: at 5×+ stake, 25% of lost risk is refunded. ' +
+    'Double-Down: risk your full potential winnings for a chance at 2×. ' +
+    'Insurance: guarantees no loss on your next spin (consumes a charge).';
 
   // Season 8: handle wheel mode change
   const handleWheelModeChange = useCallback(async (mode) => {

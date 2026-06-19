@@ -28,6 +28,7 @@ from seasons import ensure_current_season, get_season_info, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
+                    compute_stake_risk,
                     MAX_STAKE, MIN_STAKE)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_rotating_mode, get_week_number, is_mode_available
 from prestige import get_prestige_bonus, get_starting_prestige, can_prestige, get_prestige_threshold, get_legacy_keep_count, MAX_PRESTIGE_LEVEL
@@ -211,8 +212,13 @@ def _resolve_spin(
     active_wheel_mode: str = 'steady',
     aquarium_luck: float = 0.0,
     wager_banked_wins: int = 0,
+    double_down: bool = False,
 ) -> tuple[dict, dict]:
-    """Resolve one spin. Returns (new_state, events). Does not mutate inputs."""
+    """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
+    
+    v2 (T45): stake_wins is escrowed from wins before outcome determination.
+    On a win the escrow is returned plus payout; on a loss the escrow is
+    forfeited.  Safety net now refunds a portion of lost escrow, not losses."""
     original_wins   = wins
     original_losses = losses
     original_wager_banked_wins = wager_banked_wins
@@ -278,6 +284,16 @@ def _resolve_spin(
         wager_streak = 0
     hot_streak_bonus = compute_hot_streak_bonus(wager_streak, owns_hot_streak)
 
+    # v2 (T45): escrow stake before outcome — real wins are now at risk.
+    # Only for players who own wager_unlock; without it, stake is locked to 1
+    # (above) and there must be zero escrow/risk, matching base game behavior.
+    stake_wins = compute_stake_risk(
+        wins, actual_stake,
+        double_down=double_down,
+        expected_payout=effective_win_mult if double_down else None,
+    ) if owns_wager_unlock else 0
+    wins -= stake_wins
+
     if outcome == 'lose':
         wager_banked_wins = 0
         if 'regen_shield' in owned and regen_recharge_wins == 0:
@@ -285,11 +301,13 @@ def _resolve_spin(
             shield_used_type    = 'regen_shield'
             regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
             new_streak          = streak
+            wins += stake_wins
         elif 'guard' in owned:
             guard_triggered = True
             guard_blocked = True
             new_owned  = [x for x in new_owned if x != 'guard']
             new_streak = streak
+            wins += stake_wins
         else:
             if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                 resilience_triggered = True
@@ -301,8 +319,10 @@ def _resolve_spin(
             loss_bonus   = streak_bonus(loss_count) * bonus_mult
             base_loss    = 1 + loss_bonus
             actual_loss  = compute_wager_loss(base_loss, actual_stake)
-            actual_loss  = apply_safety_net(actual_loss, actual_stake, 'wager_safety_net' in owned)
             losses      += actual_loss
+            # v2 (T45): safety net refunds 25% of lost escrow, not reduces losses
+            if 'wager_safety_net' in owned:
+                wins += apply_safety_net(stake_wins, actual_stake, True)
             bonus_earned = -loss_bonus if loss_bonus > 0 else 0
     elif outcome == 'jackpot':
         new_streak = streak + 1 if streak >= 0 else 1
@@ -312,6 +332,7 @@ def _resolve_spin(
         jackpot_mult = mode.get('jackpot_multiplier', 25)
         raw_payout   = (effective_win_mult + bonus_earned) * jackpot_mult
         direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+        wins        += stake_wins
         wins        += direct_wins
         wager_banked_wins += banked_wins
         bonus_earned = direct_wins + banked_wins - effective_win_mult
@@ -337,6 +358,7 @@ def _resolve_spin(
             jackpot_hit  = True
             raw_payout   = (effective_win_mult + bonus_earned) * 25
             direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            wins        += stake_wins
             wins        += direct_wins
             wager_banked_wins += banked_wins
             bonus_earned = direct_wins + banked_wins - effective_win_mult
@@ -344,6 +366,7 @@ def _resolve_spin(
             jackpot_hit  = True
             raw_payout   = (effective_win_mult + bonus_earned) * 25
             direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            wins        += stake_wins
             wins        += direct_wins
             wager_banked_wins += banked_wins
             bonus_earned = direct_wins + banked_wins - effective_win_mult
@@ -354,12 +377,14 @@ def _resolve_spin(
                 echo_triggered = True
                 raw_payout   = (effective_win_mult + bonus_earned) * 2
                 direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+                wins        += stake_wins
                 wins        += direct_wins
                 wager_banked_wins += banked_wins
                 bonus_earned = direct_wins + banked_wins - effective_win_mult
             else:
                 base_payout = effective_win_mult + bonus_earned
                 direct_wins, banked_wins = compute_wager_payout(base_payout, actual_stake, hot_streak_bonus)
+                wins += stake_wins
                 wins += direct_wins
                 wager_banked_wins += banked_wins
 
@@ -778,6 +803,7 @@ def spin():
                 active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
                 aquarium_luck=ctx.get('aquarium_luck', 0.0),
                 wager_banked_wins=int(gs.get('wager_banked_wins', 0)),
+                double_down=double_down_active,
             )
 
             new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
