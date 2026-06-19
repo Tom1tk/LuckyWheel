@@ -5,10 +5,38 @@ wager API endpoints (bank, double-down, insurance). They implement:
 - Stake validation (1-10 int)
 - Hot-streak calculation (+5% per consecutive same-stake win, cap +50%)
 - Safety net (25% loss recovery at >=5x stake)
+- Stake-to-escrow risk model (v2: real wins at risk per stake level)
 """
 
 MAX_STAKE = 10
 MIN_STAKE = 1
+
+STAKE_RISK_PCT = {
+    1: 0.02,
+    2: 0.04,
+    3: 0.06,
+    4: 0.08,
+    5: 0.10,
+    6: 0.12,
+    7: 0.14,
+    8: 0.16,
+    9: 0.18,
+    10: 0.20,
+}
+
+
+def compute_stake_risk(current_wins, stake, double_down=False, expected_payout=None):
+    """Return the escrow amount (wins to debit before spin).
+
+    For normal spins: floor(current_wins * STAKE_RISK_PCT[stake])
+    For double-down spins: int(expected_payout * stake) — the winnings on offer
+    Result is capped at current_wins (never debit more than the player has).
+    """
+    if double_down and expected_payout is not None:
+        raw = int(expected_payout * stake)
+    else:
+        raw = int(current_wins * STAKE_RISK_PCT.get(stake, 0.02))
+    return min(raw, current_wins)
 
 
 def validate_stake(stake, owns_wager_unlock):
@@ -42,11 +70,11 @@ def should_reset_streak(current_stake, last_stake):
     return last_stake != 0 and current_stake != last_stake
 
 
-def apply_safety_net(base_loss, stake, owns_safety_net):
-    """Reduce loss by 25% if safety_net is owned and stake >= 5."""
+def apply_safety_net(stake_wins, stake, owns_safety_net):
+    """Refund 25% of lost escrow to wins if safety_net is owned and stake >= 5."""
     if owns_safety_net and stake >= 5:
-        return int(base_loss * 0.75)
-    return base_loss
+        return int(stake_wins * 0.25)
+    return 0
 
 
 def compute_wager_payout(base_payout, stake, hot_streak_bonus):
