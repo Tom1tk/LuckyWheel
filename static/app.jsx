@@ -4082,7 +4082,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="subtitle">Season 8 — Make every spin count</div>
           </div>
 
-          <div className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}>
+          <div
+            className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
+            onClick={!spinning ? handleManualSpin : undefined}
+            title={spinning ? undefined : 'Click to spin!'}
+          >
             <div className="pointer" />
             <canvas
               ref={canvasRef}
@@ -4094,14 +4098,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="center-hub">★</div>
           </div>
 
-          {/* Season 8: manual spin button — the primary game action */}
-          <button
-            className="spin-btn"
-            onClick={handleManualSpin}
-            disabled={spinning}
-          >
-            {spinning ? '● ● ●' : '▶ Spin ◀'}
-          </button>
+          <div className={`spin-prompt ${spinning ? 'hidden' : ''}`} onClick={!spinning ? handleManualSpin : undefined}>
+            {spinning ? '' : '▶ Click to Spin ◀'}
+          </div>
 
           {catchupBonus && (
             <div className="spin-prompt" style={{ opacity: 0.7, fontSize: '0.7rem', pointerEvents: 'none' }}>

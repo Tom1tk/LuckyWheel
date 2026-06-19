@@ -7153,7 +7153,9 @@ function GameApp(_ref33) {
   }, "SEASON 8")), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, "Season 8 \u2014 Make every spin count")), /*#__PURE__*/React.createElement("div", {
-    className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : '')
+    className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
+    onClick: !spinning ? handleManualSpin : undefined,
+    title: spinning ? undefined : 'Click to spin!'
   }, /*#__PURE__*/React.createElement("div", {
     className: "pointer"
   }), /*#__PURE__*/React.createElement("canvas", {
@@ -7167,11 +7169,10 @@ function GameApp(_ref33) {
     }
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-hub"
-  }, "\u2605")), /*#__PURE__*/React.createElement("button", {
-    className: "spin-btn",
-    onClick: handleManualSpin,
-    disabled: spinning
-  }, spinning ? '● ● ●' : '▶ Spin ◀'), catchupBonus && /*#__PURE__*/React.createElement("div", {
+  }, "\u2605")), /*#__PURE__*/React.createElement("div", {
+    className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
+    onClick: !spinning ? handleManualSpin : undefined
+  }, spinning ? '' : '▶ Click to Spin ◀'), catchupBonus && /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt",
     style: {
       opacity: 0.7,

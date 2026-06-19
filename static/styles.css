@@ -186,6 +186,7 @@ body::before {
   position: relative;
   width: min(420px, calc(100vw - 120px), calc(100vh - 460px));
   height: min(420px, calc(100vw - 120px), calc(100vh - 460px));
+  cursor: pointer;
 }
 
 /* Glow ring behind wheel */
@@ -4203,26 +4204,6 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   outline-offset: 3px;
   box-shadow: 0 0 0 5px rgba(255,215,0,0.4);
 }
-
-/* Season 8: manual spin button */
-.spin-btn {
-  display: block;
-  margin: 12px auto 0;
-  background: none;
-  border: none;
-  outline: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 1.5rem;
-  color: var(--p);
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  animation: promptPulse 1s ease-in-out infinite;
-  cursor: pointer;
-  text-shadow: 0 0 10px var(--p);
-}
-.spin-btn:hover:not(:disabled) { opacity: 0.85; }
-.spin-btn:disabled { animation: none; opacity: 0.5; cursor: default; text-shadow: none; }
 
 /* Season 8: auto-spin controls */
 
