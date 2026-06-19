@@ -5940,9 +5940,7 @@ function GameApp(_ref33) {
     if (data.stake != null) setWagerLastStake(data.stake);
     if (data.onboarding_advance) {
       setOnboardingStep(function (prev) {
-        var next = Math.max(prev, 1);
-        if (next >= 5) setShowOnboarding(false);
-        return next;
+        return Math.min(prev + 1, 5);
       });
     }
     // Season 8: refresh bounties & community goal after every spin
@@ -6510,6 +6508,7 @@ function GameApp(_ref33) {
       desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.'
     }
   };
+  var WAGER_TOOLTIP = 'Stake: multiply your wins and losses by 1×-10×. ' + 'Hot Streak: consecutive wins at the same stake give +5% bonus per win (max +50%). ' + 'Changing stake resets your streak. Safety Net: at 5×+ stake, losses are reduced by 25%. ' + 'Double-Down: after a win, arm double-down to make your next spin at 2× stake. ' + 'Insurance: guarantees no loss on your next spin (consumes a charge). ' + 'Bank: lock in your hot-streak winnings so a future loss cannot take them back.';
 
   // Season 8: handle wheel mode change
   var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
@@ -6906,6 +6905,54 @@ function GameApp(_ref33) {
       return window.removeEventListener('keydown', handler);
     };
   }, [ownedItems, handleStakeChange, handleManualSpin]);
+
+  // Position coach-mark near the target element
+  useEffect(function () {
+    if (!showOnboarding || onboardingStep >= 4) return;
+    var targetSelectors = ['.wheel-wrapper', '.wager-stake-control', '.fishing-panel', '.season8-bounties-panel'];
+    var selector = targetSelectors[onboardingStep];
+    var target = document.querySelector(selector);
+    var coach = document.querySelector('.coach-mark');
+    if (!target || !coach) return;
+    var targetRect = target.getBoundingClientRect();
+    var top = targetRect.top + window.scrollY;
+    var left = targetRect.right + 10;
+    if (left + 300 > window.innerWidth) {
+      left = targetRect.left;
+      top = targetRect.bottom + 10;
+    }
+    coach.style.top = "".concat(top, "px");
+    coach.style.left = "".concat(left, "px");
+  }, [showOnboarding, onboardingStep]);
+  useEffect(function () {
+    if (!showOnboarding || onboardingStep >= 4) return;
+    var handleMove = function handleMove() {
+      var targetSelectors = ['.wheel-wrapper', '.wager-stake-control', '.fishing-panel', '.season8-bounties-panel'];
+      var selector = targetSelectors[onboardingStep];
+      var target = document.querySelector(selector);
+      var coach = document.querySelector('.coach-mark');
+      if (!target || !coach) return;
+      var targetRect = target.getBoundingClientRect();
+      var top = targetRect.top + window.scrollY;
+      var left = targetRect.right + 10;
+      if (left + 300 > window.innerWidth) {
+        left = targetRect.left;
+        top = targetRect.bottom + 10;
+      }
+      coach.style.top = "".concat(top, "px");
+      coach.style.left = "".concat(left, "px");
+    };
+    window.addEventListener('scroll', handleMove, {
+      passive: true
+    });
+    window.addEventListener('resize', handleMove, {
+      passive: true
+    });
+    return function () {
+      window.removeEventListener('scroll', handleMove);
+      window.removeEventListener('resize', handleMove);
+    };
+  }, [showOnboarding, onboardingStep]);
   var hasGuard = ownedItems.includes('guard');
   var hasRegen = ownedItems.includes('regen_shield');
 
@@ -6946,16 +6993,23 @@ function GameApp(_ref33) {
     className: "aria-live-region",
     "aria-live": "polite",
     "aria-atomic": "true"
-  }, result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'jackpot' ? 'Jackpot!' : ''), showOnboarding && onboardingStep < 5 && /*#__PURE__*/React.createElement("div", {
-    className: "onboarding-overlay"
+  }, result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'jackpot' ? 'Jackpot!' : ''), showOnboarding && onboardingStep < 4 && /*#__PURE__*/React.createElement("div", {
+    className: "coach-mark",
+    "data-step": onboardingStep
   }, /*#__PURE__*/React.createElement("div", {
-    className: "onboarding-modal"
-  }, /*#__PURE__*/React.createElement("h3", null, "Welcome to Season 8!"), /*#__PURE__*/React.createElement("p", null, "Step ", onboardingStep + 1, " of 5: ", onboardingStep === 0 ? 'Spin the wheel to get started!' : onboardingStep === 1 ? 'Try setting a wager stake!' : onboardingStep === 2 ? 'Catch a fish!' : onboardingStep === 3 ? 'Check your bounties!' : 'Explore the new features!'), /*#__PURE__*/React.createElement("button", {
+    className: "coach-mark-content"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "coach-mark-text"
+  }, onboardingStep === 0 ? '🎡 Spin the wheel to get started!' : onboardingStep === 1 ? '🎯 Try setting a wager stake!' : onboardingStep === 2 ? '🎣 Catch a fish!' : '📋 Check your bounties!'), /*#__PURE__*/React.createElement("div", {
+    className: "coach-mark-actions"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "coach-mark-dismiss",
     onClick: function onClick() {
-      setShowOnboarding(false);
-      setOnboardingStep(5);
+      return setShowOnboarding(false);
     }
-  }, "Skip"))), showPrestigeConfirm && /*#__PURE__*/React.createElement("div", {
+  }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
+    className: "coach-mark-arrow"
+  })), showPrestigeConfirm && /*#__PURE__*/React.createElement("div", {
     className: "onboarding-overlay"
   }, /*#__PURE__*/React.createElement("div", {
     className: "onboarding-modal"
@@ -7267,7 +7321,10 @@ function GameApp(_ref33) {
     className: "wager-slider"
   }), /*#__PURE__*/React.createElement("span", {
     className: "stake-label stake-".concat(stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless')
-  }, stake, "\xD7 ", stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless')), wagerStreak > 0 && /*#__PURE__*/React.createElement("div", {
+  }, stake, "\xD7 ", stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless'), /*#__PURE__*/React.createElement("span", {
+    className: "wager-tooltip-trigger",
+    "data-tooltip": WAGER_TOOLTIP
+  }, "?")), wagerStreak > 0 && /*#__PURE__*/React.createElement("div", {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
@@ -7437,51 +7494,7 @@ function GameApp(_ref33) {
         return handleBountyClaim(b.bounty_id);
       }
     }, "Claim"));
-  })), communityGoal && /*#__PURE__*/React.createElement("div", {
-    className: "season8-community-goal"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "goal-label"
-  }, "\uD83C\uDF0D Community Goal"), /*#__PURE__*/React.createElement("div", {
-    className: "goal-desc"
-  }, communityGoal.description), /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-text"
-  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target)), /*#__PURE__*/React.createElement("div", {
-    className: "goal-contrib"
-  }, "You: ", fmt(communityGoal.player_contribution))), singularity && /*#__PURE__*/React.createElement("div", {
-    className: "season8-singularity-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-label"
-  }, "\uD83C\uDF00 Singularity"), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-text"
-  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target)), singularity.fill_count > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "singularity-fills"
-  }, "Convergences: ", singularity.fill_count), !singularity.filled && /*#__PURE__*/React.createElement("div", {
-    className: "singularity-buttons"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: function onClick() {
-      return handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)));
-    },
-    disabled: fishClicks < 1
-  }, "+", fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))), /*#__PURE__*/React.createElement("button", {
-    onClick: function onClick() {
-      return handleSingularityContribute(fishClicks);
-    },
-    disabled: fishClicks < 1
-  }, "All"))), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
+  })), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
     className: "season8-aquarium-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "aquarium-header"
@@ -7543,7 +7556,45 @@ function GameApp(_ref33) {
     procStreak: procStreak
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
+  }, !isMobile && communityGoal && /*#__PURE__*/React.createElement("div", {
+    className: "season8-community-goal mini-panel"
   }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-label"
+  }, "\uD83C\uDF0D ", communityGoal.description), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-text"
+  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution))), !isMobile && singularity && /*#__PURE__*/React.createElement("div", {
+    className: "season8-singularity-panel mini-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-label"
+  }, "\uD83C\uDF00 Singularity"), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-text"
+  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target), singularity.fill_count > 0 ? " \xB7 Convergences: ".concat(singularity.fill_count) : ''), !singularity.filled && /*#__PURE__*/React.createElement("div", {
+    className: "singularity-buttons"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)));
+    },
+    disabled: fishClicks < 1
+  }, "+", fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return handleSingularityContribute(fishClicks);
+    },
+    disabled: fishClicks < 1
+  }, "All"))), /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"

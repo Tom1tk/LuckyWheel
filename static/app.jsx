@@ -3385,11 +3385,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (data.wager_streak != null) setWagerStreak(data.wager_streak);
     if (data.stake != null) setWagerLastStake(data.stake);
     if (data.onboarding_advance) {
-      setOnboardingStep(prev => {
-        const next = Math.max(prev, 1);
-        if (next >= 5) setShowOnboarding(false);
-        return next;
-      });
+      setOnboardingStep(prev => Math.min(prev + 1, 5));
     }
     // Season 8: refresh bounties & community goal after every spin
     refreshBountiesAndGoal();
@@ -3716,6 +3712,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
   };
 
+  const WAGER_TOOLTIP = 'Stake: multiply your wins and losses by 1×-10×. ' +
+    'Hot Streak: consecutive wins at the same stake give +5% bonus per win (max +50%). ' +
+    'Changing stake resets your streak. Safety Net: at 5×+ stake, losses are reduced by 25%. ' +
+    'Double-Down: after a win, arm double-down to make your next spin at 2× stake. ' +
+    'Insurance: guarantees no loss on your next spin (consumes a charge). ' +
+    'Bank: lock in your hot-streak winnings so a future loss cannot take them back.';
+
   // Season 8: handle wheel mode change
   const handleWheelModeChange = useCallback(async (mode) => {
     const prev = activeWheelMode;
@@ -3864,6 +3867,55 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return () => window.removeEventListener('keydown', handler);
   }, [ownedItems, handleStakeChange, handleManualSpin]);
 
+  // Position coach-mark near the target element
+  useEffect(() => {
+    if (!showOnboarding || onboardingStep >= 4) return;
+    const targetSelectors = ['.wheel-wrapper', '.wager-stake-control', '.fishing-panel', '.season8-bounties-panel'];
+    const selector = targetSelectors[onboardingStep];
+    const target = document.querySelector(selector);
+    const coach = document.querySelector('.coach-mark');
+    if (!target || !coach) return;
+
+    const targetRect = target.getBoundingClientRect();
+    let top = targetRect.top + window.scrollY;
+    let left = targetRect.right + 10;
+
+    if (left + 300 > window.innerWidth) {
+      left = targetRect.left;
+      top = targetRect.bottom + 10;
+    }
+
+    coach.style.top = `${top}px`;
+    coach.style.left = `${left}px`;
+  }, [showOnboarding, onboardingStep]);
+
+  useEffect(() => {
+    if (!showOnboarding || onboardingStep >= 4) return;
+    const handleMove = () => {
+      const targetSelectors = ['.wheel-wrapper', '.wager-stake-control', '.fishing-panel', '.season8-bounties-panel'];
+      const selector = targetSelectors[onboardingStep];
+      const target = document.querySelector(selector);
+      const coach = document.querySelector('.coach-mark');
+      if (!target || !coach) return;
+      const targetRect = target.getBoundingClientRect();
+      let top = targetRect.top + window.scrollY;
+      let left = targetRect.right + 10;
+      if (left + 300 > window.innerWidth) {
+        left = targetRect.left;
+        top = targetRect.bottom + 10;
+      }
+      coach.style.top = `${top}px`;
+      coach.style.left = `${left}px`;
+    };
+
+    window.addEventListener('scroll', handleMove, { passive: true });
+    window.addEventListener('resize', handleMove, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleMove);
+      window.removeEventListener('resize', handleMove);
+    };
+  }, [showOnboarding, onboardingStep]);
+
   const hasGuard = ownedItems.includes('guard');
   const hasRegen = ownedItems.includes('regen_shield');
 
@@ -3896,20 +3948,21 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         {result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'jackpot' ? 'Jackpot!' : ''}
       </div>
 
-      {/* Onboarding overlay (T16) */}
-      {showOnboarding && onboardingStep < 5 && (
-        <div className="onboarding-overlay">
-          <div className="onboarding-modal">
-            <h3>Welcome to Season 8!</h3>
-            <p>Step {onboardingStep + 1} of 5: {
-              onboardingStep === 0 ? 'Spin the wheel to get started!' :
-              onboardingStep === 1 ? 'Try setting a wager stake!' :
-              onboardingStep === 2 ? 'Catch a fish!' :
-              onboardingStep === 3 ? 'Check your bounties!' :
-              'Explore the new features!'
-            }</p>
-            <button onClick={() => { setShowOnboarding(false); setOnboardingStep(5); }}>Skip</button>
+      {/* Season 8: Non-blocking onboarding coach-mark */}
+      {showOnboarding && onboardingStep < 4 && (
+        <div className="coach-mark" data-step={onboardingStep}>
+          <div className="coach-mark-content">
+            <span className="coach-mark-text">{
+              onboardingStep === 0 ? '🎡 Spin the wheel to get started!' :
+              onboardingStep === 1 ? '🎯 Try setting a wager stake!' :
+              onboardingStep === 2 ? '🎣 Catch a fish!' :
+              '📋 Check your bounties!'
+            }</span>
+            <div className="coach-mark-actions">
+              <button className="coach-mark-dismiss" onClick={() => setShowOnboarding(false)}>✕</button>
+            </div>
           </div>
+          <div className="coach-mark-arrow" />
         </div>
       )}
 
@@ -4158,6 +4211,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 <span className={`stake-label stake-${stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless'}`}>
                   {stake}× {stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless'}
                 </span>
+                <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
               </div>
               {wagerStreak > 0 && (
                 <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
@@ -4316,43 +4370,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 </div>
               )}
 
-              {/* Season 8: Community goal */}
-              {communityGoal && (
-                <div className="season8-community-goal">
-                  <div className="goal-label">🌍 Community Goal</div>
-                  <div className="goal-desc">{communityGoal.description}</div>
-                  <div className="goal-progress-bar">
-                    <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
-                  </div>
-                  <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)}</div>
-                  <div className="goal-contrib">You: {fmt(communityGoal.player_contribution)}</div>
-                </div>
-              )}
-
-              {/* Season 8: Singularity meter */}
-              {singularity && (
-                <div className="season8-singularity-panel">
-                  <div className="singularity-label">🌀 Singularity</div>
-                  <div className="singularity-progress-bar">
-                    <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
-                  </div>
-                  <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}</div>
-                  {singularity.fill_count > 0 && <div className="singularity-fills">Convergences: {singularity.fill_count}</div>}
-                  {!singularity.filled && (
-                    <div className="singularity-buttons">
-                      <button
-                        onClick={() => handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
-                        disabled={fishClicks < 1}
-                      >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
-                      <button
-                        onClick={() => handleSingularityContribute(fishClicks)}
-                        disabled={fishClicks < 1}
-                      >All</button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Season 8: Aquarium */}
               {ownedItems.includes('aquarium') && (
                 <div className="season8-aquarium-panel">
@@ -4413,6 +4430,37 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <div className="bottom-left-stack">
+        {/* Season 8: Community goal + Singularity — moved out of the right sidebar (was causing overflow scroll) */}
+        {!isMobile && communityGoal && (
+          <div className="season8-community-goal mini-panel">
+            <div className="goal-label">🌍 {communityGoal.description}</div>
+            <div className="goal-progress-bar">
+              <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
+            </div>
+            <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
+          </div>
+        )}
+        {!isMobile && singularity && (
+          <div className="season8-singularity-panel mini-panel">
+            <div className="singularity-label">🌀 Singularity</div>
+            <div className="singularity-progress-bar">
+              <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
+            </div>
+            <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}{singularity.fill_count > 0 ? ` · Convergences: ${singularity.fill_count}` : ''}</div>
+            {!singularity.filled && (
+              <div className="singularity-buttons">
+                <button
+                  onClick={() => handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
+                  disabled={fishClicks < 1}
+                >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
+                <button
+                  onClick={() => handleSingularityContribute(fishClicks)}
+                  disabled={fishClicks < 1}
+                >All</button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="fish-counter">
           <span className="fish-counter-label">Balance</span>
           <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>

@@ -532,15 +532,15 @@ body::before {
 /* Win/Loss Counter */
 .scoreboard {
   display: flex;
-  gap: clamp(12px, 4vw, 40px);
+  gap: clamp(10px, 3vw, 28px);
 }
 
 .score-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: clamp(8px, 1.5vh, 12px) clamp(16px, 4vw, 36px);
+  gap: 2px;
+  padding: clamp(5px, 1vh, 8px) clamp(12px, 3vw, 26px);
   border-radius: 6px;
   border: 2px solid;
 }
@@ -567,7 +567,7 @@ body::before {
 .score-box.losses-box .score-label { color: var(--s-lt); }
 
 .score-value {
-  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  font-size: clamp(1.2rem, 3vw, 2.1rem);
   line-height: 1;
 }
 
@@ -4301,6 +4301,51 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 }
 .onboarding-modal table th { color: var(--p-lt); font-size: 0.75rem; letter-spacing: 1px; }
 
+/* ── Season 8: Coach-mark onboarding ── */
+.coach-mark {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+}
+.coach-mark-content {
+  background: #0d0d1a;
+  border: 1px solid var(--p);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  max-width: 280px;
+}
+.coach-mark-text {
+  color: #eee;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.coach-mark-actions {
+  flex-shrink: 0;
+}
+.coach-mark-dismiss {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.coach-mark-dismiss:hover {
+  color: #eee;
+}
+.coach-mark-arrow {
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  position: absolute;
+}
+
 /* ── Season 8: wager panel (in casino-container) ─────────────────────────── */
 .season8-wager-panel {
   width: 100%;
@@ -4608,7 +4653,7 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 }
 .bounty-claim-btn:hover { opacity: 0.82; }
 
-/* ── Season 8: community goal widget (in sidebar) ───────────────────────── */
+/* ── Season 8: community goal widget (in .bottom-left-stack) ─────────────── */
 .season8-community-goal {
   padding: 7px 10px;
   background: rgba(2,12,4,0.88);
@@ -4621,16 +4666,9 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 }
 
 .goal-label {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: #44bb66;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
-.goal-desc {
-  font-size: 0.58rem;
-  color: #777;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   line-height: 1.3;
 }
 
@@ -4656,13 +4694,12 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   letter-spacing: 0.4px;
 }
 
-.goal-contrib {
-  font-size: 0.54rem;
-  color: #555;
-  letter-spacing: 0.4px;
+/* Season 8: community goal + singularity, relocated to .bottom-left-stack (was in the right sidebar, causing overflow) */
+.mini-panel {
+  width: 265px;
 }
 
-/* ── Season 8: singularity meter (in sidebar) ────────────────────────────── */
+/* ── Season 8: singularity meter ──────────────────────────────────────────── */
 .season8-singularity-panel {
   padding: 7px 10px;
   background: rgba(8,4,18,0.88);
@@ -4700,12 +4737,6 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
 .singularity-progress-text {
   font-size: 0.54rem;
   color: #555;
-  letter-spacing: 0.4px;
-}
-
-.singularity-fills {
-  font-size: 0.54rem;
-  color: #777;
   letter-spacing: 0.4px;
 }
 
@@ -4868,4 +4899,47 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   color: #999;
   letter-spacing: 0.4px;
   line-height: 1.3;
+}
+
+.wager-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(var(--p-rgb), 0.1);
+  border: 1px solid rgba(var(--p-rgb), 0.45);
+  color: var(--p-lt);
+  font-size: 0.62rem;
+  font-weight: bold;
+  cursor: help;
+  position: relative;
+}
+
+.wager-tooltip-trigger:hover {
+  border-color: var(--p);
+  color: var(--p);
+}
+
+.wager-tooltip-trigger[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #0d0d1a;
+  color: #eee;
+  border: 1px solid var(--p);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  white-space: normal;
+  max-width: 280px;
+  width: max-content;
+  pointer-events: none;
+  z-index: 999;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }

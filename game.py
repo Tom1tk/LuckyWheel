@@ -210,10 +210,12 @@ def _resolve_spin(
     wager_last_stake: int = 0,
     active_wheel_mode: str = 'steady',
     aquarium_luck: float = 0.0,
+    wager_banked_wins: int = 0,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs."""
     original_wins   = wins
     original_losses = losses
+    original_wager_banked_wins = wager_banked_wins
 
     # Season 8: auto_guard removed — no auto-purchase logic
     auto_guard_failed = False
@@ -277,6 +279,7 @@ def _resolve_spin(
     hot_streak_bonus = compute_hot_streak_bonus(wager_streak, owns_hot_streak)
 
     if outcome == 'lose':
+        wager_banked_wins = 0
         if 'regen_shield' in owned and regen_recharge_wins == 0:
             shield_used         = True
             shield_used_type    = 'regen_shield'
@@ -308,9 +311,10 @@ def _resolve_spin(
         jackpot_hit = True
         jackpot_mult = mode.get('jackpot_multiplier', 25)
         raw_payout   = (effective_win_mult + bonus_earned) * jackpot_mult
-        wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
-        wins        += wager_payout
-        bonus_earned = wager_payout - effective_win_mult
+        direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+        wins        += direct_wins
+        wager_banked_wins += banked_wins
+        bonus_earned = direct_wins + banked_wins - effective_win_mult
         if random.random() < 0.05:
             new_jackpot_echo_next = True
         if jackpot_echo_pending:
@@ -332,28 +336,32 @@ def _resolve_spin(
             jackpot_echo_triggered = True
             jackpot_hit  = True
             raw_payout   = (effective_win_mult + bonus_earned) * 25
-            wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
-            wins        += wager_payout
-            bonus_earned = wager_payout - effective_win_mult
+            direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            wins        += direct_wins
+            wager_banked_wins += banked_wins
+            bonus_earned = direct_wins + banked_wins - effective_win_mult
         elif 'jackpot' in owned and random.random() < jackpot_chance:
             jackpot_hit  = True
             raw_payout   = (effective_win_mult + bonus_earned) * 25
-            wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
-            wins        += wager_payout
-            bonus_earned = wager_payout - effective_win_mult
+            direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            wins        += direct_wins
+            wager_banked_wins += banked_wins
+            bonus_earned = direct_wins + banked_wins - effective_win_mult
             if random.random() < 0.05:
                 new_jackpot_echo_next = True
         else:
             if 'win_echo' in owned and random.random() < echo_chance:
                 echo_triggered = True
                 raw_payout   = (effective_win_mult + bonus_earned) * 2
-                wager_payout = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
-                wins        += wager_payout
-                bonus_earned = wager_payout - effective_win_mult
+                direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+                wins        += direct_wins
+                wager_banked_wins += banked_wins
+                bonus_earned = direct_wins + banked_wins - effective_win_mult
             else:
                 base_payout = effective_win_mult + bonus_earned
-                wager_payout = compute_wager_payout(base_payout, actual_stake, hot_streak_bonus)
-                wins += wager_payout
+                direct_wins, banked_wins = compute_wager_payout(base_payout, actual_stake, hot_streak_bonus)
+                wins += direct_wins
+                wager_banked_wins += banked_wins
 
         # Update wager streak on win
         if actual_stake == wager_last_stake or wager_last_stake == 0:
@@ -396,6 +404,7 @@ def _resolve_spin(
         'proc_streak':        proc_streak,
         'wager_streak':       wager_streak,
         'wager_last_stake':   actual_stake,
+        'wager_banked_wins':  wager_banked_wins,
     }
     events = {
         'result':                  outcome,
@@ -424,6 +433,8 @@ def _resolve_spin(
         'wager_streak':            wager_streak,
         'stake':                   actual_stake,
         'active_wheel_mode':       active_wheel_mode,
+        'wager_banked_wins':       wager_banked_wins,
+        'wager_banked_wins_delta': wager_banked_wins - original_wager_banked_wins,
     }
     return new_state, events
 
@@ -455,6 +466,7 @@ def _events_to_response(events: dict) -> dict:
         'proc_streak':             events['proc_streak'],
         'wager_streak':            events.get('wager_streak', 0),
         'stake':                   events.get('stake', 1),
+        'wager_banked_wins':       events.get('wager_banked_wins', 0),
     }
 
 
@@ -765,6 +777,7 @@ def spin():
                 wager_last_stake=gs.get('wager_last_stake', 0),
                 active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
                 aquarium_luck=ctx.get('aquarium_luck', 0.0),
+                wager_banked_wins=int(gs.get('wager_banked_wins', 0)),
             )
 
             new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
@@ -816,6 +829,11 @@ def spin():
                 onboarding_advance = True
                 # Season 8: post system message for new player first spin
                 post_system_message(conn, f'🎉 {current_user.username} spun the wheel for the first time! Welcome to Season 8!', 'event')
+                # Season 8: grant trail_1 cosmetic reward on first spin
+                if 'trail_1' not in new_state['owned']:
+                    new_state['owned'] = list(new_state['owned']) + ['trail_1']
+                if 'trail_1' not in new_state['active_cosmetics']:
+                    new_state['active_cosmetics'] = list(new_state['active_cosmetics']) + ['trail_1']
 
             # Manual spin: add extra full rotations for the wheel animation
             total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
@@ -833,6 +851,7 @@ def spin():
                            last_spin_at = NOW(),
                            active_tab_id = %s, tab_last_seen = NOW(),
                           wager_streak = %s, wager_last_stake = %s,
+                          wager_banked_wins = %s,
                           double_down_pending = FALSE,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                       WHERE user_id = %s''',
@@ -845,6 +864,7 @@ def spin():
                      new_state['jackpot_echo_next'], new_state['proc_streak'],
                      req_tab_id or gs['active_tab_id'],
                      new_state.get('wager_streak', 0), new_state.get('wager_last_stake', 1),
+                     new_state.get('wager_banked_wins', 0),
                      current_user.id),
                 )
             conn.commit()
@@ -855,6 +875,7 @@ def spin():
         resp['dice_charges'] = dice_charges
         resp['dice_last_recharge'] = last_recharge.isoformat()
         resp['wager_streak'] = new_state.get('wager_streak', 0)
+        resp['wager_banked_wins'] = new_state.get('wager_banked_wins', 0)
         resp['stake'] = new_state.get('wager_last_stake', 1)
         resp['replay_string'] = replay_string
         resp['onboarding_advance'] = onboarding_advance
@@ -1080,6 +1101,7 @@ def tick():
                     wager_last_stake=0,
                     active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
                     aquarium_luck=ctx.get('aquarium_luck', 0.0),
+                    wager_banked_wins=0,
                 )
 
                 # Update carry-over state from result
@@ -1490,10 +1512,18 @@ def buy():
                        SET wins = %s, losses = %s, fish_clicks = %s,
                            owned_items = %s, regen_recharge_wins = %s, active_cosmetics = %s
                        WHERE user_id = %s''',
-                    (new_wins, new_losses, new_clicks, new_owned,
-                     new_regen_recharge, new_active_cosmetics, current_user.id),
+                     (new_wins, new_losses, new_clicks, new_owned,
+                      new_regen_recharge, new_active_cosmetics, current_user.id),
                 )
             conn.commit()
+
+            if item_id == 'wager_insurance':
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'UPDATE game_state SET wager_insurance_charges = wager_insurance_charges + 3 WHERE user_id = %s',
+                        (current_user.id,),
+                    )
+                conn.commit()
 
         return jsonify({
             'wins':                new_wins,
@@ -1965,6 +1995,18 @@ def reel_line():
                 elif goal_def['metric'] == 'unique_species' and first_catch:
                     increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
                     check_goal_completion(conn, goal_def['goal_id'])
+
+            # Onboarding: advance step 2→3 on first successful catch
+            if gs.get('onboarding_step', 0) == 2:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        '''UPDATE game_state
+                           SET onboarding_step = 3,
+                               owned_items = CASE WHEN NOT (owned_items @> ARRAY['fish_tropical'])
+                                   THEN array_append(owned_items, 'fish_tropical') ELSE owned_items END
+                           WHERE user_id = %s''',
+                        (current_user.id,),
+                    )
 
             conn.commit()
 
@@ -2482,6 +2524,18 @@ def wager_set_stake():
             actual_stake = validate_stake(stake, owns_unlock)
             cur.execute('UPDATE game_state SET wager_last_stake = %s WHERE user_id = %s',
                         (actual_stake, current_user.id))
+            # Onboarding: advance step 1→2 when first stake > 1 is set
+            if actual_stake > 1 and owns_unlock and gs.get('onboarding_step', 0) == 1:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET onboarding_step = 2,
+                           owned_items = CASE WHEN NOT (owned_items @> ARRAY['confetti_1'])
+                               THEN array_append(owned_items, 'confetti_1') ELSE owned_items END,
+                           active_cosmetics = CASE WHEN NOT (active_cosmetics @> ARRAY['confetti_1'])
+                               THEN array_append(active_cosmetics, 'confetti_1') ELSE active_cosmetics END
+                       WHERE user_id = %s''',
+                    (current_user.id,),
+                )
         conn.commit()
     return jsonify({'stake': actual_stake})
 
@@ -2613,9 +2667,26 @@ def prestige_info():
 def get_bounties_endpoint():
     """Get today's bounty status."""
     bounty_date = dt.datetime.now(timezone.utc).date()
+    onboarding_advance = False
     with db_connection() as conn:
         status = get_bounty_status(conn, current_user.id, bounty_date)
-    return jsonify({'bounties': status, 'date': str(bounty_date)})
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                '''SELECT onboarding_step FROM game_state WHERE user_id = %s FOR UPDATE''',
+                (current_user.id,),
+            )
+            gs = cur.fetchone()
+            if gs and gs.get('onboarding_step', 0) == 3:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET onboarding_step = 4,
+                           wager_tokens = wager_tokens + 100
+                       WHERE user_id = %s''',
+                    (current_user.id,),
+                )
+                onboarding_advance = True
+        conn.commit()
+    return jsonify({'bounties': status, 'date': str(bounty_date), 'onboarding_advance': onboarding_advance})
 
 
 @game_bp.route('/api/bounties/claim', methods=['POST'])
