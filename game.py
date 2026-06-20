@@ -14,7 +14,7 @@ from flask_login import current_user, login_required
 from db import db_connection
 from extensions import limiter, csrf
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
-                    ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
+                    ITEM_CURRENCY,
                     inf_upgrade_cost,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
@@ -1397,7 +1397,7 @@ def buy():
     if item_id in INFINITE_UPGRADES:
         inf      = INFINITE_UPGRADES[item_id]
         col      = inf['db_column']
-        currency = INFINITE_UPGRADE_CURRENCY[item_id]  # always 'wins'
+        currency = 'wins'  # ponytail: only clickmult_inf survives Season 8 (spec S5)
         try:
             with db_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

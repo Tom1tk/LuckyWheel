@@ -309,10 +309,6 @@ for _id in ALL_ITEMS:
 # Season 8: old infinite upgrades removed (spec S5). Columns remain in DB
 # for historical queries but are frozen at 0 and not read by _resolve_spin().
 # Only clickmult_inf is retained (not in the S5 removal list).
-INFINITE_UPGRADE_CURRENCY = {
-    'clickmult_inf':         'wins',
-}
-
 INFINITE_UPGRADES = {
     'clickmult_inf': {
         'db_column':    'clickmult_inf_level',
