@@ -15,7 +15,7 @@ from db import db_connection
 from extensions import limiter, csrf
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
-                    inf_upgrade_cost, win_mult_from_level, bonus_mult_from_level,
+                    inf_upgrade_cost,
                     lure_mastery_mult, jackpot_pct, echo_amp_pct, proc_streak_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
@@ -167,8 +167,8 @@ def _build_spin_context(gs: dict) -> dict:
     aquarium_luck = aquarium_count * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0
 
     # Season 8: old inf levels frozen at 0 — use flat values
-    base_win_mult = win_mult_from_level(0)  # always 1 (levels frozen)
-    base_bonus_mult = bonus_mult_from_level(0)  # always 1
+    base_win_mult = 1  # always 1 (levels frozen)
+    base_bonus_mult = 1  # always 1
 
     return {
         'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),

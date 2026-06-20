@@ -9,7 +9,6 @@ from models import (
     FISH_CATALOG, FISH_SKINS, SHOP_ITEMS, ALL_ITEMS,
     roll_fish, fish_value, lure_bite_delay_seconds, lure_value_multiplier,
     autofisher_catch_rate, streak_bonus, dice_max_charges,
-    win_mult_from_level, bonus_mult_from_level,
     inf_upgrade_cost, INFINITE_UPGRADES,
     jackpot_pct, echo_amp_pct, proc_streak_mult, lure_mastery_mult,
     AUTO_FISH_EXCLUDED, _AUTO_FISH_LEGENDARY,
@@ -110,37 +109,6 @@ def test_streak_bonus_strictly_increasing():
 
 def test_streak_bonus_hard_cap():
     assert streak_bonus(150) == streak_bonus(200) == 113096
-
-
-# ── win_mult_from_level ───────────────────────────────────────────────────────
-
-def test_win_mult_level_0_is_1():
-    assert win_mult_from_level(0) == 1
-
-def test_win_mult_level_1_is_2():
-    assert win_mult_from_level(1) == 2
-
-def test_win_mult_level_7_is_128():
-    assert win_mult_from_level(7) == 128
-
-def test_win_mult_level_8_is_144():
-    assert win_mult_from_level(8) == 144
-
-
-# ── bonus_mult_from_level ─────────────────────────────────────────────────────
-
-def test_bonus_mult_level_0_is_1():
-    assert bonus_mult_from_level(0) == 1
-
-def test_bonus_mult_level_6_is_70():
-    assert bonus_mult_from_level(6) == 70
-
-def test_bonus_mult_non_decreasing():
-    prev = bonus_mult_from_level(0)
-    for lvl in range(1, 50):
-        cur = bonus_mult_from_level(lvl)
-        assert cur >= prev
-        prev = cur
 
 
 # ── inf_upgrade_cost ──────────────────────────────────────────────────────────

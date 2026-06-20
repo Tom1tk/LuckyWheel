@@ -337,22 +337,6 @@ def inf_upgrade_cost(item_id: str, current_level: int) -> int:
     return int(cfg['inf_base_cost'] * cfg['inf_scale'] ** excess)
 
 
-# Multiplier values at each level (level 0 = nothing owned)
-def win_mult_from_level(level: int) -> int:
-    if level <= 0: return 1
-    if level <= 7: return 1 << level          # 2, 4, 8, 16, 32, 64, 128
-    return 128 + (level - 7) * 16             # 144, 160, 176, …
-
-
-def bonus_mult_from_level(level: int) -> int:
-    # Season 7 (C2): flatter early curve; (C1): slower past level 30.
-    _fixed = [1, 2, 4, 8, 15, 35, 70]
-    if level <= 6: return _fixed[level]
-    if level <= 30: return 70 + (level - 6) * 8   # 78, 86, …, 262
-    return 262 + (level - 30) * 5                  # 267, 272, … (slower past 30)
-
-
-
 # ── Season 7 upgrade multipliers ──────────────────────────────────────────────
 
 def lure_mastery_mult(level: int) -> float:

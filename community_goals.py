@@ -17,7 +17,6 @@ COMMUNITY_GOAL_DEFS = [
         'metric': 'fish_caught',
         'reward_tokens': 500,
         'reward_fragments': 1,
-        'reward_buff': 0.05,  # +5% win% for a week
     },
     {
         'goal_id': 'goal_jackpot500',
@@ -27,7 +26,6 @@ COMMUNITY_GOAL_DEFS = [
         'metric': 'jackpots_landed',
         'reward_tokens': 500,
         'reward_fragments': 1,
-        'reward_buff': 0.05,
     },
     {
         'goal_id': 'goal_prestige50',
@@ -37,7 +35,6 @@ COMMUNITY_GOAL_DEFS = [
         'metric': 'prestiges',
         'reward_tokens': 500,
         'reward_fragments': 1,
-        'reward_buff': 0.05,
     },
     {
         'goal_id': 'goal_wager100k',
@@ -47,7 +44,6 @@ COMMUNITY_GOAL_DEFS = [
         'metric': 'wins_wagered',
         'reward_tokens': 500,
         'reward_fragments': 1,
-        'reward_buff': 0.05,
     },
     {
         'goal_id': 'goal_species100',
@@ -57,7 +53,6 @@ COMMUNITY_GOAL_DEFS = [
         'metric': 'unique_species',
         'reward_tokens': 500,
         'reward_fragments': 1,
-        'reward_buff': 0.05,
     },
 ]
 

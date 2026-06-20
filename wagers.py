@@ -11,31 +11,19 @@ wager API endpoints (bank, double-down, insurance). They implement:
 MAX_STAKE = 10
 MIN_STAKE = 1
 
-STAKE_RISK_PCT = {
-    1: 0.02,
-    2: 0.04,
-    3: 0.06,
-    4: 0.08,
-    5: 0.10,
-    6: 0.12,
-    7: 0.14,
-    8: 0.16,
-    9: 0.18,
-    10: 0.20,
-}
-
 
 def compute_stake_risk(current_wins, stake, double_down=False, expected_payout=None):
     """Return the escrow amount (wins to debit before spin).
 
-    For normal spins: floor(current_wins * STAKE_RISK_PCT[stake])
+    For normal spins: floor(current_wins * 0.02 * stake)
     For double-down spins: int(expected_payout * stake) — the winnings on offer
     Result is capped at current_wins (never debit more than the player has).
     """
     if double_down and expected_payout is not None:
         raw = int(expected_payout * stake)
     else:
-        raw = int(current_wins * STAKE_RISK_PCT.get(stake, 0.02))
+        # ponytail: risk = 2% per stake level, was a 10-row table
+        raw = int(current_wins * 0.02 * max(MIN_STAKE, min(MAX_STAKE, stake)))
     return min(raw, current_wins)
 
 
@@ -91,3 +79,15 @@ def compute_wager_payout(base_payout, stake, hot_streak_bonus):
 def compute_wager_loss(base_loss, stake):
     """Multiply base loss by stake."""
     return base_loss * stake
+
+
+if __name__ == '__main__':
+    # Self-check: compute_stake_risk must match the old STAKE_RISK_PCT dict
+    # lookup (stake -> stake * 0.02) for every valid stake 1-10.
+    _OLD_STAKE_RISK_PCT = {s: s * 0.02 for s in range(1, 11)}
+    _CURRENT_WINS = 1000
+    for _stake, _pct in _OLD_STAKE_RISK_PCT.items():
+        _old = int(_CURRENT_WINS * _pct)
+        _new = compute_stake_risk(_CURRENT_WINS, _stake)
+        assert _old == _new, f"stake={_stake}: old={_old} new={_new}"
+    print("compute_stake_risk matches old STAKE_RISK_PCT for stakes 1-10")
