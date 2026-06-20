@@ -48,14 +48,6 @@ def advance_season(conn):
         conn.rollback()
         raise RuntimeError('No season row found')
 
-    _perform_rollover(conn, season)
-
-
-def _perform_rollover(conn, season):
-    """
-    Advance the season by exactly one. Snapshots current standings, resets game_state,
-    and sets next ends_at to 7 days from now. Commits at the end.
-    """
     now = datetime.now(timezone.utc)
     season_id = season['id']
     current_number = season['season_number']
