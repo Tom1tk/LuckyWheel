@@ -276,7 +276,6 @@ VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
 # Season 3: currency classification for each item.
 # 'wins'       — functional items; purchasing deducts from the player's win count.
 # 'losses'     — cosmetic items (fish skins + cosmetic shop items); deducts from loss count.
-# 'fish_clicks'— singularity only (too legendary to change).
 # Functional shop items are the exception; everything else in SHOP_ITEMS is cosmetic.
 # FISH_SKINS are all cosmetic by definition.
 _FUNCTIONAL_SHOP_ITEMS = {
@@ -299,9 +298,7 @@ _FUNCTIONAL_SHOP_ITEMS = {
 
 ITEM_CURRENCY = {}
 for _id in ALL_ITEMS:
-    if _id == 'singularity':
-        ITEM_CURRENCY[_id] = 'fish_clicks'
-    elif _id in FISH_SKINS or _id not in _FUNCTIONAL_SHOP_ITEMS:
+    if _id in FISH_SKINS or _id not in _FUNCTIONAL_SHOP_ITEMS:
         ITEM_CURRENCY[_id] = 'losses'
     else:
         ITEM_CURRENCY[_id] = 'wins'
