@@ -81,8 +81,3 @@ def get_available_modes(week_number=None):
     (the caller checks the filled flag and appends it separately).
     """
     return ['steady', 'volatile', get_rotating_mode(week_number)]
-
-
-def is_mode_available(mode, week_number=None):
-    """Check whether *mode* is selectable this week."""
-    return mode in get_available_modes(week_number)
