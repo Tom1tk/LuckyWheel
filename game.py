@@ -464,35 +464,38 @@ def _resolve_spin(
     return new_state, events
 
 
+_RESPONSE_KEYS = (
+    'result',
+    'wins_delta',
+    'losses_delta',
+    'streak',
+    'owned_items',
+    'regen_recharge_wins',
+    'shield_used',
+    'shield_used_type',
+    'shield_broke',
+    'guard_triggered',
+    'guard_blocked',
+    'bonus_earned',
+    'echo_triggered',
+    'jackpot_hit',
+    'jackpot_echo_triggered',
+    'jackpot_echo_next',
+    'resilience_triggered',
+    'lucky_seven_triggered',
+    'fortune_charm_triggered',
+    'active_cosmetics',
+    'auto_guard_failed',
+    'proc_streak',
+    'wager_streak',
+    'stake',
+    'wager_banked_wins',
+)
+
+
 def _events_to_response(events: dict) -> dict:
     """Convert spin events into the JSON response payload shared by spin() and tick()."""
-    return {
-        'result':                  events['result'],
-        'wins_delta':              events['wins_delta'],
-        'losses_delta':            events['losses_delta'],
-        'streak':                  events['streak'],
-        'owned_items':             events['owned_items'],
-        'regen_recharge_wins':     events['regen_recharge_wins'],
-        'shield_used':             events['shield_used'],
-        'shield_used_type':        events['shield_used_type'],
-        'shield_broke':            events['shield_broke'],
-        'guard_triggered':         events['guard_triggered'],
-        'guard_blocked':           events['guard_blocked'],
-        'bonus_earned':            events['bonus_earned'],
-        'echo_triggered':          events['echo_triggered'],
-        'jackpot_hit':             events['jackpot_hit'],
-        'jackpot_echo_triggered':  events['jackpot_echo_triggered'],
-        'jackpot_echo_next':       events['jackpot_echo_next'],
-        'resilience_triggered':    events['resilience_triggered'],
-        'lucky_seven_triggered':   events['lucky_seven_triggered'],
-        'fortune_charm_triggered': events['fortune_charm_triggered'],
-        'active_cosmetics':        events['active_cosmetics'],
-        'auto_guard_failed':       events['auto_guard_failed'],
-        'proc_streak':             events['proc_streak'],
-        'wager_streak':            events.get('wager_streak', 0),
-        'stake':                   events.get('stake', 1),
-        'wager_banked_wins':       events.get('wager_banked_wins', 0),
-    }
+    return {k: events[k] for k in _RESPONSE_KEYS}
 
 
 @game_bp.route('/api/health')
