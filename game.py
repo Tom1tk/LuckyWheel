@@ -16,7 +16,7 @@ from extensions import limiter, csrf
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     ITEM_CURRENCY, INFINITE_UPGRADE_CURRENCY,
                     inf_upgrade_cost,
-                    lure_mastery_mult, jackpot_pct, echo_amp_pct, proc_streak_mult,
+                    lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
                     UPGRADE_TIER_THRESHOLDS, item_tier,

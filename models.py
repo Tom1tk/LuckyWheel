@@ -344,23 +344,6 @@ def lure_mastery_mult(level: int) -> float:
     return 1.0 + level * 0.10
 
 
-def jackpot_pct(level: int) -> float:
-    """Jackpot proc probability. Base 1%, +0.2% per level, hard cap 3% at level 10."""
-    return min(0.01 + level * 0.002, 0.03)
-
-
-def echo_amp_pct(level: int) -> float:
-    """Win-echo proc probability. Base 20%, +2% per level, hard cap 40% at level 10."""
-    return min(0.20 + level * 0.02, 0.40)
-
-
-def proc_streak_mult(level: int, streak: int) -> float:
-    """Bonus multiplier applied to all proc'd payouts. +0.5% per streak-count per level."""
-    if level == 0 or streak == 0:
-        return 1.0
-    return 1.0 + streak * level * 0.005
-
-
 # ── Season 7 class effect constants ───────────────────────────────────────────
 CLASS_EARTH_FISH_BONUS = 0.25   # Earth: +25% to fish-click income
 CLASS_MOON_PROC_BONUS  = 0.05   # Moon:  +5% added to each proc rate (jackpot, echo, charm, resilience)
