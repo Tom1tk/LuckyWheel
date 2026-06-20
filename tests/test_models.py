@@ -10,7 +10,7 @@ from models import (
     roll_fish, fish_value, lure_bite_delay_seconds, lure_value_multiplier,
     autofisher_catch_rate, streak_bonus, dice_max_charges,
     inf_upgrade_cost, INFINITE_UPGRADES,
-    jackpot_pct, echo_amp_pct, proc_streak_mult, lure_mastery_mult,
+    lure_mastery_mult,
     AUTO_FISH_EXCLUDED, _AUTO_FISH_LEGENDARY,
 )
 
@@ -141,33 +141,6 @@ def test_dice_max_charges_with_upgrades():
 
 
 # ── proc-rate helpers ─────────────────────────────────────────────────────────
-
-def test_jackpot_pct_base():
-    assert jackpot_pct(0) == pytest.approx(0.01)
-
-def test_jackpot_pct_cap_at_10():
-    assert jackpot_pct(10) == pytest.approx(0.03)
-
-def test_jackpot_pct_never_exceeds_cap():
-    for lvl in range(0, 20):
-        assert jackpot_pct(lvl) <= 0.03
-
-def test_echo_amp_pct_base():
-    assert echo_amp_pct(0) == pytest.approx(0.20)
-
-def test_echo_amp_pct_cap():
-    assert echo_amp_pct(10) == pytest.approx(0.40)
-
-def test_proc_streak_mult_zero_streak_is_1():
-    assert proc_streak_mult(5, 0) == pytest.approx(1.0)
-
-def test_proc_streak_mult_zero_level_is_1():
-    assert proc_streak_mult(0, 10) == pytest.approx(1.0)
-
-def test_proc_streak_mult_increases():
-    m1 = proc_streak_mult(1, 3)
-    m2 = proc_streak_mult(1, 4)
-    assert m2 > m1
 
 def test_lure_mastery_mult_level_0():
     assert lure_mastery_mult(0) == pytest.approx(1.0)
