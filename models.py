@@ -192,6 +192,7 @@ SHOP_ITEMS = {
     # Season 7 classes — own any, equip one at a time; functional tier 3
     'class_earth': {'cost': 10_000_000, 'requires': None},
     'class_moon':  {'cost': 10_000_000, 'requires': None},
+    'class_star':  {'cost': 10_000_000, 'requires': None},
     # singularity removed in Season 8 — now a server-wide community meter (spec S13)
     # ── Fishing gear (Season 6) ──────────────────────────────────────────────
     # auto_cast: auto-casts line; player still taps the bite window manually.
