@@ -899,7 +899,12 @@ def spin():
                 if goal_def['metric'] == 'jackpots_landed' and events['jackpot_hit']:
                     increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
                     check_goal_completion(conn, goal_def['goal_id'])
-                elif goal_def['metric'] == 'wins_wagered' and events['result'] in ('win', 'jackpot'):
+                elif (goal_def['metric'] == 'wins_wagered' and events.get('stake', 1) > 1
+                      and events['result'] in ('win', 'jackpot')):
+                    # Gated on stake > 1 -- this metric is "wins wagered", not
+                    # "wins earned". Previously fired on any win regardless of
+                    # stake, so the goal filled from unrelated baseline play
+                    # rather than actual wagering activity.
                     increment_goal(conn, goal_def['goal_id'], current_user.id, int(events.get('wins_delta', 0)))
                     check_goal_completion(conn, goal_def['goal_id'])
 
