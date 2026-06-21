@@ -210,6 +210,27 @@ def test_regen_shield_absorbs_loss(monkeypatch):
     assert new_state['regen_recharge_wins'] > 0
 
 
+# ── Wager insurance (regression: charge was consumed for zero effect) ──────────
+
+def test_insurance_caps_loss_and_refunds_escrow(monkeypatch):
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.99)  # force a loss
+    state = _base_state(owned=['wager_unlock'], streak=-5, wins=1000, losses=0)
+    new_state, events = _resolve_spin(**state, **_base_ctx(stake=5), insurance_active=True)
+    assert events['insurance_used'] is True
+    assert events['losses_delta'] == 5          # capped at stake, not the uncapped 45
+    assert new_state['wins'] == 1000            # escrowed stake fully refunded
+
+def test_loss_without_insurance_is_not_capped(monkeypatch):
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.99)
+    state = _base_state(owned=['wager_unlock'], streak=-5, wins=1000, losses=0)
+    new_state, events = _resolve_spin(**state, **_base_ctx(stake=5))
+    assert events['insurance_used'] is False
+    assert events['losses_delta'] == 45
+    assert new_state['wins'] == 900             # escrow forfeited, not refunded
+
+
 # ── Wins cap ──────────────────────────────────────────────────────────────────
 
 def test_wins_capped_at_max():

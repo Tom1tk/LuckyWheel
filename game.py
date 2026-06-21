@@ -112,7 +112,7 @@ _GAME_STATE_SQL = '''
            auto_fish_enabled, auto_fish_last_tick,
            prestige_level, prestige_count, legacy_wins, onboarding_step, auto_spin_budget,
            wager_streak, wager_last_stake, double_down_pending, wager_banked_wins,
-           wager_insurance_charges, active_wheel_mode,
+           wager_insurance_charges, wager_insurance_armed, active_wheel_mode,
            wager_tokens, aquarium_species, cosmetic_fragments,
            guard_charges, guard_last_regen_spin, resilience_last_use_spin,
            bounty_claimed_date
@@ -238,6 +238,7 @@ def _resolve_spin(
     aquarium_luck: float = 0.0,
     wager_banked_wins: int = 0,
     double_down: bool = False,
+    insurance_active: bool = False,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
     
@@ -298,6 +299,7 @@ def _resolve_spin(
     jackpot_echo_triggered  = False
     resilience_triggered    = False
     fortune_charm_triggered = False
+    insurance_used          = False
     bonus_earned            = 0
     new_owned               = owned
 
@@ -344,6 +346,12 @@ def _resolve_spin(
             loss_bonus   = streak_bonus(loss_count) * bonus_mult
             base_loss    = 1 + loss_bonus
             actual_loss  = compute_wager_loss(base_loss, actual_stake)
+            if insurance_active:
+                # Caps the loss at the stake amount and returns the escrowed
+                # stake — armed via /api/wager/insurance, consumes a charge.
+                actual_loss = min(actual_loss, actual_stake)
+                wins += stake_wins
+                insurance_used = True
             losses      += actual_loss
             # v2 (T45): safety net refunds 25% of lost escrow, not reduces losses
             if 'wager_safety_net' in owned:
@@ -485,6 +493,7 @@ def _resolve_spin(
         'active_wheel_mode':       active_wheel_mode,
         'wager_banked_wins':       wager_banked_wins,
         'wager_banked_wins_delta': wager_banked_wins - original_wager_banked_wins,
+        'insurance_used':          insurance_used,
     }
     return new_state, events
 
@@ -515,6 +524,7 @@ _RESPONSE_KEYS = (
     'wager_streak',
     'stake',
     'wager_banked_wins',
+    'insurance_used',
 )
 
 
@@ -802,6 +812,7 @@ def spin():
             double_down_active = bool(gs.get('double_down_pending', False))
             if double_down_active:
                 req_stake = req_stake * 2  # double-down doubles the stake
+            insurance_active = bool(gs.get('wager_insurance_armed', False))
 
             new_spin_count = gs['spin_count'] + 1
             new_state, events = _resolve_spin(
@@ -832,6 +843,7 @@ def spin():
                 aquarium_luck=ctx.get('aquarium_luck', 0.0),
                 wager_banked_wins=int(gs.get('wager_banked_wins', 0)),
                 double_down=double_down_active,
+                insurance_active=insurance_active,
             )
 
             new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
@@ -912,6 +924,7 @@ def spin():
                           wager_streak = %s, wager_last_stake = %s,
                           wager_banked_wins = %s,
                           double_down_pending = FALSE,
+                          wager_insurance_armed = FALSE,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                       WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
@@ -2635,8 +2648,13 @@ def wager_insurance():
                 return jsonify({'error': 'Insurance not unlocked'}), 403
             if gs.get('wager_insurance_charges', 0) <= 0:
                 return jsonify({'error': 'No insurance charges left'}), 403
-            cur.execute('UPDATE game_state SET wager_insurance_charges = wager_insurance_charges - 1 WHERE user_id = %s',
-                        (current_user.id,))
+            if gs.get('wager_insurance_armed'):
+                return jsonify({'error': 'Insurance already armed'}), 409
+            cur.execute(
+                '''UPDATE game_state SET wager_insurance_charges = wager_insurance_charges - 1,
+                       wager_insurance_armed = TRUE
+                   WHERE user_id = %s''',
+                (current_user.id,))
         conn.commit()
     return jsonify({'ok': True, 'message': 'Insurance activated'})
 
@@ -2671,7 +2689,8 @@ def prestige_reset():
                        legacy_wins = %s, wins = 0, streak = 0, best_streak = 0,
                        win_count = 0, loss_count = 0, losses = 0,
                        spin_count = 0, wager_streak = 0, wager_last_stake = 0,
-                       double_down_pending = FALSE, wager_banked_wins = 0
+                       double_down_pending = FALSE, wager_banked_wins = 0,
+                       wager_insurance_armed = FALSE
                    WHERE user_id = %s''',
                 (new_level, new_prestige_count, new_legacy_wins, current_user.id),
             )
