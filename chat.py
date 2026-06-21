@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, jsonify, request
@@ -181,19 +182,47 @@ def post_chat():
     return jsonify({'ok': True}), 201
 
 
-def post_system_message(conn, message: str, message_type: str = 'system'):
+SYSTEM_MESSAGE_THROTTLE_SECS = 30
+# Per-worker, in-memory (same pattern as game.py's _fish_clicks_cache) -- this
+# is a chat-spam nicety, not a security boundary, so per-worker approximation
+# under gunicorn's multiple workers is an acceptable tradeoff against adding a
+# new DB table just for a 30s cooldown.
+_system_message_last_posted: dict = {}
+
+
+def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None):
     """Insert a system message into chat (user_id=NULL, username='SYSTEM').
 
-    Used by Season 8 features: bounty completions, community goal milestones,
-    singularity fills, prestige announcements. Must be called within an
-    existing db_connection() context — caller manages commit/rollback.
+    Throttled to at most one message per SYSTEM_MESSAGE_THROTTLE_SECS per
+    event_kind (defaults to message_type), so a rapid chain of the same kind
+    of event (e.g. repeated jackpots) can't flood the channel. Different
+    event kinds throttle independently.
+
+    Used by Season 8 features: bounty completions, singularity fills,
+    prestige announcements, jackpots. Must be called within an existing
+    db_connection() context — caller manages commit/rollback.
     """
     if not message:
         return
+    kind = event_kind or message_type
+    now = time.monotonic()
+    if now - _system_message_last_posted.get(kind, 0.0) < SYSTEM_MESSAGE_THROTTLE_SECS:
+        return
+    _system_message_last_posted[kind] = now
+
     message = message[:MAX_MSG_LEN]
     with conn.cursor() as cur:
         cur.execute(
             '''INSERT INTO chat_messages (user_id, username, message, message_type)
                VALUES (NULL, 'SYSTEM', %s, %s)''',
             (message, message_type),
+        )
+        # Trim to 50 most recent (system messages share the table with
+        # player chat; post_chat() already does this for its own inserts,
+        # but a quiet stretch of system-only activity skipped this entirely).
+        cur.execute(
+            '''DELETE FROM chat_messages
+               WHERE id NOT IN (
+                   SELECT id FROM chat_messages ORDER BY id DESC LIMIT 50
+               )'''
         )
