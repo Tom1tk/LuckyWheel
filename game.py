@@ -23,7 +23,8 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
-                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC, FISH_TO_WAGER_RATES)
+                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC, FISH_TO_WAGER_RATES,
+                    SINGULARITY_PER_PLAYER_CAP)
 from seasons import ensure_current_season, get_season_info, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
@@ -113,7 +114,8 @@ _GAME_STATE_SQL = '''
            wager_streak, wager_last_stake, double_down_pending, wager_banked_wins,
            wager_insurance_charges, active_wheel_mode,
            wager_tokens, aquarium_species, cosmetic_fragments,
-           guard_charges, guard_last_regen_spin, resilience_last_use_spin
+           guard_charges, guard_last_regen_spin, resilience_last_use_spin,
+           bounty_claimed_date
     FROM game_state WHERE user_id = %s
 '''
 
@@ -856,8 +858,13 @@ def spin():
                 increment_bounty(conn, current_user.id, 'bounty_jackpot', bounty_date)
             if events.get('stake', 1) >= 5 and events['result'] in ('win', 'jackpot'):
                 increment_bounty(conn, current_user.id, 'bounty_wager5', bounty_date)
-            if events.get('wager_streak', 0) == 10:
-                increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date)
+            # bounty_streak10 tracks the real win streak (events['streak']), not
+            # wager_streak (the same-stake hot-streak counter, which never resets
+            # at the default 1x stake and made this permanently uncompletable
+            # after a player's first day). amount=10 completes it in one shot —
+            # this is a one-time "reach a streak" achievement, not a 10x counter.
+            if events.get('streak', 0) == 10:
+                increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date, amount=10)
             if events.get('active_wheel_mode') == 'mirror' and events['result'] in ('win', 'jackpot'):
                 increment_bounty(conn, current_user.id, 'bounty_mirror', bounty_date)
             if double_down_active and events['result'] in ('win', 'jackpot'):
@@ -2756,14 +2763,17 @@ def claim_bounty():
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
+            if gs.get('bounty_claimed_date') == bounty_date:
+                return jsonify({'error': 'Already claimed today'}), 400
             rewards = get_claim_rewards(conn, current_user.id, bounty_date)
             if rewards is None:
                 return jsonify({'error': 'Bounty not claimable'}), 400
             cur.execute(
                 '''UPDATE game_state SET cosmetic_fragments = cosmetic_fragments + %s,
-                    wager_tokens = wager_tokens + %s
+                    wager_tokens = wager_tokens + %s,
+                    bounty_claimed_date = %s
                    WHERE user_id = %s''',
-                (rewards['cosmetic_fragments'], rewards['tokens'], current_user.id),
+                (rewards['cosmetic_fragments'], rewards['tokens'], bounty_date, current_user.id),
             )
         # Season 8: post system message on bounty claim
         post_system_message(conn, f'🎯 {current_user.username} completed a bounty: {bounty_id}!', 'event')
@@ -2817,7 +2827,7 @@ def singularity_status():
 @login_required
 @csrf.exempt
 def singularity_contribute():
-    """Contribute wins to the singularity meter."""
+    """Contribute fish_clicks to the singularity meter (per-player capped, per fill cycle)."""
     err = require_json()
     if err:
         return err
@@ -2831,16 +2841,43 @@ def singularity_contribute():
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
-            if int(gs['wins']) < amount:
-                return jsonify({'error': 'Insufficient wins'}), 403
+            cur.execute('SELECT fill_count FROM singularity_meter WHERE id = 1 FOR UPDATE')
+            meter_row = cur.fetchone()
+            fill_count = meter_row['fill_count'] if meter_row else 0
+
+            cur.execute(
+                '''SELECT contributed FROM singularity_contributions
+                   WHERE user_id = %s AND fill_count = %s''',
+                (current_user.id, fill_count),
+            )
+            contrib_row = cur.fetchone()
+            already = contrib_row['contributed'] if contrib_row else 0
+            remaining_cap = SINGULARITY_PER_PLAYER_CAP - already
+
+            actual_amount = min(amount, int(gs['fish_clicks']), remaining_cap)
+            if actual_amount <= 0:
+                return jsonify({'error': 'Nothing to contribute (insufficient fish or cap reached)'}), 403
+
+            cur.execute(
+                'UPDATE game_state SET fish_clicks = fish_clicks - %s WHERE user_id = %s',
+                (actual_amount, current_user.id),
+            )
+            cur.execute(
+                '''INSERT INTO singularity_contributions (user_id, fill_count, contributed)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (user_id, fill_count) DO UPDATE
+                       SET contributed = singularity_contributions.contributed + %s''',
+                (current_user.id, fill_count, actual_amount, actual_amount),
+            )
             cur.execute(
                 '''UPDATE singularity_meter SET total_contributed = total_contributed + %s,
                    filled = CASE WHEN total_contributed + %s >= target THEN TRUE ELSE filled END,
                    filled_at = CASE WHEN total_contributed + %s >= target AND filled_at IS NULL THEN NOW() ELSE filled_at END
                    WHERE id = 1 RETURNING total_contributed, target, filled''',
-                (amount, amount, amount),
+                (actual_amount, actual_amount, actual_amount),
             )
             row = cur.fetchone()
+            amount = actual_amount
             # Season 8: post system message if meter just filled (crossed threshold this contribution)
             if row['filled'] and (row['total_contributed'] - amount) < row['target']:
                 post_system_message(conn, f'🌀 The Singularity has converged! Total contributed: {int(row["total_contributed"]):,}', 'event')

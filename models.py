@@ -320,6 +320,10 @@ INFINITE_UPGRADES = {
 # Tier index: 0=common, 1=uncommon, 2=rare, 3=epic, 4=legendary, 5=mythic
 FISH_TO_WAGER_RATES = [5, 15, 40, 100, 250, 500]
 
+# Season 8: Singularity meter per-player contribution cap (spec S13).
+# Resets each time the meter fills (tracked per fill_count).
+SINGULARITY_PER_PLAYER_CAP = 25_000_000
+
 
 def inf_upgrade_cost(item_id: str, current_level: int) -> int:
     """Cost to advance from current_level to current_level+1."""

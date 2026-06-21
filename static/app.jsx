@@ -3783,9 +3783,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const handleSingularityContribute = useCallback(async (amount) => {
     const { ok, data } = await apiGame('/api/singularity/contribute', { method: 'POST', body: JSON.stringify({ amount }) });
     if (ok) {
-      setFishClicks(prev => prev - amount);
+      const actual = data.contributed ?? amount;
+      setFishClicks(prev => prev - actual);
       setSingularity(prev => ({ ...prev, total_contributed: data.total_contributed, filled: data.filled }));
-      showToast(`Contributed ${fmt(amount)} fish to Singularity`);
+      showToast(`Contributed ${fmt(actual)} fish to Singularity`);
     } else {
       showToast(data.error || 'Contribution failed');
     }
