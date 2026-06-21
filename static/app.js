@@ -6665,7 +6665,7 @@ function GameApp(_ref33) {
   // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
   var handleSingularityContribute = useCallback(/*#__PURE__*/function () {
     var _ref52 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee25(amount) {
-      var _yield$apiGame16, ok, data;
+      var _yield$apiGame16, ok, data, _data$contributed, actual;
       return _regeneratorRuntime().wrap(function _callee25$(_context25) {
         while (1) switch (_context25.prev = _context25.next) {
           case 0:
@@ -6681,8 +6681,9 @@ function GameApp(_ref33) {
             ok = _yield$apiGame16.ok;
             data = _yield$apiGame16.data;
             if (ok) {
+              actual = (_data$contributed = data.contributed) !== null && _data$contributed !== void 0 ? _data$contributed : amount;
               setFishClicks(function (prev) {
-                return prev - amount;
+                return prev - actual;
               });
               setSingularity(function (prev) {
                 return _objectSpread(_objectSpread({}, prev), {}, {
@@ -6690,7 +6691,7 @@ function GameApp(_ref33) {
                   filled: data.filled
                 });
               });
-              showToast("Contributed ".concat(fmt(amount), " fish to Singularity"));
+              showToast("Contributed ".concat(fmt(actual), " fish to Singularity"));
             } else {
               showToast(data.error || 'Contribution failed');
             }
