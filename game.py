@@ -237,7 +237,6 @@ def _resolve_spin(
     active_wheel_mode: str = 'steady',
     aquarium_luck: float = 0.0,
     wager_banked_wins: int = 0,
-    double_down: bool = False,
     insurance_active: bool = False,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
@@ -314,11 +313,7 @@ def _resolve_spin(
     # v2 (T45): escrow stake before outcome — real wins are now at risk.
     # Only for players who own wager_unlock; without it, stake is locked to 1
     # (above) and there must be zero escrow/risk, matching base game behavior.
-    stake_wins = compute_stake_risk(
-        wins, actual_stake,
-        double_down=double_down,
-        expected_payout=effective_win_mult if double_down else None,
-    ) if owns_wager_unlock else 0
+    stake_wins = compute_stake_risk(wins, actual_stake) if owns_wager_unlock else 0
     wins -= stake_wins
 
     if outcome == 'lose':
@@ -809,9 +804,24 @@ def spin():
 
             # Season 8: get stake from request body; resolve double-down if pending
             req_stake = (request.json or {}).get('stake', 1)
+            try:
+                req_stake = int(req_stake)
+            except (TypeError, ValueError):
+                req_stake = 1
             double_down_active = bool(gs.get('double_down_pending', False))
             if double_down_active:
-                req_stake = req_stake * 2  # double-down doubles the stake
+                # Doubles the stake, then validate_stake() clamps to MAX_STAKE
+                # (10) same as any other spin. For base stake >= 5 the doubled
+                # value is clamped back down, so double-down's marginal benefit
+                # shrinks to zero at base stake >= 5 -- this is an inherent
+                # consequence of the system-wide stake ceiling (every other
+                # stake-scaling path respects the same 1-10 range), not a
+                # separate bug. Raising the ceiling just for double-down would
+                # need its own ceiling threaded through validate_stake() AND
+                # compute_stake_risk() (which clamps independently) plus a
+                # redesign of the stake risk-label UI (Safe/Bold/Reckless,
+                # 1-10) -- out of scope for this fix; flagged, not changed.
+                req_stake = req_stake * 2
             insurance_active = bool(gs.get('wager_insurance_armed', False))
 
             new_spin_count = gs['spin_count'] + 1
@@ -842,7 +852,6 @@ def spin():
                 active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
                 aquarium_luck=ctx.get('aquarium_luck', 0.0),
                 wager_banked_wins=int(gs.get('wager_banked_wins', 0)),
-                double_down=double_down_active,
                 insurance_active=insurance_active,
             )
 
