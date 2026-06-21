@@ -12,18 +12,20 @@ MAX_STAKE = 10
 MIN_STAKE = 1
 
 
-def compute_stake_risk(current_wins, stake, double_down=False, expected_payout=None):
-    """Return the escrow amount (wins to debit before spin).
+def compute_stake_risk(current_wins, stake):
+    """Return the escrow amount (wins to debit before spin): floor(current_wins * 0.02 * stake).
 
-    For normal spins: floor(current_wins * 0.02 * stake)
-    For double-down spins: int(expected_payout * stake) — the winnings on offer
+    Used unchanged for double-down spins too — a double-down spin is just a
+    normal spin forced to 2x stake, so it risks (and pays out) exactly twice
+    a normal spin at the player's chosen stake, not a separately-computed
+    amount. (Previously double-down used expected_payout * stake instead,
+    which risked less than an equivalent-stake normal spin while paying out
+    the same — a real risk/reward asymmetry favoring the player.)
+
     Result is capped at current_wins (never debit more than the player has).
     """
-    if double_down and expected_payout is not None:
-        raw = int(expected_payout * stake)
-    else:
-        # ponytail: risk = 2% per stake level, was a 10-row table
-        raw = int(current_wins * 0.02 * max(MIN_STAKE, min(MAX_STAKE, stake)))
+    # ponytail: risk = 2% per stake level, was a 10-row table
+    raw = int(current_wins * 0.02 * max(MIN_STAKE, min(MAX_STAKE, stake)))
     return min(raw, current_wins)
 
 
