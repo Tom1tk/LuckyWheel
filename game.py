@@ -868,10 +868,10 @@ def spin():
                 )
             # Season 8: post system message on jackpot
             if events['jackpot_hit']:
-                post_system_message(conn, f'🎰 {current_user.username} hit a JACKPOT for {int(events["wins_delta"]):,} wins!', 'event')
+                post_system_message(conn, f'🎰 {current_user.username} hit a JACKPOT for {int(events["wins_delta"]):,} wins!', 'event', event_kind='jackpot')
             # Season 8: post system message on big double-down win (5x+ stake doubled = 10x+)
             if double_down_active and events['result'] in ('win', 'jackpot') and events.get('stake', 1) >= 10:
-                post_system_message(conn, f'🔥 {current_user.username} won a 10x double-down for {int(events["wins_delta"]):,} wins!', 'event')
+                post_system_message(conn, f'🔥 {current_user.username} won a 10x double-down for {int(events["wins_delta"]):,} wins!', 'event', event_kind='double_down_win')
 
             # Season 8: bounty tracking
             bounty_date = dt.datetime.now(timezone.utc).date()
@@ -913,7 +913,7 @@ def spin():
             if gs.get('onboarding_step', 0) == 0:
                 onboarding_advance = True
                 # Season 8: post system message for new player first spin
-                post_system_message(conn, f'🎉 {current_user.username} spun the wheel for the first time! Welcome to Season 8!', 'event')
+                post_system_message(conn, f'🎉 {current_user.username} spun the wheel for the first time! Welcome to Season 8!', 'event', event_kind='new_player')
                 # Season 8: grant trail_1 cosmetic reward on first spin
                 if 'trail_1' not in new_state['owned']:
                     new_state['owned'] = list(new_state['owned']) + ['trail_1']
@@ -2709,7 +2709,7 @@ def prestige_reset():
                 (new_level, new_prestige_count, new_legacy_wins, current_user.id),
             )
         # Season 8: post system message on prestige
-        post_system_message(conn, f'⭐ {current_user.username} reached Prestige Level {new_level}!', 'event')
+        post_system_message(conn, f'⭐ {current_user.username} reached Prestige Level {new_level}!', 'event', event_kind='prestige')
         # Bounty tracking
         bounty_date = dt.datetime.now(timezone.utc).date()
         increment_bounty(conn, current_user.id, 'bounty_prestige', bounty_date)
@@ -2809,7 +2809,7 @@ def claim_bounty():
                 (rewards['cosmetic_fragments'], rewards['tokens'], bounty_date, current_user.id),
             )
         # Season 8: post system message on bounty claim
-        post_system_message(conn, f'🎯 {current_user.username} completed a bounty: {bounty_id}!', 'event')
+        post_system_message(conn, f'🎯 {current_user.username} completed a bounty: {bounty_id}!', 'event', event_kind='bounty_claim')
     conn.commit()
     return jsonify({'ok': True, 'rewards': rewards})
 
@@ -2913,7 +2913,7 @@ def singularity_contribute():
             amount = actual_amount
             # Season 8: post system message if meter just filled (crossed threshold this contribution)
             if row['filled'] and (row['total_contributed'] - amount) < row['target']:
-                post_system_message(conn, f'🌀 The Singularity has converged! Total contributed: {int(row["total_contributed"]):,}', 'event')
+                post_system_message(conn, f'🌀 The Singularity has converged! Total contributed: {int(row["total_contributed"]):,}', 'event', event_kind='singularity_fill')
         conn.commit()
     return jsonify({
         'total_contributed': row['total_contributed'],
