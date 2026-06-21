@@ -99,10 +99,19 @@ def increment_goal(conn, goal_id, user_id, amount):
     cap = goal_def['per_player_cap']
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        # Get current player contribution
+        # Ensure the row exists, then lock it before reading -- without the
+        # lock, two concurrent calls near the cap could each read the same
+        # stale current_contrib and both clamp independently, together
+        # pushing the player's total past the cap by up to one extra amount.
+        cur.execute(
+            '''INSERT INTO community_goal_contributions (goal_id, user_id, contributed)
+               VALUES (%s, %s, 0)
+               ON CONFLICT (goal_id, user_id) DO NOTHING''',
+            (goal_id, user_id),
+        )
         cur.execute(
             '''SELECT contributed FROM community_goal_contributions
-               WHERE goal_id = %s AND user_id = %s''',
+               WHERE goal_id = %s AND user_id = %s FOR UPDATE''',
             (goal_id, user_id),
         )
         row = cur.fetchone()
@@ -114,14 +123,11 @@ def increment_goal(conn, goal_id, user_id, amount):
         if actual_amount <= 0:
             return 0
 
-        # Upsert player contribution
         cur.execute(
-            '''INSERT INTO community_goal_contributions (goal_id, user_id, contributed)
-               VALUES (%s, %s, %s)
-               ON CONFLICT (goal_id, user_id)
-               DO UPDATE SET contributed = community_goal_contributions.contributed + %s
-               RETURNING contributed''',
-            (goal_id, user_id, actual_amount, actual_amount),
+            '''UPDATE community_goal_contributions
+               SET contributed = contributed + %s
+               WHERE goal_id = %s AND user_id = %s''',
+            (actual_amount, goal_id, user_id),
         )
 
         # Increment goal total
