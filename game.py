@@ -178,8 +178,11 @@ def _build_spin_context(gs: dict) -> dict:
     star_win_bonus = CLASS_STAR_WIN_BONUS if equipped_class == 'star' else 0.0
     # Season 8: prestige bonus is flat +2% per level (max +40% at level 20)
     prestige_bonus = get_prestige_bonus(gs.get('prestige_level', 0))
-    # Season 8: aquarium luck bonus — +0.1% per unique species
-    aquarium_species = gs.get('aquarium_species', [])
+    # Season 8: aquarium luck bonus — +0.1% per unique species.
+    # aquarium_species (DB column) is never written anywhere — the aquarium
+    # mirrors the Fish Encyclopaedia's caught_species instead, which already
+    # tracks the same "unique species ever caught" fact correctly.
+    aquarium_species = gs.get('caught_species', [])
     aquarium_count = len(aquarium_species) if aquarium_species else 0
     aquarium_luck = aquarium_count * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0
 
@@ -647,7 +650,7 @@ def get_state():
             'active_wheel_mode':    gs.get('active_wheel_mode', 'steady'),
             'available_wheel_modes': available_modes,
             'wager_tokens':         gs.get('wager_tokens', 0),
-            'aquarium_species':     list(gs.get('aquarium_species', [])),
+            'aquarium_species':     list(gs.get('caught_species', [])),
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
             'guard_charges':        gs.get('guard_charges', 0),
             'bounties':             bounties,
@@ -3020,10 +3023,11 @@ def aquarium_status():
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id)
+    species = list(gs.get('caught_species', []))
     return jsonify({
-        'species': list(gs.get('aquarium_species', [])),
+        'species': species,
         'wager_tokens': gs.get('wager_tokens', 0),
-        'luck_bonus': len(gs.get('aquarium_species', [])) * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0,
+        'luck_bonus': len(species) * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0,
     })
 
 
@@ -3049,43 +3053,7 @@ def set_wheel_mode():
     return jsonify({'ok': True, 'mode': mode})
 
 
-@game_bp.route('/api/fish-to-wager', methods=['POST'])
-@login_required
-@csrf.exempt
-def fish_to_wager():
-    """Convert caught fish to wager_tokens. Rate depends on fish tier."""
-    err = require_json()
-    if err:
-        return err
-    fish_id = (request.json or {}).get('fish_id')
-    if not fish_id:
-        return jsonify({'error': 'fish_id required'}), 400
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id, for_update=True)
-            if 'fish_to_wager' not in gs['owned_items']:
-                return jsonify({'error': 'Fish-to-wager not unlocked'}), 403
-            caught = list(gs.get('caught_species', []))
-            if fish_id not in caught:
-                return jsonify({'error': 'Fish not in collection'}), 400
-            # Determine tier from FISH_CATALOG
-            fish_info = FISH_CATALOG.get(fish_id, {})
-            tier = fish_info.get('tier', 0)
-            if tier >= len(FISH_TO_WAGER_RATES):
-                tier = len(FISH_TO_WAGER_RATES) - 1
-            tokens = FISH_TO_WAGER_RATES[tier]
-            # catch_of_the_day: first conversion each UTC day gets 5x
-            now_utc = dt.datetime.now(timezone.utc)
-            today = now_utc.date()
-            last_conversion = gs.get('last_fish_conversion_date')
-            if 'catch_of_the_day' in gs['owned_items']:
-                if last_conversion is None or last_conversion.date() != today:
-                    tokens *= 5
-            cur.execute(
-                '''UPDATE game_state SET wager_tokens = wager_tokens + %s WHERE user_id = %s
-                   RETURNING wager_tokens''',
-                (tokens, current_user.id),
-            )
-            row = cur.fetchone()
-        conn.commit()
-    return jsonify({'tokens_earned': tokens, 'total_wager_tokens': row['wager_tokens']})
+# Note: there is no separate /api/fish-to-wager endpoint. wager_tokens are
+# awarded automatically at catch time in reel() when fish_to_wager is owned —
+# a second manual conversion endpoint keyed on the permanent caught_species
+# list would let players re-claim the same catch for tokens indefinitely.

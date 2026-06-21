@@ -3791,17 +3791,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
-  // Season 8: handle fish-to-wager conversion
-  const handleFishToWager = useCallback(async (fishId) => {
-    const { ok, data } = await apiGame('/api/fish-to-wager', { method: 'POST', body: JSON.stringify({ fish_id: fishId }) });
-    if (ok) {
-      setWagerTokens(data.total_wager_tokens);
-      showToast(`+${data.tokens_earned} wager tokens`);
-    } else {
-      showToast(data.error || 'Conversion failed');
-    }
-  }, [showToast]);
-
   // Season 8: handle double-down
   const handleDoubleDown = useCallback(async () => {
     const { ok, data } = await apiGame('/api/wager/double-down', { method: 'POST', body: JSON.stringify({}) });
