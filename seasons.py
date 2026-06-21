@@ -139,6 +139,7 @@ def advance_season(conn):
                    onboarding_step = 0, auto_spin_budget = 0,
                    wager_streak = 0, wager_last_stake = 0, double_down_pending = FALSE,
                    wager_banked_wins = 0, wager_insurance_charges = 0,
+                   wager_insurance_armed = FALSE,
                    active_wheel_mode = 'steady',
                    guard_charges = 0, guard_last_regen_spin = 0,
                    resilience_last_use_spin = 0""",
