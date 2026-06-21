@@ -2859,10 +2859,10 @@ def get_loadout():
     """Get saved build loadouts."""
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT slot, loadout_data FROM build_loadouts WHERE user_id = %s ORDER BY slot',
+            cur.execute('SELECT slot, config FROM build_loadouts WHERE user_id = %s ORDER BY slot',
                         (current_user.id,))
             rows = cur.fetchall()
-    loadouts = {row['slot']: row['loadout_data'] for row in rows}
+    loadouts = {row['slot']: row['config'] for row in rows}
     return jsonify({'loadouts': loadouts})
 
 
@@ -2870,52 +2870,84 @@ def get_loadout():
 @login_required
 @csrf.exempt
 def save_loadout():
-    """Save a build loadout to a slot (1-5)."""
+    """Save a build loadout to a slot (1-3)."""
     err = require_json()
     if err:
         return err
     data = request.json or {}
     slot = data.get('slot', 1)
-    loadout_data = data.get('loadout', {})
-    if not (1 <= slot <= 5):
-        return jsonify({'error': 'Slot must be 1-5'}), 400
+    raw = data.get('loadout', {}) or {}
+    if not (1 <= slot <= 3):
+        return jsonify({'error': 'Slot must be 1-3'}), 400
+    # A loadout is equipped_class + active_wheel_mode only (spec S11). Never
+    # persist client-supplied owned_items/active_cosmetics — apply_loadout
+    # used to write those straight to game_state with no validation, letting
+    # any player grant themselves every item in the shop for free.
+    loadout_data = {
+        'equipped_class':    raw.get('equipped_class'),
+        'active_wheel_mode': raw.get('active_wheel_mode', 'steady'),
+    }
     with db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                '''INSERT INTO build_loadouts (user_id, slot, loadout_data)
+                '''INSERT INTO build_loadouts (user_id, slot, config)
                    VALUES (%s, %s, %s)
-                   ON CONFLICT (user_id, slot) DO UPDATE SET loadout_data = EXCLUDED.loadout_data''',
+                   ON CONFLICT (user_id, slot) DO UPDATE SET config = EXCLUDED.config''',
                 (current_user.id, slot, psycopg2.extras.Json(loadout_data)),
             )
         conn.commit()
     return jsonify({'ok': True, 'slot': slot})
 
 
+_LOADOUT_CLASS_ITEMS = {'earth': 'class_earth', 'moon': 'class_moon', 'star': 'class_star'}
+
+
 @game_bp.route('/api/loadout/apply', methods=['POST'])
 @login_required
 @csrf.exempt
 def apply_loadout():
-    """Apply a saved loadout — sets owned_items to the loadout contents."""
+    """Apply a saved loadout — sets equipped_class and active_wheel_mode only.
+
+    Re-validates ownership/availability server-side rather than trusting the
+    saved blob; falls back to the player's current value for anything that
+    no longer checks out (e.g. a class they've since lost, a mode that has
+    rotated out of availability).
+    """
     err = require_json()
     if err:
         return err
     slot = (request.json or {}).get('slot', 1)
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT loadout_data FROM build_loadouts WHERE user_id = %s AND slot = %s',
+            cur.execute('SELECT config FROM build_loadouts WHERE user_id = %s AND slot = %s',
                         (current_user.id, slot))
             row = cur.fetchone()
             if not row:
                 return jsonify({'error': 'No loadout in that slot'}), 404
-            loadout = row['loadout_data']
-            owned = loadout.get('owned_items', [])
-            cosmetics = loadout.get('active_cosmetics', [])
+            loadout = row['config']
+
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            owned = list(gs['owned_items'])
+
+            class_value = loadout.get('equipped_class')  # 'earth' | 'moon' | 'star' | None
+            if class_value is None:
+                equipped_value = None
+            elif class_value in _LOADOUT_CLASS_ITEMS and _LOADOUT_CLASS_ITEMS[class_value] in owned:
+                equipped_value = class_value
+            else:
+                equipped_value = gs['equipped_class']
+
+            mode = loadout.get('active_wheel_mode', 'steady')
+            available = get_available_modes(get_week_number())
+            if mode != 'steady' and mode not in available:
+                mode = gs.get('active_wheel_mode') or 'steady'
+
             cur.execute(
-                '''UPDATE game_state SET owned_items = %s, active_cosmetics = %s WHERE user_id = %s''',
-                (owned, cosmetics, current_user.id),
+                '''UPDATE game_state SET equipped_class = %s, active_wheel_mode = %s WHERE user_id = %s''',
+                (equipped_value, mode, current_user.id),
             )
         conn.commit()
-    return jsonify({'ok': True, 'owned_items': owned, 'active_cosmetics': cosmetics})
+    return jsonify({'ok': True, 'equipped_class': equipped_value, 'active_wheel_mode': mode})
 
 
 @game_bp.route('/api/replay/share', methods=['POST'])

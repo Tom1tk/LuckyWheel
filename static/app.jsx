@@ -3824,8 +3824,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const handleLoadoutApply = useCallback(async (slot) => {
     const { ok, data } = await apiGame('/api/loadout/apply', { method: 'POST', body: JSON.stringify({ slot }) });
     if (ok) {
-      if (data.owned_items) setOwnedItems(data.owned_items);
-      if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+      setEquippedClass(data.equipped_class);
+      setActiveWheelMode(data.active_wheel_mode);
       showToast(`Loadout ${slot} applied`);
     } else {
       showToast(data.error || 'Apply failed');
@@ -4386,7 +4386,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   <div className="loadout-slots">
                     {[1, 2, 3].map(slot => (
                       <div key={slot} className="loadout-slot">
-                        <button className="loadout-save-btn" onClick={() => handleLoadoutSave(slot, { owned_items: ownedItems, active_cosmetics: activeCosmetics })}>Save {slot}</button>
+                        <button className="loadout-save-btn" onClick={() => handleLoadoutSave(slot, { equipped_class: equippedClass, active_wheel_mode: activeWheelMode })}>Save {slot}</button>
                         <button className="loadout-apply-btn" onClick={() => handleLoadoutApply(slot)}>Equip {slot}</button>
                       </div>
                     ))}

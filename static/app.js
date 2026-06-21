@@ -6812,8 +6812,8 @@ function GameApp(_ref33) {
             ok = _yield$apiGame20.ok;
             data = _yield$apiGame20.data;
             if (ok) {
-              if (data.owned_items) setOwnedItems(data.owned_items);
-              if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
+              setEquippedClass(data.equipped_class);
+              setActiveWheelMode(data.active_wheel_mode);
               showToast("Loadout ".concat(slot, " applied"));
             } else {
               showToast(data.error || 'Apply failed');
@@ -7489,8 +7489,8 @@ function GameApp(_ref33) {
       className: "loadout-save-btn",
       onClick: function onClick() {
         return handleLoadoutSave(slot, {
-          owned_items: ownedItems,
-          active_cosmetics: activeCosmetics
+          equipped_class: equippedClass,
+          active_wheel_mode: activeWheelMode
         });
       }
     }, "Save ", slot), /*#__PURE__*/React.createElement("button", {
