@@ -149,6 +149,24 @@ def _autofisher_level(owned: list) -> int:
     return 0
 
 
+def _winmult_level(owned: list) -> int:
+    for lvl in range(7, 0, -1):
+        if f'winmult_{lvl}' in owned:
+            return lvl
+    return 0
+
+
+# bonus_mult_from_level (removed in the T46 cleanup) used this exact table.
+_BONUS_MULT_TABLE = [1, 2, 4, 8, 15, 35, 70]
+
+
+def _bonusmult_level(owned: list) -> int:
+    for lvl in range(6, 0, -1):
+        if f'bonusmult_{lvl}' in owned:
+            return lvl
+    return 0
+
+
 # Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
 _MAX_WINS = 5_000_000  # Season 8 economy ceiling (was round(9.99e99))
 
@@ -165,9 +183,12 @@ def _build_spin_context(gs: dict) -> dict:
     aquarium_count = len(aquarium_species) if aquarium_species else 0
     aquarium_luck = aquarium_count * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0
 
-    # Season 8: old inf levels frozen at 0 — use flat values
-    base_win_mult = 1  # always 1 (levels frozen)
-    base_bonus_mult = 1  # always 1
+    # Season 8: old *infinite* levels (winmult_inf/bonusmult_inf) are frozen at
+    # 0 and no longer read — replaced by the flat winmult_1-7/bonusmult_1-6
+    # shop items, capped (no infinite tail).
+    owned = gs.get('owned_items', [])
+    base_win_mult = 1 << _winmult_level(owned)            # 1, 2, 4, ..., 128
+    base_bonus_mult = _BONUS_MULT_TABLE[_bonusmult_level(owned)]  # 1, 2, 4, 8, 15, 35, 70
 
     return {
         'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),

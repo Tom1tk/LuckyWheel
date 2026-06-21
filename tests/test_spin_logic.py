@@ -241,3 +241,25 @@ def test_consecutive_losses_deepens_streak(monkeypatch):
     state = _base_state(streak=-3)
     new_state, _ = _resolve_spin(**state, **_base_ctx())
     assert new_state['streak'] == -4
+
+
+# ── Win/Bonus Power wiring (regression: was hardcoded to 1 regardless of owned items) ──
+
+def _ctx(owned):
+    gs = dict(equipped_class=None, prestige_level=0, aquarium_species=[], owned_items=owned)
+    return _mod._build_spin_context(gs)
+
+def test_winmult_level_0_is_1():
+    assert _ctx([])['effective_win_mult'] == 1
+
+def test_winmult_level_3_is_8():
+    assert _ctx(['winmult_1', 'winmult_2', 'winmult_3'])['effective_win_mult'] == 8
+
+def test_winmult_level_7_is_128():
+    assert _ctx([f'winmult_{n}' for n in range(1, 8)])['effective_win_mult'] == 128
+
+def test_bonusmult_level_0_is_1():
+    assert _ctx([])['bonus_mult'] == 1
+
+def test_bonusmult_level_6_is_70():
+    assert _ctx([f'bonusmult_{n}' for n in range(1, 7)])['bonus_mult'] == 70
