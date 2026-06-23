@@ -36,17 +36,17 @@ function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
 function _apiFetch() {
-  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38(path) {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(path) {
     var opts,
       method,
       headers,
       res,
       json,
-      _args38 = arguments;
-    return _regenerator().w(function (_context38) {
-      while (1) switch (_context38.n) {
+      _args40 = arguments;
+    return _regenerator().w(function (_context40) {
+      while (1) switch (_context40.n) {
         case 0:
-          opts = _args38.length > 1 && _args38[1] !== undefined ? _args38[1] : {};
+          opts = _args40.length > 1 && _args40[1] !== undefined ? _args40[1] : {};
           method = (opts.method || 'GET').toUpperCase();
           headers = {
             'Content-Type': 'application/json'
@@ -54,25 +54,25 @@ function _apiFetch() {
           if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
             headers['X-CSRFToken'] = _csrfToken;
           }
-          _context38.n = 1;
+          _context40.n = 1;
           return fetch(path, _objectSpread({
             headers: headers
           }, opts));
         case 1:
-          res = _context38.v;
-          _context38.n = 2;
+          res = _context40.v;
+          _context40.n = 2;
           return res.json()["catch"](function () {
             return {};
           });
         case 2:
-          json = _context38.v;
-          return _context38.a(2, {
+          json = _context40.v;
+          return _context40.a(2, {
             ok: res.ok,
             status: res.status,
             data: json
           });
       }
-    }, _callee38);
+    }, _callee40);
   }));
   return _apiFetch.apply(this, arguments);
 }
@@ -7276,14 +7276,68 @@ function GameApp(_ref28) {
     }, _callee31);
   })), [showToast]);
 
+  // T108: cancel armed double-down
+  var handleCancelDoubleDown = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32() {
+    var _yield$apiGame22, ok, data;
+    return _regenerator().w(function (_context32) {
+      while (1) switch (_context32.n) {
+        case 0:
+          _context32.n = 1;
+          return apiGame('/api/wager/double-down/cancel', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 1:
+          _yield$apiGame22 = _context32.v;
+          ok = _yield$apiGame22.ok;
+          data = _yield$apiGame22.data;
+          if (ok) {
+            setDoubleDownPending(false);
+            showToast('Double-Down cancelled');
+          } else {
+            showToast(data.error || 'Cancel failed');
+          }
+        case 2:
+          return _context32.a(2);
+      }
+    }, _callee32);
+  })), [showToast]);
+
+  // T108: cancel armed insurance (charge is NOT refunded by design)
+  var handleCancelInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33() {
+    var _yield$apiGame23, ok, data;
+    return _regenerator().w(function (_context33) {
+      while (1) switch (_context33.n) {
+        case 0:
+          _context33.n = 1;
+          return apiGame('/api/wager/insurance/cancel', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 1:
+          _yield$apiGame23 = _context33.v;
+          ok = _yield$apiGame23.ok;
+          data = _yield$apiGame23.data;
+          if (ok) {
+            setWagerInsuranceArmed(false);
+            showToast('Insurance cancelled');
+          } else {
+            showToast(data.error || 'Cancel failed');
+          }
+        case 2:
+          return _context33.a(2);
+      }
+    }, _callee33);
+  })), [showToast]);
+
   // Season 8: handle loadout save
   var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
-    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32(slot, loadout) {
-      var _yield$apiGame22, ok;
-      return _regenerator().w(function (_context32) {
-        while (1) switch (_context32.n) {
+    var _ref53 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34(slot, loadout) {
+      var _yield$apiGame24, ok;
+      return _regenerator().w(function (_context34) {
+        while (1) switch (_context34.n) {
           case 0:
-            _context32.n = 1;
+            _context34.n = 1;
             return apiGame('/api/loadout', {
               method: 'POST',
               body: JSON.stringify({
@@ -7292,27 +7346,27 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame22 = _context32.v;
-            ok = _yield$apiGame22.ok;
+            _yield$apiGame24 = _context34.v;
+            ok = _yield$apiGame24.ok;
             if (ok) showToast("Loadout ".concat(slot, " saved"));else showToast('Save failed');
           case 2:
-            return _context32.a(2);
+            return _context34.a(2);
         }
-      }, _callee32);
+      }, _callee34);
     }));
     return function (_x14, _x15) {
-      return _ref51.apply(this, arguments);
+      return _ref53.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle loadout apply
   var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
-    var _ref52 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(slot) {
-      var _yield$apiGame23, ok, data;
-      return _regenerator().w(function (_context33) {
-        while (1) switch (_context33.n) {
+    var _ref54 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(slot) {
+      var _yield$apiGame25, ok, data;
+      return _regenerator().w(function (_context35) {
+        while (1) switch (_context35.n) {
           case 0:
-            _context33.n = 1;
+            _context35.n = 1;
             return apiGame('/api/loadout/apply', {
               method: 'POST',
               body: JSON.stringify({
@@ -7320,9 +7374,9 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame23 = _context33.v;
-            ok = _yield$apiGame23.ok;
-            data = _yield$apiGame23.data;
+            _yield$apiGame25 = _context35.v;
+            ok = _yield$apiGame25.ok;
+            data = _yield$apiGame25.data;
             if (ok) {
               setEquippedClass(data.equipped_class);
               setActiveWheelMode(data.active_wheel_mode);
@@ -7331,33 +7385,33 @@ function GameApp(_ref28) {
               showToast(data.error || 'Apply failed');
             }
           case 2:
-            return _context33.a(2);
+            return _context35.a(2);
         }
-      }, _callee33);
+      }, _callee35);
     }));
     return function (_x16) {
-      return _ref52.apply(this, arguments);
+      return _ref54.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: fetch legacy boards
-  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34() {
-    var _yield$apiGame24, ok, data;
-    return _regenerator().w(function (_context34) {
-      while (1) switch (_context34.n) {
+  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36() {
+    var _yield$apiGame26, ok, data;
+    return _regenerator().w(function (_context36) {
+      while (1) switch (_context36.n) {
         case 0:
           setShowLegacyBoards(true);
-          _context34.n = 1;
+          _context36.n = 1;
           return apiGame('/api/legacy-boards');
         case 1:
-          _yield$apiGame24 = _context34.v;
-          ok = _yield$apiGame24.ok;
-          data = _yield$apiGame24.data;
+          _yield$apiGame26 = _context36.v;
+          ok = _yield$apiGame26.ok;
+          data = _yield$apiGame26.data;
           if (ok) setLegacyBoards(data.boards || []);
         case 2:
-          return _context34.a(2);
+          return _context36.a(2);
       }
-    }, _callee34);
+    }, _callee36);
   })), []);
 
   // Season 8: keyboard shortcuts (T37)
@@ -7839,20 +7893,20 @@ function GameApp(_ref28) {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
-      var _yield$apiGame25, ok, data, w, l;
-      return _regenerator().w(function (_context35) {
-        while (1) switch (_context35.n) {
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
+      var _yield$apiGame27, ok, data, w, l;
+      return _regenerator().w(function (_context37) {
+        while (1) switch (_context37.n) {
           case 0:
-            _context35.n = 1;
+            _context37.n = 1;
             return apiGame('/api/wager/bank', {
               method: 'POST',
               body: '{}'
             });
           case 1:
-            _yield$apiGame25 = _context35.v;
-            ok = _yield$apiGame25.ok;
-            data = _yield$apiGame25.data;
+            _yield$apiGame27 = _context37.v;
+            ok = _yield$apiGame27.ok;
+            data = _yield$apiGame27.data;
             if (ok) {
               setWins(data.wins);
               if (data.losses != null) setLosses(data.losses);
@@ -7864,18 +7918,20 @@ function GameApp(_ref28) {
               if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
             } else showToast(data.error || 'Bank failed');
           case 2:
-            return _context35.a(2);
+            return _context37.a(2);
         }
-      }, _callee35);
+      }, _callee37);
     }))
-  }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("div", {
-    className: "wager-double-down-armed"
-  }, "\u26A1 Double-Down armed! \u26A0\uFE0F No protections."), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("button", {
+    className: "wager-double-down-armed wager-cancel-btn",
+    onClick: handleCancelDoubleDown
+  }, "\u26A1 Double-Down armed! (click to cancel) \u26A0\uFE0F"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
     onClick: handleDoubleDown
-  }, "\u26A1 Arm Double-Down (all-or-nothing)"), ownedItems.includes('wager_insurance') && wagerInsuranceArmed && /*#__PURE__*/React.createElement("div", {
-    className: "wager-insurance-armed"
-  }, "\uD83D\uDEE1\uFE0F Insurance ARMED \u2014 next loss protected"), ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
+  }, "\u26A1 Arm Double-Down (all-or-nothing)"), ownedItems.includes('wager_insurance') && wagerInsuranceArmed && /*#__PURE__*/React.createElement("button", {
+    className: "wager-insurance-armed wager-cancel-btn",
+    onClick: handleCancelInsurance
+  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
     onClick: handleInsurance
   }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")")), /*#__PURE__*/React.createElement("div", {
@@ -8192,61 +8248,61 @@ function App() {
     sessionMsg = _useState260[0],
     setSessionMsg = _useState260[1];
   useEffect(function () {
-    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36() {
+    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
       var _yield$apiFetch2, ok, data, gs;
-      return _regenerator().w(function (_context36) {
-        while (1) switch (_context36.n) {
+      return _regenerator().w(function (_context38) {
+        while (1) switch (_context38.n) {
           case 0:
-            _context36.n = 1;
+            _context38.n = 1;
             return apiFetch('/api/me');
           case 1:
-            _yield$apiFetch2 = _context36.v;
+            _yield$apiFetch2 = _context38.v;
             ok = _yield$apiFetch2.ok;
             data = _yield$apiFetch2.data;
             storeCsrf(data);
             if (!(ok && data.username)) {
-              _context36.n = 3;
+              _context38.n = 3;
               break;
             }
-            _context36.n = 2;
+            _context38.n = 2;
             return apiFetch('/api/state');
           case 2:
-            gs = _context36.v;
+            gs = _context38.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(data.username);
             } else {
               setUser(null);
             }
-            _context36.n = 4;
+            _context38.n = 4;
             break;
           case 3:
             setUser(null);
           case 4:
-            return _context36.a(2);
+            return _context38.a(2);
         }
-      }, _callee36);
+      }, _callee38);
     }))();
   }, []);
   var handleAuth = /*#__PURE__*/function () {
-    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37(username) {
+    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39(username) {
       var gs;
-      return _regenerator().w(function (_context37) {
-        while (1) switch (_context37.n) {
+      return _regenerator().w(function (_context39) {
+        while (1) switch (_context39.n) {
           case 0:
-            _context37.n = 1;
+            _context39.n = 1;
             return apiFetch('/api/state');
           case 1:
-            gs = _context37.v;
+            gs = _context39.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(username);
               setSessionMsg('');
             }
           case 2:
-            return _context37.a(2);
+            return _context39.a(2);
         }
-      }, _callee37);
+      }, _callee39);
     }));
     function handleAuth(_x17) {
       return _handleAuth.apply(this, arguments);

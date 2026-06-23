@@ -4176,6 +4176,28 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
+  // T108: cancel armed double-down
+  const handleCancelDoubleDown = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/wager/double-down/cancel', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setDoubleDownPending(false);
+      showToast('Double-Down cancelled');
+    } else {
+      showToast(data.error || 'Cancel failed');
+    }
+  }, [showToast]);
+
+  // T108: cancel armed insurance (charge is NOT refunded by design)
+  const handleCancelInsurance = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/wager/insurance/cancel', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setWagerInsuranceArmed(false);
+      showToast('Insurance cancelled');
+    } else {
+      showToast(data.error || 'Cancel failed');
+    }
+  }, [showToast]);
+
   // Season 8: handle loadout save
   const handleLoadoutSave = useCallback(async (slot, loadout) => {
     const { ok } = await apiGame('/api/loadout', { method: 'POST', body: JSON.stringify({ slot, loadout }) });
@@ -4621,13 +4643,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               }}>🏦 Bank {fmt(wagerBankedWins)}</button>
             )}
             {ownedItems.includes('wager_double_down') && doubleDownPending && (
-              <div className="wager-double-down-armed">⚡ Double-Down armed! ⚠️ No protections.</div>
+              <button className="wager-double-down-armed wager-cancel-btn" onClick={handleCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
             )}
             {ownedItems.includes('wager_double_down') && !doubleDownPending && (
               <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double-Down (all-or-nothing)</button>
             )}
             {ownedItems.includes('wager_insurance') && wagerInsuranceArmed && (
-              <div className="wager-insurance-armed">🛡️ Insurance ARMED — next loss protected</div>
+              <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
             )}
             {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && (
               <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
