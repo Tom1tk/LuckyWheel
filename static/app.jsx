@@ -1766,11 +1766,28 @@ function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo({ seasonName }) {
+function SeasonInfo({ seasonName, endsAt }) {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!endsAt) return;
+    const update = () => {
+      const diff = new Date(endsAt) - new Date();
+      if (diff <= 0) { setTimeLeft('Ending...'); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setTimeLeft(d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [endsAt]);
+
   return (
     <div className="season-info">
       <span>Season {seasonName} ends:</span>
-      <span className="season-countdown">∞</span>
+      {timeLeft && <span className="season-countdown">{timeLeft}</span>}
     </div>
   );
 }

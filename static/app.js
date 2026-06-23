@@ -2853,12 +2853,36 @@ function SeasonWinners(_ref18) {
 
 // ── Season Info ───────────────────────────────────────────────────────────
 function SeasonInfo(_ref19) {
-  var seasonName = _ref19.seasonName;
+  var seasonName = _ref19.seasonName,
+    endsAt = _ref19.endsAt;
+  var _useState23 = useState(''),
+    _useState24 = _slicedToArray(_useState23, 2),
+    timeLeft = _useState24[0],
+    setTimeLeft = _useState24[1];
+  useEffect(function () {
+    if (!endsAt) return;
+    var update = function update() {
+      var diff = new Date(endsAt) - new Date();
+      if (diff <= 0) {
+        setTimeLeft('Ending...');
+        return;
+      }
+      var d = Math.floor(diff / 86400000);
+      var h = Math.floor(diff % 86400000 / 3600000);
+      var m = Math.floor(diff % 3600000 / 60000);
+      setTimeLeft(d > 0 ? "".concat(d, "d ").concat(h, "h ").concat(m, "m") : h > 0 ? "".concat(h, "h ").concat(m, "m") : "".concat(m, "m"));
+    };
+    update();
+    var id = setInterval(update, 60000);
+    return function () {
+      return clearInterval(id);
+    };
+  }, [endsAt]);
   return /*#__PURE__*/React.createElement("div", {
     className: "season-info"
-  }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonName, " ends:"), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonName, " ends:"), timeLeft && /*#__PURE__*/React.createElement("span", {
     className: "season-countdown"
-  }, "\u221E"));
+  }, timeLeft));
 }
 
 // ── Apology Popup ──────────────────────────────────────────────────────────
@@ -2905,10 +2929,10 @@ function ApologyPopup() {
 
 // ── Hiatus Screen ────────────────────────────────────────────────────────
 function HiatusCountdown() {
-  var _useState23 = useState(''),
-    _useState24 = _slicedToArray(_useState23, 2),
-    timeLeft = _useState24[0],
-    setTimeLeft = _useState24[1];
+  var _useState25 = useState(''),
+    _useState26 = _slicedToArray(_useState25, 2),
+    timeLeft = _useState26[0],
+    setTimeLeft = _useState26[1];
   useEffect(function () {
     var update = function update() {
       var diff = HIATUS_END - Date.now();
@@ -2933,22 +2957,22 @@ function HiatusCountdown() {
   }, timeLeft);
 }
 function HiatusDice() {
-  var _useState25 = useState(false),
-    _useState26 = _slicedToArray(_useState25, 2),
-    rolling = _useState26[0],
-    setRolling = _useState26[1];
-  var _useState27 = useState([1, 1, 1]),
+  var _useState27 = useState(false),
     _useState28 = _slicedToArray(_useState27, 2),
-    vals = _useState28[0],
-    setVals = _useState28[1];
+    rolling = _useState28[0],
+    setRolling = _useState28[1];
   var _useState29 = useState([1, 1, 1]),
     _useState30 = _slicedToArray(_useState29, 2),
-    anim = _useState30[0],
-    setAnim = _useState30[1];
-  var _useState31 = useState(false),
+    vals = _useState30[0],
+    setVals = _useState30[1];
+  var _useState31 = useState([1, 1, 1]),
     _useState32 = _slicedToArray(_useState31, 2),
-    landed = _useState32[0],
-    setLanded = _useState32[1];
+    anim = _useState32[0],
+    setAnim = _useState32[1];
+  var _useState33 = useState(false),
+    _useState34 = _slicedToArray(_useState33, 2),
+    landed = _useState34[0],
+    setLanded = _useState34[1];
   var itvRef = useRef(null);
   var roll = function roll() {
     if (rolling) return;
@@ -2995,26 +3019,26 @@ function HiatusDice() {
 }
 function HiatusWheel() {
   var canvasRef = useRef(null);
-  var _useState33 = useState(0),
-    _useState34 = _slicedToArray(_useState33, 2),
-    rotation = _useState34[0],
-    setRotation = _useState34[1];
-  var _useState35 = useState(false),
+  var _useState35 = useState(0),
     _useState36 = _slicedToArray(_useState35, 2),
-    spinning = _useState36[0],
-    setSpinning = _useState36[1];
-  var _useState37 = useState(0),
+    rotation = _useState36[0],
+    setRotation = _useState36[1];
+  var _useState37 = useState(false),
     _useState38 = _slicedToArray(_useState37, 2),
-    wins = _useState38[0],
-    setWins = _useState38[1];
+    spinning = _useState38[0],
+    setSpinning = _useState38[1];
   var _useState39 = useState(0),
     _useState40 = _slicedToArray(_useState39, 2),
-    losses = _useState40[0],
-    setLosses = _useState40[1];
-  var _useState41 = useState(false),
+    wins = _useState40[0],
+    setWins = _useState40[1];
+  var _useState41 = useState(0),
     _useState42 = _slicedToArray(_useState41, 2),
-    autoSpin = _useState42[0],
-    setAutoSpin = _useState42[1];
+    losses = _useState42[0],
+    setLosses = _useState42[1];
+  var _useState43 = useState(false),
+    _useState44 = _slicedToArray(_useState43, 2),
+    autoSpin = _useState44[0],
+    setAutoSpin = _useState44[1];
   var spinningRef = useRef(false);
   var rotationRef = useRef(0);
   var autoSpinRef = useRef(false);
@@ -3204,14 +3228,14 @@ function Leaderboard(_ref22) {
     extraClass = _ref22.extraClass,
     seasonWinners = _ref22.seasonWinners,
     seasonNumber = _ref22.seasonNumber;
-  var _useState43 = useState([]),
-    _useState44 = _slicedToArray(_useState43, 2),
-    rows = _useState44[0],
-    setRows = _useState44[1];
-  var _useState45 = useState('players'),
+  var _useState45 = useState([]),
     _useState46 = _slicedToArray(_useState45, 2),
-    tab = _useState46[0],
-    setTab = _useState46[1];
+    rows = _useState46[0],
+    setRows = _useState46[1];
+  var _useState47 = useState('players'),
+    _useState48 = _slicedToArray(_useState47, 2),
+    tab = _useState48[0],
+    setTab = _useState48[1];
   useEffect(function () {
     var ctrl = new AbortController();
     var load = function load() {
@@ -3328,32 +3352,32 @@ function ChatPanel(_ref23) {
   var _ref23$extraClass = _ref23.extraClass,
     extraClass = _ref23$extraClass === void 0 ? '' : _ref23$extraClass,
     onClose = _ref23.onClose;
-  var _useState47 = useState([]),
-    _useState48 = _slicedToArray(_useState47, 2),
-    messages = _useState48[0],
-    setMessages = _useState48[1];
-  var _useState49 = useState(''),
+  var _useState49 = useState([]),
     _useState50 = _slicedToArray(_useState49, 2),
-    input = _useState50[0],
-    setInput = _useState50[1];
+    messages = _useState50[0],
+    setMessages = _useState50[1];
   var _useState51 = useState(''),
     _useState52 = _slicedToArray(_useState51, 2),
-    error = _useState52[0],
-    setError = _useState52[1];
-  var _useState53 = useState(0),
+    input = _useState52[0],
+    setInput = _useState52[1];
+  var _useState53 = useState(''),
     _useState54 = _slicedToArray(_useState53, 2),
-    timeoutSecs = _useState54[0],
-    setTimeoutSecs = _useState54[1];
-  var _useState55 = useState(function () {
+    error = _useState54[0],
+    setError = _useState54[1];
+  var _useState55 = useState(0),
+    _useState56 = _slicedToArray(_useState55, 2),
+    timeoutSecs = _useState56[0],
+    setTimeoutSecs = _useState56[1];
+  var _useState57 = useState(function () {
       try {
         var s = JSON.parse(localStorage.getItem('chat_panel_size'));
         if (s && s.w >= CHAT_MIN_W && s.h >= CHAT_MIN_H) return s;
       } catch (_unused2) {}
       return CHAT_DEFAULT_SIZE;
     }),
-    _useState56 = _slicedToArray(_useState55, 2),
-    size = _useState56[0],
-    setSize = _useState56[1];
+    _useState58 = _slicedToArray(_useState57, 2),
+    size = _useState58[0],
+    setSize = _useState58[1];
   var panelRef = useRef(null);
   var messagesEndRef = useRef(null);
   var scrollRef = useRef(null);
@@ -4500,10 +4524,10 @@ function ShopPanel(_ref26) {
     winCount = _ref26.winCount,
     caughtSpecies = _ref26.caughtSpecies,
     procStreak = _ref26.procStreak;
-  var _useState57 = useState('functional'),
-    _useState58 = _slicedToArray(_useState57, 2),
-    activeTab = _useState58[0],
-    setActiveTab = _useState58[1];
+  var _useState59 = useState('functional'),
+    _useState60 = _slicedToArray(_useState59, 2),
+    activeTab = _useState60[0],
+    setActiveTab = _useState60[1];
   var _useMemo = useMemo(function () {
       var cosmetic = [],
         functional = [];
@@ -4736,10 +4760,10 @@ var PLACE_LABEL = function PLACE_LABEL(pos) {
 function StatsPanel(_ref27) {
   var open = _ref27.open,
     onClose = _ref27.onClose;
-  var _useState59 = useState(null),
-    _useState60 = _slicedToArray(_useState59, 2),
-    stats = _useState60[0],
-    setStats = _useState60[1];
+  var _useState61 = useState(null),
+    _useState62 = _slicedToArray(_useState61, 2),
+    stats = _useState62[0],
+    setStats = _useState62[1];
   useEffect(function () {
     if (!open) return;
     apiFetch('/api/stats').then(function (r) {
@@ -4797,10 +4821,10 @@ function StatsPanel(_ref27) {
 function PatchNotesPanel(_ref28) {
   var open = _ref28.open,
     onClose = _ref28.onClose;
-  var _useState61 = useState(null),
-    _useState62 = _slicedToArray(_useState61, 2),
-    md = _useState62[0],
-    setMd = _useState62[1];
+  var _useState63 = useState(null),
+    _useState64 = _slicedToArray(_useState63, 2),
+    md = _useState64[0],
+    setMd = _useState64[1];
   useEffect(function () {
     if (!open || md !== null) return;
     apiFetch('/api/patch-notes').then(function (r) {
@@ -4837,26 +4861,26 @@ function PatchNotesPanel(_ref28) {
 // ── Auth Page ──────────────────────────────────────────────────────────────
 function AuthPage(_ref29) {
   var onAuth = _ref29.onAuth;
-  var _useState63 = useState('login'),
-    _useState64 = _slicedToArray(_useState63, 2),
-    mode = _useState64[0],
-    setMode = _useState64[1];
-  var _useState65 = useState(''),
+  var _useState65 = useState('login'),
     _useState66 = _slicedToArray(_useState65, 2),
-    username = _useState66[0],
-    setUsername = _useState66[1];
+    mode = _useState66[0],
+    setMode = _useState66[1];
   var _useState67 = useState(''),
     _useState68 = _slicedToArray(_useState67, 2),
-    password = _useState68[0],
-    setPassword = _useState68[1];
+    username = _useState68[0],
+    setUsername = _useState68[1];
   var _useState69 = useState(''),
     _useState70 = _slicedToArray(_useState69, 2),
-    error = _useState70[0],
-    setError = _useState70[1];
-  var _useState71 = useState(false),
+    password = _useState70[0],
+    setPassword = _useState70[1];
+  var _useState71 = useState(''),
     _useState72 = _slicedToArray(_useState71, 2),
-    loading = _useState72[0],
-    setLoading = _useState72[1];
+    error = _useState72[0],
+    setError = _useState72[1];
+  var _useState73 = useState(false),
+    _useState74 = _slicedToArray(_useState73, 2),
+    loading = _useState74[0],
+    setLoading = _useState74[1];
   var submit = /*#__PURE__*/function () {
     var _ref30 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee7(e) {
       var _yield$apiFetch, ok, data;
@@ -4953,10 +4977,10 @@ function AuthPage(_ref29) {
 
 // ── Community Pot ──────────────────────────────────────────────────────────
 function usePotCountdown(filledAt, active) {
-  var _useState73 = useState(null),
-    _useState74 = _slicedToArray(_useState73, 2),
-    remaining = _useState74[0],
-    setRemaining = _useState74[1];
+  var _useState75 = useState(null),
+    _useState76 = _slicedToArray(_useState75, 2),
+    remaining = _useState76[0],
+    setRemaining = _useState76[1];
   useEffect(function () {
     if (!active || !filledAt) {
       setRemaining(null);
@@ -4985,14 +5009,14 @@ function CommunityPot(_ref31) {
   var pot = _ref31.pot,
     fishClicks = _ref31.fishClicks,
     onContribute = _ref31.onContribute;
-  var _useState75 = useState(pot),
-    _useState76 = _slicedToArray(_useState75, 2),
-    localPot = _useState76[0],
-    setLocalPot = _useState76[1];
-  var _useState77 = useState(!!pot.active),
+  var _useState77 = useState(pot),
     _useState78 = _slicedToArray(_useState77, 2),
-    justFilled = _useState78[0],
-    setJustFilled = _useState78[1];
+    localPot = _useState78[0],
+    setLocalPot = _useState78[1];
+  var _useState79 = useState(!!pot.active),
+    _useState80 = _slicedToArray(_useState79, 2),
+    justFilled = _useState80[0],
+    setJustFilled = _useState80[1];
 
   // Sync when parent pot state changes (e.g. on load)
   useEffect(function () {
@@ -5122,128 +5146,128 @@ function GameApp(_ref33) {
     onLogout = _ref33.onLogout,
     onSessionExpired = _ref33.onSessionExpired;
   var canvasRef = useRef(null);
-  var _useState79 = useState(null),
-    _useState80 = _slicedToArray(_useState79, 2),
-    result = _useState80[0],
-    setResult = _useState80[1];
-  var _useState81 = useState(false),
+  var _useState81 = useState(null),
     _useState82 = _slicedToArray(_useState81, 2),
-    showResult = _useState82[0],
-    setShowResult = _useState82[1];
+    result = _useState82[0],
+    setResult = _useState82[1];
+  var _useState83 = useState(false),
+    _useState84 = _slicedToArray(_useState83, 2),
+    showResult = _useState84[0],
+    setShowResult = _useState84[1];
   var setShowResultSync = function setShowResultSync(v) {
     showResultRef.current = v;
     setShowResult(v);
   };
-  var _useState83 = useState(null),
-    _useState84 = _slicedToArray(_useState83, 2),
-    shieldFeedback = _useState84[0],
-    setShieldFeedback = _useState84[1];
   var _useState85 = useState(null),
     _useState86 = _slicedToArray(_useState85, 2),
-    guardState = _useState86[0],
-    setGuardState = _useState86[1]; // { blocked, broke } | null
-  var guardCompleteRef = useRef(null);
-  var _useState87 = useState(false),
+    shieldFeedback = _useState86[0],
+    setShieldFeedback = _useState86[1];
+  var _useState87 = useState(null),
     _useState88 = _slicedToArray(_useState87, 2),
-    hideResult = _useState88[0],
-    setHideResult = _useState88[1];
+    guardState = _useState88[0],
+    setGuardState = _useState88[1]; // { blocked, broke } | null
+  var guardCompleteRef = useRef(null);
   var _useState89 = useState(false),
     _useState90 = _slicedToArray(_useState89, 2),
-    confetti = _useState90[0],
-    setConfetti = _useState90[1];
-  var _useState91 = useState(gameState.wins),
+    hideResult = _useState90[0],
+    setHideResult = _useState90[1];
+  var _useState91 = useState(false),
     _useState92 = _slicedToArray(_useState91, 2),
-    wins = _useState92[0],
-    setWins = _useState92[1];
-  var _useState93 = useState(gameState.losses),
+    confetti = _useState92[0],
+    setConfetti = _useState92[1];
+  var _useState93 = useState(gameState.wins),
     _useState94 = _slicedToArray(_useState93, 2),
-    losses = _useState94[0],
-    setLosses = _useState94[1];
-  var _useState95 = useState(gameState.streak),
+    wins = _useState94[0],
+    setWins = _useState94[1];
+  var _useState95 = useState(gameState.losses),
     _useState96 = _slicedToArray(_useState95, 2),
-    streak = _useState96[0],
-    setStreak = _useState96[1];
-  var _useState97 = useState('idle'),
+    losses = _useState96[0],
+    setLosses = _useState96[1];
+  var _useState97 = useState(gameState.streak),
     _useState98 = _slicedToArray(_useState97, 2),
-    fishMood = _useState98[0],
-    setFishMood = _useState98[1];
-  var _useState99 = useState(gameState.fish_clicks),
+    streak = _useState98[0],
+    setStreak = _useState98[1];
+  var _useState99 = useState('idle'),
     _useState100 = _slicedToArray(_useState99, 2),
-    fishClicks = _useState100[0],
-    setFishClicks = _useState100[1];
-  var _useState101 = useState(gameState.caught_species || []),
+    fishMood = _useState100[0],
+    setFishMood = _useState100[1];
+  var _useState101 = useState(gameState.fish_clicks),
     _useState102 = _slicedToArray(_useState101, 2),
-    caughtSpecies = _useState102[0],
-    setCaughtSpecies = _useState102[1];
-  var _useState103 = useState(gameState.fishing_lucky_next || false),
+    fishClicks = _useState102[0],
+    setFishClicks = _useState102[1];
+  var _useState103 = useState(gameState.caught_species || []),
     _useState104 = _slicedToArray(_useState103, 2),
-    fishingLuckyNext = _useState104[0],
-    setFishingLuckyNext = _useState104[1];
-  var _useState105 = useState(false),
+    caughtSpecies = _useState104[0],
+    setCaughtSpecies = _useState104[1];
+  var _useState105 = useState(gameState.fishing_lucky_next || false),
     _useState106 = _slicedToArray(_useState105, 2),
-    showEncyclopedia = _useState106[0],
-    setShowEncyclopedia = _useState106[1];
-  var _useState107 = useState(0),
+    fishingLuckyNext = _useState106[0],
+    setFishingLuckyNext = _useState106[1];
+  var _useState107 = useState(false),
     _useState108 = _slicedToArray(_useState107, 2),
-    bonusEarned = _useState108[0],
-    setBonusEarned = _useState108[1];
-  var _useState109 = useState(false),
+    showEncyclopedia = _useState108[0],
+    setShowEncyclopedia = _useState108[1];
+  var _useState109 = useState(0),
     _useState110 = _slicedToArray(_useState109, 2),
-    echoTriggered = _useState110[0],
-    setEchoTriggered = _useState110[1];
+    bonusEarned = _useState110[0],
+    setBonusEarned = _useState110[1];
   var _useState111 = useState(false),
     _useState112 = _slicedToArray(_useState111, 2),
-    jackpotHit = _useState112[0],
-    setJackpotHit = _useState112[1];
+    echoTriggered = _useState112[0],
+    setEchoTriggered = _useState112[1];
   var _useState113 = useState(false),
     _useState114 = _slicedToArray(_useState113, 2),
-    resilienceTriggered = _useState114[0],
-    setResilienceTriggered = _useState114[1];
+    jackpotHit = _useState114[0],
+    setJackpotHit = _useState114[1];
   var _useState115 = useState(false),
     _useState116 = _slicedToArray(_useState115, 2),
-    luckySevenTriggered = _useState116[0],
-    setLuckySevenTriggered = _useState116[1];
+    resilienceTriggered = _useState116[0],
+    setResilienceTriggered = _useState116[1];
   var _useState117 = useState(false),
     _useState118 = _slicedToArray(_useState117, 2),
-    fortuneCharmTriggered = _useState118[0],
-    setFortuneCharmTriggered = _useState118[1];
-  var _useState119 = useState(gameState.regen_recharge_wins || 0),
+    luckySevenTriggered = _useState118[0],
+    setLuckySevenTriggered = _useState118[1];
+  var _useState119 = useState(false),
     _useState120 = _slicedToArray(_useState119, 2),
-    regenRechargeWins = _useState120[0],
-    setRegenRechargeWins = _useState120[1];
-  var _useState121 = useState(null),
+    fortuneCharmTriggered = _useState120[0],
+    setFortuneCharmTriggered = _useState120[1];
+  var _useState121 = useState(gameState.regen_recharge_wins || 0),
     _useState122 = _slicedToArray(_useState121, 2),
-    catchUpSummary = _useState122[0],
-    setCatchUpSummary = _useState122[1];
+    regenRechargeWins = _useState122[0],
+    setRegenRechargeWins = _useState122[1];
   var _useState123 = useState(null),
     _useState124 = _slicedToArray(_useState123, 2),
-    fishCatchUpSummary = _useState124[0],
-    setFishCatchUpSummary = _useState124[1];
-  var _useState125 = useState(gameState.happy_hour || false),
+    catchUpSummary = _useState124[0],
+    setCatchUpSummary = _useState124[1];
+  var _useState125 = useState(null),
     _useState126 = _slicedToArray(_useState125, 2),
-    happyHour = _useState126[0],
-    setHappyHour = _useState126[1];
-  var _useState127 = useState(false),
+    fishCatchUpSummary = _useState126[0],
+    setFishCatchUpSummary = _useState126[1];
+  var _useState127 = useState(gameState.happy_hour || false),
     _useState128 = _slicedToArray(_useState127, 2),
-    happyHourDismissed = _useState128[0],
-    setHappyHourDismissed = _useState128[1];
+    happyHour = _useState128[0],
+    setHappyHour = _useState128[1];
   var _useState129 = useState(false),
     _useState130 = _slicedToArray(_useState129, 2),
-    catchupBonus = _useState130[0],
-    setCatchupBonus = _useState130[1];
-  var _useState131 = useState(gameState.owned_items),
+    happyHourDismissed = _useState130[0],
+    setHappyHourDismissed = _useState130[1];
+  var _useState131 = useState(false),
     _useState132 = _slicedToArray(_useState131, 2),
-    ownedItems = _useState132[0],
-    setOwnedItems = _useState132[1];
-  var _useState133 = useState(gameState.equipped_fish),
+    catchupBonus = _useState132[0],
+    setCatchupBonus = _useState132[1];
+  var _useState133 = useState(gameState.owned_items),
     _useState134 = _slicedToArray(_useState133, 2),
-    equippedFish = _useState134[0],
-    setEquippedFish = _useState134[1];
-  var _useState135 = useState(gameState.active_cosmetics || []),
+    ownedItems = _useState134[0],
+    setOwnedItems = _useState134[1];
+  var _useState135 = useState(gameState.equipped_fish),
     _useState136 = _slicedToArray(_useState135, 2),
-    activeCosmetics = _useState136[0],
-    setActiveCosmetics = _useState136[1];
-  var _useState137 = useState({
+    equippedFish = _useState136[0],
+    setEquippedFish = _useState136[1];
+  var _useState137 = useState(gameState.active_cosmetics || []),
+    _useState138 = _slicedToArray(_useState137, 2),
+    activeCosmetics = _useState138[0],
+    setActiveCosmetics = _useState138[1];
+  var _useState139 = useState({
       winmult_inf: gameState.winmult_inf_level || 0,
       bonusmult_inf: gameState.bonusmult_inf_level || 0,
       streak_armor_inf: gameState.streak_armor_level || 0,
@@ -5252,113 +5276,113 @@ function GameApp(_ref33) {
       echo_amp_inf: gameState.echo_amp_level || 0,
       proc_streak_inf: gameState.proc_streak_level || 0
     }),
-    _useState138 = _slicedToArray(_useState137, 2),
-    infLevels = _useState138[0],
-    setInfLevels = _useState138[1];
-  var _useState139 = useState(gameState.equipped_class || null),
     _useState140 = _slicedToArray(_useState139, 2),
-    equippedClass = _useState140[0],
-    setEquippedClass = _useState140[1];
-  var _useState141 = useState(gameState.proc_streak || 0),
+    infLevels = _useState140[0],
+    setInfLevels = _useState140[1];
+  var _useState141 = useState(gameState.equipped_class || null),
     _useState142 = _slicedToArray(_useState141, 2),
-    procStreak = _useState142[0],
-    setProcStreak = _useState142[1];
-  var _useState143 = useState(gameState.fish_exchange_total || 0),
+    equippedClass = _useState142[0],
+    setEquippedClass = _useState142[1];
+  var _useState143 = useState(gameState.proc_streak || 0),
     _useState144 = _slicedToArray(_useState143, 2),
-    fishExchangeTotal = _useState144[0],
-    setFishExchangeTotal = _useState144[1];
-  var _useState145 = useState(false),
+    procStreak = _useState144[0],
+    setProcStreak = _useState144[1];
+  var _useState145 = useState(gameState.fish_exchange_total || 0),
     _useState146 = _slicedToArray(_useState145, 2),
-    showStats = _useState146[0],
-    setShowStats = _useState146[1];
+    fishExchangeTotal = _useState146[0],
+    setFishExchangeTotal = _useState146[1];
   var _useState147 = useState(false),
     _useState148 = _slicedToArray(_useState147, 2),
-    showPatchNotes = _useState148[0],
-    setShowPatchNotes = _useState148[1];
-  var _useState149 = useState(null),
+    showStats = _useState148[0],
+    setShowStats = _useState148[1];
+  var _useState149 = useState(false),
     _useState150 = _slicedToArray(_useState149, 2),
-    toast = _useState150[0],
-    setToast = _useState150[1];
-  var _useState151 = useState(gameState.season || null),
+    showPatchNotes = _useState150[0],
+    setShowPatchNotes = _useState150[1];
+  var _useState151 = useState(null),
     _useState152 = _slicedToArray(_useState151, 2),
-    season = _useState152[0],
-    setSeason = _useState152[1];
-  var _useState153 = useState(gameState.community_pot || {
+    toast = _useState152[0],
+    setToast = _useState152[1];
+  var _useState153 = useState(gameState.season || null),
+    _useState154 = _slicedToArray(_useState153, 2),
+    season = _useState154[0],
+    setSeason = _useState154[1];
+  var _useState155 = useState(gameState.community_pot || {
       total_contributed: 0,
       target: 1000,
       filled: false,
       active: false,
       win_chance_pct: 50.0
     }),
-    _useState154 = _slicedToArray(_useState153, 2),
-    communityPot = _useState154[0],
-    setCommunityPot = _useState154[1];
-  var _useState155 = useState(gameState.spin_count || 0),
     _useState156 = _slicedToArray(_useState155, 2),
-    spinCount = _useState156[0],
-    setSpinCount = _useState156[1];
-  var _useState157 = useState(gameState.win_count || 0),
+    communityPot = _useState156[0],
+    setCommunityPot = _useState156[1];
+  var _useState157 = useState(gameState.spin_count || 0),
     _useState158 = _slicedToArray(_useState157, 2),
-    winCount = _useState158[0],
-    setWinCount = _useState158[1];
-  var _useState159 = useState(function () {
+    spinCount = _useState158[0],
+    setSpinCount = _useState158[1];
+  var _useState159 = useState(gameState.win_count || 0),
+    _useState160 = _slicedToArray(_useState159, 2),
+    winCount = _useState160[0],
+    setWinCount = _useState160[1];
+  var _useState161 = useState(function () {
       var _gameState$low_spec_m;
       return (_gameState$low_spec_m = gameState.low_spec_mode) !== null && _gameState$low_spec_m !== void 0 ? _gameState$low_spec_m : localStorage.getItem('lowSpecMode') === 'true';
     }),
-    _useState160 = _slicedToArray(_useState159, 2),
-    lowSpec = _useState160[0],
-    setLowSpec = _useState160[1];
-  var _useState161 = useState(function () {
+    _useState162 = _slicedToArray(_useState161, 2),
+    lowSpec = _useState162[0],
+    setLowSpec = _useState162[1];
+  var _useState163 = useState(function () {
       return localStorage.getItem('parallaxEnabled') !== 'false';
     }),
-    _useState162 = _slicedToArray(_useState161, 2),
-    parallaxEnabled = _useState162[0],
-    setParallaxEnabled = _useState162[1];
-  var _useState163 = useState(false),
     _useState164 = _slicedToArray(_useState163, 2),
-    shopCollapsed = _useState164[0],
-    setShopCollapsed = _useState164[1];
+    parallaxEnabled = _useState164[0],
+    setParallaxEnabled = _useState164[1];
   var _useState165 = useState(false),
     _useState166 = _slicedToArray(_useState165, 2),
-    diceRolling = _useState166[0],
-    setDiceRolling = _useState166[1];
-  var _useState167 = useState(null),
+    shopCollapsed = _useState166[0],
+    setShopCollapsed = _useState166[1];
+  var _useState167 = useState(false),
     _useState168 = _slicedToArray(_useState167, 2),
-    diceResult = _useState168[0],
-    setDiceResult = _useState168[1];
-  var _useState169 = useState((_gameState$dice_charg = gameState.dice_charges) !== null && _gameState$dice_charg !== void 0 ? _gameState$dice_charg : 1),
+    diceRolling = _useState168[0],
+    setDiceRolling = _useState168[1];
+  var _useState169 = useState(null),
     _useState170 = _slicedToArray(_useState169, 2),
-    diceCharges = _useState170[0],
-    setDiceCharges = _useState170[1];
-  var _useState171 = useState(gameState.dice_last_recharge || new Date().toISOString()),
+    diceResult = _useState170[0],
+    setDiceResult = _useState170[1];
+  var _useState171 = useState((_gameState$dice_charg = gameState.dice_charges) !== null && _gameState$dice_charg !== void 0 ? _gameState$dice_charg : 1),
     _useState172 = _slicedToArray(_useState171, 2),
-    diceLastRecharge = _useState172[0],
-    setDiceLastRecharge = _useState172[1];
-  var _useState173 = useState((_gameState$dice_rolle = gameState.dice_rolled_since_spin) !== null && _gameState$dice_rolle !== void 0 ? _gameState$dice_rolle : false),
+    diceCharges = _useState172[0],
+    setDiceCharges = _useState172[1];
+  var _useState173 = useState(gameState.dice_last_recharge || new Date().toISOString()),
     _useState174 = _slicedToArray(_useState173, 2),
-    diceRolledSinceSpin = _useState174[0],
-    setDiceRolledSinceSpin = _useState174[1];
-  var _useState175 = useState(function () {
+    diceLastRecharge = _useState174[0],
+    setDiceLastRecharge = _useState174[1];
+  var _useState175 = useState((_gameState$dice_rolle = gameState.dice_rolled_since_spin) !== null && _gameState$dice_rolle !== void 0 ? _gameState$dice_rolle : false),
+    _useState176 = _slicedToArray(_useState175, 2),
+    diceRolledSinceSpin = _useState176[0],
+    setDiceRolledSinceSpin = _useState176[1];
+  var _useState177 = useState(function () {
       return window.innerWidth <= 768;
     }),
-    _useState176 = _slicedToArray(_useState175, 2),
-    isMobile = _useState176[0],
-    setIsMobile = _useState176[1];
-  var _useState177 = useState(null),
     _useState178 = _slicedToArray(_useState177, 2),
-    mobilePanel = _useState178[0],
-    setMobilePanel = _useState178[1];
-  var _useState179 = useState(function () {
+    isMobile = _useState178[0],
+    setIsMobile = _useState178[1];
+  var _useState179 = useState(null),
+    _useState180 = _slicedToArray(_useState179, 2),
+    mobilePanel = _useState180[0],
+    setMobilePanel = _useState180[1];
+  var _useState181 = useState(function () {
       return localStorage.getItem('chat_open') !== 'false';
     }),
-    _useState180 = _slicedToArray(_useState179, 2),
-    showChat = _useState180[0],
-    setShowChat = _useState180[1];
-  var fireMode = 2; // Mix mode
-  var _useState181 = useState(0),
     _useState182 = _slicedToArray(_useState181, 2),
-    wheelRotation = _useState182[0],
-    setWheelRotation = _useState182[1];
+    showChat = _useState182[0],
+    setShowChat = _useState182[1];
+  var fireMode = 2; // Mix mode
+  var _useState183 = useState(0),
+    _useState184 = _slicedToArray(_useState183, 2),
+    wheelRotation = _useState184[0],
+    setWheelRotation = _useState184[1];
   var wheelRotationRef = useRef(0);
   var WHEEL_SPIN_SPEED = 1.5; // seconds
 
@@ -6557,18 +6581,18 @@ function GameApp(_ref33) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState183 = useState(undefined),
-    _useState184 = _slicedToArray(_useState183, 2),
-    user = _useState184[0],
-    setUser = _useState184[1];
-  var _useState185 = useState(null),
+  var _useState185 = useState(undefined),
     _useState186 = _slicedToArray(_useState185, 2),
-    gameState = _useState186[0],
-    setGameState = _useState186[1];
-  var _useState187 = useState(''),
+    user = _useState186[0],
+    setUser = _useState186[1];
+  var _useState187 = useState(null),
     _useState188 = _slicedToArray(_useState187, 2),
-    sessionMsg = _useState188[0],
-    setSessionMsg = _useState188[1];
+    gameState = _useState188[0],
+    setGameState = _useState188[1];
+  var _useState189 = useState(''),
+    _useState190 = _slicedToArray(_useState189, 2),
+    sessionMsg = _useState190[0],
+    setSessionMsg = _useState190[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee18() {
       var _yield$apiFetch2, ok, data, gs;
