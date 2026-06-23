@@ -561,7 +561,7 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/chat` | GET / POST | 30/min, 1/sec | Read / post chat messages |
 | `/api/replay/share` | POST | — | Decode and validate a replay string (not currently posted to chat — see note below) |
 
-> **Guard and Insurance, note:** `/api/wager/insurance` works as documented (caps the next loss at your stake, refunds the escrow). `/api/guard`, however, currently has no effect on spin outcomes — Guard and Regenerating Shield protection still come from the older passive mechanic (a plain "owned" check, not the `guard_charges` this endpoint spends). This is a known gap, not yet fixed — see `SEASON_8_TICKETS.md`.
+> **Guard and Insurance, note:** `/api/wager/insurance` works as documented (caps the next loss at your stake, refunds the escrow). `/api/guard`, however, currently has no effect on spin outcomes — Guard and Regenerating Shield protection still come from the older passive mechanic (a plain "owned" check, not the `guard_charges` this endpoint spends). This is a known gap, not yet fixed — see `docs/SEASON_8_TICKETS.md`.
 >
 > **Replay sharing, note:** spins can generate a signed replay string for jackpots, big double-down wins, and max hot-streaks, returned in `/api/spin`'s response. `/api/replay/share` will decode and verify one, but nothing currently posts the result to chat — there's no in-game button for this yet.
 
