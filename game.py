@@ -3142,6 +3142,22 @@ def wager_double_down():
     return jsonify({'ok': True, 'message': 'Double down armed for next spin'})
 
 
+@game_bp.route('/api/wager/double-down/cancel', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_double_down_cancel():
+    """T108: cancel an armed double-down. No item ownership required."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if not gs.get('double_down_pending'):
+                return jsonify({'error': 'Double down not armed'}), 409
+            cur.execute('UPDATE game_state SET double_down_pending = FALSE WHERE user_id = %s',
+                        (current_user.id,))
+        conn.commit()
+    return jsonify({'ok': True})
+
+
 @game_bp.route('/api/wager/insurance', methods=['POST'])
 @login_required
 @csrf.exempt
@@ -3185,6 +3201,24 @@ def wager_insurance():
         conn.commit()
     return jsonify({'ok': True, 'message': 'Insurance activated',
                     'wager_insurance_charges': new_charges})
+
+
+@game_bp.route('/api/wager/insurance/cancel', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_insurance_cancel():
+    """T108: cancel armed insurance. The consumed charge is NOT refunded —
+    by design (T74: charge is wasted on a win too). The player takes the loss;
+    that's the gamble."""
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if not gs.get('wager_insurance_armed'):
+                return jsonify({'error': 'Insurance not armed'}), 409
+            cur.execute('UPDATE game_state SET wager_insurance_armed = FALSE WHERE user_id = %s',
+                        (current_user.id,))
+        conn.commit()
+    return jsonify({'ok': True})
 
 
 def _prestige_default(col):
