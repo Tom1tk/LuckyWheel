@@ -275,7 +275,6 @@ def _resolve_spin(
     proc_streak_level: int,
     pot_active: bool,
     pot_win_pct: float,     # fraction 0–1
-    catchup_bonus_active: bool = False,
     # ── Season 8: wager + wheel mode ──
     stake_pct: int = 0,
     wager_streak: int = 0,
@@ -338,8 +337,6 @@ def _resolve_spin(
         lucky_seven_triggered = True
     elif pot_active:
         outcome = 'win' if random.random() < (pot_win_pct + aquarium_luck) else 'lose'
-    elif catchup_bonus_active:
-        outcome = 'win' if random.random() < (0.55 + aquarium_luck) else 'lose'
     else:
         # Mode-based probability roll
         win_pct = probs['win_pct'] / 100.0 + aquarium_luck
@@ -1541,25 +1538,6 @@ def tick():
 
             is_catch_up = spins_due > CATCH_UP_THRESHOLD
 
-            # Check catch-up bonus: last-place active player gets +5% win rate
-            catchup_bonus_active = False
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    '''SELECT MIN(wins) AS min_wins, COUNT(*) AS active_count
-                       FROM game_state
-                       WHERE wins > 0
-                         AND last_spin_at > NOW() - INTERVAL '24 hours' '''
-                )
-                rank_row = cur.fetchone()
-
-            user_wins_now = int(gs['wins'])
-            if (rank_row and rank_row['active_count'] >= 2
-                    and rank_row['min_wins'] is not None
-                    and user_wins_now > 0
-                    and user_wins_now <= int(rank_row['min_wins'])
-                    and cursor and (now_utc - cursor).total_seconds() < 86400):
-                catchup_bonus_active = True
-
             pot_active = bool(
                 pot_row and pot_row['filled'] and pot_row['filled_at'] and
                 pot_row['filled_at'] > now_utc - dt.timedelta(days=7)
@@ -1630,7 +1608,6 @@ def tick():
                     proc_streak_level=ctx['proc_streak_level'],
                     pot_active=pot_active,
                     pot_win_pct=pot_win_pct,
-                    catchup_bonus_active=catchup_bonus_active,
                     # T102: auto-spin always uses stake_pct=0 (safe), no wager streak
                     stake_pct=0,
                     wager_streak=0,
@@ -1788,7 +1765,6 @@ def tick():
             'dice_charges':          dice_charges,
             'dice_last_recharge':    last_recharge.isoformat(),
             'jackpot_echo_next':     jackpot_echo_next,
-            'catchup_bonus_active':  catchup_bonus_active,
             'dice_rolled_since_spin': False,
             'proc_streak':           current_proc_streak,
             'auto_spin_budget':      budget_remaining,
