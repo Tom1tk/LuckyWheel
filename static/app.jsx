@@ -3289,6 +3289,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   useEffect(() => { wheelProbabilitiesRef.current = wheelProbabilities; }, [wheelProbabilities]);
   useEffect(() => { activeWheelModeRef.current = activeWheelMode; }, [activeWheelMode]);
   useEffect(() => { stakeRef.current = stakePct; }, [stakePct]);
+  useEffect(() => { payWithTokensRef.current = payWithTokens; }, [payWithTokens]);
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -3616,7 +3617,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     try {
       const res = await apiGame('/api/spin', {
         method: 'POST',
-        body: JSON.stringify({ tab_id: tabIdRef.current, stake: stakeRef.current }),
+        body: JSON.stringify({
+          tab_id: tabIdRef.current,
+          stake: stakeRef.current,
+          // T110: opt-in token spend at high stake (>= 30%). The server
+          // validates (stake threshold, has tokens, no DD) and computes
+          // the actual spend; this flag is the player's intent.
+          pay_with_tokens: payWithTokensRef.current,
+        }),
       });
       if (!res.ok) {
         showToast(res.data?.error || 'Spin failed');
@@ -3646,6 +3654,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         setWagerLastStake(data.stake);
       }
       if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
+      // T110: server echoes the post-spend token balance. Update
+      // immediately so the wager panel reflects the new total.
+      if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
       // T105: server doesn't echo stake_value; the post-spin update lives
       // in applySpinResult (below) which sees the new wins/losses.
       if (canvasRef.current) drawWheel(
@@ -3855,6 +3866,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
   const [autoSpinBudget, setAutoSpinBudget]         = useState(gameState.auto_spin_budget || 0);
+  // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
+  // when the player owns fish_to_wager and has tokens. The ref mirrors
+  // state into the spin handler so it reads the latest value (same
+  // wager-stale pattern as stakeRef).
+  const [payWithTokens, setPayWithTokens]           = useState(false);
+  const payWithTokensRef                            = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
   // endpoint processes the pending server-side auto-spins and returns
@@ -3989,6 +4006,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const handleStakeChange = useCallback(async (newStakePct) => {
     stakeRef.current = newStakePct;
     setStakePct(newStakePct);
+    // T110: when the stake drops below the high-stake threshold, the
+    // toggle is no longer valid — turn it off so a stale value doesn't
+    // get sent to the server (which would 400).
+    if (newStakePct < 30) setPayWithTokens(false);
     // T105: stakeValue is derived from inputs via the useEffect above;
     // it will update automatically on the next render. The server's
     // /api/wager/stake echoes the clamped value back so the post-call
@@ -4655,6 +4676,25 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
             )}
             </>)}
+            {/* T110: wager-tokens balance + pay-with-tokens toggle. The
+                toggle only shows at high stake (>= 30%) when the player
+                owns fish_to_wager and has tokens. The token balance is
+                always shown alongside (or just below) the stake value so
+                the player knows what they're working with. */}
+            {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
+              <div className="wager-tokens-balance">🪙 {fmt(wagerTokens)} tokens</div>
+            )}
+            {ownedItems.includes('fish_to_wager') && wagerTokens > 0
+              && stakePct >= 30 && !doubleDownPending && (
+              <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with wager tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
+                <input
+                  type="checkbox"
+                  checked={payWithTokens}
+                  onChange={e => setPayWithTokens(e.target.checked)}
+                />
+                <span>Pay with tokens</span>
+              </label>
+            )}
             {/* T102+T105: live stake value display at the bottom of the wager panel.
                 Always visible so the player can see the dollar cost of the
                 current stake position before spinning. */}

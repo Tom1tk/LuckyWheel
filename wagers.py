@@ -20,6 +20,12 @@ BASE_MAX_STAKE_PCT = 30
 STAKE_PCT_STEP = 5
 STAKE_EXTENSION_ITEMS = ('wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3')
 
+# T110: wager tokens are spent on "high-stake" spins (above 5x in the
+# original spec, mapped to >= 30% in the flat-percentage system — the
+# baseline max). The Pay-with-tokens toggle is only available at this
+# stake or above.
+HIGH_STAKE_TOKEN_THRESHOLD = 30
+
 
 def compute_max_stake_pct(owned_items):
     """T102+T104: 30% base + 5% per stake extension item owned (max 45%).

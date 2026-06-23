@@ -31,7 +31,7 @@ from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
                     compute_stake_risk, compute_max_stake_pct, compute_stake_value,
-                    _recharge_wager_insurance)
+                    _recharge_wager_insurance, HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
                      get_prestige_threshold, get_legacy_keep_count,
@@ -290,6 +290,9 @@ def _resolve_spin(
     gravity_drift: int = 0,
     # ── T79: inverted mode tracks banked losses ──
     wager_banked_losses: int = 0,
+    # ── T110: wager-token spend (1:1 with the wins cost) ──
+    wager_tokens: int = 0,
+    pay_with_tokens: bool = False,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
 
@@ -396,6 +399,22 @@ def _resolve_spin(
 
     stake_wins = 0
     stake_losses = 0
+    # T110: token-spend is only valid at high stake (>= HIGH_STAKE_TOKEN_THRESHOLD).
+    # The /api/spin handler validates the request flag, but we re-check here so the
+    # function is safe to call directly from tests/other paths. DD armed uses
+    # wager_last_win_amount, not the percentage system, so tokens don't apply.
+    # `stake_cost_total` is the FULL stake cost (in wins/losses), used for the
+    # payout/loss calculation. After token-spend, `stake_wins` is reduced to
+    # the cash portion only; the wager refund / payout still uses the full
+    # `stake_cost_total` so the player gets credit for the tokens they spent.
+    stake_cost_total = 0
+    tokens_spent = 0
+    token_spend_eligible = (
+        pay_with_tokens
+        and actual_stake >= HIGH_STAKE_TOKEN_THRESHOLD
+        and not double_down_active
+        and wager_tokens > 0
+    )
     if is_inverted:
         # T102: stake_losses = int(current_losses * stake_pct / 100), capped
         # at current_losses. Debited from losses immediately.
@@ -405,11 +424,18 @@ def _resolve_spin(
         # but with losses as the escrow source.
         if double_down_active and owns_wager_unlock_eff and wager_last_win_amount > 0:
             stake_losses = wager_last_win_amount
+        stake_cost_total = stake_losses
         # T102: effective_stake is a fraction 0.0-0.45 (stake_pct / 100).
         # When there's no escrow (stake=0 or no losses to risk), it collapses
         # to 1.0 so payout/loss are computed at base (the safe position still
         # gives a base payout per spec AC#9: "win returns 0 + base_payout × 1").
-        effective_stake = actual_stake / 100.0 if stake_losses > 0 else 1.0
+        effective_stake = actual_stake / 100.0 if stake_cost_total > 0 else 1.0
+        # T110: cover (part of) the stake with tokens; reduce the cash debit
+        # by the same amount. 1:1 rate — see HIGH_STAKE_TOKEN_THRESHOLD.
+        if token_spend_eligible and stake_losses > 0:
+            tokens_spent = min(wager_tokens, stake_losses)
+            wager_tokens -= tokens_spent
+            stake_losses -= tokens_spent
         losses -= stake_losses
     else:
         # v2 (T45): escrow stake before outcome — real wins are now at risk.
@@ -427,11 +453,18 @@ def _resolve_spin(
         # normal computed value (or 0).
         if double_down_active and owns_wager_unlock and wager_last_win_amount > 0:
             stake_wins = wager_last_win_amount
+        stake_cost_total = stake_wins
         # T102: when there is no escrow (player lacks wager_unlock, or stake=0,
         # or current_wins is so low the percentage risk floors to 0), the stake
         # multiplier must collapse to 1.0 so payout/loss are computed at base
         # (the safe position still gives a base payout per spec AC#9).
-        effective_stake = actual_stake / 100.0 if stake_wins > 0 else 1.0
+        effective_stake = actual_stake / 100.0 if stake_cost_total > 0 else 1.0
+        # T110: cover (part of) the stake with tokens; reduce the cash debit
+        # by the same amount. 1:1 rate — see HIGH_STAKE_TOKEN_THRESHOLD.
+        if token_spend_eligible and stake_wins > 0:
+            tokens_spent = min(wager_tokens, stake_wins)
+            wager_tokens -= tokens_spent
+            stake_wins -= tokens_spent
         wins -= stake_wins
 
     # ── T79: inverted mode outcome handling ──
@@ -453,10 +486,12 @@ def _resolve_spin(
             loss_count = abs(new_streak) if new_streak < 0 else 0
             loss_bonus = streak_bonus(loss_count) * bonus_mult
             # T102: payout = stake_losses (the wager) + loss_bonus added to NET.
-            net_payout = stake_losses + loss_bonus
+            # T110: use stake_cost_total (pre-token-spend) so a token-funded
+            # spin still gets the loss-farming payout.
+            net_payout = stake_cost_total + loss_bonus
             direct_losses, banked_losses_payout = compute_wager_payout(net_payout, hot_streak_bonus)
             # Refund the escrow, then add the loss-farming payout.
-            losses += stake_losses
+            losses += stake_cost_total
             losses += direct_losses
             wager_banked_losses += banked_losses_payout
             # T79 AC#8: wager_last_win_amount tracks the last loss-gain
@@ -530,6 +565,7 @@ def _resolve_spin(
             # payout has a chance to produce a non-zero amount at typical
             # base_loss values. compute_wager_loss would round base_loss*0.10
             # to 0, then * 5 = 0; truncating last preserves 5*0.10 = 0.5 → 0.
+            # T110: use stake_cost_total (pre-token-spend) for the refund.
             new_streak = streak + 1 if streak >= 0 else 1
             if regen_recharge_wins > 0:
                 regen_recharge_wins -= 1
@@ -538,7 +574,7 @@ def _resolve_spin(
             loss_bonus = streak_bonus(loss_count) * bonus_mult
             base_loss = 1 + loss_bonus
             actual_loss = int(base_loss * effective_stake * 5)
-            losses += stake_losses
+            losses += stake_cost_total
             losses += actual_loss
             wager_last_win_amount = actual_loss
             if actual_stake == wager_last_stake or wager_last_stake == 0:
@@ -605,13 +641,15 @@ def _resolve_spin(
         # T102: payout = stake_wins (the wager) for stake > 0%, base_payout for 0%.
         # The regular win_streak_bonus (bonus_earned) is added to the NET (per user
         # intent: "applied to the amount that is won/lost AFTER the spin completes").
-        if stake_wins > 0:
-            net_payout = stake_wins + bonus_earned
+        # T110: use stake_cost_total (pre-token-spend) so a token-funded
+        # spin still gets the wager-based payout.
+        if stake_cost_total > 0:
+            net_payout = stake_cost_total + bonus_earned
         else:
             net_payout = effective_win_mult + bonus_earned
         raw_payout   = net_payout * jackpot_mult
         direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
-        wins        += stake_wins
+        wins        += stake_cost_total
         wins        += direct_wins
         wager_banked_wins += banked_wins
         last_direct_wins = direct_wins
@@ -639,8 +677,11 @@ def _resolve_spin(
         # intent: "applied to the amount that is won/lost AFTER the spin completes").
         # At 0% stake, base_payout = effective_win_mult + bonus_earned already includes
         # the win_streak_bonus; at N% stake we add bonus_earned to the wager.
-        if stake_wins > 0:
-            net_payout = stake_wins + bonus_earned
+        # T110: use stake_cost_total (pre-token-spend) so a token-funded spin
+        # still gets the wager-based payout. The `wins += stake_wins` lines
+        # below also use stake_cost_total for the wager refund.
+        if stake_cost_total > 0:
+            net_payout = stake_cost_total + bonus_earned
         else:
             net_payout = effective_win_mult + bonus_earned
 
@@ -649,7 +690,7 @@ def _resolve_spin(
             jackpot_hit  = True
             raw_payout   = net_payout * 25
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
-            wins        += stake_wins
+            wins        += stake_cost_total
             wins        += direct_wins
             wager_banked_wins += banked_wins
             last_direct_wins = direct_wins
@@ -658,7 +699,7 @@ def _resolve_spin(
             jackpot_hit  = True
             raw_payout   = net_payout * 25
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
-            wins        += stake_wins
+            wins        += stake_cost_total
             wins        += direct_wins
             wager_banked_wins += banked_wins
             last_direct_wins = direct_wins
@@ -670,7 +711,7 @@ def _resolve_spin(
                 echo_triggered = True
                 raw_payout   = net_payout * 2
                 direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
-                wins        += stake_wins
+                wins        += stake_cost_total
                 wins        += direct_wins
                 wager_banked_wins += banked_wins
                 last_direct_wins = direct_wins
@@ -678,7 +719,7 @@ def _resolve_spin(
             else:
                 raw_payout   = net_payout
                 direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
-                wins += stake_wins
+                wins += stake_cost_total
                 wins += direct_wins
                 wager_banked_wins += banked_wins
                 last_direct_wins = direct_wins
@@ -793,6 +834,9 @@ def _resolve_spin(
         'gravity_drift':           gravity_drift,
         'gravity_drift_delta':     gravity_drift - original_gravity_drift,
         'wheel_probabilities':     response_probs,
+        # T110: wager-token spend accounting.
+        'tokens_spent':            tokens_spent,
+        'wager_tokens':            wager_tokens,
         'message':                 _build_spin_message(
             result=outcome, wins_delta=wins - original_wins, losses_delta=losses - original_losses,
             is_inverted=(active_wheel_mode == 'inverted'),
@@ -836,6 +880,8 @@ _RESPONSE_KEYS = (
     'gravity_drift',
     'wheel_probabilities',
     'active_wheel_mode',
+    'tokens_spent',
+    'wager_tokens',
     'message',
 )
 
@@ -1200,6 +1246,24 @@ def spin():
             double_down_active = bool(gs.get('double_down_pending', False))
             insurance_active = bool(gs.get('wager_insurance_armed', False))
 
+            # T110: pay_with_tokens opt-in for high-stake spins. The actual
+            # spend is computed inside _resolve_spin (which knows the final
+            # stake_wins); we only validate the request flag here.
+            pay_with_tokens = bool((request.json or {}).get('pay_with_tokens', False))
+            if pay_with_tokens:
+                if req_stake < HIGH_STAKE_TOKEN_THRESHOLD:
+                    return jsonify({
+                        'error': f'Pay-with-tokens requires stake >= {HIGH_STAKE_TOKEN_THRESHOLD}%'
+                    }), 400
+                if double_down_active:
+                    return jsonify({
+                        'error': 'Pay-with-tokens is not compatible with Double-Down'
+                    }), 400
+                if int(gs.get('wager_tokens', 0)) <= 0:
+                    return jsonify({
+                        'error': 'No wager tokens to spend'
+                    }), 400
+
             new_spin_count = gs['spin_count'] + 1
             new_state, events = _resolve_spin(
                 owned=list(gs['owned_items']),
@@ -1236,6 +1300,9 @@ def spin():
                 gravity_drift=int(gs.get('gravity_drift', 0) or 0),
                 # T79: banked losses
                 wager_banked_losses=int(gs.get('wager_banked_losses', 0)),
+                # T110: wager-token spend
+                wager_tokens=int(gs.get('wager_tokens', 0)),
+                pay_with_tokens=pay_with_tokens,
             )
 
             new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
@@ -1344,6 +1411,7 @@ def spin():
                           wager_insurance_last_recharge = %s,
                           biggest_win_announced = %s,
                           gravity_drift = %s,
+                          wager_tokens = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                       WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
@@ -1363,6 +1431,7 @@ def spin():
                      wager_insurance_last_recharge,
                      new_biggest_win_announced,
                      new_state.get('gravity_drift', 0),
+                     int(events.get('wager_tokens', 0)),
                      current_user.id),
                 )
             conn.commit()
@@ -1403,6 +1472,10 @@ def spin():
         # response so the wheel redraws correctly after each resolve.
         resp['gravity_drift'] = new_state.get('gravity_drift', 0)
         resp['wheel_probabilities'] = events.get('wheel_probabilities')
+        # T110: surface the post-spend token balance + amount spent so the
+        # client can update its display without a /api/state poll.
+        resp['wager_tokens'] = int(events.get('wager_tokens', gs.get('wager_tokens', 0)))
+        resp['tokens_spent'] = int(events.get('tokens_spent', 0))
         return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
