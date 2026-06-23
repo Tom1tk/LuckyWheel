@@ -3816,6 +3816,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [prestigeLevel, setPrestigeLevel]           = useState(gameState.prestige_level || 0);
   const [prestigeCount, setPrestigeCount]           = useState(gameState.prestige_count || 0);
   const [legacyWins, setLegacyWins]                 = useState(gameState.legacy_wins || 0);
+  // T111: server-computed next-level threshold (scales with prestigeLevel).
+  // null when at MAX_PRESTIGE_LEVEL or before the first /api/prestige fetch.
+  const [nextPrestigeThreshold, setNextPrestigeThreshold] = useState(null);
   const [onboardingStep, setOnboardingStep]         = useState(gameState.onboarding_step || 0);
   const [wagerStreak, setWagerStreak]               = useState(gameState.wager_streak || 0);
   const [wagerLastStake, setWagerLastStake]         = useState(gameState.wager_last_stake ?? 0);
@@ -4086,10 +4089,28 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setWagerLastStake(0);
       showToast(` Prestiged to Level ${data.prestige_level}!`);
       refreshBountiesAndGoal();
+      refreshPrestigeInfo();
     } else {
       showToast(data.error || 'Prestige failed');
     }
   }, [showToast]);
+
+  // T111: fetch the level-scaled prestige threshold. The server is the source
+  // of truth (PRESTIGE_LEVEL_MULTIPLIER lives in prestige.py), so the button's
+  // disabled state always matches the cost the POST endpoint will enforce.
+  const refreshPrestigeInfo = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/prestige', { method: 'GET' });
+    if (ok) {
+      setNextPrestigeThreshold(data.next_threshold);
+      setPrestigeLevel(data.prestige_level);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (ownedItems.includes('prestige_unlock')) {
+      refreshPrestigeInfo();
+    }
+  }, [ownedItems, refreshPrestigeInfo]);
 
   // Season 8: handle guard activation
   const handleGuardActivate = useCallback(async () => {
@@ -4729,12 +4750,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {/* Season 8: Prestige panel */}
               {ownedItems.includes('prestige_unlock') && (
                 <div className="season8-prestige-panel">
-                  <div className="prestige-badge">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}%)</div>
+                  <div className="prestige-badge" title="+2% win multiplier per level (max +40% at level 20)">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
                   {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
                   {prestigeLevel < 20 && (
                     <button
                       className="prestige-btn"
-                      disabled={wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000)}
+                      disabled={nextPrestigeThreshold == null || wins < nextPrestigeThreshold}
                       onClick={() => setShowPrestigeConfirm(true)}
                     >Prestige</button>
                   )}
