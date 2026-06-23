@@ -5752,6 +5752,9 @@ function GameApp(_ref28) {
     stakeRef.current = stakePct;
   }, [stakePct]);
   useEffect(function () {
+    payWithTokensRef.current = payWithTokens;
+  }, [payWithTokens]);
+  useEffect(function () {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
     apiGame('/api/settings', {
@@ -6283,7 +6286,11 @@ function GameApp(_ref28) {
             method: 'POST',
             body: JSON.stringify({
               tab_id: tabIdRef.current,
-              stake: stakeRef.current
+              stake: stakeRef.current,
+              // T110: opt-in token spend at high stake (>= 30%). The server
+              // validates (stake threshold, has tokens, no DD) and computes
+              // the actual spend; this flag is the player's intent.
+              pay_with_tokens: payWithTokensRef.current
             })
           });
         case 3:
@@ -6317,6 +6324,9 @@ function GameApp(_ref28) {
             setWagerLastStake(data.stake);
           }
           if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
+          // T110: server echoes the post-spend token balance. Update
+          // immediately so the wager panel reflects the new total.
+          if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
           // T105: server doesn't echo stake_value; the post-spin update lives
           // in applySpinResult (below) which sees the new wins/losses.
           if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', activeWheelModeRef.current, data.wheel_probabilities || null);
@@ -6709,6 +6719,15 @@ function GameApp(_ref28) {
     _useState244 = _slicedToArray(_useState243, 2),
     autoSpinBudget = _useState244[0],
     setAutoSpinBudget = _useState244[1];
+  // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
+  // when the player owns fish_to_wager and has tokens. The ref mirrors
+  // state into the spin handler so it reads the latest value (same
+  // wager-stale pattern as stakeRef).
+  var _useState245 = useState(false),
+    _useState246 = _slicedToArray(_useState245, 2),
+    payWithTokens = _useState246[0],
+    setPayWithTokens = _useState246[1];
+  var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
   // endpoint processes the pending server-side auto-spins and returns
@@ -6730,22 +6749,22 @@ function GameApp(_ref28) {
       return clearInterval(id);
     };
   }, [autoSpinActive, tick]);
-  var _useState245 = useState(false),
-    _useState246 = _slicedToArray(_useState245, 2),
-    showPrestigeConfirm = _useState246[0],
-    setShowPrestigeConfirm = _useState246[1];
-  var _useState247 = useState((gameState.onboarding_step || 0) < 5),
+  var _useState247 = useState(false),
     _useState248 = _slicedToArray(_useState247, 2),
-    showOnboarding = _useState248[0],
-    setShowOnboarding = _useState248[1];
-  var _useState249 = useState(false),
+    showPrestigeConfirm = _useState248[0],
+    setShowPrestigeConfirm = _useState248[1];
+  var _useState249 = useState((gameState.onboarding_step || 0) < 5),
     _useState250 = _slicedToArray(_useState249, 2),
-    showLegacyBoards = _useState250[0],
-    setShowLegacyBoards = _useState250[1];
-  var _useState251 = useState([]),
+    showOnboarding = _useState250[0],
+    setShowOnboarding = _useState250[1];
+  var _useState251 = useState(false),
     _useState252 = _slicedToArray(_useState251, 2),
-    legacyBoards = _useState252[0],
-    setLegacyBoards = _useState252[1];
+    showLegacyBoards = _useState252[0],
+    setShowLegacyBoards = _useState252[1];
+  var _useState253 = useState([]),
+    _useState254 = _slicedToArray(_useState253, 2),
+    legacyBoards = _useState254[0],
+    setLegacyBoards = _useState254[1];
   var refreshBountiesAndGoal = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
     var _yield$Promise$all, _yield$Promise$all2, bountyRes, goalRes;
     return _regenerator().w(function (_context21) {
@@ -6894,6 +6913,10 @@ function GameApp(_ref28) {
           case 0:
             stakeRef.current = newStakePct;
             setStakePct(newStakePct);
+            // T110: when the stake drops below the high-stake threshold, the
+            // toggle is no longer valid — turn it off so a stale value doesn't
+            // get sent to the server (which would 400).
+            if (newStakePct < 30) setPayWithTokens(false);
             // T105: stakeValue is derived from inputs via the useEffect above;
             // it will update automatically on the next render. The server's
             // /api/wager/stake echoes the clamped value back so the post-call
@@ -7840,7 +7863,18 @@ function GameApp(_ref28) {
   }, "\uD83D\uDEE1\uFE0F Insurance ARMED \u2014 next loss protected"), ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
     onClick: handleInsurance
-  }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")")), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-tokens-balance"
+  }, "\uD83E\uDE99 ", fmt(wagerTokens), " tokens"), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && stakePct >= 30 && !doubleDownPending && /*#__PURE__*/React.createElement("label", {
+    className: "wager-pay-tokens-toggle",
+    "data-tooltip": "Pay the stake cost with wager tokens (1 token = 1 win). Partial spend: any remainder comes from wins."
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: payWithTokens,
+    onChange: function onChange(e) {
+      return setPayWithTokens(e.target.checked);
+    }
+  }), /*#__PURE__*/React.createElement("span", null, "Pay with tokens")), /*#__PURE__*/React.createElement("div", {
     className: "wager-stake-value"
   }, doubleDownPending && wagerLastWinAmount > 0 ? /*#__PURE__*/React.createElement("span", {
     className: "stake-value-dd"
@@ -8140,18 +8174,18 @@ function GameApp(_ref28) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState253 = useState(undefined),
-    _useState254 = _slicedToArray(_useState253, 2),
-    user = _useState254[0],
-    setUser = _useState254[1];
-  var _useState255 = useState(null),
+  var _useState255 = useState(undefined),
     _useState256 = _slicedToArray(_useState255, 2),
-    gameState = _useState256[0],
-    setGameState = _useState256[1];
-  var _useState257 = useState(''),
+    user = _useState256[0],
+    setUser = _useState256[1];
+  var _useState257 = useState(null),
     _useState258 = _slicedToArray(_useState257, 2),
-    sessionMsg = _useState258[0],
-    setSessionMsg = _useState258[1];
+    gameState = _useState258[0],
+    setGameState = _useState258[1];
+  var _useState259 = useState(''),
+    _useState260 = _slicedToArray(_useState259, 2),
+    sessionMsg = _useState260[0],
+    setSessionMsg = _useState260[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
       var _yield$apiFetch2, ok, data, gs;
