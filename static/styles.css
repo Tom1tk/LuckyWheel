@@ -4941,6 +4941,33 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   letter-spacing: 0.5px;
 }
 
+/* T110: wager-tokens balance + pay-with-tokens toggle inside the wager panel. */
+.wager-tokens-balance {
+  font-size: 0.7rem;
+  color: #ffd700;
+  letter-spacing: 0.5px;
+  text-align: center;
+  margin-top: 2px;
+}
+.wager-pay-tokens-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #ffd700;
+  cursor: pointer;
+  margin-top: 2px;
+  user-select: none;
+}
+.wager-pay-tokens-toggle input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #ffd700;
+}
+.wager-pay-tokens-toggle:hover {
+  color: #fff3a0;
+}
+
 /* ── Season 8: loadout panel (in sidebar) ────────────────────────────────── */
 .season8-loadout-panel {
   padding: 7px 10px;
