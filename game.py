@@ -19,6 +19,7 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
+                    WAGER_INSURANCE_RECHARGE_SECONDS, WAGER_INSURANCE_MAX_CHARGES,
                     UPGRADE_TIER_THRESHOLDS, item_tier,
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
@@ -29,13 +30,17 @@ from seasons import ensure_current_season, get_season_info, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
-                    compute_stake_risk)
-from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number
-from prestige import get_prestige_bonus, get_starting_prestige, can_prestige, get_prestige_threshold, get_legacy_keep_count, MAX_PRESTIGE_LEVEL
-from replays import generate_replay, should_generate_replay, decode_replay
+                    compute_stake_risk, compute_max_stake_pct, compute_stake_value,
+                    _recharge_wager_insurance)
+from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
+from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
+                     get_prestige_threshold, get_legacy_keep_count,
+                     compute_wins_kept, filter_kept_items,
+                     PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
 from bounties import increment_bounty, get_bounty_status, get_claim_rewards, BOUNTY_DEFS
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message
+import chat_triggers
 
 COSMETIC_SLOTS = {
     'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
@@ -52,6 +57,7 @@ COSMETIC_SLOTS = {
     'golden_wheel': 'golden',
     'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
     'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme', 'page_season7': 'page_theme',
+    'page_season8': 'page_theme',
     'auto_guard':   'auto_guard',
 }
 
@@ -103,7 +109,7 @@ def _get_total_fish_clicks(cur) -> int:
 # Union of all columns needed by spin, tick, and buy endpoints. Defining the
 _GAME_STATE_SQL = '''
     SELECT wins, losses, streak, best_streak, owned_items, regen_recharge_wins,
-           spin_count, win_count, loss_count,
+           spin_count, win_count, loss_count, cumulative_wins,
            winmult_inf_level, bonusmult_inf_level, streak_armor_level,
            jackpot_resonance_level, echo_amp_level, proc_streak_level, proc_streak,
            lure_mastery_level, equipped_class, fish_clicks, caught_species, active_cosmetics,
@@ -115,7 +121,9 @@ _GAME_STATE_SQL = '''
            wager_insurance_charges, wager_insurance_armed, active_wheel_mode,
            wager_tokens, aquarium_species, cosmetic_fragments,
            guard_charges, guard_last_regen_spin, resilience_last_use_spin,
-           bounty_claimed_date
+           bounty_claimed_date, biggest_win_announced,
+           wager_last_win_amount, wager_banked_losses, wager_insurance_last_recharge,
+           gravity_drift
     FROM game_state WHERE user_id = %s
 '''
 
@@ -124,6 +132,26 @@ def _load_game_state(cur, user_id: int, *, for_update: bool = False):
     sql = _GAME_STATE_SQL + ('FOR UPDATE' if for_update else '')
     cur.execute(sql, (user_id,))
     return cur.fetchone()
+
+
+def _maybe_announce_big_win(conn, gs, events, username):
+    """T83: Post a big-win chat message if this win strictly exceeds the
+    player's previous biggest_win_announced, and return the value to persist
+    in the same transaction (caller writes it to game_state). Returns the
+    unchanged previous biggest when the message does not fire.
+    """
+    biggest = int(gs.get('biggest_win_announced', 0) or 0)
+    wins_delta = int(events.get('wins_delta', 0) or 0)
+    if (events.get('result') in ('win', 'jackpot')
+            and wins_delta >= chat_triggers.BIG_WIN_THRESHOLD
+            and wins_delta > biggest):
+        post_system_message(conn, chat_triggers.big_win_msg(
+            username,
+            wins_delta,
+            events.get('active_wheel_mode', 'steady'),
+        ), 'system', event_kind='big_win')
+        return wins_delta
+    return biggest
 
 
 # ── Fishing constants ──────────────────────────────────────────────────────
@@ -208,6 +236,24 @@ def _build_spin_context(gs: dict) -> dict:
     }
 
 
+def _current_wheel_probabilities(active_wheel_mode: str, gravity_drift: int = 0) -> dict:
+    """T77 AC#4: return the wheel probabilities the player is currently facing.
+
+    For gravity mode this is the drift-adjusted set; all other modes return
+    their static WHEEL_MODES values. Used by /api/state and the spin
+    response so the frontend can redraw the wheel correctly after every
+    spin (gravity drift shifts after each resolve).
+    """
+    if active_wheel_mode == 'gravity':
+        return compute_gravity_probabilities(gravity_drift)
+    mode = WHEEL_MODES.get(active_wheel_mode, WHEEL_MODES['steady'])
+    return {
+        'win_pct':     mode['win_pct'],
+        'lose_pct':    mode['loss_pct'],
+        'jackpot_pct': mode['jackpot_pct'],
+    }
+
+
 def _resolve_spin(
     owned: list,
     streak: int,
@@ -231,22 +277,42 @@ def _resolve_spin(
     pot_win_pct: float,     # fraction 0–1
     catchup_bonus_active: bool = False,
     # ── Season 8: wager + wheel mode ──
-    stake: int = 1,
+    stake_pct: int = 0,
     wager_streak: int = 0,
     wager_last_stake: int = 0,
     active_wheel_mode: str = 'steady',
     aquarium_luck: float = 0.0,
     wager_banked_wins: int = 0,
     insurance_active: bool = False,
+    # ── T73: double-down escrow uses last actual win amount ──
+    double_down_active: bool = False,
+    wager_last_win_amount: int = 0,
+    # ── T77: gravity mode drift ──
+    gravity_drift: int = 0,
+    # ── T79: inverted mode tracks banked losses ──
+    wager_banked_losses: int = 0,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
-    
+
     v2 (T45): stake_wins is escrowed from wins before outcome determination.
     On a win the escrow is returned plus payout; on a loss the escrow is
-    forfeited.  Safety net now refunds a portion of lost escrow, not losses."""
+    forfeited.  Safety net now refunds a portion of lost escrow, not losses.
+
+    T77: gravity mode uses drift-adjusted probabilities and updates drift
+    after each spin based on outcome (win/jackpot +10, loss -10, clamped to
+    [-35, +35]).
+
+    T79: inverted mode is loss-farming. The 'lose' outcome is GOOD — it
+    refunds a staked-losses escrow and adds the loss-farming payout. The
+    'win' outcome is BAD — it forfeits the escrow, still gives wins (which
+    the player doesn't want), and triggers shield/guard/resilience. The
+    'jackpot' outcome is SUPER-GOOD — refund + 5x the loss-farming payout.
+    """
     original_wins   = wins
     original_losses = losses
     original_wager_banked_wins = wager_banked_wins
+    original_wager_banked_losses = wager_banked_losses
+    original_gravity_drift = gravity_drift
 
     # Season 8: auto_guard removed — no auto-purchase logic
     auto_guard_failed = False
@@ -254,6 +320,18 @@ def _resolve_spin(
     # Season 8: wheel mode outcome determination (replaces singularity/50-50)
     lucky_seven_triggered = False
     mode = WHEEL_MODES.get(active_wheel_mode, WHEEL_MODES['steady'])
+    is_inverted = (active_wheel_mode == 'inverted')
+
+    # T77: gravity mode replaces the static mode probabilities with
+    # drift-adjusted values. Other modes use their static WHEEL_MODES entry.
+    if active_wheel_mode == 'gravity':
+        probs = compute_gravity_probabilities(gravity_drift)
+    else:
+        probs = {
+            'win_pct':     mode['win_pct'],
+            'lose_pct':    mode['loss_pct'],
+            'jackpot_pct': mode['jackpot_pct'],
+        }
 
     if 'lucky_seven' in owned and spin_count % 7 == 0:
         outcome = 'win'
@@ -264,8 +342,8 @@ def _resolve_spin(
         outcome = 'win' if random.random() < (0.55 + aquarium_luck) else 'lose'
     else:
         # Mode-based probability roll
-        win_pct = mode['win_pct'] / 100.0 + aquarium_luck
-        jackpot_pct = mode['jackpot_pct'] / 100.0
+        win_pct = probs['win_pct'] / 100.0 + aquarium_luck
+        jackpot_pct = probs['jackpot_pct'] / 100.0
         roll = random.random()
         if roll < jackpot_pct:
             outcome = 'jackpot'
@@ -301,23 +379,186 @@ def _resolve_spin(
     insurance_used          = False
     bonus_earned            = 0
     new_owned               = owned
+    # T73: tracks the latest `direct_wins` (base portion) so we can record it
+    # as wager_last_win_amount on every winning outcome.
+    last_direct_wins        = 0
 
-    # Season 8: wager stake multiplier and hot streak
+    # Season 8: wager stake percentage and hot streak
     owns_wager_unlock = 'wager_unlock' in owned
-    actual_stake = validate_stake(stake, owns_wager_unlock)
+    # T79 AC#10: inverted mode does NOT require wager_unlock — the stake
+    # slider is fully functional without it. Treat the player as if they own
+    # wager_unlock for stake validation + escrow purposes.
+    owns_wager_unlock_eff = True if is_inverted else owns_wager_unlock
+    # T102: max stake is 30% base + 5% per stake extension item owned (max 45%).
+    max_stake_pct = compute_max_stake_pct(owned)
+    actual_stake = validate_stake(stake_pct, owns_wager_unlock_eff, max_stake_pct)
     owns_hot_streak = 'wager_hot_streak' in owned
     if should_reset_streak(actual_stake, wager_last_stake):
         wager_streak = 0
     hot_streak_bonus = compute_hot_streak_bonus(wager_streak, owns_hot_streak)
 
-    # v2 (T45): escrow stake before outcome — real wins are now at risk.
-    # Only for players who own wager_unlock; without it, stake is locked to 1
-    # (above) and there must be zero escrow/risk, matching base game behavior.
-    stake_wins = compute_stake_risk(wins, actual_stake) if owns_wager_unlock else 0
-    wins -= stake_wins
+    stake_wins = 0
+    stake_losses = 0
+    if is_inverted:
+        # T102: stake_losses = int(current_losses * stake_pct / 100), capped
+        # at current_losses. Debited from losses immediately.
+        stake_losses = compute_stake_risk(losses, actual_stake, max_stake_pct)
+        # T73 integration: double-down escrows the last loss-gain (tracked in
+        # wager_last_win_amount) from losses, mirroring the normal-mode flow
+        # but with losses as the escrow source.
+        if double_down_active and owns_wager_unlock_eff and wager_last_win_amount > 0:
+            stake_losses = wager_last_win_amount
+        # T102: effective_stake is a fraction 0.0-0.45 (stake_pct / 100).
+        # When there's no escrow (stake=0 or no losses to risk), it collapses
+        # to 1.0 so payout/loss are computed at base (the safe position still
+        # gives a base payout per spec AC#9: "win returns 0 + base_payout × 1").
+        effective_stake = actual_stake / 100.0 if stake_losses > 0 else 1.0
+        losses -= stake_losses
+    else:
+        # v2 (T45): escrow stake before outcome — real wins are now at risk.
+        # Only for players who own wager_unlock; without it, stake is locked to 0
+        # (above) and there must be zero escrow/risk, matching base game behavior.
+        stake_wins = compute_stake_risk(wins, actual_stake, max_stake_pct) if owns_wager_unlock else 0
+        # T78: mirror mode doubles the escrow (2× stake_wins debited; full refund
+        # on a win, full forfeit on a double-loss). Insurance, when armed, still
+        # returns the full doubled escrow and caps the loss at the player's stake.
+        if active_wheel_mode == 'mirror' and owns_wager_unlock:
+            stake_wins = stake_wins * 2
+        # T73: double-down escrows the *previous* payout (wager_last_win_amount),
+        # not the standard stake_pct / 100 risk. If the player has no prior win to
+        # risk, double-down is a no-op (per AC#7) — stake_wins stays at the
+        # normal computed value (or 0).
+        if double_down_active and owns_wager_unlock and wager_last_win_amount > 0:
+            stake_wins = wager_last_win_amount
+        # T102: when there is no escrow (player lacks wager_unlock, or stake=0,
+        # or current_wins is so low the percentage risk floors to 0), the stake
+        # multiplier must collapse to 1.0 so payout/loss are computed at base
+        # (the safe position still gives a base payout per spec AC#9).
+        effective_stake = actual_stake / 100.0 if stake_wins > 0 else 1.0
+        wins -= stake_wins
 
-    if outcome == 'lose':
+    # ── T79: inverted mode outcome handling ──
+    # In inverted mode the 'lose' outcome is GOOD and the 'win' outcome is
+    # BAD. The bookkeeping is mirrored: stake comes from losses instead of
+    # wins, payouts go to losses instead of wins. The 'jackpot' outcome is
+    # SUPER-GOOD (5× multiplier on the loss-farming payout).
+    inverted_handled = False
+    if is_inverted:
+        if outcome == 'lose':
+            # T79 AC#3: GOOD outcome — loss-farming payout.
+            # T102 (user redesign): payout = stake_losses (the wager), no
+            # base_loss * effective_stake multiplication. The wager is debited
+            # from losses, then refunded + matching payout added on 'lose' (good).
+            # Hot streak bonus is applied multiplicatively to the wager and
+            # banked (legacy mechanic, per user "Keep bank button" 2026-06-23).
+            # wager_streak increments; banked_losses accumulates the bonus.
+            new_streak = streak - 1 if streak <= 0 else -1
+            loss_count = abs(new_streak) if new_streak < 0 else 0
+            loss_bonus = streak_bonus(loss_count) * bonus_mult
+            # T102: payout = stake_losses (the wager) + loss_bonus added to NET.
+            net_payout = stake_losses + loss_bonus
+            direct_losses, banked_losses_payout = compute_wager_payout(net_payout, hot_streak_bonus)
+            # Refund the escrow, then add the loss-farming payout.
+            losses += stake_losses
+            losses += direct_losses
+            wager_banked_losses += banked_losses_payout
+            # T79 AC#8: wager_last_win_amount tracks the last loss-gain
+            # amount (used by double-down's escrow on the next spin).
+            wager_last_win_amount = direct_losses + banked_losses_payout
+            # wager_streak increments (same-stake rule).
+            if actual_stake == wager_last_stake or wager_last_stake == 0:
+                wager_streak += 1
+            else:
+                wager_streak = 1
+            bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+        elif outcome == 'win':
+            # T79 AC#4: BAD outcome — player gains wins (undesired in
+            # loss-farming) and forfeits the staked-losses escrow.
+            # Shield/guard/resilience TRIGGER here. wager_streak resets to 0,
+            # wager_banked_losses is forfeited.
+            new_streak = streak + 1 if streak >= 0 else 1
+            if regen_recharge_wins > 0:
+                regen_recharge_wins -= 1
+            # Compute the base win payout (mirrors the normal-mode win branch).
+            count = abs(new_streak)
+            raw_bonus = streak_bonus(count)
+            base_bonus = raw_bonus * bonus_mult
+            if 'fortune_charm' in owned and base_bonus > 0 and random.random() < charm_chance:
+                base_bonus = int(base_bonus * 1.25)
+                fortune_charm_triggered = True
+            bonus_earned = base_bonus
+            base_payout = effective_win_mult + bonus_earned
+            direct_wins = int(base_payout * effective_stake)
+            # ── shield/guard/resilience (the BAD outcome gets the protection) ──
+            if 'regen_shield' in owned and regen_recharge_wins == 0:
+                shield_used = True
+                shield_used_type = 'regen_shield'
+                regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
+                # Shield absorbs the bad-outcome wins — player gains nothing.
+                direct_wins = 0
+            elif 'guard' in owned:
+                guard_triggered = True
+                guard_blocked = True
+                new_owned = [x for x in new_owned if x != 'guard']
+                direct_wins = 0
+            else:
+                if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
+                    resilience_triggered = True
+                    new_streak = max(0, new_streak - 1)
+                    proc_streak += 1
+            # T74 AC#7 / T79 AC#7: insurance (when armed) caps the bad
+            # outcome and refunds the escrowed losses. Safety net does NOT
+            # stack with insurance.
+            # T102: cap direct_wins at int(base_payout * effective_stake) so
+            # the bad-outcome gain is at most the base_payout * stake%. Cast
+            # to int to keep the cap a whole number (effective_stake is a
+            # fraction; min(int, float) would otherwise return the float).
+            if insurance_active and not insurance_used:
+                direct_wins = min(direct_wins, int(base_payout * effective_stake))
+                losses += stake_losses
+                insurance_used = True
+            wins += direct_wins
+            # T79 AC#6: safety net on the bad outcome (win) at ≥5x stake
+            # refunds 25% of staked losses.
+            if 'wager_safety_net' in owned and not insurance_used:
+                losses += apply_safety_net(stake_losses, actual_stake, True)
+            # T71: hot streak resets to 0, banked losses forfeited.
+            wager_streak = 0
+            wager_banked_losses = 0
+            wager_last_win_amount = 0
+        else:  # jackpot
+            # T79 AC#5: SUPER-GOOD outcome — refund escrow + 5× the
+            # loss-farming payout. wager_streak increments.
+            # T102: truncate AFTER the * 5 (NOT before), so the loss-farming
+            # payout has a chance to produce a non-zero amount at typical
+            # base_loss values. compute_wager_loss would round base_loss*0.10
+            # to 0, then * 5 = 0; truncating last preserves 5*0.10 = 0.5 → 0.
+            new_streak = streak + 1 if streak >= 0 else 1
+            if regen_recharge_wins > 0:
+                regen_recharge_wins -= 1
+            jackpot_hit = True
+            loss_count = abs(new_streak) if new_streak < 0 else 0
+            loss_bonus = streak_bonus(loss_count) * bonus_mult
+            base_loss = 1 + loss_bonus
+            actual_loss = int(base_loss * effective_stake * 5)
+            losses += stake_losses
+            losses += actual_loss
+            wager_last_win_amount = actual_loss
+            if actual_stake == wager_last_stake or wager_last_stake == 0:
+                wager_streak += 1
+            else:
+                wager_streak = 1
+            bonus_earned = -loss_bonus if loss_bonus > 0 else 0
+        inverted_handled = True
+
+    if not inverted_handled and outcome == 'lose':
+        # T71: hot streak ends on a loss (wager_streak, wager_banked_wins, and
+        # wager_last_win_amount all reset). Applied before shield/guard so the
+        # streak always resets on a 'lose' outcome, matching banked_wins
+        # behavior (which was already forfeited unconditionally).
+        wager_streak = 0
         wager_banked_wins = 0
+        wager_last_win_amount = 0
         if 'regen_shield' in owned and regen_recharge_wins == 0:
             shield_used         = True
             shield_used_type    = 'regen_shield'
@@ -340,35 +581,50 @@ def _resolve_spin(
             loss_count   = abs(new_streak) if new_streak < 0 else 0
             loss_bonus   = streak_bonus(loss_count) * bonus_mult
             base_loss    = 1 + loss_bonus
-            actual_loss  = compute_wager_loss(base_loss, actual_stake)
+            actual_loss  = compute_wager_loss(base_loss, effective_stake)
             if insurance_active:
-                # Caps the loss at the stake amount and returns the escrowed
-                # stake — armed via /api/wager/insurance, consumes a charge.
-                actual_loss = min(actual_loss, actual_stake)
+                # T74 AC#6: cap loss at int(base_loss * effective_stake) and
+                # refund the escrow. T102: in the new system actual_loss is
+                # already int(base_loss * effective_stake), so the cap is a
+                # no-op — kept for spec compliance and to guard against any
+                # future change that introduces a real cap. Must cast
+                # effective_stake to int since it's a fraction (0.0-0.45);
+                # otherwise min(int, float) returns the float.
+                actual_loss = min(actual_loss, int(base_loss * effective_stake))
                 wins += stake_wins
                 insurance_used = True
             losses      += actual_loss
-            # v2 (T45): safety net refunds 25% of lost escrow, not reduces losses
-            if 'wager_safety_net' in owned:
+            # v2 (T45): safety net refunds 25% of lost escrow, not reduces losses.
+            # T74 AC#7: skip when insurance already fired.
+            if 'wager_safety_net' in owned and not insurance_used:
                 wins += apply_safety_net(stake_wins, actual_stake, True)
             bonus_earned = -loss_bonus if loss_bonus > 0 else 0
-    elif outcome == 'jackpot':
+    elif not inverted_handled and outcome == 'jackpot':
         new_streak = streak + 1 if streak >= 0 else 1
         if regen_recharge_wins > 0:
             regen_recharge_wins -= 1
         jackpot_hit = True
         jackpot_mult = mode.get('jackpot_multiplier', 25)
-        raw_payout   = (effective_win_mult + bonus_earned) * jackpot_mult
-        direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+        # T102: payout = stake_wins (the wager) for stake > 0%, base_payout for 0%.
+        # The regular win_streak_bonus (bonus_earned) is added to the NET (per user
+        # intent: "applied to the amount that is won/lost AFTER the spin completes").
+        if stake_wins > 0:
+            net_payout = stake_wins + bonus_earned
+        else:
+            net_payout = effective_win_mult + bonus_earned
+        raw_payout   = net_payout * jackpot_mult
+        direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
         wins        += stake_wins
         wins        += direct_wins
         wager_banked_wins += banked_wins
+        last_direct_wins = direct_wins
+        wager_last_win_amount = last_direct_wins
         bonus_earned = direct_wins + banked_wins - effective_win_mult
         if random.random() < 0.05:
             new_jackpot_echo_next = True
         if jackpot_echo_pending:
             jackpot_echo_triggered = True
-    else:  # win
+    elif not inverted_handled:  # win
         new_streak = streak + 1 if streak >= 0 else 1
         if regen_recharge_wins > 0:
             regen_recharge_wins -= 1
@@ -381,40 +637,59 @@ def _resolve_spin(
             fortune_charm_triggered = True
         bonus_earned = base_bonus
 
+        # T102: payout = stake_wins (the wager) for stake > 0%, base_payout for 0%.
+        # The regular win_streak_bonus (bonus_earned) is added to the NET (per user
+        # intent: "applied to the amount that is won/lost AFTER the spin completes").
+        # At 0% stake, base_payout = effective_win_mult + bonus_earned already includes
+        # the win_streak_bonus; at N% stake we add bonus_earned to the wager.
+        if stake_wins > 0:
+            net_payout = stake_wins + bonus_earned
+        else:
+            net_payout = effective_win_mult + bonus_earned
+
         if jackpot_echo_pending:
             jackpot_echo_triggered = True
             jackpot_hit  = True
-            raw_payout   = (effective_win_mult + bonus_earned) * 25
-            direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            raw_payout   = net_payout * 25
+            direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_wins
             wins        += direct_wins
             wager_banked_wins += banked_wins
+            last_direct_wins = direct_wins
             bonus_earned = direct_wins + banked_wins - effective_win_mult
         elif 'jackpot' in owned and random.random() < jackpot_chance:
             jackpot_hit  = True
-            raw_payout   = (effective_win_mult + bonus_earned) * 25
-            direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+            raw_payout   = net_payout * 25
+            direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_wins
             wins        += direct_wins
             wager_banked_wins += banked_wins
+            last_direct_wins = direct_wins
             bonus_earned = direct_wins + banked_wins - effective_win_mult
             if random.random() < 0.05:
                 new_jackpot_echo_next = True
         else:
             if 'win_echo' in owned and random.random() < echo_chance:
                 echo_triggered = True
-                raw_payout   = (effective_win_mult + bonus_earned) * 2
-                direct_wins, banked_wins = compute_wager_payout(raw_payout, actual_stake, hot_streak_bonus)
+                raw_payout   = net_payout * 2
+                direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
                 wins        += stake_wins
                 wins        += direct_wins
                 wager_banked_wins += banked_wins
+                last_direct_wins = direct_wins
                 bonus_earned = direct_wins + banked_wins - effective_win_mult
             else:
-                base_payout = effective_win_mult + bonus_earned
-                direct_wins, banked_wins = compute_wager_payout(base_payout, actual_stake, hot_streak_bonus)
+                raw_payout   = net_payout
+                direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
                 wins += stake_wins
                 wins += direct_wins
                 wager_banked_wins += banked_wins
+                last_direct_wins = direct_wins
+
+        # T73 AC#1: record the base (direct) portion of the payout so the next
+        # spin can escrow it under double-down. On a loss, wager_last_win_amount
+        # is already reset to 0 in the lose branch above.
+        wager_last_win_amount = last_direct_wins
 
         # Update wager streak on win
         if actual_stake == wager_last_stake or wager_last_stake == 0:
@@ -422,8 +697,26 @@ def _resolve_spin(
         else:
             wager_streak = 1
 
+    # T77 AC#2: update gravity_drift after the spin resolves. Jackpot counts
+    # as a win for drift purposes. Drift resets to 0 on mode change (T76).
+    if active_wheel_mode == 'gravity':
+        if outcome in ('win', 'jackpot'):
+            gravity_drift = clamp_gravity_drift(gravity_drift + 10)
+        else:  # lose
+            gravity_drift = clamp_gravity_drift(gravity_drift - 10)
+
     new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
     wins = min(wins, _MAX_WINS)
+
+    # T77: compute the wheel_probabilities for the response from the NEW
+    # (post-spin) gravity_drift, so the wheel redraws with the new arc
+    # spans after each resolve. The segment_angle below still uses the
+    # INPUT probabilities so the wheel animation lands in the correct
+    # segment for the outcome that was just rolled.
+    response_probs = (
+        compute_gravity_probabilities(gravity_drift)
+        if active_wheel_mode == 'gravity' else probs
+    )
 
     # Map outcome to a CSS rotation angle that lands the pointer in the correct
     # visual segment.  Segments are arranged clockwise from 12-o'clock:
@@ -432,10 +725,11 @@ def _resolve_spin(
     #   JACKPOT : [0,   J)
     #   LOSE    : [J,   J+L)
     #   WIN     : [J+L, 360)
-    _m = WHEEL_MODES.get(active_wheel_mode, WHEEL_MODES['steady'])
-    _j_deg = _m['jackpot_pct'] / 100 * 360
-    _l_deg = _m['loss_pct']    / 100 * 360
-    _w_deg = _m['win_pct']     / 100 * 360
+    # T77: use the input-drift probabilities (probs) so the segment_angle
+    # matches the outcome that was just rolled.
+    _j_deg = probs['jackpot_pct'] / 100 * 360
+    _l_deg = probs['lose_pct']    / 100 * 360
+    _w_deg = probs['win_pct']     / 100 * 360
     _lose_start = _j_deg
     _win_start  = _j_deg + _l_deg
     if outcome == 'jackpot':
@@ -458,6 +752,9 @@ def _resolve_spin(
         'wager_streak':       wager_streak,
         'wager_last_stake':   actual_stake,
         'wager_banked_wins':  wager_banked_wins,
+        'wager_banked_losses': wager_banked_losses,
+        'wager_last_win_amount': wager_last_win_amount,
+        'gravity_drift':      gravity_drift,
     }
     events = {
         'result':                  outcome,
@@ -485,10 +782,25 @@ def _resolve_spin(
         'proc_streak':             proc_streak,
         'wager_streak':            wager_streak,
         'stake':                   actual_stake,
+        'effective_stake':         effective_stake,
+        'wager_last_stake':        wager_last_stake,
+        'max_stake_pct':           max_stake_pct,
         'active_wheel_mode':       active_wheel_mode,
         'wager_banked_wins':       wager_banked_wins,
         'wager_banked_wins_delta': wager_banked_wins - original_wager_banked_wins,
+        'wager_banked_losses':     wager_banked_losses,
+        'wager_banked_losses_delta': wager_banked_losses - original_wager_banked_losses,
+        'wager_last_win_amount':   wager_last_win_amount,
+        'double_down_active':      double_down_active,
         'insurance_used':          insurance_used,
+        'gravity_drift':           gravity_drift,
+        'gravity_drift_delta':     gravity_drift - original_gravity_drift,
+        'wheel_probabilities':     response_probs,
+        'message':                 _build_spin_message(
+            result=outcome, wins_delta=wins - original_wins, losses_delta=losses - original_losses,
+            is_inverted=(active_wheel_mode == 'inverted'),
+            stake=actual_stake, is_mirror=(active_wheel_mode == 'mirror'),
+        ),
     }
     return new_state, events
 
@@ -519,13 +831,48 @@ _RESPONSE_KEYS = (
     'wager_streak',
     'stake',
     'wager_banked_wins',
+    'wager_banked_losses',
+    'wager_banked_losses_delta',
+    'wager_last_win_amount',
+    'double_down_active',
     'insurance_used',
+    'gravity_drift',
+    'wheel_probabilities',
+    'active_wheel_mode',
+    'message',
 )
 
 
 def _events_to_response(events: dict) -> dict:
-    """Convert spin events into the JSON response payload shared by spin() and tick()."""
-    return {k: events[k] for k in _RESPONSE_KEYS}
+    """Convert spin events into the JSON response payload shared by spin() and tick().
+
+    Missing keys default to None so the response is always valid even when
+    callers (e.g. test mocks) supply a partial events dict. New fields
+    added by T77/T79 (gravity_drift, wheel_probabilities, etc.) are picked
+    up automatically once they appear in _RESPONSE_KEYS.
+    """
+    return {k: events.get(k) for k in _RESPONSE_KEYS}
+
+
+def _build_spin_message(*, result, wins_delta, losses_delta, is_inverted, stake, is_mirror):
+    """T79: build a short human-readable message describing the spin outcome.
+    In inverted mode the semantics are flipped (losses are good, wins are bad).
+    """
+    if is_mirror and result in ('win', 'jackpot'):
+        return f'Mirror took the better roll: +{wins_delta} wins'
+    if is_inverted:
+        if result == 'lose':
+            return f'Loss-farmed +{losses_delta} losses'
+        if result == 'jackpot':
+            return f'Inverted jackpot: +{wins_delta} wins AND +{losses_delta} losses'
+        return f'Unwanted win — forfeited {-losses_delta} losses'
+    if result == 'jackpot':
+        return f'JACKPOT! +{wins_delta} wins'
+    if result == 'win':
+        return f'+{wins_delta} wins'
+    if result == 'lose':
+        return f'-{stake} wins'
+    return f'Result: {result}'
 
 
 @game_bp.route('/api/health')
@@ -551,7 +898,7 @@ def get_state():
                 cur.execute(
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
                               equipped_fish, regen_recharge_wins,
-                              active_cosmetics, spin_count, win_count,
+                              active_cosmetics, spin_count, win_count, cumulative_wins,
                               winmult_inf_level, bonusmult_inf_level,
                               streak_armor_level, low_spec_mode,
                               lure_mastery_level, jackpot_resonance_level,
@@ -565,8 +912,11 @@ def get_state():
                               onboarding_step, auto_spin_budget,
                               wager_streak, wager_last_stake, double_down_pending,
                               wager_banked_wins, wager_insurance_charges,
+                              wager_insurance_armed, wager_insurance_last_recharge,
+                              wager_last_win_amount, wager_banked_losses,
                               active_wheel_mode, wager_tokens, aquarium_species,
-                              cosmetic_fragments, guard_charges
+                              cosmetic_fragments, guard_charges,
+                              gravity_drift
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -588,6 +938,15 @@ def get_state():
         dice_charges    = min(gs['dice_charges'], max_charges)
         last_recharge   = gs['dice_last_recharge']
         dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+
+        # T74: wager insurance recharge (mirrors dice recharge semantics).
+        wager_insurance_charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
+                                      WAGER_INSURANCE_MAX_CHARGES)
+        wager_insurance_last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
+        wager_insurance_charges, wager_insurance_last_recharge = _recharge_wager_insurance(
+            wager_insurance_charges, wager_insurance_last_recharge,
+            WAGER_INSURANCE_MAX_CHARGES, now_utc,
+        )
 
         # Season 8: available wheel modes for this week
         week_num = get_week_number(now_utc)
@@ -649,17 +1008,37 @@ def get_state():
             'legacy_wins':          int(gs.get('legacy_wins', 0)),
             'onboarding_step':      gs.get('onboarding_step', 0),
             'auto_spin_budget':     gs.get('auto_spin_budget', 0),
+            'auto_spin_active':     gs.get('auto_spin_since') is not None and int(gs.get('auto_spin_budget', 0)) > 0,
+            'cumulative_wins':      int(gs.get('cumulative_wins', 0)),
             'wager_streak':         gs.get('wager_streak', 0),
             'wager_last_stake':     gs.get('wager_last_stake', 0),
             'double_down_pending':  bool(gs.get('double_down_pending', False)),
             'wager_banked_wins':    gs.get('wager_banked_wins', 0),
-            'wager_insurance_charges': gs.get('wager_insurance_charges', 0),
+            'wager_banked_losses':  gs.get('wager_banked_losses', 0),
+            'wager_last_win_amount': int(gs.get('wager_last_win_amount', 0) or 0),
+            'wager_insurance_charges': int(wager_insurance_charges),
+            'wager_insurance_armed': bool(gs.get('wager_insurance_armed', False)),
+            'wager_insurance_last_recharge': (
+                wager_insurance_last_recharge.isoformat()
+                if hasattr(wager_insurance_last_recharge, 'isoformat')
+                else None
+            ),
             'active_wheel_mode':    gs.get('active_wheel_mode', 'steady'),
             'available_wheel_modes': available_modes,
+            # T77: gravity drift (resets to 0 on mode change per T76) and the
+            # drift-adjusted wheel probabilities for the current mode.
+            'gravity_drift':         int(gs.get('gravity_drift', 0) or 0),
+            'wheel_probabilities':   _current_wheel_probabilities(
+                gs.get('active_wheel_mode', 'steady'),
+                int(gs.get('gravity_drift', 0) or 0),
+            ),
             'wager_tokens':         gs.get('wager_tokens', 0),
             'aquarium_species':     list(gs.get('caught_species', [])),
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
             'guard_charges':        gs.get('guard_charges', 0),
+            # T102: max stake percentage for this player (30 base, 35/40/45
+            # with stake extension items). Frontend uses this to size the slider.
+            'max_stake_pct':        compute_max_stake_pct(owned_items),
             'bounties':             bounties,
             'community_goal': {
                 'goal_id':     goal_def['goal_id'],
@@ -798,30 +1177,30 @@ def spin():
             dice_charges   = min(dice_charges, max_charges)
             dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
+            # T74: wager insurance recharge (1 charge per 10 min, capped at 3).
+            wager_insurance_charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
+                                          WAGER_INSURANCE_MAX_CHARGES)
+            wager_insurance_last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
+            (wager_insurance_charges,
+             wager_insurance_last_recharge) = _recharge_wager_insurance(
+                wager_insurance_charges, wager_insurance_last_recharge,
+                WAGER_INSURANCE_MAX_CHARGES, now_utc,
+            )
+
             # Build spin context (immutable for this request)
             ctx = _build_spin_context(gs)
             pot_win_pct_frac = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.505
 
-            # Season 8: get stake from request body; resolve double-down if pending
-            req_stake = (request.json or {}).get('stake', 1)
+            # T102: get stake_pct from request body; resolve double-down if pending.
+            # DD is handled in _resolve_spin's escrow logic (escrows
+            # wager_last_win_amount) and does NOT modify the stake_pct
+            # parameter — the slider value is sent as-is.
+            req_stake = (request.json or {}).get('stake', 0)
             try:
                 req_stake = int(req_stake)
             except (TypeError, ValueError):
-                req_stake = 1
+                req_stake = 0
             double_down_active = bool(gs.get('double_down_pending', False))
-            if double_down_active:
-                # Doubles the stake, then validate_stake() clamps to MAX_STAKE
-                # (10) same as any other spin. For base stake >= 5 the doubled
-                # value is clamped back down, so double-down's marginal benefit
-                # shrinks to zero at base stake >= 5 -- this is an inherent
-                # consequence of the system-wide stake ceiling (every other
-                # stake-scaling path respects the same 1-10 range), not a
-                # separate bug. Raising the ceiling just for double-down would
-                # need its own ceiling threaded through validate_stake() AND
-                # compute_stake_risk() (which clamps independently) plus a
-                # redesign of the stake risk-label UI (Safe/Bold/Reckless,
-                # 1-10) -- out of scope for this fix; flagged, not changed.
-                req_stake = req_stake * 2
             insurance_active = bool(gs.get('wager_insurance_armed', False))
 
             new_spin_count = gs['spin_count'] + 1
@@ -845,33 +1224,54 @@ def spin():
                 proc_streak_level=ctx['proc_streak_level'],
                 pot_active=pot_active,
                 pot_win_pct=pot_win_pct_frac,
-                # Season 8 additions
-                stake=req_stake,
+                # T102: stake_pct is the slider value (0-45 percentage).
+                stake_pct=req_stake,
                 wager_streak=gs.get('wager_streak', 0),
                 wager_last_stake=gs.get('wager_last_stake', 0),
                 active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
                 aquarium_luck=ctx.get('aquarium_luck', 0.0),
                 wager_banked_wins=int(gs.get('wager_banked_wins', 0)),
                 insurance_active=insurance_active,
+                # T73: double-down escrow uses the last actual win amount
+                double_down_active=double_down_active,
+                wager_last_win_amount=int(gs.get('wager_last_win_amount', 0) or 0),
+                # T77: gravity drift
+                gravity_drift=int(gs.get('gravity_drift', 0) or 0),
+                # T79: banked losses
+                wager_banked_losses=int(gs.get('wager_banked_losses', 0)),
             )
 
             new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
             new_loss_count = gs['loss_count'] + (1 if events['result'] == 'lose' else 0)
+            # T106: cumulative_wins tracks the lifetime value of wins gained.
+            # Incremented on every win/jackpot by wins_delta (the actual wins
+            # gained from this spin, including wager payouts). Never decremented.
+            new_cumulative_wins = int(gs.get('cumulative_wins', 0)) + max(0, int(events.get('wins_delta', 0)))
 
-            # Season 8: generate replay string for big wins
-            replay_string = None
-            if should_generate_replay(events['jackpot_hit'], events.get('stake', 1),
-                                      events['result'], False, events.get('wager_streak', 0)):
-                replay_string = generate_replay(
-                    current_user.username, gs.get('active_wheel_mode', 'steady'),
-                    events.get('stake', 1), events['result'], events['wins_delta']
-                )
             # Season 8: post system message on jackpot
             if events['jackpot_hit']:
-                post_system_message(conn, f'🎰 {current_user.username} hit a JACKPOT for {int(events["wins_delta"]):,} wins!', 'event', event_kind='jackpot')
-            # Season 8: post system message on big double-down win (5x+ stake doubled = 10x+)
-            if double_down_active and events['result'] in ('win', 'jackpot') and events.get('stake', 1) >= 10:
-                post_system_message(conn, f'🔥 {current_user.username} won a 10x double-down for {int(events["wins_delta"]):,} wins!', 'event', event_kind='double_down_win')
+                post_system_message(conn, chat_triggers.jackpot_msg(
+                    current_user.username,
+                    events.get('active_wheel_mode', 'steady'),
+                    int(events.get('stake', 1)),
+                    int(events['wins_delta']),
+                ), 'system', event_kind='jackpot')
+            # Season 8: post system message on big double-down win
+            if (double_down_active and events['result'] in ('win', 'jackpot')
+                    and int(events.get('stake', 1)) >= chat_triggers.DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE):
+                post_system_message(conn, chat_triggers.double_down_win_msg(
+                    current_user.username,
+                    int(events.get('stake', 1)),
+                    int(events['wins_delta']),
+                ), 'system', event_kind='double_down_win')
+            # Season 8: hot streak milestone (fires on exact transition to threshold)
+            if (events['result'] in ('win', 'jackpot')
+                    and int(events.get('wager_streak', 0)) == chat_triggers.HOT_STREAK_MSG_THRESHOLD):
+                post_system_message(conn, chat_triggers.hot_streak_msg(current_user.username),
+                                    'system', event_kind='hot_streak_10')
+            # Season 8: big win (T83 per-player escalating threshold)
+            new_biggest_win_announced = _maybe_announce_big_win(
+                conn, gs, events, current_user.username)
 
             # Season 8: bounty tracking
             bounty_date = dt.datetime.now(timezone.utc).date()
@@ -913,7 +1313,8 @@ def spin():
             if gs.get('onboarding_step', 0) == 0:
                 onboarding_advance = True
                 # Season 8: post system message for new player first spin
-                post_system_message(conn, f'🎉 {current_user.username} spun the wheel for the first time! Welcome to Season 8!', 'event', event_kind='new_player')
+                post_system_message(conn, chat_triggers.new_player_msg(current_user.username),
+                                    'system', event_kind='new_player')
                 # Season 8: grant trail_1 cosmetic reward on first spin
                 if 'trail_1' not in new_state['owned']:
                     new_state['owned'] = list(new_state['owned']) + ['trail_1']
@@ -929,6 +1330,7 @@ def spin():
                        SET wins = %s, losses = %s, streak = %s, best_streak = %s,
                            regen_recharge_wins = %s,
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
+                           cumulative_wins = %s,
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            jackpot_echo_next = %s, proc_streak = %s,
@@ -937,20 +1339,33 @@ def spin():
                            active_tab_id = %s, tab_last_seen = NOW(),
                           wager_streak = %s, wager_last_stake = %s,
                           wager_banked_wins = %s,
+                          wager_banked_losses = %s,
+                          wager_last_win_amount = %s,
                           double_down_pending = FALSE,
                           wager_insurance_armed = FALSE,
+                          wager_insurance_charges = %s,
+                          wager_insurance_last_recharge = %s,
+                          biggest_win_announced = %s,
+                          gravity_drift = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                       WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
                      new_state['streak'], new_state['best_streak'],
                      new_state['regen_recharge_wins'],
                      new_state['owned'], new_spin_count, new_win_count, new_loss_count,
+                     new_cumulative_wins,
                      gs['fish_clicks'], new_state['active_cosmetics'],
                      dice_charges, last_recharge,
                      new_state['jackpot_echo_next'], new_state['proc_streak'],
                      req_tab_id or gs['active_tab_id'],
                      new_state.get('wager_streak', 0), new_state.get('wager_last_stake', 1),
                      new_state.get('wager_banked_wins', 0),
+                     new_state.get('wager_banked_losses', 0),
+                     new_state.get('wager_last_win_amount', 0),
+                     wager_insurance_charges,
+                     wager_insurance_last_recharge,
+                     new_biggest_win_announced,
+                     new_state.get('gravity_drift', 0),
                      current_user.id),
                 )
             conn.commit()
@@ -962,10 +1377,31 @@ def spin():
         resp['dice_last_recharge'] = last_recharge.isoformat()
         resp['wager_streak'] = new_state.get('wager_streak', 0)
         resp['wager_banked_wins'] = new_state.get('wager_banked_wins', 0)
-        resp['stake'] = new_state.get('wager_last_stake', 1)
-        resp['replay_string'] = replay_string
+        resp['wager_banked_losses'] = new_state.get('wager_banked_losses', 0)
+        resp['wager_last_win_amount'] = new_state.get('wager_last_win_amount', 0)
+        resp['stake'] = new_state.get('wager_last_stake', 0)
+        # T70: surface effective_stake + wager_last_stake on the spin response
+        # so the frontend can verify the spin used the requested stake (and
+        # apply the same value on next change / hot-streak reset).
+        resp['effective_stake'] = events.get('effective_stake', 0.0)
+        resp['wager_last_stake'] = new_state.get('wager_last_stake', 0)
+        # T102: max_stake_pct for this player (30-45 with stake extension items).
+        resp['max_stake_pct'] = events.get('max_stake_pct',
+                                            compute_max_stake_pct(list(gs['owned_items'])))
         resp['onboarding_advance'] = onboarding_advance
         resp['double_down_active'] = double_down_active
+        # T74: surface insurance state on spin response.
+        resp['wager_insurance_charges'] = wager_insurance_charges
+        resp['wager_insurance_armed'] = False
+        resp['wager_insurance_last_recharge'] = (
+            wager_insurance_last_recharge.isoformat()
+            if hasattr(wager_insurance_last_recharge, 'isoformat')
+            else None
+        )
+        # T77: gravity drift + drift-adjusted probabilities on the spin
+        # response so the wheel redraws correctly after each resolve.
+        resp['gravity_drift'] = new_state.get('gravity_drift', 0)
+        resp['wheel_probabilities'] = events.get('wheel_probabilities')
         return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -1137,8 +1573,18 @@ def tick():
             new_spin_count      = gs['spin_count']
             new_win_count       = gs['win_count']
             new_loss_count      = gs['loss_count']
+            # T106: cumulative_wins — lifetime value of wins gained.
+            new_cumulative_wins = int(gs.get('cumulative_wins', 0))
             active_cosmetics    = list(gs['active_cosmetics'])
             current_proc_streak = gs['proc_streak']
+            # T90: track escalating big-win threshold across the loop
+            new_biggest_win_announced = int(gs.get('biggest_win_announced', 0) or 0)
+            # T77: gravity drift is carried across spins within the tick so
+            # the wheel probabilities shift correctly after each resolve.
+            current_gravity_drift = int(gs.get('gravity_drift', 0) or 0)
+            # T79: auto-spin never banked losses (stake=1, no wager) but the
+            # carry-over is here for symmetry with manual spin.
+            current_wager_banked_losses = int(gs.get('wager_banked_losses', 0) or 0)
 
             # Immutable spin context
             ctx = _build_spin_context(gs)
@@ -1181,13 +1627,17 @@ def tick():
                     pot_active=pot_active,
                     pot_win_pct=pot_win_pct,
                     catchup_bonus_active=catchup_bonus_active,
-                    # Season 8: auto-spin always uses stake=1, no wager streak
-                    stake=1,
+                    # T102: auto-spin always uses stake_pct=0 (safe), no wager streak
+                    stake_pct=0,
                     wager_streak=0,
                     wager_last_stake=0,
                     active_wheel_mode=gs.get('active_wheel_mode', 'steady'),
                     aquarium_luck=ctx.get('aquarium_luck', 0.0),
                     wager_banked_wins=0,
+                    # T77: gravity drift carries across the loop
+                    gravity_drift=current_gravity_drift,
+                    # T79: auto-spin doesn't bank losses (no stake)
+                    wager_banked_losses=current_wager_banked_losses,
                 )
 
                 # Update carry-over state from result
@@ -1200,9 +1650,29 @@ def tick():
                 jackpot_echo_next   = new_state['jackpot_echo_next']
                 active_cosmetics    = new_state['active_cosmetics']
                 current_proc_streak = new_state['proc_streak']
+                # T77: drift may have shifted — propagate for the next spin.
+                current_gravity_drift = new_state.get('gravity_drift', current_gravity_drift)
+                current_wager_banked_losses = new_state.get('wager_banked_losses', current_wager_banked_losses)
 
                 new_win_count  += 1 if events['result'] == 'win'  else 0
                 new_loss_count += 1 if events['result'] == 'lose' else 0
+                # T106: cumulative_wins — track lifetime value of wins gained.
+                new_cumulative_wins += max(0, int(events.get('wins_delta', 0)))
+
+                # T90: auto-post chat messages (mirror T82 manual /api/spin path)
+                if events['result'] == 'jackpot':
+                    post_system_message(conn, chat_triggers.jackpot_msg(
+                        current_user.username,
+                        events.get('active_wheel_mode', 'steady'),
+                        1,
+                        int(events['wins_delta']),
+                    ), 'system', event_kind='jackpot')
+                if (int(events.get('wager_streak', 0)) == chat_triggers.HOT_STREAK_MSG_THRESHOLD):
+                    post_system_message(conn, chat_triggers.hot_streak_msg(current_user.username),
+                                        'system', event_kind='hot_streak_10')
+                new_biggest_win_announced = _maybe_announce_big_win(
+                    conn, gs, events, current_user.username)
+                gs['biggest_win_announced'] = new_biggest_win_announced
 
                 if not is_catch_up:
                     resp = _events_to_response(events)
@@ -1221,9 +1691,13 @@ def tick():
                        SET wins = %s, losses = %s, streak = %s, best_streak = %s,
                            regen_recharge_wins = %s,
                            owned_items = %s, spin_count = %s, win_count = %s, loss_count = %s,
+                           cumulative_wins = %s,
                            active_cosmetics = %s, jackpot_echo_next = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            proc_streak = %s,
+                           biggest_win_announced = %s,
+                           gravity_drift = %s,
+                           wager_banked_losses = %s,
                        dice_rolled_since_spin = FALSE, pending_dice = NULL,
                        auto_spin_budget = GREATEST(auto_spin_budget - %s, 0),
                        auto_spin_since = CASE WHEN auto_spin_budget - %s <= 0 THEN NULL ELSE auto_spin_since END,
@@ -1232,9 +1706,13 @@ def tick():
                     (current_wins, current_losses, streak, best_streak,
                      regen_recharge_wins,
                      owned, new_spin_count, new_win_count, new_loss_count,
+                     new_cumulative_wins,
                      active_cosmetics, jackpot_echo_next,
                      dice_charges, last_recharge,
                      current_proc_streak,
+                     new_biggest_win_announced,
+                     current_gravity_drift,
+                     current_wager_banked_losses,
                      spins_due, spins_due,
                      new_last_spin,
                      current_user.id),
@@ -1555,12 +2033,13 @@ def buy():
                     missing = len(all_species) - len(caught & all_species)
                     return jsonify({'error': f'Complete your Encyclopaedia first — {missing} species still to catch'}), 403
 
-            # Season 5: tier gating — check win_count threshold
+            # T106: tier gating — check cumulative_wins threshold (lifetime wins gained)
             tier = item_tier(item_id)
             if tier > 1:
                 threshold = UPGRADE_TIER_THRESHOLDS[tier]
-                if gs['win_count'] < threshold:
-                    return jsonify({'error': f'Unlocks at {threshold:,} total wins'}), 403
+                cumulative = int(gs.get('cumulative_wins', 0))
+                if cumulative < threshold:
+                    return jsonify({'error': f'Unlocks at {threshold:,} total wins gained (you have {cumulative:,})'}), 403
 
             # Currency-specific balance check
             if currency == 'wins':
@@ -1925,7 +2404,7 @@ def reel_line():
                               fishing_lucky_next, caught_species, fish_clicks,
                               fastest_catch_pct,
                               suspicious_catches, catch_count, catch_pct_ewma,
-                              catch_of_the_day_date
+                              catch_of_the_day_date, onboarding_step
                      FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -2111,6 +2590,7 @@ def reel_line():
             'fish_clicks':      new_fish_clicks,
             'wager_tokens':     wager_tokens_awarded,
             'catch_of_day_bonus': catch_of_day_bonus,
+            'onboarding_advance': gs.get('onboarding_step', 0) == 2,
         })
     except Exception:
         log.exception('REEL_ERROR  user_id=%s', current_user.id)
@@ -2572,33 +3052,59 @@ def admin_advance_season():
 @login_required
 @csrf.exempt
 def wager_bank():
-    """Bank wager_banked_wins into wins, reset wager_streak to 0."""
+    """Bank wager_banked_wins into wins AND wager_banked_losses into losses,
+    then reset wager_streak to 0. The same double-down-pending guard from
+    T72 covers both — banking mid-bet is forbidden for either side.
+    """
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
-            banked = int(gs.get('wager_banked_wins', 0))
-            if banked <= 0:
-                return jsonify({'error': 'No banked wins to claim'}), 400
-            new_wins = int(gs['wins']) + banked
+            # T72: refuse to bank while a double-down is armed. Banking mid
+            # double-down would forfeit the in-flight 2x-stake bet (the
+            # double-down's "wins at risk" semantics are then violated). The
+            # player must resolve the pending spin (or cancel) first.
+            # T79: same guard applies to inverted-mode banked losses.
+            if gs.get('double_down_pending'):
+                return jsonify({'error': 'Cannot bank while double-down is pending'}), 409
+            banked_wins = int(gs.get('wager_banked_wins', 0))
+            # T79: also bank wager_banked_losses (inverted-mode loss-farming).
+            banked_losses = int(gs.get('wager_banked_losses', 0))
+            # Tolerate missing 'losses' key (some test fixtures predate T79).
+            current_losses = int(gs.get('losses', 0) or 0)
+            if banked_wins <= 0 and banked_losses <= 0:
+                return jsonify({'error': 'No banked wins or losses to claim'}), 400
+            new_wins   = int(gs['wins']) + banked_wins
+            new_losses = current_losses + banked_losses
             cur.execute(
-                '''UPDATE game_state SET wins = %s, wager_banked_wins = 0, wager_streak = 0
+                '''UPDATE game_state
+                   SET wins = %s, losses = %s,
+                       wager_banked_wins = 0, wager_banked_losses = 0,
+                       wager_streak = 0
                    WHERE user_id = %s''',
-                (new_wins, current_user.id),
+                (new_wins, new_losses, current_user.id),
             )
         bounty_date = dt.datetime.now(timezone.utc).date()
         increment_bounty(conn, current_user.id, 'bounty_bank', bounty_date)
         conn.commit()
-    return jsonify({'wins': new_wins, 'wager_streak': 0, 'banked': banked})
+    return jsonify({
+        'wins':               new_wins,
+        'losses':             new_losses,
+        'wager_streak':       0,
+        'banked_wins':        banked_wins,
+        'banked_losses':      banked_losses,
+        'banked':             banked_wins,  # legacy field (T72)
+    })
 
 @game_bp.route('/api/wager/stake', methods=['POST'])
 @login_required
 @csrf.exempt
 def wager_set_stake():
-    """Set the wager stake for manual spins. Validates against wager_unlock."""
+    """Set the wager stake percentage for manual spins. Validates against wager_unlock."""
     err = require_json()
     if err:
         return err
-    stake = (request.json or {}).get('stake', 1)
+    # T102: stake field is now stake_pct (0-45 percentage, 5% steps).
+    stake = (request.json or {}).get('stake', 0)
     try:
         stake = int(stake)
     except (ValueError, TypeError):
@@ -2607,11 +3113,15 @@ def wager_set_stake():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
             owns_unlock = 'wager_unlock' in gs['owned_items']
-            actual_stake = validate_stake(stake, owns_unlock)
+            # T102: clamp to player's max stake (30 base, up to 45 with items).
+            max_pct = compute_max_stake_pct(list(gs.get('owned_items', [])))
+            actual_stake = validate_stake(stake, owns_unlock, max_pct)
             cur.execute('UPDATE game_state SET wager_last_stake = %s WHERE user_id = %s',
                         (actual_stake, current_user.id))
-            # Onboarding: advance step 1→2 when first stake > 1 is set
-            if actual_stake > 1 and owns_unlock and gs.get('onboarding_step', 0) == 1:
+            # T102: onboarding advances 1→2 when first non-zero stake is set.
+            # The 0% (safe) position is a real, valid stake; "actual_stake > 0"
+            # is the right gate now (was "> 1" in the multiplier system).
+            if actual_stake > 0 and owns_unlock and gs.get('onboarding_step', 0) == 1:
                 cur.execute(
                     '''UPDATE game_state
                        SET onboarding_step = 2,
@@ -2623,7 +3133,7 @@ def wager_set_stake():
                     (current_user.id,),
                 )
         conn.commit()
-    return jsonify({'stake': actual_stake})
+    return jsonify({'stake': actual_stake, 'max_stake_pct': max_pct})
 
 
 @game_bp.route('/api/wager/double-down', methods=['POST'])
@@ -2651,7 +3161,9 @@ def wager_double_down():
 @login_required
 @csrf.exempt
 def wager_insurance():
-    """Activate insurance: caps next loss at stake. Only if wager_insurance owned."""
+    """T74: Activate insurance — consumes a charge immediately, caps the next
+    loss at the stake, refunds the escrowed wins on a loss. Charge is wasted
+    on a win (it's a gamble, by design)."""
     err = require_json()
     if err:
         return err
@@ -2660,24 +3172,94 @@ def wager_insurance():
             gs = _load_game_state(cur, current_user.id, for_update=True)
             if 'wager_insurance' not in gs['owned_items']:
                 return jsonify({'error': 'Insurance not unlocked'}), 403
-            if gs.get('wager_insurance_charges', 0) <= 0:
+            # T74: refresh charges before arming so the player always sees the
+            # freshest count (mirrors /api/state behaviour).
+            now_utc = dt.datetime.now(timezone.utc)
+            charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
+                          WAGER_INSURANCE_MAX_CHARGES)
+            last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
+            charges, last_recharge = _recharge_wager_insurance(
+                charges, last_recharge, WAGER_INSURANCE_MAX_CHARGES, now_utc,
+            )
+            if charges <= 0:
                 return jsonify({'error': 'No insurance charges left'}), 403
             if gs.get('wager_insurance_armed'):
                 return jsonify({'error': 'Insurance already armed'}), 409
+            new_charges = charges - 1
+            # T74 AC#5: reset the recharge timer only if the new charge count
+            # is still below the cap (timer pauses at cap).
+            new_last_recharge = now_utc if new_charges < WAGER_INSURANCE_MAX_CHARGES else last_recharge
             cur.execute(
-                '''UPDATE game_state SET wager_insurance_charges = wager_insurance_charges - 1,
-                       wager_insurance_armed = TRUE
+                '''UPDATE game_state
+                   SET wager_insurance_charges = %s,
+                       wager_insurance_armed = TRUE,
+                       wager_insurance_last_recharge = %s
                    WHERE user_id = %s''',
-                (current_user.id,))
+                (new_charges, new_last_recharge, current_user.id),
+            )
         conn.commit()
-    return jsonify({'ok': True, 'message': 'Insurance activated'})
+    return jsonify({'ok': True, 'message': 'Insurance activated',
+                    'wager_insurance_charges': new_charges})
+
+
+def _prestige_default(col):
+    """T85: return the appropriate reset value for a column on prestige.
+
+    Most columns zero out; booleans flip to FALSE; timestamps, JSONB and
+    nullable scalars clear to NULL; text arrays empty; the single NOT NULL
+    enum (active_wheel_mode) returns to its declared default.
+    """
+    if col in (
+        'wins', 'losses', 'streak', 'best_streak', 'spin_count', 'win_count',
+        'loss_count',
+        'winmult_inf_level', 'bonusmult_inf_level', 'clickmult_inf_level',
+        'streak_armor_level', 'jackpot_resonance_level', 'echo_amp_level',
+        'proc_streak_level', 'proc_streak', 'lure_mastery_level',
+        'wager_streak', 'wager_last_stake', 'wager_banked_wins',
+        'wager_banked_losses', 'wager_insurance_charges',
+        'wager_last_win_amount',
+        'guard_charges', 'guard_last_regen_spin', 'resilience_last_use_spin',
+        'dice_charges', 'fish_clicks', 'fish_exchange_total',
+        'gravity_drift', 'biggest_win_announced',
+    ):
+        return 0
+    if col in (
+        'double_down_pending', 'wager_insurance_armed',
+        'dice_rolled_since_spin', 'fishing_lucky_next',
+    ):
+        return False
+    if col == 'active_wheel_mode':
+        return 'steady'
+    if col in (
+        'wager_insurance_last_recharge', 'dice_last_recharge',
+        'fishing_cast_at', 'fishing_bite_at',
+    ):
+        return dt.datetime.now(timezone.utc)
+    if col in (
+        'pending_dice', 'fastest_catch_pct', 'equipped_class', 'bounty_claimed_date',
+    ):
+        return None
+    if col == 'caught_species':
+        return []
+    # Defensive fallback: zero. Should be unreachable because
+    # PRESTIGE_RESET_COLUMNS is the single source of truth.
+    return 0
 
 
 @game_bp.route('/api/prestige', methods=['POST'])
 @login_required
 @csrf.exempt
 def prestige_reset():
-    """Prestige: reset wins for permanent bonus + legacy_wins preservation."""
+    """Prestige: reset wins for permanent bonus + legacy_wins preservation.
+
+    T85: resets the full AC#1 scope — every retired / per-season column
+    listed in PRESTIGE_RESET_COLUMNS. Preserves prestige_level, prestige_count,
+    legacy_wins, owned_cosmetics, active_cosmetics, aquarium_species, loadouts,
+    cosmetic_fragments, onboarding_step (T88), and wager_tokens (T85 AC#2).
+
+    T86: wins are not zeroed — ``compute_wins_kept`` retains a fraction of
+    them based on the player's prestige_efficiency level.
+    """
     err = require_json()
     if err:
         return err
@@ -2695,21 +3277,40 @@ def prestige_reset():
             new_level = current_level + 1
             new_prestige_count = gs.get('prestige_count', 0) + 1
             legacy_keep = get_legacy_keep_count(gs['owned_items'])
-            new_legacy_wins = int(gs.get('legacy_wins', 0)) + int(gs['wins'])
+            current_wins = int(gs['wins'])
+            new_legacy_wins = int(gs.get('legacy_wins', 0)) + current_wins
+            new_wins = compute_wins_kept(current_wins, gs['owned_items'])
+            new_owned_items = filter_kept_items(gs['owned_items'], legacy_keep)
             starting_prestige = get_starting_prestige(new_legacy_wins)
+            # T85: one UPDATE per prestige, every reset column cleared.
+            # Preserved columns (per AC#2): prestige_level, prestige_count,
+            # legacy_wins, active_cosmetics, aquarium_species, cosmetic_fragments,
+            # onboarding_step, wager_tokens. owned_items is rewritten to the
+            # filtered list (kept functional + all cosmetics).
+            reset_sql_parts = [
+                'prestige_level = %s',
+                'prestige_count = %s',
+                'legacy_wins = %s',
+                'wins = %s',
+                'owned_items = %s',
+            ]
+            reset_params = [new_level, new_prestige_count, new_legacy_wins,
+                            new_wins, new_owned_items]
+            for col in PRESTIGE_RESET_COLUMNS:
+                if col == 'wins':
+                    continue  # handled above (retained, not zeroed)
+                reset_sql_parts.append(f'{col} = %s')
+                reset_params.append(_prestige_default(col))
+            reset_sql_parts.append('wager_tokens = wager_tokens')  # preserve
             cur.execute(
-                '''UPDATE game_state
-                   SET prestige_level = %s, prestige_count = %s,
-                       legacy_wins = %s, wins = 0, streak = 0, best_streak = 0,
-                       win_count = 0, loss_count = 0, losses = 0,
-                       spin_count = 0, wager_streak = 0, wager_last_stake = 0,
-                       double_down_pending = FALSE, wager_banked_wins = 0,
-                       wager_insurance_armed = FALSE
-                   WHERE user_id = %s''',
-                (new_level, new_prestige_count, new_legacy_wins, current_user.id),
+                f'''UPDATE game_state
+                    SET {', '.join(reset_sql_parts)}
+                    WHERE user_id = %s''',
+                tuple(reset_params) + (current_user.id,),
             )
         # Season 8: post system message on prestige
-        post_system_message(conn, f'⭐ {current_user.username} reached Prestige Level {new_level}!', 'event', event_kind='prestige')
+        post_system_message(conn, chat_triggers.prestige_msg(current_user.username, new_level),
+                            'system', event_kind='prestige')
         # Bounty tracking
         bounty_date = dt.datetime.now(timezone.utc).date()
         increment_bounty(conn, current_user.id, 'bounty_prestige', bounty_date)
@@ -2722,11 +3323,12 @@ def prestige_reset():
         if goal_def and goal_def['metric'] == 'prestiges':
             increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
             check_goal_completion(conn, goal_def['goal_id'])
-    conn.commit()
+        conn.commit()
     return jsonify({
         'prestige_level': new_level,
         'prestige_count': new_prestige_count,
         'legacy_wins': new_legacy_wins,
+        'wins_kept': new_wins,
         'starting_prestige': starting_prestige,
     })
 
@@ -2771,7 +3373,7 @@ def get_bounties_endpoint():
             if gs and gs.get('onboarding_step', 0) == 3:
                 cur.execute(
                     '''UPDATE game_state
-                       SET onboarding_step = 4,
+                       SET onboarding_step = 5,
                            wager_tokens = wager_tokens + 100
                        WHERE user_id = %s''',
                     (current_user.id,),
@@ -2808,9 +3410,7 @@ def claim_bounty():
                    WHERE user_id = %s''',
                 (rewards['cosmetic_fragments'], rewards['tokens'], bounty_date, current_user.id),
             )
-        # Season 8: post system message on bounty claim
-        post_system_message(conn, f'🎯 {current_user.username} completed a bounty: {bounty_id}!', 'event', event_kind='bounty_claim')
-    conn.commit()
+        conn.commit()
     return jsonify({'ok': True, 'rewards': rewards})
 
 
@@ -2913,7 +3513,8 @@ def singularity_contribute():
             amount = actual_amount
             # Season 8: post system message if meter just filled (crossed threshold this contribution)
             if row['filled'] and (row['total_contributed'] - amount) < row['target']:
-                post_system_message(conn, f'🌀 The Singularity has converged! Total contributed: {int(row["total_contributed"]):,}', 'event', event_kind='singularity_fill')
+                post_system_message(conn, chat_triggers.singularity_fill_msg(int(row['total_contributed'])),
+                                    'system', event_kind='singularity_fill')
         conn.commit()
     return jsonify({
         'total_contributed': row['total_contributed'],
@@ -3020,23 +3621,6 @@ def apply_loadout():
     return jsonify({'ok': True, 'equipped_class': equipped_value, 'active_wheel_mode': mode})
 
 
-@game_bp.route('/api/replay/share', methods=['POST'])
-@login_required
-@csrf.exempt
-def share_replay():
-    """Decode and validate a replay string for sharing."""
-    err = require_json()
-    if err:
-        return err
-    replay_string = (request.json or {}).get('replay', '')
-    if not replay_string:
-        return jsonify({'error': 'Replay string required'}), 400
-    decoded = decode_replay(replay_string)
-    if decoded is None:
-        return jsonify({'error': 'Invalid replay'}), 400
-    return jsonify({'replay': decoded})
-
-
 @game_bp.route('/api/legacy-boards', methods=['GET'])
 @login_required
 def legacy_boards():
@@ -3078,7 +3662,11 @@ def guard_endpoint():
 @login_required
 @csrf.exempt
 def auto_spin_start():
-    """Start server-side auto-spin with an optional budget."""
+    """Start server-side auto-spin with an optional budget.
+
+    T107: gated on the `auto_spin_unlock` shop item. The auto-spin UI is
+    hidden in the wager panel for players who haven't bought the upgrade.
+    """
     err = require_json()
     if err:
         return err
@@ -3090,6 +3678,8 @@ def auto_spin_start():
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
+            if 'auto_spin_unlock' not in (gs.get('owned_items') or []):
+                return jsonify({'error': 'Buy auto_spin_unlock from the shop (5,000 wins)'}), 403
             if gs['auto_spin_since'] is not None:
                 return jsonify({'error': 'Auto-spin already active'}), 409
             cur.execute(
@@ -3147,12 +3737,42 @@ def set_wheel_mode():
     available = get_available_modes(week_num)
     if mode not in available and mode != 'steady':
         return jsonify({'error': 'Mode not available this week', 'available': available}), 403
+    response = {'ok': True, 'mode': mode}
     with db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute('UPDATE game_state SET active_wheel_mode = %s WHERE user_id = %s',
-                        (mode, current_user.id))
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('SELECT active_wheel_mode, owned_items FROM game_state WHERE user_id = %s',
+                        (current_user.id,))
+            row = cur.fetchone()
+            current_mode = row['active_wheel_mode'] if row else 'steady'
+            # T102: include max_stake_pct so the frontend slider can re-size
+            # itself if the player has bought stake extension items since
+            # the last state load.
+            response['max_stake_pct'] = compute_max_stake_pct(
+                list(row['owned_items']) if row and row.get('owned_items') else []
+            )
+            if mode != current_mode:
+                # T76: mode change resets state that doesn't carry across modes.
+                # Hot-streak reset prevents mode-hopping to farm the +5% bonus
+                # at low variance. Insurance / double-down are per-mode bets
+                # that don't carry forward. Gravity drift resets on entering
+                # OR leaving gravity (any mode change).
+                cur.execute(
+                    '''UPDATE game_state SET active_wheel_mode = %s,
+                                              wager_streak = 0,
+                                              wager_insurance_armed = FALSE,
+                                              double_down_pending = FALSE,
+                                              gravity_drift = 0
+                       WHERE user_id = %s''',
+                    (mode, current_user.id))
+                response['wager_streak'] = 0
+                response['wager_insurance_armed'] = False
+                response['double_down_pending'] = False
+                response['gravity_drift'] = 0
+            else:
+                cur.execute('UPDATE game_state SET active_wheel_mode = %s WHERE user_id = %s',
+                            (mode, current_user.id))
         conn.commit()
-    return jsonify({'ok': True, 'mode': mode})
+    return jsonify(response)
 
 
 # Note: there is no separate /api/fish-to-wager endpoint. wager_tokens are

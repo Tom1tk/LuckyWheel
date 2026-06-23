@@ -175,6 +175,7 @@ SHOP_ITEMS = {
     'page_season5':   {'cost': 1_000,        'requires': None},
     'page_season6':   {'cost': 1_000,        'requires': None},
     'page_season7':   {'cost': 1_000,        'requires': None},
+    'page_season8':   {'cost': 1_000,        'requires': None},
     'party_mode':     {'cost': 150,          'requires': None},
     'confetti_1':     {'cost': 75,           'requires': None},
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
@@ -224,6 +225,10 @@ SHOP_ITEMS = {
     'wager_hot_streak':  {'cost': 8_000,     'requires': 'wager_unlock'},
     'wager_double_down': {'cost': 25_000,    'requires': 'wager_hot_streak'},
     'wager_insurance':   {'cost': 50_000,    'requires': 'wager_unlock'},
+    # T102+T104: stake extension items — 30% base → 35% → 40% → 45%
+    'wager_stake_extend_1': {'cost': 5_000,    'requires': 'wager_unlock'},
+    'wager_stake_extend_2': {'cost': 15_000,   'requires': 'wager_stake_extend_1'},
+    'wager_stake_extend_3': {'cost': 40_000,   'requires': 'wager_stake_extend_2'},
     # ── Season 8: Prestige system (spec S5) ───────────────────────────────────
     'prestige_unlock':     {'cost': 1_000_000, 'requires': None},
     'prestige_efficiency': {'cost': 500_000,   'requires': 'prestige_unlock'},
@@ -242,11 +247,18 @@ SHOP_ITEMS = {
     # ── Season 8: Resilience rework (spec S7) ──────────────────────────────────
     'resilience':    {'cost': 20_000,       'requires': None},
     'jackpot':       {'cost': 3_000_000,    'requires': None},
+    # ── Season 8: Auto-spin as upgrade (T107) ─────────────────────────────────
+    # T107: one-time unlock. While active, the stake slider is hidden in the UI
+    # (auto-spin always uses 0% stake). DD + insurance remain visible but
+    # are no-ops during auto-spin (server already prevents them).
+    'auto_spin_unlock': {'cost': 5_000,    'requires': None},
 }
 
-# Season 5: upgrade tier gating — items not listed here are Tier 1 (always available)
-# Thresholds are based on win_count (total wins earned all-time this season)
-UPGRADE_TIER_THRESHOLDS = {2: 1_000, 3: 5_000}
+# T106: upgrade tier gating — items not listed here are Tier 1 (always available)
+# Thresholds are based on cumulative_wins (lifetime value of wins gained, T106).
+# Updated from the old win_count (count of winning spins) which was too slow
+# for the manual-wager era.
+UPGRADE_TIER_THRESHOLDS = {2: 10_000, 3: 100_000}
 UPGRADE_TIER_2 = {
     'regen_shield', 'guard_charge', 'dice_charge_2',
     'precise_angler_1',
@@ -292,6 +304,8 @@ _FUNCTIONAL_SHOP_ITEMS = {
     'dice_charge_2', 'dice_charge_3', 'dice_charge_4', 'dice_extra',
     # Season 8 additions
     'wager_unlock', 'wager_safety_net', 'wager_hot_streak', 'wager_double_down', 'wager_insurance',
+    'wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3',
+    'auto_spin_unlock',
     'prestige_unlock', 'prestige_efficiency', 'prestige_legacy',
     'fish_to_wager', 'catch_of_the_day', 'aquarium', 'lure_specialization',
 }
@@ -369,6 +383,11 @@ def streak_bonus(count: int) -> int:
 # Dice roll constants (Season 5)
 DICE_RECHARGE_SECONDS = 600   # 10 minutes per charge
 DICE_MAX_CHARGES_BASE = 1     # default max without upgrades
+
+
+# Wager insurance constants (T74)
+WAGER_INSURANCE_RECHARGE_SECONDS = 600   # 10 minutes per charge
+WAGER_INSURANCE_MAX_CHARGES = 3         # hard cap (no upgrade tiers)
 
 
 def dice_max_charges(owned_items: list) -> int:

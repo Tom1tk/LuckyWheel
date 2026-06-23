@@ -887,50 +887,100 @@ function WormholeBackground({
   );
 }
 
+// Per-theme colours for WIN and LOSE wheel segments. Shared theme system:
+// the page background reads the same palette (e.g. casino green=win/red=lose)
+// so nothing is hardcoded per element.
+const THEME_COLORS = {
+  default:         { win: ['#550088', '#AA00FF'], lose: ['#7a3300', '#FF6600'] },
+  fire:            { win: ['#993300', '#FF6600'], lose: ['#440000', '#CC2200'] },
+  ice:             { win: ['#005577', '#00CCFF'], lose: ['#002244', '#0066CC'] },
+  neon:            { win: ['#440088', '#CC00FF'], lose: ['#003300', '#00FF66'] },
+  void:            { win: ['#0a0a1a', '#6633FF'], lose: ['#0d0010', '#330066'] },
+  gold:            { win: ['#7a5c00', '#FFE566'], lose: ['#3d2000', '#CC8800'] },
+  bioluminescence: { win: ['#003a4d', '#00E5FF'], lose: ['#4d1020', '#FF6B6B'] },
+  night_ocean:     { win: ['#1a0d4d', '#5533FF'], lose: ['#3d0011', '#CC2244'] },
+  wormhole:        { win: ['#1a0044', '#BB88FF'], lose: ['#3d0022', '#FF44AA'] },
+  casino:          { win: ['#063d1f', '#28e070'], lose: ['#4a0808', '#ff4040'] },
+};
+
+// ── Casino Background (Season 8) ─────────────────────────────────────────────
+// Thin React wrapper around the shared vanilla scene module
+// (static/js/casino-bg.js, loaded as window.createCasinoScene). Colours come
+// from THEME_COLORS.casino so the wheel and background share one theme.
+function CasinoBackground({ lowSpec = false }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !window.createCasinoScene) return;
+    const scene = window.createCasinoScene(canvas, {
+      lowSpec,
+      palette: { win: THEME_COLORS.casino.win[1], lose: THEME_COLORS.casino.lose[1] },
+    });
+    return () => scene && scene.stop();
+  }, [lowSpec]);
+  return (
+    <canvas ref={canvasRef} aria-hidden="true"
+      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
+  );
+}
+
 // ── Draw main wheel ────────────────────────────────────────────────────────
 // Wheel mode percentages mirrored from wheel_modes.py — used for drawing only.
+// T80: the server now supplies wheel_probabilities in /api/state and the
+// spin response. drawWheel() prefers those values when provided; this
+// table is kept as a backward-compat fallback (per the task note: "If the
+// table is referenced in other places, keep backward compat").
 const WHEEL_MODE_DRAW = {
   steady:      { win_pct: 70, lose_pct: 28, jackpot_pct: 2 },
   volatile:    { win_pct: 45, lose_pct: 50, jackpot_pct: 5 },
-  inverted:    { win_pct: 60, lose_pct: 35, jackpot_pct: 5 },
+  inverted:    { win_pct: 35, lose_pct: 60, jackpot_pct: 5 },
   gravity:     { win_pct: 55, lose_pct: 40, jackpot_pct: 5 },
   mirror:      { win_pct: 65, lose_pct: 30, jackpot_pct: 5 },
   singularity: { win_pct: 75, lose_pct: 10, jackpot_pct: 15 },
 };
 
-function drawWheel(canvas, theme = 'default', wheelMode = 'steady') {
+function drawWheel(canvas, theme = 'default', wheelMode = 'steady', wheelProbabilities = null) {
   const ctx = canvas.getContext('2d');
   const size = canvas.width;
   const cx = size / 2, cy = size / 2, r = size / 2 - 4;
 
   ctx.clearRect(0, 0, size, size);
 
-  // Per-theme colours for WIN and LOSE segments
-  const THEME_COLORS = {
-    default:         { win: ['#550088', '#AA00FF'], lose: ['#7a3300', '#FF6600'] },
-    fire:            { win: ['#993300', '#FF6600'], lose: ['#440000', '#CC2200'] },
-    ice:             { win: ['#005577', '#00CCFF'], lose: ['#002244', '#0066CC'] },
-    neon:            { win: ['#440088', '#CC00FF'], lose: ['#003300', '#00FF66'] },
-    void:            { win: ['#0a0a1a', '#6633FF'], lose: ['#0d0010', '#330066'] },
-    gold:            { win: ['#7a5c00', '#FFE566'], lose: ['#3d2000', '#CC8800'] },
-    bioluminescence: { win: ['#003a4d', '#00E5FF'], lose: ['#4d1020', '#FF6B6B'] },
-    night_ocean:     { win: ['#1a0d4d', '#5533FF'], lose: ['#3d0011', '#CC2244'] },
-    wormhole:        { win: ['#1a0044', '#BB88FF'], lose: ['#3d0022', '#FF44AA'] },
-  };
   const colors = THEME_COLORS[theme] || THEME_COLORS.default;
+
+  // T80: prefer the server-supplied wheel_probabilities when available
+  // (covers gravity drift, which shifts after every spin). Fall back to
+  // the static WHEEL_MODE_DRAW table for backward compatibility.
+  const fallback = WHEEL_MODE_DRAW[wheelMode] || WHEEL_MODE_DRAW.steady;
+  const modeConfig = wheelProbabilities || fallback;
+  const winPct  = modeConfig.win_pct;
+  const losePct = modeConfig.lose_pct;
+  const jpPct   = modeConfig.jackpot_pct;
+
+  // T80 (T79 AC#11): in inverted mode the labels swap so the player
+  // visually sees which outcome is the GOOD one. "LOSE" is rendered with
+  // the bright (win-coloured) palette and "WIN" with the dim (lose-coloured)
+  // palette; the arc spans are unchanged.
+  const isInverted = (wheelMode === 'inverted');
+  const winLabel  = isInverted ? 'LOSE' : 'WIN';
+  const loseLabel = isInverted ? 'WIN'  : 'LOSE';
 
   // Compute arc spans from mode percentages.
   // Segments radiate clockwise from -π/2 (12-o'clock): WIN → LOSE → JACKPOT
-  const modeConfig = WHEEL_MODE_DRAW[wheelMode] || WHEEL_MODE_DRAW.steady;
-  const winSpan  = modeConfig.win_pct      / 100 * Math.PI * 2;
-  const loseSpan = modeConfig.lose_pct     / 100 * Math.PI * 2;
-  const jpSpan   = modeConfig.jackpot_pct  / 100 * Math.PI * 2;
+  const winSpan  = winPct  / 100 * Math.PI * 2;
+  const loseSpan = losePct / 100 * Math.PI * 2;
+  const jpSpan   = jpPct   / 100 * Math.PI * 2;
 
   const origin = -Math.PI / 2;  // 12-o'clock start
+  // Palette swap: in inverted mode the "good" outcome is LOSE, so the
+  // LOSE segment uses the bright win-coloured palette and the WIN segment
+  // uses the dim lose-coloured palette. The arc spans are unchanged.
+  const winSegPalette  = isInverted ? colors.lose : colors.win;
+  const loseSegPalette = isInverted ? colors.win  : colors.lose;
   const segments = [
-    { label: 'WIN',     color: colors.win[0],  bright: colors.win[1],  start: origin,             span: winSpan  },
-    { label: 'LOSE',    color: colors.lose[0], bright: colors.lose[1], start: origin + winSpan,   span: loseSpan },
-    { label: '★',       color: '#4a3800',       bright: '#FFD700',      start: origin + winSpan + loseSpan, span: jpSpan   },
+    { label: winLabel,  color: winSegPalette[0],  bright: winSegPalette[1],  start: origin,                                  span: winSpan  },
+    { label: loseLabel, color: loseSegPalette[0], bright: loseSegPalette[1], start: origin + winSpan,                        span: loseSpan },
+    { label: '★',       color: '#4a3800',          bright: '#FFD700',         start: origin + winSpan + loseSpan,             span: jpSpan   },
   ];
 
   segments.forEach(seg => {
@@ -1237,7 +1287,7 @@ function FishEncyclopedia({ caughtSpecies, onClose }) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught }) {
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onOnboardingAdvance }) {
   const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
@@ -1423,6 +1473,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
       setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled, preciseMult: data.precise_bonus ? data.precise_mult : null, precisePct: data.precise_pct != null ? data.precise_pct : null });
       onFishBucksUpdate(data.fish_clicks);
       if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+      if (data.onboarding_advance && onOnboardingAdvance) onOnboardingAdvance();
       if (onFishCaught) onFishCaught();
       setLuckyNextActive(!!data.lucky_next_active);
       setPhase('success');
@@ -2115,6 +2166,8 @@ function ChatPanel({ extraClass = '', onClose }) {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [timeoutSecs, setTimeoutSecs] = useState(0);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [size, setSize] = useState(() => {
     try {
       const s = JSON.parse(localStorage.getItem('chat_panel_size'));
@@ -2127,6 +2180,7 @@ function ChatPanel({ extraClass = '', onClose }) {
   const scrollRef = useRef(null);
   const atBottomRef = useRef(true);
   const timeoutTimerRef = useRef(null);
+  const oldestLoadedIdRef = useRef(null);
 
   // Persist size to localStorage whenever it changes (covers drag, close/reopen, refresh)
   useEffect(() => {
@@ -2152,15 +2206,35 @@ function ChatPanel({ extraClass = '', onClose }) {
     document.addEventListener('mouseup', onUp);
   }, []);
 
-  // Poll for new messages
+  // Merge polled latest-50 with any older messages already loaded via pagination.
+  // Returns the merged array; the polled slice is sorted ASC by the server.
+  const mergeLatest = (prev, polled) => {
+    if (prev.length === 0) {
+      if (polled.length > 0) {
+        oldestLoadedIdRef.current = polled[0].id;
+        if (polled.length < 50) setHasMore(false);
+      } else {
+        setHasMore(false);
+      }
+      return polled;
+    }
+    const polledIds = new Set(polled.map(m => m.id));
+    const older = prev.filter(m => !polledIds.has(m.id));
+    return [...older, ...polled];
+  };
+
+  // Poll for new messages — fetch latest 50, merge with any older messages loaded
   useEffect(() => {
     let ctrl = new AbortController();
     const load = () => {
       if (document.hidden) return;
       ctrl.abort();
       ctrl = new AbortController();
-      apiFetch('/api/chat', { signal: ctrl.signal })
-        .then(r => { if (r.ok) setMessages(r.data); })
+      apiFetch('/api/chat?limit=50', { signal: ctrl.signal })
+        .then(r => {
+          if (!r.ok) return;
+          setMessages(prev => mergeLatest(prev, r.data));
+        })
         .catch(() => {});
     };
     load();
@@ -2192,6 +2266,44 @@ function ChatPanel({ extraClass = '', onClose }) {
     const el = scrollRef.current;
     if (!el) return;
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    if (el.scrollTop < 100 && hasMore && !loadingOlder && oldestLoadedIdRef.current != null) {
+      loadOlder();
+    }
+  };
+
+  const loadOlder = async () => {
+    if (loadingOlder) return;
+    const oldestId = oldestLoadedIdRef.current;
+    if (oldestId == null) return;
+
+    setLoadingOlder(true);
+    const el = scrollRef.current;
+    const prevScrollHeight = el ? el.scrollHeight : 0;
+
+    try {
+      const r = await apiFetch(`/api/chat?before=${oldestId}&limit=50`);
+      if (!r.ok) return;
+      const older = r.data;
+      if (older.length === 0) {
+        setHasMore(false);
+        return;
+      }
+      setMessages(prev => {
+        const existing = new Set(prev.map(m => m.id));
+        const fresh = older.filter(m => !existing.has(m.id));
+        return [...fresh, ...prev];
+      });
+      oldestLoadedIdRef.current = older[0].id;
+      if (older.length < 50) setHasMore(false);
+      // Preserve scroll position: scrollHeight grew by the prepended block,
+      // so bump scrollTop by the same amount to keep the user's view anchored.
+      if (el) {
+        const newScrollHeight = el.scrollHeight;
+        el.scrollTop = newScrollHeight - prevScrollHeight + el.scrollTop;
+      }
+    } finally {
+      setLoadingOlder(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -2204,9 +2316,12 @@ function ChatPanel({ extraClass = '', onClose }) {
     });
     if (r.ok) {
       setInput('');
-      // Immediately reload
-      apiFetch('/api/chat')
-        .then(res => { if (res.ok) setMessages(res.data); })
+      // Reload latest 50 and merge with any older messages already in view
+      apiFetch('/api/chat?limit=50')
+        .then(res => {
+          if (!res.ok) return;
+          setMessages(prev => mergeLatest(prev, res.data));
+        })
         .catch(() => {});
     } else if (r.status === 429) {
       const secs = r.data.seconds_remaining || 60;
@@ -2235,20 +2350,13 @@ function ChatPanel({ extraClass = '', onClose }) {
         {onClose && <button className="chat-close-btn" onClick={onClose} title="Close Chat">✕</button>}
       </div>
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
+        {loadingOlder && (
+          <div className="chat-loading-older" style={{ textAlign: 'center', padding: '4px 0', opacity: 0.55, fontSize: '0.65rem' }}>
+            Loading older…
+          </div>
+        )}
         {messages.map(m => {
           const isSystem = m.message_type && m.message_type !== 'user';
-          const isReplay = m.message_type === 'replay';
-          if (isReplay) {
-            return (
-              <div key={m.id} className="chat-msg chat-msg-replay">
-                {m.created_at && <span className="chat-msg-time">{fmtChatTime(m.created_at)}</span>}
-                <div className="replay-card">
-                  <span className="replay-icon">🎬</span>
-                  <span className="replay-text">{m.message}</span>
-                </div>
-              </div>
-            );
-          }
           if (isSystem) {
             return (
               <div key={m.id} className="chat-msg chat-msg-system">
@@ -2394,11 +2502,15 @@ const SHOP_SECTIONS = [
     { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
   ]},
   { label: '⚡ Season 8: Wager System', items: [
-    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake multiplier (1x-10x) for spins', tier: 1 },
-    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Reduces loss by 25% at stake 5x+', tier: 2, requires: 'wager_unlock' },
+    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake slider (0% safe, 5%-30% at risk)', tier: 1 },
+    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
     { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
     { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Arm 2x stake for next spin', tier: 3, requires: 'wager_hot_streak' },
     { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Caps next loss at stake amount', tier: 3, requires: 'wager_unlock' },
+    { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
+    { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
+    { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
+    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
   ]},
   { label: '🏅 Season 8: Prestige', items: [
     { id: 'prestige_unlock',     emoji: '🏅', name: 'Prestige Unlock',     cost: 1000000, desc: 'Unlocks prestige reset (permanent +2% per level)', tier: 3 },
@@ -2445,6 +2557,7 @@ const SHOP_SECTIONS = [
     { id: 'page_season5', emoji: '5️⃣', name: 'Season 5', cost: 1000, desc: 'Season 5 page theme — Bioluminescence' },
     { id: 'page_season6', emoji: '6️⃣', name: 'Season 6', cost: 1000, desc: 'Season 6 page theme — Night Ocean' },
     { id: 'page_season7', emoji: '7️⃣', name: 'Season 7', cost: 1000, desc: 'Season 7 page theme — Wormhole' },
+    { id: 'page_season8', emoji: '8️⃣', name: 'Season 8', cost: 1000, desc: 'Season 8 page theme — Casino' },
   ]},
   { label: '🎲 Dice Charges', items: [
     { id: 'dice_charge_2', emoji: '🎲', name: 'Dice Charge +1', cost: 2000,    desc: 'Max dice charges: 2' },
@@ -2485,7 +2598,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'theme_tidal','theme_ember','theme_frost','theme_aurora','theme_vintage',
   'golden_wheel',
-  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7',
+  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8',
 ]);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
@@ -2498,7 +2611,7 @@ const COSMETIC_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
   'theme_tidal','theme_ember','theme_frost','theme_aurora','theme_vintage',
-  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','page_season7','party_mode','confetti_1','confetti_2','confetti_3',
+  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','page_season7','page_season8','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => {
@@ -2587,10 +2700,12 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-// Season 5 tier thresholds
-const TIER_THRESHOLDS = { 2: 1000, 3: 10000 };
+// T106: tier thresholds are now based on cumulative_wins (lifetime value of
+// wins gained), not win_count (count of winning spins). Updated from the old
+// values (1000 / 10000) to match the new metric scale.
+const TIER_THRESHOLDS = { 2: 10000, 3: 100000 };
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, winCount, caughtSpecies, procStreak }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, cumulativeWins, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -2627,7 +2742,8 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         const itemTierNum = item.tier || 1;
         const tierLocked = itemTierNum > 1 && !ownedItems.includes(item.id);
         const tierThreshold = tierLocked ? TIER_THRESHOLDS[itemTierNum] : null;
-        const tierUnlocked = !tierLocked || (winCount >= (tierThreshold || 0));
+        // T106: gate on cumulative_wins (lifetime value of wins gained), not winCount.
+        const tierUnlocked = !tierLocked || ((cumulativeWins || 0) >= (tierThreshold || 0));
 
         const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
         const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
@@ -2661,10 +2777,10 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
               <span className="shop-item-emoji" style={{ opacity: 0.4 }}>{item.emoji}</span>
               <div className="shop-item-info">
                 <div className="shop-item-name" style={{ opacity: 0.5 }}>{item.name}</div>
-                <div className="shop-item-desc" style={{ opacity: 0.5 }}>🔒 Unlocks at {fmt(tierThreshold)} total wins</div>
+                <div className="shop-item-desc" style={{ opacity: 0.5 }}>🔒 Unlocks at {fmt(tierThreshold)} total wins gained</div>
               </div>
               <div className="shop-item-action">
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)' }}>{fmt(winCount)}/{fmt(tierThreshold)}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)' }}>{fmt(cumulativeWins || 0)}/{fmt(tierThreshold)}</span>
               </div>
             </div>
           );
@@ -3040,6 +3156,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 1_000, filled: false, active: false, win_chance_pct: 50.0 });
   const [spinCount, setSpinCount]     = useState(gameState.spin_count || 0);
   const [winCount, setWinCount]       = useState(gameState.win_count || 0);
+  // T106: cumulative_wins tracks lifetime value of wins gained. Used for
+  // tier-2/3 unlock gating (replaces winCount for that purpose).
+  const [cumulativeWins, setCumulativeWins] = useState(gameState.cumulative_wins || 0);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [parallaxEnabled, setParallaxEnabled] = useState(() => localStorage.getItem('parallaxEnabled') !== 'false');
   const [shopCollapsed, setShopCollapsed] = useState(false);
@@ -3103,6 +3222,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_frost')) return 'frost';
     if (activeCosmetics.includes('theme_ember')) return 'ember';
     if (activeCosmetics.includes('theme_tidal')) return 'tidal';
+    if (activeCosmetics.includes('page_season8')) return 'casino';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season6')) return 'night_ocean';
@@ -3130,6 +3250,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [activeCosmetics]);
 
   const pageThemeClass = useMemo(() => {
+    if (activeCosmetics.includes('page_season8')) return 'page-season8';
     if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
     if (activeCosmetics.includes('page_season2')) return 'page-season2';
@@ -3141,6 +3262,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [activeCosmetics]);
 
   const wormholeActive = activeCosmetics.includes('page_season7');
+  const casinoActive   = activeCosmetics.includes('page_season8');
 
   const fishTimerRef       = useRef(null);
   const toastTimerRef      = useRef(null);
@@ -3151,10 +3273,23 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const tickPendingRef     = useRef(false);
   const resultAutoCloseRef = useRef(null);
   const wheelThemeRef      = useRef(null);
+  // T80: a ref mirroring wheelProbabilities so the wheel-mode-change handler
+  // can read the latest value from a closure that has stale state.
+  const wheelProbabilitiesRef = useRef(null);
+  const activeWheelModeRef    = useRef(null);
+  // T97 R2 / wager-stale: a ref mirroring stake so the spin handler can
+  // read the latest value. React 18 useCallback closures in this build
+  // are not reliably re-creating when `stakePct` changes — the label
+  // updates correctly but the spin handler's closure keeps the old
+  // value. T102: defaults to 0 (safe) instead of 1 (old 1× default).
+  const stakeRef              = useRef(gameState.wager_last_stake ?? 0);
 
   useEffect(() => { activeCosmeticsRef.current = activeCosmetics; }, [activeCosmetics]);
   useEffect(() => { lowSpecRef.current = lowSpec; }, [lowSpec]);
   useEffect(() => { wheelThemeRef.current = wheelTheme; }, [wheelTheme]);
+  useEffect(() => { wheelProbabilitiesRef.current = wheelProbabilities; }, [wheelProbabilities]);
+  useEffect(() => { activeWheelModeRef.current = activeWheelMode; }, [activeWheelMode]);
+  useEffect(() => { stakeRef.current = stakePct; }, [stakePct]);
   useEffect(() => {
     localStorage.setItem('lowSpecMode', lowSpec);
     document.body.classList.toggle('low-spec', lowSpec);
@@ -3166,12 +3301,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [lowSpec]);
 
   useEffect(() => {
-    const show = bgClass === 'bg-ocean' && !wormholeActive;
+    const show = bgClass === 'bg-ocean' && !wormholeActive && !casinoActive;
     const iframe = document.getElementById('seabed-bg');
     const overlay = document.getElementById('seabed-overlay');
     if (iframe)  iframe.style.display  = show ? 'block' : 'none';
     if (overlay) overlay.style.display = show ? 'block' : 'none';
-  }, [bgClass, wormholeActive]);
+  }, [bgClass, wormholeActive, casinoActive]);
 
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);
@@ -3220,6 +3355,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
           if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
           if (gs.data.singularity != null) setSingularity(gs.data.singularity);
+          // T80: sync wheelProbabilities + gravity drift from the new state.
+          if (gs.data.wheel_probabilities != null) setWheelProbabilities(gs.data.wheel_probabilities);
+          if (gs.data.gravity_drift != null) setGravityDrift(gs.data.gravity_drift);
         }
       } else {
         setSeason(r.data);
@@ -3244,7 +3382,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) drawWheel(canvas, wheelTheme, activeWheelMode);
+    if (!canvas) return;
+    drawWheel(canvas, wheelTheme, activeWheelMode, null);
   }, [wheelTheme, activeWheelMode]);
 
   const showToast = useCallback((msg) => {
@@ -3392,6 +3531,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
+    // T106: cumulative_wins is the new tier-gating metric. Spin response
+    // doesn't echo it (server already updated DB); refetch on next /api/state.
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
@@ -3474,7 +3615,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     try {
       const res = await apiGame('/api/spin', {
         method: 'POST',
-        body: JSON.stringify({ tab_id: tabIdRef.current, stake }),
+        body: JSON.stringify({ tab_id: tabIdRef.current, stake: stakeRef.current }),
       });
       if (!res.ok) {
         showToast(res.data?.error || 'Spin failed');
@@ -3490,6 +3631,26 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setWheelRotation(nextRot);
 
       if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
+      if (data.wager_insurance_armed != null) setWagerInsuranceArmed(data.wager_insurance_armed);
+      if (data.wager_insurance_charges != null) setWagerInsuranceCharges(data.wager_insurance_charges);
+      if (data.wager_last_win_amount != null) setWagerLastWinAmount(data.wager_last_win_amount);
+      // T80: server's drift-adjusted probabilities + new gravity drift.
+      if (data.wheel_probabilities != null) setWheelProbabilities(data.wheel_probabilities);
+      if (data.gravity_drift != null) setGravityDrift(data.gravity_drift);
+      // T102: server echoes the actual stake % it used (clamped to player's
+      // max). Sync stakePct + wagerLastStake so the slider position and
+      // wager panel match what the spin actually used.
+      if (data.stake != null) {
+        setStakePct(data.stake);
+        setWagerLastStake(data.stake);
+      }
+      if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
+      // T105: server doesn't echo stake_value; the post-spin update lives
+      // in applySpinResult (below) which sees the new wins/losses.
+      if (canvasRef.current) drawWheel(
+        canvasRef.current, wheelThemeRef.current || 'default',
+        activeWheelModeRef.current, data.wheel_probabilities || null,
+      );
 
       // Dismiss lingering result before showing new one
       if (showResultRef.current) dismissResult();
@@ -3516,7 +3677,40 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       spinningRef.current = false;
       setSpinning(false);
     }
-  }, [stake, showToast, applySpinResult, scheduleResultDismiss, dismissResult]);
+  }, [showToast, applySpinResult, scheduleResultDismiss, dismissResult]);
+
+  // T107: auto-spin start/stop handlers. The auto-spin server endpoint
+  // runs at 0% stake (no escrow) and prevents DD/insurance; the UI hides
+  // the stake slider while active.
+  const handleStartAutoSpin = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/auto-spin/start', {
+      method: 'POST',
+      body: JSON.stringify({ budget: 100 }),
+    });
+    if (!ok) { showToast(data?.error || 'Auto-spin start failed'); return; }
+    setAutoSpinActive(true);
+    setAutoSpinBudget(data.budget || 100);
+  }, [showToast]);
+
+  const handleStopAutoSpin = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/auto-spin/stop', {
+      method: 'POST',
+      body: '{}',
+    });
+    if (!ok) { showToast(data?.error || 'Auto-spin stop failed'); return; }
+    setAutoSpinActive(false);
+    setAutoSpinBudget(0);
+  }, [showToast]);
+
+  // T107: poll /api/tick every 3s while auto-spin is active. The tick
+  // endpoint processes the pending server-side auto-spins and returns
+  // the results. Mirrors the spin's animation by walking the same
+  // applySpinResult path on each result.
+  useEffect(() => {
+    if (!autoSpinActive) return;
+    const id = setInterval(tick, 3000);
+    return () => clearInterval(id);
+  }, [autoSpinActive, tick]);
 
   const tick = useCallback(async () => {
     if (tickPendingRef.current) return;
@@ -3526,7 +3720,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       if (!res.ok) return;
       const data = res.data;
 
-      if (data.auto_spin_active === false) return;
+      if (data.auto_spin_active === false) {
+        setAutoSpinActive(false);
+        return;
+      }
+      if (data.auto_spin_active === true) {
+        setAutoSpinActive(true);
+        if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
+      }
 
       if (data.happy_hour != null) setHappyHour(data.happy_hour);
 
@@ -3627,12 +3828,20 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [legacyWins, setLegacyWins]                 = useState(gameState.legacy_wins || 0);
   const [onboardingStep, setOnboardingStep]         = useState(gameState.onboarding_step || 0);
   const [wagerStreak, setWagerStreak]               = useState(gameState.wager_streak || 0);
-  const [wagerLastStake, setWagerLastStake]         = useState(gameState.wager_last_stake || 1);
+  const [wagerLastStake, setWagerLastStake]         = useState(gameState.wager_last_stake ?? 0);
   const [doubleDownPending, setDoubleDownPending]   = useState(gameState.double_down_pending || false);
   const [wagerBankedWins, setWagerBankedWins]       = useState(gameState.wager_banked_wins || 0);
+  const [wagerLastWinAmount, setWagerLastWinAmount] = useState(gameState.wager_last_win_amount || 0);
   const [wagerInsuranceCharges, setWagerInsuranceCharges] = useState(gameState.wager_insurance_charges || 0);
+  const [wagerInsuranceArmed, setWagerInsuranceArmed]   = useState(gameState.wager_insurance_armed || false);
   const [activeWheelMode, setActiveWheelMode]       = useState(gameState.active_wheel_mode || 'steady');
   const [availableWheelModes, setAvailableWheelModes] = useState(gameState.available_wheel_modes || ['steady', 'volatile']);
+  // T80: server-provided wheel probabilities (drift-adjusted for gravity,
+  // static for other modes). null → fall back to WHEEL_MODE_DRAW.
+  const [wheelProbabilities, setWheelProbabilities] = useState(gameState.wheel_probabilities || null);
+  // T80: gravity drift echoed by the server; not consumed by the wheel
+  // itself but kept in state for UI badges / debug.
+  const [gravityDrift, setGravityDrift]             = useState(gameState.gravity_drift || 0);
   const [wagerTokens, setWagerTokens]               = useState(gameState.wager_tokens || 0);
   const [aquariumSpecies, setAquariumSpecies]       = useState(gameState.aquarium_species || []);
   const [cosmeticFragments, setCosmeticFragments]   = useState(gameState.cosmetic_fragments || 0);
@@ -3640,7 +3849,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [bounties, setBounties]                     = useState(gameState.bounties || []);
   const [communityGoal, setCommunityGoal]           = useState(gameState.community_goal || null);
   const [singularity, setSingularity]               = useState(gameState.singularity || null);
-  const [stake, setStake]                           = useState(gameState.wager_last_stake || 1);
+  // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
+  // the safe "no risk" position and is valid — use ?? 0 not || 1.
+  const [stakePct, setStakePct]                     = useState(gameState.wager_last_stake ?? 0);
+  // T102: max stake percentage for this player (30 base, 35/40/45 with
+  // stake extension items). Used to size the slider's max attribute.
+  const [maxStakePct, setMaxStakePct]               = useState(gameState.max_stake_pct ?? 30);
+  // T102+T105: live display of the stake amount (wins escrowed on next
+  // spin). Recomputed on stake/wins/losses change and after each spin.
+  const [stakeValue, setStakeValue]                 = useState(0);
+  // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
+  // true, the stake slider is hidden (auto-spin always uses 0% stake).
+  const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
+  const [autoSpinBudget, setAutoSpinBudget]         = useState(gameState.auto_spin_budget || 0);
   const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
   const [showOnboarding, setShowOnboarding]         = useState((gameState.onboarding_step || 0) < 5);
   const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
@@ -3668,15 +3889,22 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.prestige_level != null) setPrestigeLevel(gameState.prestige_level);
     if (gameState.prestige_count != null) setPrestigeCount(gameState.prestige_count);
     if (gameState.legacy_wins != null) setLegacyWins(gameState.legacy_wins);
+    // T106: tier-gating metric
+    if (gameState.cumulative_wins != null) setCumulativeWins(gameState.cumulative_wins);
     if (gameState.onboarding_step != null) {
       setOnboardingStep(gameState.onboarding_step);
       setShowOnboarding(gameState.onboarding_step < 5);
     }
+    // T107: sync auto-spin state from server.
+    if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active);
+    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
     if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
     if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
     if (gameState.wager_banked_wins != null) setWagerBankedWins(gameState.wager_banked_wins);
+    if (gameState.wager_last_win_amount != null) setWagerLastWinAmount(gameState.wager_last_win_amount);
     if (gameState.wager_insurance_charges != null) setWagerInsuranceCharges(gameState.wager_insurance_charges);
+    if (gameState.wager_insurance_armed != null) setWagerInsuranceArmed(gameState.wager_insurance_armed);
     if (gameState.active_wheel_mode != null) setActiveWheelMode(gameState.active_wheel_mode);
     if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
     if (gameState.wager_tokens != null) setWagerTokens(gameState.wager_tokens);
@@ -3686,6 +3914,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.bounties != null) setBounties(gameState.bounties);
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
     if (gameState.singularity != null) setSingularity(gameState.singularity);
+    // T80: server-provided wheel probabilities + gravity drift.
+    if (gameState.wheel_probabilities != null) setWheelProbabilities(gameState.wheel_probabilities);
+    if (gameState.gravity_drift != null) setGravityDrift(gameState.gravity_drift);
+    // T102: hydrate stake percentage and the player's max (30/35/40/45).
+    // `wager_last_stake` is 0-45 in the new system (0 = safe/no-stake).
+    if (gameState.wager_last_stake != null) setStakePct(gameState.wager_last_stake);
+    if (gameState.max_stake_pct != null) setMaxStakePct(gameState.max_stake_pct);
   }, []); // eslint-disable-line
 
   // Season 8: community goal background poll (15s interval, respects document.hidden)
@@ -3713,10 +3948,40 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     };
   }, []);
 
+  // T102+T105: pure helper — given current wins/losses + stake %, return
+  // the wins/losses that would be escrowed on the next spin. Mirrors
+  // wagers.compute_stake_value on the server; the client computes its
+  // own copy because the server doesn't echo stake_value in the spin
+  // response (T102: response carries stake + effective_stake only).
+  const computeStakeValueForDisplay = useCallback((wins, losses, stakePctArg, ownedItemsArg, mode, ddActive, wagerLastWinAmountArg) => {
+    if (ddActive && wagerLastWinAmountArg > 0) return wagerLastWinAmountArg;
+    if (stakePctArg === 0) return 0;
+    const ownsUnlock = ownedItemsArg.includes('wager_unlock') || mode === 'inverted';
+    if (!ownsUnlock) return 0;
+    const base = mode === 'inverted' ? losses : wins;
+    return Math.floor(Math.max(0, base) * stakePctArg / 100);
+  }, []);
+
+  // T102+T105: keep stakeValue live in sync with all inputs (wins, losses,
+  // stake slider, wheel mode, DD arm). Runs on every relevant state change,
+  // including the post-spin wins_delta update from applySpinResult. Pure
+  // derived state; no need to thread it through every callback.
+  useEffect(() => {
+    setStakeValue(computeStakeValueForDisplay(
+      wins, losses, stakePct, ownedItems, activeWheelMode,
+      doubleDownPending, wagerLastWinAmount,
+    ));
+  }, [wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount, computeStakeValueForDisplay]);
+
   // Season 8: handle stake change
-  const handleStakeChange = useCallback(async (newStake) => {
-    setStake(newStake);
-    await apiGame('/api/wager/stake', { method: 'POST', body: JSON.stringify({ stake: newStake }) });
+  const handleStakeChange = useCallback(async (newStakePct) => {
+    stakeRef.current = newStakePct;
+    setStakePct(newStakePct);
+    // T105: stakeValue is derived from inputs via the useEffect above;
+    // it will update automatically on the next render. The server's
+    // /api/wager/stake echoes the clamped value back so the post-call
+    // response handler is what confirms the final slider position.
+    await apiGame('/api/wager/stake', { method: 'POST', body: JSON.stringify({ stake: newStakePct }) });
   }, []);
 
   // Season 8: wheel mode descriptions for tooltips
@@ -3729,27 +3994,72 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
   };
 
-  const WAGER_TOOLTIP = 'Stake: risk a percentage of your wins each spin — ' +
-    '2% at 1× scaling to 20% at 10×. ' +
+  const WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' +
+    'Upgrades extend to 45% max. ' +
+    '0% = no risk, base payout. ' +
+    'Each step risks that percentage of your current wins. ' +
     'Win → your risk is returned plus the full payout. ' +
     'Loss → your risk is gone (wins are actually deducted). ' +
     'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' +
-    'Safety Net: at 5×+ stake, 25% of lost risk is refunded. ' +
-    'Double-Down: risk your full potential winnings for a chance at 2×. ' +
-    'Insurance: guarantees no loss on your next spin (consumes a charge).';
+    'Safety Net: at 15%+ stake, 25% of lost risk is refunded. ' +
+    'Double-Down: ⚠️ ALL OR NOTHING. Wager your entire last win for a 2× payout. NO INSURANCE, NO SAFETY NET, NO PROTECTIONS. ' +
+    'Insurance: guarantees no loss on next spin (consumes a charge). Does NOT apply to Double-Down.';
 
   // Season 8: handle wheel mode change
   const handleWheelModeChange = useCallback(async (mode) => {
     const prev = activeWheelMode;
+    // T99: capture the four wager-state values BEFORE the optimistic update
+    // so we can restore them if the server rejects the change.
+    const prevStreak = wagerStreak;
+    const prevInsuranceArmed = wagerInsuranceArmed;
+    const prevDoubleDownPending = doubleDownPending;
+    const prevGravityDrift = gravityDrift;
     setActiveWheelMode(mode);
-    if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', mode);
+    // T97: clear wheelProbabilities so the redraw useEffect falls back to
+    // the new mode's static probabilities (the previous spin's distribution
+    // belongs to the previous mode). The useEffect's deps are now
+    // [wheelTheme, activeWheelMode] only — the redraw fires reliably with
+    // wheelProbabilities=null and draws the new mode's static fallback.
+    setWheelProbabilities(null);
+    // T97 (R2): the redraw useEffect is not firing reliably in this React 18
+    // build when activeWheelMode changes (the active class on the button
+    // updates but the canvas does not). Until that's diagnosed, draw the
+    // wheel synchronously here so the change is visible immediately.
+    // The draw call is idempotent — if the useEffect does fire later it
+    // will redraw the same pixels.
+    if (canvasRef.current) {
+      drawWheel(canvasRef.current, wheelThemeRef.current || 'default', mode, null);
+    }
     const { ok, data } = await apiGame('/api/wheel-mode', { method: 'POST', body: JSON.stringify({ mode }) });
     if (!ok) {
       setActiveWheelMode(prev);
-      if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', prev);
+      setWheelProbabilities(null);
+      // T99: restore the four wager-state values to the pre-click values.
+      setWagerStreak(prevStreak);
+      setWagerInsuranceArmed(prevInsuranceArmed);
+      setDoubleDownPending(prevDoubleDownPending);
+      setGravityDrift(prevGravityDrift);
+      if (canvasRef.current) {
+        drawWheel(canvasRef.current, wheelThemeRef.current || 'default', prev, null);
+      }
       showToast((data && data.error) || 'Mode change failed');
+    } else if (data) {
+      // T99: T76 resets wager_streak / wager_insurance_armed /
+      // double_down_pending / gravity_drift on the server when the mode
+      // actually changes. Mirror those into the React state so the wager
+      // panel updates immediately (otherwise the "armed" indicators and
+      // the hot-streak badge would linger until a full /api/state refresh).
+      if (data.wager_streak != null) setWagerStreak(data.wager_streak);
+      if (data.wager_insurance_armed != null) setWagerInsuranceArmed(data.wager_insurance_armed);
+      if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
+      if (data.gravity_drift != null) setGravityDrift(data.gravity_drift);
+      if (data.wheel_probabilities) {
+        // T80: server may echo the new mode's probabilities (gravity
+        // drift resets to 0 per T76).
+        setWheelProbabilities(data.wheel_probabilities);
+      }
     }
-  }, [showToast, activeWheelMode]);
+  }, [showToast, activeWheelMode, wagerStreak, wagerInsuranceArmed, doubleDownPending, gravityDrift]);
 
   // Season 8: handle prestige
   const handlePrestige = useCallback(async () => {
@@ -3824,7 +4134,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const handleInsurance = useCallback(async () => {
     const { ok, data } = await apiGame('/api/wager/insurance', { method: 'POST', body: JSON.stringify({}) });
     if (ok) {
-      setWagerInsuranceCharges(prev => Math.max(0, prev - 1));
+      if (data.wager_insurance_charges != null) {
+        setWagerInsuranceCharges(data.wager_insurance_charges);
+      } else {
+        setWagerInsuranceCharges(prev => Math.max(0, prev - 1));
+      }
+      setWagerInsuranceArmed(true);
       showToast('🛡️ Insurance activated');
     } else {
       showToast(data.error || 'Insurance failed');
@@ -3866,10 +4181,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         e.preventDefault();
         handleManualSpin();
       }
-      // Number keys 1-0 select stake
+      // Number keys 0-9 select stake percentage (T102: 0%=safe, 5%..45% in 5% steps).
+      // Server clamps to the player's max (30/35/40/45) so a press of 8
+      // (40%) is harmless if the player doesn't own the extension yet.
       if (e.key >= '0' && e.key <= '9' && ownedItems.includes('wager_unlock')) {
-        const newStake = e.key === '0' ? 10 : parseInt(e.key);
-        handleStakeChange(newStake);
+        const newStakePct = parseInt(e.key) * 5;
+        handleStakeChange(newStakePct);
       }
     };
     window.addEventListener('keydown', handler);
@@ -4024,6 +4341,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             parallax={parallaxEnabled} />
         </div>
       )}
+      {casinoActive && (
+        <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
+          <CasinoBackground lowSpec={lowSpec} />
+        </div>
+      )}
       <div className={`overlay ${showResult ? 'active' : ''}`} />
 
       {!isMobile && guardState && (
@@ -4094,6 +4416,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={refreshBountiesAndGoal}
+          onOnboardingAdvance={() => setOnboardingStep(prev => Math.min(prev + 1, 5))}
         />
       )}
 
@@ -4109,6 +4432,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
             onFishCaught={refreshBountiesAndGoal}
+            onOnboardingAdvance={() => setOnboardingStep(prev => Math.min(prev + 1, 5))}
           />
         </div>
       )}
@@ -4174,11 +4498,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="casino-title">
               <span className="title-lucky-wrap">
                 <span className="title-lucky">Lucky</span>
-                <span className="title-endless">SEASON 8</span>
+                <span className="title-endless">Casino</span>
               </span>
               {' '}Wheel
             </div>
-            <div className="subtitle">Season 8 — Make every spin count</div>
+            <div className="subtitle">All or nothing</div>
           </div>
 
           <div
@@ -4207,42 +4531,105 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             </div>
           )}
 
-          {/* Season 8: Wager panel — shown when wager_unlock is owned */}
-          {ownedItems.includes('wager_unlock') && (
-            <div className="season8-wager-panel">
-              <div className="wager-stake-control">
-                <label>Stake</label>
-                <input
-                  type="range" min="1" max="10" value={stake}
-                  onChange={e => handleStakeChange(parseInt(e.target.value))}
-                  className="wager-slider"
-                />
-                <span className={`stake-label stake-${stake <= 3 ? 'safe' : stake <= 7 ? 'bold' : 'reckless'}`}>
-                  {stake}× {stake <= 3 ? 'Safe' : stake <= 7 ? 'Bold' : 'Reckless'}
-                </span>
-                <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
-              </div>
-              {wagerStreak > 0 && (
-                <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
-              )}
-              {wagerBankedWins > 0 && (
-                <button className="wager-action-btn wager-bank-btn" onClick={async () => {
-                  const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
-                  if (ok) { setWins(data.wins); setWagerBankedWins(0); setWagerStreak(0); showToast(`Banked ${fmt(data.banked)} wins!`); refreshBountiesAndGoal(); }
-                  else showToast(data.error || 'Bank failed');
-                }}>🏦 Bank {fmt(wagerBankedWins)}</button>
-              )}
-              {ownedItems.includes('wager_double_down') && doubleDownPending && (
-                <div className="wager-double-down-armed">⚡ Double-Down armed!</div>
-              )}
-              {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-                <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double Down</button>
-              )}
-              {ownedItems.includes('wager_insurance') && wagerInsuranceCharges > 0 && (
-                <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+          {/* T107: auto-spin as upgrade. Visible only when player owns the
+              `auto_spin_unlock` shop item. While active, the stake slider
+              below is hidden (auto-spin always uses 0% stake). */}
+          {ownedItems.includes('auto_spin_unlock') && (
+            <div className="wager-action-btn" style={{ display: 'flex', justifyContent: 'center', marginTop: '0.4rem' }}>
+              {autoSpinActive ? (
+                <button
+                  className="wager-action-btn wager-bank-btn"
+                  onClick={handleStopAutoSpin}
+                  style={{ width: '100%' }}
+                >
+                  ⏹ Stop Auto-Spin ({autoSpinBudget} left)
+                </button>
+              ) : (
+                <button
+                  className="wager-action-btn"
+                  onClick={handleStartAutoSpin}
+                  style={{ width: '100%' }}
+                  title="Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
+                >
+                  🔁 Start Auto-Spin (100)
+                </button>
               )}
             </div>
           )}
+
+          {/* Season 8: Wager panel — always visible (T75); slider disabled until wager_unlock owned */}
+          <div className="season8-wager-panel">
+            {/* T107: stake slider is hidden while auto-spin is active (auto-spin
+                always uses 0% stake; manual input would be confusing). */}
+            {!autoSpinActive && <div className="wager-stake-control">
+              <label>Stake</label>
+              <input
+                type="range"
+                min="0"
+                max={maxStakePct}
+                step="5"
+                value={stakePct}
+                onChange={e => handleStakeChange(parseInt(e.target.value))}
+                className="wager-slider"
+                disabled={!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted'}
+                title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
+                style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              />
+              <span className={`stake-label ${
+                stakePct === 0 ? 'stake-safe' :
+                stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
+              }`}>{stakePct}%</span>
+              <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
+            </div>}
+            {!autoSpinActive && (<>
+            {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
+              <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
+            )}
+            {wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && (
+              <button className="wager-action-btn wager-bank-btn" onClick={async () => {
+                const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
+                if (ok) {
+                  setWins(data.wins);
+                  if (data.losses != null) setLosses(data.losses);
+                  setWagerBankedWins(0);
+                  setWagerStreak(0);
+                  refreshBountiesAndGoal();
+                  // T79: surface both banked wins and banked losses in the toast.
+                  const w = data.banked_wins || 0, l = data.banked_losses || 0;
+                  if (w > 0 && l > 0) showToast(`Banked ${fmt(w)} wins + ${fmt(l)} losses!`);
+                  else if (l > 0)      showToast(`Banked ${fmt(l)} losses!`);
+                  else                 showToast(`Banked ${fmt(w)} wins!`);
+                } else showToast(data.error || 'Bank failed');
+              }}>🏦 Bank {fmt(wagerBankedWins)}</button>
+            )}
+            {ownedItems.includes('wager_double_down') && doubleDownPending && (
+              <div className="wager-double-down-armed">⚡ Double-Down armed! ⚠️ No protections.</div>
+            )}
+            {ownedItems.includes('wager_double_down') && !doubleDownPending && (
+              <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double-Down (all-or-nothing)</button>
+            )}
+            {ownedItems.includes('wager_insurance') && wagerInsuranceArmed && (
+              <div className="wager-insurance-armed">🛡️ Insurance ARMED — next loss protected</div>
+            )}
+            {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && (
+              <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+            )}
+            </>)}
+            {/* T102+T105: live stake value display at the bottom of the wager panel.
+                Always visible so the player can see the dollar cost of the
+                current stake position before spinning. */}
+            <div className="wager-stake-value">
+              {doubleDownPending && wagerLastWinAmount > 0 ? (
+                <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
+              ) : stakePct === 0 ? (
+                <span className="stake-value-safe">🛡️ No stake</span>
+              ) : activeWheelMode === 'inverted' ? (
+                <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
+              ) : (
+                <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
+              )}
+            </div>
+          </div>
 
           {/* Season 8: Wheel mode selector */}
           <div className="season8-wheel-mode">
@@ -4431,7 +4818,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             equippedClass={equippedClass}
             fishExchangeTotal={fishExchangeTotal}
             collapsed={shopCollapsed}
-            winCount={winCount}
+            cumulativeWins={cumulativeWins}
             caughtSpecies={caughtSpecies}
             procStreak={procStreak}
           />

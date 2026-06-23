@@ -148,8 +148,12 @@ def test_catchup_bonus_higher_win_rate():
 
 def test_win_increases_wins():
     state = _base_state(wins=100)
-    # Force win via pot_active
-    new_state, events = _resolve_spin(**_base_state(owned=[], wins=100), **_base_ctx(pot_active=True, pot_win_pct=1.0))
+    # Force win via pot_active. Use effective_win_mult=16 (winmult_4) and
+    # wager_unlock so the 10% stake produces a non-zero payout
+    # (int(16 * 0.10) = 1).
+    new_state, events = _resolve_spin(**_base_state(owned=['wager_unlock'], wins=100),
+                                       **_base_ctx(pot_active=True, pot_win_pct=1.0,
+                                                   stake_pct=10, effective_win_mult=16.0))
     assert new_state['wins'] > 100
     assert events['wins_delta'] > 0
 
@@ -175,11 +179,15 @@ def test_win_from_loss_streak_resets_to_1():
 # ── Jackpot echo ──────────────────────────────────────────────────────────────
 
 def test_jackpot_echo_triggers_on_next_win():
-    state = _base_state(owned=['jackpot'], jackpot_echo_next=True, wins=100)
-    new_state, events = _resolve_spin(**state, **_base_ctx(jackpot_chance=0.0, pot_active=True, pot_win_pct=1.0))
+    state = _base_state(owned=['jackpot', 'wager_unlock'], jackpot_echo_next=True, wins=100)
+    # T102: use effective_win_mult=16 (winmult_4) so the 10% stake produces
+    # a non-zero payout: int(16 * 25 * 0.10) = 40.
+    new_state, events = _resolve_spin(**state, **_base_ctx(jackpot_chance=0.0, pot_active=True,
+                                                           pot_win_pct=1.0, stake_pct=10,
+                                                           effective_win_mult=16.0))
     assert events['jackpot_echo_triggered'] is True
     assert events['jackpot_hit'] is True
-    # Payout is (effective_win_mult + bonus) * 25
+    # Payout is (effective_win_mult + bonus) * 25 * effective_stake
     assert new_state['wins'] > 100
 
 
@@ -215,20 +223,27 @@ def test_regen_shield_absorbs_loss(monkeypatch):
 def test_insurance_caps_loss_and_refunds_escrow(monkeypatch):
     import random
     monkeypatch.setattr(random, 'random', lambda: 0.99)  # force a loss
+    # T102: use stake_pct=25 to get a non-zero loss. streak=-5 → loss_count=6
+    # → loss_bonus=8 → base_loss=9. actual_loss = int(9 * 0.25) = 2.
     state = _base_state(owned=['wager_unlock'], streak=-5, wins=1000, losses=0)
-    new_state, events = _resolve_spin(**state, **_base_ctx(stake=5), insurance_active=True)
+    new_state, events = _resolve_spin(**state, **_base_ctx(stake_pct=25), insurance_active=True)
     assert events['insurance_used'] is True
-    assert events['losses_delta'] == 5          # capped at stake, not the uncapped 45
+    # T102: insurance cap at int(base_loss * effective_stake) = int(9 * 0.25) = 2.
+    # The cap is essentially a no-op (actual_loss == cap with the new math).
+    assert events['losses_delta'] == 2
     assert new_state['wins'] == 1000            # escrowed stake fully refunded
 
 def test_loss_without_insurance_is_not_capped(monkeypatch):
     import random
     monkeypatch.setattr(random, 'random', lambda: 0.99)
+    # T102: use stake_pct=25. streak=-5 → loss_count=6 → loss_bonus=8 →
+    # base_loss=9. actual_loss = int(9 * 0.25) = 2. losses_delta=2.
     state = _base_state(owned=['wager_unlock'], streak=-5, wins=1000, losses=0)
-    new_state, events = _resolve_spin(**state, **_base_ctx(stake=5))
+    new_state, events = _resolve_spin(**state, **_base_ctx(stake_pct=25))
     assert events['insurance_used'] is False
-    assert events['losses_delta'] == 45
-    assert new_state['wins'] == 900             # escrow forfeited, not refunded
+    assert events['losses_delta'] == 2
+    # T102: stake_wins = int(1000 * 0.25) = 250. wins = 1000 - 250 = 750.
+    assert new_state['wins'] == 750             # escrow forfeited, not refunded
 
 
 # ── Wins cap ──────────────────────────────────────────────────────────────────

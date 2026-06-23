@@ -115,7 +115,14 @@ def register():
                     (username, pw_hash, ip, device_id),
                 )
                 user_id = cur.fetchone()['id']
-                cur.execute('INSERT INTO game_state (user_id) VALUES (%s)', (user_id,))
+                # Season 8: new players start with the casino page theme owned
+                # and equipped. They can switch to any other theme in the shop.
+                # Update this default when the season's default theme changes.
+                cur.execute(
+                    "INSERT INTO game_state (user_id, owned_items, active_cosmetics) "
+                    "VALUES (%s, ARRAY['page_season8'], ARRAY['page_season8'])",
+                    (user_id,),
+                )
 
             issue_session_token(conn, user_id)
             # Force WAL flush: a lost registration commit causes a confusing

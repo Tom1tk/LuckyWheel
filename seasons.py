@@ -136,7 +136,7 @@ def advance_season(conn):
                    -- Season 8: preserve legacy_wins (accumulate), reset prestige per-season
                    legacy_wins = legacy_wins + wins,
                    prestige_level = 0, prestige_count = 0,
-                   onboarding_step = 0, auto_spin_budget = 0,
+                   auto_spin_budget = 0,
                    wager_streak = 0, wager_last_stake = 0, double_down_pending = FALSE,
                    wager_banked_wins = 0, wager_insurance_charges = 0,
                    wager_insurance_armed = FALSE,

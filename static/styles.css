@@ -184,8 +184,8 @@ body::before {
 /* Wheel wrapper */
 .wheel-wrapper {
   position: relative;
-  width: min(420px, calc(100vw - 120px), calc(100vh - 460px));
-  height: min(420px, calc(100vw - 120px), calc(100vh - 460px));
+  width: min(580px, calc(100vw - 120px), calc(100vh - 480px));
+  height: min(580px, calc(100vw - 120px), calc(100vh - 480px));
   cursor: pointer;
 }
 
@@ -2407,8 +2407,8 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .casino-container { padding: 8px 0 70px 0; flex: 1; min-width: 0; width: auto; }
   .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
   .wheel-wrapper {
-    width:  min(320px, calc(100vw - 20px), calc(100vh - 400px));
-    height: min(320px, calc(100vw - 20px), calc(100vh - 400px));
+    width:  min(480px, calc(100vw - 20px), calc(100vh - 420px));
+    height: min(480px, calc(100vw - 20px), calc(100vh - 420px));
   }
 
   /* Below-wheel row: streak (left 50%) + dice (right 50%) */
@@ -3747,6 +3747,34 @@ body.page-season7 .score-box.wins-box { border-color: #9966FF; background: rgba(
 body.page-season7 .score-box.wins-box .score-label { color: #BB88FF; }
 body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow: 0 0 12px #9966FF; }
 
+/* ── Season 8: Casino theme — green (wins) / red (losses) ──────────────────── */
+/* The solid background also guarantees the page is never blank-white if the
+   casino canvas (static/js/casino-bg.js) fails to load. */
+body.page-season8 {
+  background: radial-gradient(ellipse 90% 70% at 50% 42%, #0a2e18 0%, #061a0e 55%, #03100a 100%);
+  --p:        #1FBE5C;
+  --p-lt:     #45E27A;
+  --p-md:     #138C42;
+  --p-dk:     #0F7838;
+  --p-xs:     #0B5A2A;
+  --p-2x:     #063E1C;
+  --p-rgb:    31, 190, 92;
+  --p-dk-rgb: 15, 120, 56;
+  --s:        #E23030;
+  --s-lt:     #FF5656;
+  --s-rgb:    226, 48, 48;
+  --bg:       #03100a;
+}
+body.page-season8 .wheel-wrapper::before {
+  box-shadow: 0 0 30px 12px rgba(31,190,92,0.45), 0 0 70px 25px rgba(226,48,48,0.18), inset 0 0 20px rgba(31,190,92,0.1);
+}
+body.page-season8 .pointer { border-top-color: #45E27A; filter: drop-shadow(0 0 10px #1FBE5C) drop-shadow(0 0 22px #E23030); }
+body.page-season8 .center-hub { background: radial-gradient(circle, #5BE88A, #0F7838); border-color: #8FF0AE; box-shadow: 0 0 20px #1FBE5C, 0 0 45px #E23030; }
+body.page-season8 .result-text.win { color: #45E27A; border-color: #45E27A; text-shadow: 0 0 20px #1FBE5C, 0 0 50px #1FBE5C; box-shadow: 0 0 40px #1FBE5C, inset 0 0 20px rgba(31,190,92,0.1); }
+body.page-season8 .score-box.wins-box { border-color: #1FBE5C; background: rgba(31,190,92,0.08); box-shadow: 0 0 16px rgba(31,190,92,0.2); }
+body.page-season8 .score-box.wins-box .score-label { color: #45E27A; }
+body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow: 0 0 12px #1FBE5C; }
+
 /* ── Hiatus Screen ────────────────────────────────────────────────────────── */
 .hiatus-screen {
   min-height: 100vh;
@@ -4415,10 +4443,44 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   min-width: 80px;
   text-align: right;
   flex-shrink: 0;
+  color: #f0e6ff;  /* Light text matching the dark wager panel theme */
 }
+.stake-label.stake-safe     { color: #44dd88; text-shadow: 0 0 6px rgba(68,221,136,0.4); }
+.stake-label.stake-bold     { color: #ffcc44; text-shadow: 0 0 6px rgba(255,204,68,0.4); }
+.stake-label.stake-reckless { color: var(--s-lt); text-shadow: 0 0 6px rgba(var(--s-rgb),0.4); }
 .stake-safe     { color: #44dd88; text-shadow: 0 0 6px rgba(68,221,136,0.4); }
 .stake-bold     { color: #ffcc44; text-shadow: 0 0 6px rgba(255,204,68,0.4); }
 .stake-reckless { color: var(--s-lt); text-shadow: 0 0 6px rgba(var(--s-rgb),0.4); }
+
+/* ── T102+T105: live stake value display ────────────────────────────────────── */
+.wager-stake-value {
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.stake-value-safe {
+  color: #888;
+  font-style: italic;
+}
+
+.stake-value-normal {
+  color: #4ade80; /* green for wins */
+}
+
+.stake-value-inverted {
+  color: #f87171; /* red for losses */
+}
+
+.stake-value-dd {
+  color: #fbbf24; /* yellow for DD */
+  font-weight: 600;
+}
 
 .wager-hotstreak {
   font-size: 0.7rem;
