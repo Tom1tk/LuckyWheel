@@ -3704,16 +3704,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setAutoSpinBudget(0);
   }, [showToast]);
 
-  // T107: poll /api/tick every 3s while auto-spin is active. The tick
-  // endpoint processes the pending server-side auto-spins and returns
-  // the results. Mirrors the spin's animation by walking the same
-  // applySpinResult path on each result.
-  useEffect(() => {
-    if (!autoSpinActive) return;
-    const id = setInterval(tick, 3000);
-    return () => clearInterval(id);
-  }, [autoSpinActive, tick]);
-
   const tick = useCallback(async () => {
     if (tickPendingRef.current) return;
     tickPendingRef.current = true;
@@ -3865,6 +3855,25 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
   const [autoSpinBudget, setAutoSpinBudget]         = useState(gameState.auto_spin_budget || 0);
+
+  // T107: poll /api/tick every 3s while auto-spin is active. The tick
+  // endpoint processes the pending server-side auto-spins and returns
+  // the results. Mirrors the spin's animation by walking the same
+  // applySpinResult path on each result.
+  //
+  // NOTE: placed AFTER the `autoSpinActive` state declaration (was
+  // previously above it, at the original T107 commit location) so the
+  // deps array reads a stable binding. With the original placement
+  // babel hoisted `var autoSpinActive` to the top of the function and
+  // the deps comparison saw `[undefined, undefined]` on the first
+  // render, then `[false, fn]` on the second — both stored, but the
+  // effect never re-fired when `setAutoSpinActive(true)` flipped the
+  // value, so the polling never started. See the T107 follow-up notes.
+  useEffect(() => {
+    if (!autoSpinActive) return;
+    const id = setInterval(tick, 3000);
+    return () => clearInterval(id);
+  }, [autoSpinActive, tick]);
   const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
   const [showOnboarding, setShowOnboarding]         = useState((gameState.onboarding_step || 0) < 5);
   const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
