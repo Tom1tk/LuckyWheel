@@ -2456,9 +2456,9 @@ const SHOP_SECTIONS = [
     { id: 'winmult_3', emoji: '💰', name: 'Win Power III',cost: 2000,   desc: '+60% win multiplier', requires: 'winmult_2' },
   ]},
   { label: '⭐ Bonus Power', items: [
-    { id: 'bonusmult_1', emoji: '⭐', name: 'Bonus Power I',  cost: 300,   desc: 'Multiplies streak bonuses' },
-    { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Power II', cost: 900,   desc: 'Multiplies streak bonuses', requires: 'bonusmult_1' },
-    { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: 'Multiplies streak bonuses', requires: 'bonusmult_2' },
+    { id: 'bonusmult_1', emoji: '⭐', name: 'Bonus Power I',  cost: 300,   desc: '2× streak bonuses' },
+    { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Power II', cost: 900,   desc: '4× streak bonuses', requires: 'bonusmult_1' },
+    { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
