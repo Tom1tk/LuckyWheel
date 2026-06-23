@@ -335,3 +335,50 @@ def test_t107_autospin_css_mirrors_legacy_style():
     )
     # The legacy gold-glow look
     assert '#FFD700' in css, "must use the legacy gold accent color"
+
+
+def test_t107_polling_useeffect_after_autospinactive_state():
+    """T107 follow-up: the polling useEffect must be defined AFTER the
+    `autoSpinActive` useState declaration, so the deps array
+    `[autoSpinActive, tick]` reads a stable binding. If it's above
+    the useState, babel hoists `var autoSpinActive` and the effect
+    never re-fires when setAutoSpinActive(true) flips the value —
+    the wheel never spins after ticking the checkbox."""
+    with open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'static', 'app.jsx',
+    )) as f:
+        lines = f.readlines()
+    # Find the line numbers. The polling useEffect is the one whose body
+    # contains `setInterval(tick, 3000)` and whose deps are
+    # `[autoSpinActive, tick]`.
+    autospin_state_line = None
+    polling_effect_line = None
+    tick_callback_line = None
+    polling_intervals = 0
+    for i, line in enumerate(lines, start=1):
+        if 'const [autoSpinActive, setAutoSpinActive]' in line:
+            autospin_state_line = i
+        if 'const tick = useCallback' in line:
+            tick_callback_line = i
+        if 'setInterval(tick, 3000)' in line:
+            polling_intervals += 1
+            polling_effect_line = i
+
+    assert autospin_state_line, "could not locate autoSpinActive useState"
+    assert tick_callback_line, "could not locate tick useCallback"
+    assert polling_effect_line, "could not locate polling useEffect (setInterval(tick, 3000))"
+    assert polling_intervals == 1, (
+        f"expected exactly 1 polling useEffect (3s tick), found {polling_intervals}"
+    )
+    assert polling_effect_line > autospin_state_line, (
+        f"polling useEffect (line {polling_effect_line}) must be defined AFTER "
+        f"autoSpinActive state (line {autospin_state_line}) so the deps array "
+        f"reads a stable binding"
+    )
+    # Also assert the tick callback is defined before the polling useEffect
+    # (the polling effect closes over `tick` from the parent scope)
+    assert tick_callback_line < polling_effect_line, (
+        f"tick useCallback (line {tick_callback_line}) must be defined before "
+        f"polling useEffect (line {polling_effect_line})"
+    )

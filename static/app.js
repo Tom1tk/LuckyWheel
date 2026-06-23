@@ -6425,18 +6425,6 @@ function GameApp(_ref28) {
       }
     }, _callee18);
   })), [showToast]);
-
-  // T107: poll /api/tick every 3s while auto-spin is active. The tick
-  // endpoint processes the pending server-side auto-spins and returns
-  // the results. Mirrors the spin's animation by walking the same
-  // applySpinResult path on each result.
-  useEffect(function () {
-    if (!autoSpinActive) return;
-    var id = setInterval(tick, 3000);
-    return function () {
-      return clearInterval(id);
-    };
-  }, [autoSpinActive, tick]);
   var tick = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19() {
     var res, data, hrs, mins, timeStr, spinResult, seg, nextRot;
     return _regenerator().w(function (_context19) {
@@ -6727,6 +6715,27 @@ function GameApp(_ref28) {
     _useState246 = _slicedToArray(_useState245, 2),
     autoSpinBudget = _useState246[0],
     setAutoSpinBudget = _useState246[1];
+
+  // T107: poll /api/tick every 3s while auto-spin is active. The tick
+  // endpoint processes the pending server-side auto-spins and returns
+  // the results. Mirrors the spin's animation by walking the same
+  // applySpinResult path on each result.
+  //
+  // NOTE: placed AFTER the `autoSpinActive` state declaration (was
+  // previously above it, at the original T107 commit location) so the
+  // deps array reads a stable binding. With the original placement
+  // babel hoisted `var autoSpinActive` to the top of the function and
+  // the deps comparison saw `[undefined, undefined]` on the first
+  // render, then `[false, fn]` on the second — both stored, but the
+  // effect never re-fired when `setAutoSpinActive(true)` flipped the
+  // value, so the polling never started. See the T107 follow-up notes.
+  useEffect(function () {
+    if (!autoSpinActive) return;
+    var id = setInterval(tick, 3000);
+    return function () {
+      return clearInterval(id);
+    };
+  }, [autoSpinActive, tick]);
   var _useState247 = useState(false),
     _useState248 = _slicedToArray(_useState247, 2),
     showPrestigeConfirm = _useState248[0],
