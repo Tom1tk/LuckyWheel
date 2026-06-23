@@ -7,6 +7,9 @@ Contribution is capped per player so one whale cannot solo it.
 
 import psycopg2.extras
 
+import chat
+import chat_triggers
+
 
 COMMUNITY_GOAL_DEFS = [
     {
@@ -91,6 +94,11 @@ def increment_goal(conn, goal_id, user_id, amount):
 
     Enforces the per-player cap. Returns the amount actually contributed
     (may be less than requested if the cap is reached).
+
+    After updating, checks for 25/50/75% milestone crossings (T84). Each
+    crossed milestone is marked TRUE in community_goals and a system
+    message is posted to chat (event_kind=goal_milestone_{25,50,75}).
+    The 100% completion is handled by check_goal_completion, not here.
     """
     goal_def = next((g for g in COMMUNITY_GOAL_DEFS if g['goal_id'] == goal_id), None)
     if not goal_def:
@@ -130,14 +138,34 @@ def increment_goal(conn, goal_id, user_id, amount):
             (actual_amount, goal_id, user_id),
         )
 
-        # Increment goal total
+        # Increment goal total; also fetch the milestone flags so we can
+        # detect threshold crossings from the new (post-increment) value.
         cur.execute(
             '''UPDATE community_goals
                SET current = current + %s
                WHERE goal_id = %s AND NOT completed
-               RETURNING current, target, completed''',
+               RETURNING current, target, milestone_25, milestone_50, milestone_75''',
             (actual_amount, goal_id),
         )
+        goal_row = cur.fetchone()
+
+        if goal_row:
+            new_current = goal_row['current']
+            new_target = goal_row['target']
+            if new_target > 0:
+                for pct in (25, 50, 75):
+                    if not goal_row.get(f'milestone_{pct}', False) and new_current * 100 >= pct * new_target:
+                        cur.execute(
+                            f'''UPDATE community_goals
+                                SET milestone_{pct} = TRUE
+                                WHERE goal_id = %s AND NOT milestone_{pct}''',
+                            (goal_id,),
+                        )
+                        msg = chat_triggers.goal_milestone_msg(pct, new_current, new_target)
+                        chat.post_system_message(
+                            conn, msg, 'system',
+                            event_kind=f'goal_milestone_{pct}',
+                        )
 
     return actual_amount
 
