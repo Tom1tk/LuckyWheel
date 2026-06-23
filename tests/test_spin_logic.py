@@ -94,7 +94,6 @@ def _base_ctx(**overrides):
         proc_streak_level=0,
         pot_active=False,
         pot_win_pct=0.505,
-        catchup_bonus_active=False,
     )
     ctx.update(overrides)
     return ctx
@@ -133,15 +132,12 @@ def test_pot_active_uses_win_pct():
         assert ev['result'] == 'win'
 
 
-def test_catchup_bonus_higher_win_rate():
-    """Over many trials, catchup=True should produce more wins than 50/50."""
-    import random as _r
-    _r.seed(42)
-    wins_with = sum(
-        1 for _ in range(1000)
-        if _resolve_spin(**_base_state(), **_base_ctx(catchup_bonus_active=True))[1]['result'] == 'win'
-    )
-    assert wins_with > 520, f"Expected >520 wins/1000 with catchup, got {wins_with}"
+def test_catchup_bonus_removed_in_season_8():
+    """S8: catch-up bonus for last-place players is no longer applied."""
+    import inspect
+    src = inspect.getsource(_resolve_spin)
+    assert 'catchup_bonus_active' not in src, "catchup_bonus_active should be removed from _resolve_spin"
+    assert '0.55' not in src, "Catch-up +5% win rate (0.55) should be removed"
 
 
 # ── Win mechanics ─────────────────────────────────────────────────────────────

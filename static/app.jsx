@@ -3142,7 +3142,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishCatchUpSummary, setFishCatchUpSummary] = useState(null);
   const [happyHour, setHappyHour]     = useState(gameState.happy_hour || false);
   const [happyHourDismissed, setHappyHourDismissed] = useState(false);
-  const [catchupBonus, setCatchupBonus] = useState(false);
   const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
@@ -3741,7 +3740,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (data.state.spin_count != null) setSpinCount(data.state.spin_count);
           if (data.state.win_count  != null) setWinCount(data.state.win_count);
           if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
-          if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
           if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
           if (data.state.cumulative_wins != null) setCumulativeWins(data.state.cumulative_wins);
           setDiceRolledSinceSpin(false);
@@ -3787,7 +3785,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       if (data.state) {
         if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
-        if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
         if (data.state.dice_rolled_since_spin != null) {
           setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
           if (!data.state.dice_rolled_since_spin) setDiceResult(null);
@@ -4537,12 +4534,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             ▶ Click to Spin ◀
           </div>
 
-          {catchupBonus && (
-            <div className="spin-prompt" style={{ opacity: 0.7, fontSize: '0.7rem', pointerEvents: 'none' }}>
-              🔼 Catch-up bonus active
-            </div>
-          )}
-
           {/* T107: auto-spin as upgrade. Visible only when player owns the
               `auto_spin_unlock` shop item. Checkbox style mirrors the
               pre-S8 auto-spin toggle (`.autospin-row` from Season 5/6/7).
@@ -4558,9 +4549,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 title="Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
               />
               <span className="autospin-label">
-                {autoSpinActive
-                  ? `Auto Spin (${autoSpinBudget} left)`
-                  : 'Auto Spin'}
+                Auto Spin
               </span>
             </label>
           )}

@@ -187,7 +187,6 @@ def _base_ctx(**overrides):
         proc_streak_level=0,
         pot_active=False,
         pot_win_pct=0.505,
-        catchup_bonus_active=False,
     )
     ctx.update(overrides)
     return ctx
