@@ -3687,14 +3687,23 @@ convenience available to anyone willing to invest.
 **Decision:**
 
 - New shop item `auto_spin_unlock` (5,000 wins, Tier 1, no requires).
-- When the player owns the item, a `🔁 Start Auto-Spin (100)` button
-  appears in the wager panel.
-- When auto-spin is active, the button switches to `⏹ Stop Auto-Spin
-  (N left)`.
+- When the player owns the item, an **auto-spin checkbox toggle**
+  (`.autospin-row` style — restored from the S5/S6/S7 pre-removal
+  gold-glow checkbox from initial commit `30def55`) appears in the
+  wager panel.
+- The checkbox label shows `Auto Spin` when inactive and
+  `Auto Spin (N left)` when active (the remaining budget).
 - **While auto-spin is active, the stake slider is hidden** in the UI
   (the player can't choose a stake, since auto-spin always uses 0%).
 - DD and insurance buttons remain visible but are no-ops during
   auto-spin (the server already prevents them from arming).
+
+**Why checkbox style instead of a button?** The operator wanted the
+S5/S6/S7 pre-removal toggle look. The initial commit (`30def55`)
+shipped a gold-bordered checkbox with a glowing "✓" indicator and
+gold "Auto Spin" label — the button that landed in T107's first
+implementation was unfamiliar to long-time players. Reverted to
+match.
 
 **Why hide only the stake slider?** DD and insurance require the player
 to explicitly arm them; if they happen to be armed when auto-spin starts,
@@ -3707,39 +3716,50 @@ their slider value is being used, but auto-spin ignores it.
 1. **`models.py`**: add `'auto_spin_unlock': {'cost': 5_000, 'requires':
    None}` to `SHOP_ITEMS`. Tier 1.
 2. **`game.py`**: in `auto_spin_start()`, return 403 if `'auto_spin_unlock'
-   not in owned_items`.
+   not in owned_items`. The "already active" check is `since-set AND
+   budget > 0` (matches `/api/state`'s `auto_spin_active` gate) — a
+   stale `auto_spin_since` with `auto_spin_budget = 0` is limbo state
+   and must NOT block a fresh start.
 3. **`app.jsx`**:
    - Add `autoSpinActive` and `autoSpinBudget` React state.
    - Sync from `/api/state` and `/api/tick` responses.
    - Add `handleStartAutoSpin` and `handleStopAutoSpin` callbacks.
-   - In the wager panel, render the auto-spin button only if the player
-     owns `auto_spin_unlock`.
+   - In the wager panel, render the checkbox only if the player
+     owns `auto_spin_unlock`. Use `.autospin-row` + `.autospin-label`
+     markup; checkbox `onChange` calls start or stop.
    - Wrap the stake slider + dependent elements in `!autoSpinActive &&
    ...` to hide them.
    - Add a `useEffect` on `autoSpinActive` that polls `/api/tick` every
      3s while active.
-4. **Tests** `tests/test_cumulative_wins.py` T107 section: shop item
+4. **`static/styles.css`**: add `.autospin-row`, `.autospin-label`,
+   `.autospin-row input[type="checkbox"]` (and `:checked`) rules.
+   Mirrors the legacy S5/S6/S7 gold-glow style.
+5. **Tests** `tests/test_cumulative_wins.py` T107 section: shop item
    exists, auto-spin/start source has the gate, JSX has the conditional
-   hide + start/stop handlers, polling useEffect.
+   hide + start/stop handlers, polling useEffect, checkbox markup,
+   limbo-state check, CSS styles.
 
 **Acceptance criteria:**
 
 1. As a player without `auto_spin_unlock`, the wager panel shows no
-   auto-spin button.
+   auto-spin toggle.
 2. As a player without `auto_spin_unlock`, calling `POST /api/auto-spin/start`
    returns 403 with `"Buy auto_spin_unlock from the shop"`.
 3. As a player with `auto_spin_unlock`, the wager panel shows a
-   `🔁 Start Auto-Spin (100)` button.
-4. Clicking the button calls `POST /api/auto-spin/start` and the server
+   `.autospin-row` checkbox + `.autospin-label` (gold-glow style).
+4. Checking the box calls `POST /api/auto-spin/start` and the server
    starts the auto-spin (auto_spin_active: true, auto_spin_budget: 100).
-5. The button changes to `⏹ Stop Auto-Spin (100 left)`.
+5. The label changes to `Auto Spin (N left)`.
 6. The stake slider, hot streak indicator, bank button, DD button, and
    insurance button all **disappear** while auto-spin is active.
 7. The `/api/tick` is polled every 3s while active; spin_count
    increments and auto_spin_budget decrements over time.
-8. Clicking stop calls `POST /api/auto-spin/stop`; auto_spin_active
+8. Unchecking the box calls `POST /api/auto-spin/stop`; auto_spin_active
    becomes false; stake slider reappears.
-9. 255 prior tests still pass (245 + 10 from T106).
+9. **Limbo-state recovery**: a player with stale `auto_spin_since` (from
+   a prior session) and `auto_spin_budget = 0` can start a fresh
+   auto-spin (the check requires both since-set AND budget > 0).
+10. 260 tests pass (255 prior + 5 new for T107 polish).
 
 ---
 

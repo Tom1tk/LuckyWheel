@@ -1375,6 +1375,10 @@ def spin():
         resp['new_spin_count'] = new_spin_count
         resp['dice_charges'] = dice_charges
         resp['dice_last_recharge'] = last_recharge.isoformat()
+        # T106: echo the new cumulative_wins so the shop tier-locked text
+        # updates live without a page refresh. The client had been waiting
+        # for the next /api/state poll, which never happened on its own.
+        resp['cumulative_wins'] = new_cumulative_wins
         resp['wager_streak'] = new_state.get('wager_streak', 0)
         resp['wager_banked_wins'] = new_state.get('wager_banked_wins', 0)
         resp['wager_banked_losses'] = new_state.get('wager_banked_losses', 0)
@@ -1680,6 +1684,9 @@ def tick():
                     resp['new_spin_count'] = new_spin_count
                     resp['dice_charges'] = dice_charges
                     resp['dice_last_recharge'] = last_recharge.isoformat()
+                    # T106: echo the new cumulative_wins so the shop tier-locked
+                    # text updates live during auto-spin too. Same fix as /api/spin.
+                    resp['cumulative_wins'] = new_cumulative_wins
                     spin_results.append(resp)
 
             # Advance last_spin_at cursor
@@ -1786,6 +1793,8 @@ def tick():
             'proc_streak':           current_proc_streak,
             'auto_spin_budget':      budget_remaining,
             'auto_spin_active':      budget_remaining > 0,
+            # T106: cumulative_wins after all processed spins (catch-up summary).
+            'cumulative_wins':       new_cumulative_wins,
         }
 
         if is_catch_up:
@@ -3680,10 +3689,18 @@ def auto_spin_start():
             gs = _load_game_state(cur, current_user.id, for_update=True)
             if 'auto_spin_unlock' not in (gs.get('owned_items') or []):
                 return jsonify({'error': 'Buy auto_spin_unlock from the shop (5,000 wins)'}), 403
-            if gs['auto_spin_since'] is not None:
+            # Treat as active only when BOTH auto_spin_since is set AND the
+            # budget is positive. A stale auto_spin_since (left over from a
+            # prior session / test) with budget=0 is limbo state — let the
+            # player (or test) restart cleanly. Matches the `auto_spin_active`
+            # gate in /api/state's state response.
+            if gs.get('auto_spin_since') is not None and int(gs.get('auto_spin_budget', 0)) > 0:
                 return jsonify({'error': 'Auto-spin already active'}), 409
+            # Wipe any stale auto_spin_since so the new activation starts fresh.
             cur.execute(
-                '''UPDATE game_state SET auto_spin_since = NOW(), auto_spin_budget = %s WHERE user_id = %s''',
+                '''UPDATE game_state
+                   SET auto_spin_since = NOW(), auto_spin_budget = %s
+                   WHERE user_id = %s''',
                 (budget, current_user.id),
             )
         conn.commit()

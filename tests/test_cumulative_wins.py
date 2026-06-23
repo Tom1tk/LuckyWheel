@@ -166,16 +166,30 @@ def test_t107_stake_slider_hidden_during_auto_spin():
     )
 
 
-def test_t107_auto_spin_button_in_wager_panel():
-    """T107: app.jsx renders auto-spin start/stop button when auto_spin_unlock is owned."""
+def test_t107_auto_spin_checkbox_in_wager_panel():
+    """T107: app.jsx renders an auto-spin checkbox toggle (`.autospin-row`
+    style from S5/S6/S7) when auto_spin_unlock is owned. Checkbox toggles
+    the server-side auto-spin via /api/auto-spin/start and /api/auto-spin/stop."""
     with open(os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         'static', 'app.jsx',
     )) as f:
         src = f.read()
     assert "ownedItems.includes('auto_spin_unlock')" in src, (
-        "auto-spin button must be gated on owning auto_spin_unlock"
+        "auto-spin toggle must be gated on owning auto_spin_unlock"
     )
+    # Checkbox markup (not a button — that's the old design the operator
+    # wanted reverted to)
+    assert 'className="autospin-row"' in src, (
+        "must use .autospin-row class (checkbox style, not button)"
+    )
+    assert '<input' in src and 'type="checkbox"' in src, (
+        "must render a checkbox input"
+    )
+    assert 'className="autospin-label"' in src, (
+        "must use .autospin-label class for the label"
+    )
+    # Handlers still exist
     assert 'handleStartAutoSpin' in src, "must have handleStartAutoSpin handler"
     assert 'handleStopAutoSpin' in src, "must have handleStopAutoSpin handler"
     assert '/api/auto-spin/start' in src, "must POST to /api/auto-spin/start"
@@ -194,3 +208,130 @@ def test_t107_tick_polls_during_auto_spin():
         r'useEffect\(\(\)\s*=>\s*\{[^}]*autoSpinActive[^}]*setInterval',
         src, re.DOTALL,
     ), "must have useEffect that sets up an interval tied to autoSpinActive"
+
+
+# ── T106 follow-up: live updates ───────────────────────────────────────────
+
+def test_t106_cumulative_wins_echoed_in_spin_response():
+    """The /api/spin response must include `cumulative_wins` so the shop
+    tier-locked text updates live (without waiting for the next /api/state poll)."""
+    with open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'game.py',
+    )) as f:
+        src = f.read()
+    # In the /api/spin endpoint (or its _events_to_response helper), the
+    # response must include the new cumulative_wins value.
+    spin_block = re.search(
+        r"@game_bp\.route\('/api/spin'.*?return jsonify\(resp\)",
+        src, re.DOTALL,
+    )
+    assert spin_block, "could not locate /api/spin endpoint"
+    body = spin_block.group(0)
+    assert "resp['cumulative_wins']" in body, (
+        "/api/spin must echo resp['cumulative_wins'] = new_cumulative_wins"
+    )
+
+
+def test_t106_cumulative_wins_echoed_in_tick_response():
+    """The /api/tick response must include `cumulative_wins` in both
+    per-spin results (live auto-spin) and in `final_state` (catch-up summary)."""
+    with open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'game.py',
+    )) as f:
+        src = f.read()
+    # Greedy match so we go to the LAST return jsonify (the final response),
+    # not the early-return when budget == 0.
+    tick_block = re.search(
+        r"@game_bp\.route\('/api/tick'.*return jsonify\(\{",
+        src, re.DOTALL,
+    )
+    assert tick_block, "could not locate /api/tick endpoint"
+    body = tick_block.group(0)
+    # Per-spin response (inside the loop)
+    assert re.search(
+        r"resp\['cumulative_wins'\]\s*=\s*new_cumulative_wins",
+        body,
+    ), "/api/tick per-spin response must include resp['cumulative_wins']"
+    # Catch-up final_state (after the loop)
+    assert "'cumulative_wins'" in body, (
+        "/api/tick final_state must include 'cumulative_wins' for catch-up updates"
+    )
+
+
+def test_t106_frontend_uses_cumulative_wins_from_spin():
+    """app.jsx must update cumulativeWins state from the spin response (not wait
+    for /api/state). This is what makes the shop tier-locked text update live."""
+    with open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'static', 'app.jsx',
+    )) as f:
+        src = f.read()
+    # The apply-spin-result block (or whichever handler processes spin data)
+    # must reference data.cumulative_wins AND setCumulativeWins
+    assert "data.cumulative_wins" in src, (
+        "app.jsx must read data.cumulative_wins from the spin response"
+    )
+    assert "setCumulativeWins" in src, (
+        "app.jsx must call setCumulativeWins to update the state"
+    )
+    # Should NOT have a "refetch on next /api/state" comment (the old broken plan)
+    assert "refetch on next /api/state" not in src, (
+        "the old 'refetch on next /api/state' comment must be removed — the server "
+        "now echoes cumulative_wins directly"
+    )
+
+
+def test_t107_auto_spin_start_ignores_stale_since_with_zero_budget():
+    """T107 follow-up: `auto_spin_since` left over from a prior session with
+    `auto_spin_budget = 0` must NOT block a fresh `/api/auto-spin/start`.
+    The check should mirror `/api/state`'s `auto_spin_active` gate
+    (since-set AND budget > 0). A stale since alone is limbo state, not
+    'already active'."""
+    with open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'game.py',
+    )) as f:
+        src = f.read()
+    # Locate the /api/auto-spin/start endpoint body
+    start_block = re.search(
+        r"@game_bp\.route\('/api/auto-spin/start'.*?return jsonify\(\{'ok': True",
+        src, re.DOTALL,
+    )
+    assert start_block, "could not locate /api/auto-spin/start endpoint body"
+    body = start_block.group(0)
+    # The "already active" check must inspect BOTH auto_spin_since AND
+    # auto_spin_budget. A bare `if gs['auto_spin_since'] is not None:` is
+    # the bug — rejects fresh starts when stale state is present.
+    assert re.search(
+        r"auto_spin_since.*\bis\s+not\s+None\b.*\bauto_spin_budget\b",
+        body, re.DOTALL,
+    ), (
+        "/api/auto-spin/start must check both auto_spin_since AND "
+        "auto_spin_budget before reporting 'already active'"
+    )
+    assert 'auto_spin_budget' in body, (
+        "/api/auto-spin/start must reference auto_spin_budget in the check"
+    )
+
+
+def test_t107_autospin_css_mirrors_legacy_style():
+    """T107 follow-up: the `.autospin-row` + `.autospin-label` CSS must
+    exist (so the checkbox renders in the legacy S5/S6/S7 gold-glow style
+    the operator wanted restored)."""
+    with open(os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'static', 'styles.css',
+    )) as f:
+        css = f.read()
+    assert '.autospin-row' in css, "must define .autospin-row CSS"
+    assert '.autospin-label' in css, "must define .autospin-label CSS"
+    assert 'autospin-row input[type="checkbox"]' in css, (
+        "must style the checkbox within .autospin-row"
+    )
+    assert 'autospin-row input[type="checkbox"]:checked' in css, (
+        "must style the checked state of the checkbox"
+    )
+    # The legacy gold-glow look
+    assert '#FFD700' in css, "must use the legacy gold accent color"

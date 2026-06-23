@@ -3531,8 +3531,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
-    // T106: cumulative_wins is the new tier-gating metric. Spin response
-    // doesn't echo it (server already updated DB); refetch on next /api/state.
+    // T106: cumulative_wins is the new tier-gating metric. Server echoes the
+    // new value on every spin/tick so the shop tier-locked text updates live
+    // without waiting for the next /api/state poll.
+    if (data.cumulative_wins != null) setCumulativeWins(data.cumulative_wins);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
@@ -3751,6 +3753,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
           if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
           if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
+          if (data.state.cumulative_wins != null) setCumulativeWins(data.state.cumulative_wins);
           setDiceRolledSinceSpin(false);
         }
         const hrs = Math.floor(data.elapsed_seconds / 3600);
@@ -4532,29 +4535,25 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           )}
 
           {/* T107: auto-spin as upgrade. Visible only when player owns the
-              `auto_spin_unlock` shop item. While active, the stake slider
-              below is hidden (auto-spin always uses 0% stake). */}
+              `auto_spin_unlock` shop item. Checkbox style mirrors the
+              pre-S8 auto-spin toggle (`.autospin-row` from Season 5/6/7).
+              Server-side budget of 100 spins; cleared on uncheck. While
+              active, the stake slider below is hidden (auto-spin always
+              uses 0% stake). */}
           {ownedItems.includes('auto_spin_unlock') && (
-            <div className="wager-action-btn" style={{ display: 'flex', justifyContent: 'center', marginTop: '0.4rem' }}>
-              {autoSpinActive ? (
-                <button
-                  className="wager-action-btn wager-bank-btn"
-                  onClick={handleStopAutoSpin}
-                  style={{ width: '100%' }}
-                >
-                  ⏹ Stop Auto-Spin ({autoSpinBudget} left)
-                </button>
-              ) : (
-                <button
-                  className="wager-action-btn"
-                  onClick={handleStartAutoSpin}
-                  style={{ width: '100%' }}
-                  title="Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
-                >
-                  🔁 Start Auto-Spin (100)
-                </button>
-              )}
-            </div>
+            <label className="autospin-row" style={{ justifyContent: 'center', marginTop: '0.4rem' }}>
+              <input
+                type="checkbox"
+                checked={autoSpinActive}
+                onChange={e => e.target.checked ? handleStartAutoSpin() : handleStopAutoSpin()}
+                title="Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
+              />
+              <span className="autospin-label">
+                {autoSpinActive
+                  ? `Auto Spin (${autoSpinBudget} left)`
+                  : 'Auto Spin'}
+              </span>
+            </label>
           )}
 
           {/* Season 8: Wager panel — always visible (T75); slider disabled until wager_unlock owned */}

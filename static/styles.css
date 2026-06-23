@@ -4393,6 +4393,59 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   gap: 7px;
 }
 
+/* ── T107: auto-spin checkbox toggle (style mirrors the S5/S6/S7
+       pre-removal `.autospin-row` from initial commit 30def55) ───── */
+.autospin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.autospin-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #FFD700;
+  border-radius: 4px;
+  background: rgba(255,215,0,0.08);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+  margin: 0;
+}
+
+.autospin-row input[type="checkbox"]:checked {
+  background: #FFD700;
+  box-shadow: 0 0 12px #FFD700;
+}
+
+.autospin-row input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  color: #000;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.autospin-label {
+  font-size: 0.9rem;
+  letter-spacing: 3px;
+  color: #FFD700;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(255,215,0,0.4);
+}
+
+.autospin-row input:checked ~ .autospin-label {
+  text-shadow: 0 0 14px #FFD700;
+}
+
 .wager-stake-control {
   display: flex;
   align-items: center;

@@ -6176,8 +6176,10 @@ function GameApp(_ref28) {
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
-    // T106: cumulative_wins is the new tier-gating metric. Spin response
-    // doesn't echo it (server already updated DB); refetch on next /api/state.
+    // T106: cumulative_wins is the new tier-gating metric. Server echoes the
+    // new value on every spin/tick so the shop tier-locked text updates live
+    // without waiting for the next /api/state poll.
+    if (data.cumulative_wins != null) setCumulativeWins(data.cumulative_wins);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
@@ -6503,6 +6505,7 @@ function GameApp(_ref28) {
             if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
             if (data.state.catchup_bonus_active != null) setCatchupBonus(data.state.catchup_bonus_active);
             if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
+            if (data.state.cumulative_wins != null) setCumulativeWins(data.state.cumulative_wins);
             setDiceRolledSinceSpin(false);
           }
           hrs = Math.floor(data.elapsed_seconds / 3600);
@@ -7758,27 +7761,22 @@ function GameApp(_ref28) {
       fontSize: '0.7rem',
       pointerEvents: 'none'
     }
-  }, "\uD83D\uDD3C Catch-up bonus active"), ownedItems.includes('auto_spin_unlock') && /*#__PURE__*/React.createElement("div", {
-    className: "wager-action-btn",
+  }, "\uD83D\uDD3C Catch-up bonus active"), ownedItems.includes('auto_spin_unlock') && /*#__PURE__*/React.createElement("label", {
+    className: "autospin-row",
     style: {
-      display: 'flex',
       justifyContent: 'center',
       marginTop: '0.4rem'
     }
-  }, autoSpinActive ? /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn wager-bank-btn",
-    onClick: handleStopAutoSpin,
-    style: {
-      width: '100%'
-    }
-  }, "\u23F9 Stop Auto-Spin (", autoSpinBudget, " left)") : /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn",
-    onClick: handleStartAutoSpin,
-    style: {
-      width: '100%'
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: autoSpinActive,
+    onChange: function onChange(e) {
+      return e.target.checked ? handleStartAutoSpin() : handleStopAutoSpin();
     },
     title: "Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
-  }, "\uD83D\uDD01 Start Auto-Spin (100)")), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "autospin-label"
+  }, autoSpinActive ? "Auto Spin (".concat(autoSpinBudget, " left)") : 'Auto Spin')), /*#__PURE__*/React.createElement("div", {
     className: "season8-wager-panel"
   }, !autoSpinActive && /*#__PURE__*/React.createElement("div", {
     className: "wager-stake-control"
