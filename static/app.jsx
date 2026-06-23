@@ -4624,6 +4624,21 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 always uses 0% stake; manual input would be confusing). */}
             {!autoSpinActive && <div className="wager-stake-control">
               <label>Stake</label>
+              <span className={`stake-label ${
+                stakePct === 0 ? 'stake-safe' :
+                stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
+              }`}>{stakePct}%</span>
+              <div className="wager-stake-value">
+                {doubleDownPending && wagerLastWinAmount > 0 ? (
+                  <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
+                ) : stakePct === 0 ? (
+                  <span className="stake-value-safe">🛡️ No stake</span>
+                ) : activeWheelMode === 'inverted' ? (
+                  <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
+                ) : (
+                  <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
+                )}
+              </div>
               <input
                 type="range"
                 min="0"
@@ -4636,10 +4651,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
                 style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               />
-              <span className={`stake-label ${
-                stakePct === 0 ? 'stake-safe' :
-                stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
-              }`}>{stakePct}%</span>
               <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
             </div>}
             {!autoSpinActive && (<>
@@ -4695,20 +4706,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 <span>Pay with tokens</span>
               </label>
             )}
-            {/* T102+T105: live stake value display at the bottom of the wager panel.
-                Always visible so the player can see the dollar cost of the
-                current stake position before spinning. */}
-            <div className="wager-stake-value">
-              {doubleDownPending && wagerLastWinAmount > 0 ? (
-                <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
-              ) : stakePct === 0 ? (
-                <span className="stake-value-safe">🛡️ No stake</span>
-              ) : activeWheelMode === 'inverted' ? (
-                <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
-              ) : (
-                <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
-              )}
-            </div>
           </div>
 
           {/* Season 8: Wheel mode selector */}
