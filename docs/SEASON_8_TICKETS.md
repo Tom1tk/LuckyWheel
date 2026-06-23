@@ -4061,3 +4061,203 @@ Means:
 - All 3 active players can log in and play S8 within 15 minutes of T-0
 - No follow-up tickets filed for missed-reset bugs in the first 24h
 
+
+## T112: Vertical wager panel (left of wheel, anchored to center)
+
+- **Status:** [ ] (planned 2026-06-23)
+- **Discovered:** 2026-06-23 (operator review of current horizontal layout)
+- **Goal:** Recover horizontal real estate around the wheel by flipping the
+  wager panel from horizontal (below the wheel, full width) to vertical
+  (tall, narrow column to the left of the wheel, anchored to viewport
+  center). The wheel grows back to use the freed space.
+- **Visual target:** "similar shape, just flipped 90 degrees" — keep the
+  panel's identity (dark glass, purple border, gold accents) but
+  rearranged so the long axis is vertical.
+
+### Layout direction
+
+Current horizontal order (top → bottom inside the panel):
+1. Stake slider + label `Stake` + percentage readout
+2. Hot Streak indicator (if active)
+3. Bank button (if applicable)
+4. Double-Down armed indicator OR Arm button
+5. Insurance armed indicator OR Activate button
+6. Stake value display (live cost preview)
+
+New vertical order (top → bottom inside the panel, long axis vertical):
+1. `STAKE` label (top)
+2. Percentage readout (e.g. "10%")
+3. Stake value display (live cost preview — small)
+4. Vertical stake slider (0 at BOTTOM, max at TOP; thumb moves UP as
+   the player increases stake)
+5. `?` tooltip trigger (BOTTOM end of the slider, mirrors the
+   horizontal layout's ?-icon-on-the-end convention)
+6. Hot Streak indicator (small, above the action buttons)
+7. Bank button
+8. Double-Down indicator / Arm button
+9. Insurance indicator / Activate button
+
+### Anchor + positioning
+
+- Position the panel to the **left of the wheel**, anchored to the
+  vertical center of the viewport (or the wheel, whichever is taller).
+- Use a fixed/sticky positioning scheme so the panel does not scroll
+  away with the wheel.
+- Width should be ~80–110px (narrow column); height should be tall enough
+  to fit all controls stacked without truncation at 1366×768 (the
+  reference resolution per the existing `MEDIA-QUERY-1366` notes).
+- Add a comfortable gap (e.g. 24–32px) between the wager panel and the
+  wheel's left edge so they do not touch.
+- On viewports narrower than 1366px, fall back to the existing
+  horizontal layout (do not break mobile/tablet). Use the existing
+  `@media (max-width: 1366px)` breakpoint convention.
+
+### Slider orientation (vertical, bottom-to-top)
+
+- The `<input type="range">` becomes vertical via CSS
+  `writing-mode: vertical-lr` (or `vertical-rl`) on the element, with
+  width/height swapped.
+- Visual order: min value (0) at the **bottom** of the slider track,
+  max value (45) at the **top**. This matches "stake goes up from the
+  bottom" — increasing stake = thumb moves up.
+- Re-evaluate tick markers (currently `step="5"`). Keep step=5 but
+  verify the thumb position reads correctly in the new orientation.
+- Confirm the `stake-pct` change handler still works (the value is a
+  number; the orientation is purely visual).
+
+### "?" tooltip trigger
+
+- The existing `.wager-tooltip-trigger` is positioned next to the
+  slider (`<span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>`).
+- In the vertical layout, place it at the BOTTOM end of the slider
+  (below the slider track, near the 0% position). This mirrors the
+  horizontal layout's convention of putting the ?-icon on the trailing
+  end of the slider.
+- The tooltip content is unchanged (the `WAGER_TOOLTIP` constant in
+  `app.jsx` line 3889-3898). Note: WAGER_TOOLTIP is STALE (T94
+  follow-up, 4 incorrect claims about DD 2× and insurance) — fix
+  separately, do not block this ticket on it.
+
+### Text and element re-arrangement
+
+- The `Stake` label moves to the TOP of the panel (was the left side
+  of the horizontal slider row).
+- The percentage readout (`stake-label` `10%`) moves BELOW the label
+  and ABOVE the slider, so it reads as a header pair (Label + %).
+- The stake value display (live cost preview) sits BELOW the percentage
+  and ABOVE the slider. It is a short line ("💰 1,000" or "🛡️ No stake")
+  — keep it one line; do not wrap.
+- All action buttons (Hot Streak, Bank, DD, Insurance) stack below
+  the slider. Reduce horizontal padding inside the buttons to fit the
+  narrow column. Icons stay; text labels may need to be abbreviated or
+  dropped (e.g. "🏦 Bank 1.2K" instead of "🏦 Bank 1,234").
+
+### "Earn back the wheel's size" — wheel sizing
+
+- The current `.wheel-wrapper` width/height is `min(580px,
+  calc(100vw - 120px), calc(100vh - 480px))` (line 187-188 of
+  `styles.css`). The `-120px` is the horizontal reservation for the
+  side panels (left/right margins).
+- After the wager panel moves to the left of the wheel, the wheel can
+  grow to use the freed horizontal space. Change the formula to
+  something like `min(640px, calc(100vw - 240px), calc(100vh - 480px))`
+  — the `-240px` reserves room for the wager panel on the left.
+- Verify the new wheel size does not push the title out of view or
+  overlap the fishing panel (which is bottom-left, in the
+  `mobile-fish-panel` container — see `@media` rules at line 2407+).
+
+### Non-overlap + nice spacing (Playwright audit, AC)
+
+- Use Playwright to verify on **three** resolutions:
+  1. 1920×1080 (desktop)
+  2. 1366×768 (small desktop)
+  3. 1280×720 (worst-case desktop)
+- For each resolution, screenshot the casino area and assert:
+  1. Wager panel does not overlap the wheel (use
+     `element.boundingBox()` to compare).
+  2. Wager panel does not overlap the fishing panel (mobile or
+     inline variant).
+  3. Wager panel does not overlap the title / subtitle.
+  4. Wager panel does not extend below the viewport's visible area
+     (no vertical clipping at 1366×768).
+  5. Slider is reachable (no element above it in the panel is
+     blocking pointer events).
+- Add a Playwright test under `tests/playwright/` (new file
+  `test_wager_panel_layout.py`) that loads the page at each
+  resolution and asserts the four overlap checks.
+
+### Files to touch
+
+- `static/styles.css`:
+  - `.season8-wager-panel` — change to vertical layout, fixed/sticky
+    positioning to the left of the wheel, narrow width, taller
+    height, anchor to vertical center.
+  - `.wager-stake-control` — switch to vertical flex (label, %,
+    value, slider, ?) stacked.
+  - `.wager-slider` — `writing-mode: vertical-lr` + swapped
+    width/height.
+  - `.wheel-wrapper` — update the `-120px` reservation to `-240px`
+    (or however much the wager panel + gap needs).
+  - New `@media (max-width: 1366px)` rule — fall back to horizontal
+    layout for narrower viewports.
+- `static/app.jsx` (no logic change needed, but verify the JSX order
+  matches the new visual order):
+  - `.wager-stake-control` children: re-order so the ?-icon is at
+    the bottom and the slider is vertical.
+  - The `?` tooltip trigger (`<span className="wager-tooltip-trigger"
+    data-tooltip={WAGER_TOOLTIP}>?</span>`) — ensure it is rendered
+    after the slider in the JSX, so visual "after" = "below" in
+    the new vertical orientation.
+- `tests/playwright/test_wager_panel_layout.py` (NEW): three
+  resolutions × four overlap checks.
+
+### Acceptance criteria
+
+1. On 1920×1080, the wager panel renders as a narrow vertical column
+   anchored to the left of the wheel, vertically centered.
+2. The wheel is visibly larger than before (≥ 10% wider on the
+   horizontal axis at 1920×1080).
+3. The stake slider's thumb is at the BOTTOM when stake=0 and at the
+   TOP when stake=max.
+4. The `?` tooltip icon is at the BOTTOM end of the slider.
+5. The wager panel does not overlap the wheel, the fishing panel, or
+   the title at any of {1920×1080, 1366×768, 1280×720}.
+6. At 1366×768, the wager panel is fully visible (no vertical
+   clipping).
+7. On viewports narrower than 1366px, the layout falls back to the
+   existing horizontal layout.
+8. Auto-spin still hides the slider correctly (no regression of
+   T107).
+9. All existing wager tests still pass (pytest 261 → 262+).
+10. The new Playwright layout test passes.
+
+### Parallel group
+
+- Can run in parallel with T108, T110, T111 (the other 4 tickets in
+  this batch) because the wager panel is its own CSS+JSX island and
+  does not touch any of the other tickets' files. Worktree: yes
+  (separate branch, separate worktree).
+- After merge: any conflict in `static/styles.css` is limited to the
+  `.season8-wager-panel` block (T108 might also touch it) and
+  `.wheel-wrapper` width formula (T108 might also touch it). Other
+  conflict surfaces are minimal.
+
+### Depends on
+
+- T108 (DD/Insurance disarm) — both touch the wager panel JSX
+  block. The shared JSX region is the DD/Insurance action buttons
+  (lines 4602-4613 of app.jsx). T108's changes must be merged
+  first so T112's re-order can reference the final button list.
+- T110 (wager tokens spending) — also builds into the wager panel.
+  T112's vertical layout should be the final composition that
+  T110's tokens UI sits inside. T110 should add its UI in a way
+  that fits the new vertical orientation (likely: a small "🪙 N
+  tokens" line near the stake value, or a token-cost indicator
+  next to the percentage).
+
+### Order of execution
+
+- **Run after T108, T110** (both touch the wager panel JSX).
+- **Can run in parallel with T109 (Bonus Power desc), T111
+  (Prestige scaling)** which do not touch the wager panel.
+
