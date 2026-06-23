@@ -7891,7 +7891,19 @@ function GameApp(_ref28) {
     className: "season8-wager-panel"
   }, !autoSpinActive && /*#__PURE__*/React.createElement("div", {
     className: "wager-stake-control"
-  }, /*#__PURE__*/React.createElement("label", null, "Stake"), /*#__PURE__*/React.createElement("input", {
+  }, /*#__PURE__*/React.createElement("label", null, "Stake"), /*#__PURE__*/React.createElement("span", {
+    className: "stake-label ".concat(stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless')
+  }, stakePct, "%"), /*#__PURE__*/React.createElement("div", {
+    className: "wager-stake-value"
+  }, doubleDownPending && wagerLastWinAmount > 0 ? /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-dd"
+  }, "\u26A1 ", fmt(stakeValue)) : stakePct === 0 ? /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-safe"
+  }, "\uD83D\uDEE1\uFE0F No stake") : activeWheelMode === 'inverted' ? /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-inverted"
+  }, "\uD83D\uDC80 ", fmt(stakeValue)) : /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-normal"
+  }, "\uD83D\uDCB0 ", fmt(stakeValue))), /*#__PURE__*/React.createElement("input", {
     type: "range",
     min: "0",
     max: maxStakePct,
@@ -7908,8 +7920,6 @@ function GameApp(_ref28) {
       cursor: 'not-allowed'
     } : undefined
   }), /*#__PURE__*/React.createElement("span", {
-    className: "stake-label ".concat(stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless')
-  }, stakePct, "%"), /*#__PURE__*/React.createElement("span", {
     className: "wager-tooltip-trigger",
     "data-tooltip": WAGER_TOOLTIP
   }, "?")), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
@@ -7968,17 +7978,7 @@ function GameApp(_ref28) {
     onChange: function onChange(e) {
       return setPayWithTokens(e.target.checked);
     }
-  }), /*#__PURE__*/React.createElement("span", null, "Pay with tokens")), /*#__PURE__*/React.createElement("div", {
-    className: "wager-stake-value"
-  }, doubleDownPending && wagerLastWinAmount > 0 ? /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-dd"
-  }, "\u26A1 ", fmt(stakeValue)) : stakePct === 0 ? /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-safe"
-  }, "\uD83D\uDEE1\uFE0F No stake") : activeWheelMode === 'inverted' ? /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-inverted"
-  }, "\uD83D\uDC80 ", fmt(stakeValue)) : /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-normal"
-  }, "\uD83D\uDCB0 ", fmt(stakeValue)))), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("span", null, "Pay with tokens"))), /*#__PURE__*/React.createElement("div", {
     className: "season8-wheel-mode"
   }, /*#__PURE__*/React.createElement("span", {
     className: "wheel-mode-label"
