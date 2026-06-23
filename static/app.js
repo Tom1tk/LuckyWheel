@@ -3982,20 +3982,20 @@ var SHOP_SECTIONS = [{
     emoji: '⭐',
     name: 'Bonus Power I',
     cost: 300,
-    desc: 'Multiplies streak bonuses'
+    desc: '2× streak bonuses'
   }, {
     id: 'bonusmult_2',
     emoji: '⭐',
     name: 'Bonus Power II',
     cost: 900,
-    desc: 'Multiplies streak bonuses',
+    desc: '4× streak bonuses',
     requires: 'bonusmult_1'
   }, {
     id: 'bonusmult_3',
     emoji: '⭐',
     name: 'Bonus Power III',
     cost: 2800,
-    desc: 'Multiplies streak bonuses',
+    desc: '8× streak bonuses',
     requires: 'bonusmult_2'
   }]
 }, {
