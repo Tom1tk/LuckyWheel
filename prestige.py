@@ -14,6 +14,8 @@ MAX_PRESTIGE_LEVEL = 20
 # shortens it (spec S5.3 hardening). T86 changed this from the v1 scaling.
 PRESTIGE_WIN_THRESHOLD = 1_000_000
 
+PRESTIGE_LEVEL_MULTIPLIER = 1.05
+
 # Items reset on prestige (subset of the v1 spec). Centralised here so the
 # SQL builder and any future tests can read the same source of truth.
 # T85 AC#1: every column in this list is zeroed/cleared on prestige.
@@ -105,29 +107,32 @@ def get_starting_prestige(legacy_wins):
 def can_prestige(wins, owned_items, prestige_level):
     """Check whether the player can perform the prestige action.
 
-    Requires ``prestige_unlock`` owned, wins >= 1,000,000, and
-    prestige_level < MAX_PRESTIGE_LEVEL. ``prestige_efficiency`` no longer
-    shortens the threshold (T86).
+    Requires ``prestige_unlock`` owned, wins >= the level-scaled threshold,
+    and prestige_level < MAX_PRESTIGE_LEVEL. ``prestige_efficiency`` no
+    longer shortens the threshold (T86). T111 makes the threshold scale
+    with the player's current prestige level.
     """
     if 'prestige_unlock' not in owned_items:
         return False, 'Requires Prestige Unlock upgrade'
     if prestige_level >= MAX_PRESTIGE_LEVEL:
         return False, 'Maximum prestige level reached'
 
-    threshold = PRESTIGE_WIN_THRESHOLD
+    threshold = get_prestige_threshold(owned_items, prestige_level)
     if wins < threshold:
         return False, f'Requires {threshold:,} wins to prestige'
 
     return True, None
 
 
-def get_prestige_threshold(owned_items):
-    """Return the win threshold needed to prestige.
+def get_prestige_threshold(owned_items, prestige_level=0):
+    """Return the win threshold needed to prestige at ``prestige_level``.
 
-    T86: the threshold is always 1,000,000. ``prestige_efficiency`` only
-    affects win retention, not the cost to prestige.
+    T111: threshold scales by ``PRESTIGE_LEVEL_MULTIPLIER`` per current
+    level, so reaching higher levels costs more wins. Level 0 stays at
+    the T86 base of 1,000,000 (unchanged for new players). The
+    multiplier value is preliminary and will be tuned after playtesting.
     """
-    return PRESTIGE_WIN_THRESHOLD
+    return round(PRESTIGE_WIN_THRESHOLD * (PRESTIGE_LEVEL_MULTIPLIER ** prestige_level))
 
 
 def get_legacy_keep_count(owned_items):

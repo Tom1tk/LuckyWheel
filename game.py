@@ -3256,7 +3256,7 @@ def prestige_reset():
             current_level = gs.get('prestige_level', 0)
             if current_level >= MAX_PRESTIGE_LEVEL:
                 return jsonify({'error': 'Already at max prestige'}), 403
-            threshold = get_prestige_threshold(gs['owned_items'])
+            threshold = get_prestige_threshold(gs['owned_items'], current_level)
             if int(gs['wins']) < threshold:
                 return jsonify({'error': f'Need {threshold} wins to prestige', 'current_wins': int(gs['wins'])}), 403
             new_level = current_level + 1
@@ -3327,7 +3327,7 @@ def prestige_info():
             gs = _load_game_state(cur, current_user.id)
             level = gs.get('prestige_level', 0)
             owned = gs.get('owned_items', [])
-            threshold = get_prestige_threshold(owned) if level < MAX_PRESTIGE_LEVEL else None
+            threshold = get_prestige_threshold(owned, level) if level < MAX_PRESTIGE_LEVEL else None
             can = can_prestige(int(gs['wins']), owned, level)
     return jsonify({
         'prestige_level': level,

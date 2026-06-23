@@ -36,17 +36,17 @@ function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
 function _apiFetch() {
-  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37(path) {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38(path) {
     var opts,
       method,
       headers,
       res,
       json,
-      _args37 = arguments;
-    return _regenerator().w(function (_context37) {
-      while (1) switch (_context37.n) {
+      _args38 = arguments;
+    return _regenerator().w(function (_context38) {
+      while (1) switch (_context38.n) {
         case 0:
-          opts = _args37.length > 1 && _args37[1] !== undefined ? _args37[1] : {};
+          opts = _args38.length > 1 && _args38[1] !== undefined ? _args38[1] : {};
           method = (opts.method || 'GET').toUpperCase();
           headers = {
             'Content-Type': 'application/json'
@@ -54,25 +54,25 @@ function _apiFetch() {
           if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
             headers['X-CSRFToken'] = _csrfToken;
           }
-          _context37.n = 1;
+          _context38.n = 1;
           return fetch(path, _objectSpread({
             headers: headers
           }, opts));
         case 1:
-          res = _context37.v;
-          _context37.n = 2;
+          res = _context38.v;
+          _context38.n = 2;
           return res.json()["catch"](function () {
             return {};
           });
         case 2:
-          json = _context37.v;
-          return _context37.a(2, {
+          json = _context38.v;
+          return _context38.a(2, {
             ok: res.ok,
             status: res.status,
             data: json
           });
       }
-    }, _callee37);
+    }, _callee38);
   }));
   return _apiFetch.apply(this, arguments);
 }
@@ -6601,114 +6601,120 @@ function GameApp(_ref28) {
     _useState196 = _slicedToArray(_useState195, 2),
     legacyWins = _useState196[0],
     setLegacyWins = _useState196[1];
-  var _useState197 = useState(gameState.onboarding_step || 0),
+  // T111: server-computed next-level threshold (scales with prestigeLevel).
+  // null when at MAX_PRESTIGE_LEVEL or before the first /api/prestige fetch.
+  var _useState197 = useState(null),
     _useState198 = _slicedToArray(_useState197, 2),
-    onboardingStep = _useState198[0],
-    setOnboardingStep = _useState198[1];
-  var _useState199 = useState(gameState.wager_streak || 0),
+    nextPrestigeThreshold = _useState198[0],
+    setNextPrestigeThreshold = _useState198[1];
+  var _useState199 = useState(gameState.onboarding_step || 0),
     _useState200 = _slicedToArray(_useState199, 2),
-    wagerStreak = _useState200[0],
-    setWagerStreak = _useState200[1];
-  var _useState201 = useState((_gameState$wager_last2 = gameState.wager_last_stake) !== null && _gameState$wager_last2 !== void 0 ? _gameState$wager_last2 : 0),
+    onboardingStep = _useState200[0],
+    setOnboardingStep = _useState200[1];
+  var _useState201 = useState(gameState.wager_streak || 0),
     _useState202 = _slicedToArray(_useState201, 2),
-    wagerLastStake = _useState202[0],
-    setWagerLastStake = _useState202[1];
-  var _useState203 = useState(gameState.double_down_pending || false),
+    wagerStreak = _useState202[0],
+    setWagerStreak = _useState202[1];
+  var _useState203 = useState((_gameState$wager_last2 = gameState.wager_last_stake) !== null && _gameState$wager_last2 !== void 0 ? _gameState$wager_last2 : 0),
     _useState204 = _slicedToArray(_useState203, 2),
-    doubleDownPending = _useState204[0],
-    setDoubleDownPending = _useState204[1];
-  var _useState205 = useState(gameState.wager_banked_wins || 0),
+    wagerLastStake = _useState204[0],
+    setWagerLastStake = _useState204[1];
+  var _useState205 = useState(gameState.double_down_pending || false),
     _useState206 = _slicedToArray(_useState205, 2),
-    wagerBankedWins = _useState206[0],
-    setWagerBankedWins = _useState206[1];
-  var _useState207 = useState(gameState.wager_last_win_amount || 0),
+    doubleDownPending = _useState206[0],
+    setDoubleDownPending = _useState206[1];
+  var _useState207 = useState(gameState.wager_banked_wins || 0),
     _useState208 = _slicedToArray(_useState207, 2),
-    wagerLastWinAmount = _useState208[0],
-    setWagerLastWinAmount = _useState208[1];
-  var _useState209 = useState(gameState.wager_insurance_charges || 0),
+    wagerBankedWins = _useState208[0],
+    setWagerBankedWins = _useState208[1];
+  var _useState209 = useState(gameState.wager_last_win_amount || 0),
     _useState210 = _slicedToArray(_useState209, 2),
-    wagerInsuranceCharges = _useState210[0],
-    setWagerInsuranceCharges = _useState210[1];
-  var _useState211 = useState(gameState.wager_insurance_armed || false),
+    wagerLastWinAmount = _useState210[0],
+    setWagerLastWinAmount = _useState210[1];
+  var _useState211 = useState(gameState.wager_insurance_charges || 0),
     _useState212 = _slicedToArray(_useState211, 2),
-    wagerInsuranceArmed = _useState212[0],
-    setWagerInsuranceArmed = _useState212[1];
-  var _useState213 = useState(gameState.active_wheel_mode || 'steady'),
+    wagerInsuranceCharges = _useState212[0],
+    setWagerInsuranceCharges = _useState212[1];
+  var _useState213 = useState(gameState.wager_insurance_armed || false),
     _useState214 = _slicedToArray(_useState213, 2),
-    activeWheelMode = _useState214[0],
-    setActiveWheelMode = _useState214[1];
-  var _useState215 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    wagerInsuranceArmed = _useState214[0],
+    setWagerInsuranceArmed = _useState214[1];
+  var _useState215 = useState(gameState.active_wheel_mode || 'steady'),
     _useState216 = _slicedToArray(_useState215, 2),
-    availableWheelModes = _useState216[0],
-    setAvailableWheelModes = _useState216[1];
+    activeWheelMode = _useState216[0],
+    setActiveWheelMode = _useState216[1];
+  var _useState217 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    _useState218 = _slicedToArray(_useState217, 2),
+    availableWheelModes = _useState218[0],
+    setAvailableWheelModes = _useState218[1];
   // T80: server-provided wheel probabilities (drift-adjusted for gravity,
   // static for other modes). null → fall back to WHEEL_MODE_DRAW.
-  var _useState217 = useState(gameState.wheel_probabilities || null),
-    _useState218 = _slicedToArray(_useState217, 2),
-    wheelProbabilities = _useState218[0],
-    setWheelProbabilities = _useState218[1];
+  var _useState219 = useState(gameState.wheel_probabilities || null),
+    _useState220 = _slicedToArray(_useState219, 2),
+    wheelProbabilities = _useState220[0],
+    setWheelProbabilities = _useState220[1];
   // T80: gravity drift echoed by the server; not consumed by the wheel
   // itself but kept in state for UI badges / debug.
-  var _useState219 = useState(gameState.gravity_drift || 0),
-    _useState220 = _slicedToArray(_useState219, 2),
-    gravityDrift = _useState220[0],
-    setGravityDrift = _useState220[1];
-  var _useState221 = useState(gameState.wager_tokens || 0),
+  var _useState221 = useState(gameState.gravity_drift || 0),
     _useState222 = _slicedToArray(_useState221, 2),
-    wagerTokens = _useState222[0],
-    setWagerTokens = _useState222[1];
-  var _useState223 = useState(gameState.aquarium_species || []),
+    gravityDrift = _useState222[0],
+    setGravityDrift = _useState222[1];
+  var _useState223 = useState(gameState.wager_tokens || 0),
     _useState224 = _slicedToArray(_useState223, 2),
-    aquariumSpecies = _useState224[0],
-    setAquariumSpecies = _useState224[1];
-  var _useState225 = useState(gameState.cosmetic_fragments || 0),
+    wagerTokens = _useState224[0],
+    setWagerTokens = _useState224[1];
+  var _useState225 = useState(gameState.aquarium_species || []),
     _useState226 = _slicedToArray(_useState225, 2),
-    cosmeticFragments = _useState226[0],
-    setCosmeticFragments = _useState226[1];
-  var _useState227 = useState(gameState.guard_charges || 0),
+    aquariumSpecies = _useState226[0],
+    setAquariumSpecies = _useState226[1];
+  var _useState227 = useState(gameState.cosmetic_fragments || 0),
     _useState228 = _slicedToArray(_useState227, 2),
-    guardCharges = _useState228[0],
-    setGuardCharges = _useState228[1];
-  var _useState229 = useState(gameState.bounties || []),
+    cosmeticFragments = _useState228[0],
+    setCosmeticFragments = _useState228[1];
+  var _useState229 = useState(gameState.guard_charges || 0),
     _useState230 = _slicedToArray(_useState229, 2),
-    bounties = _useState230[0],
-    setBounties = _useState230[1];
-  var _useState231 = useState(gameState.community_goal || null),
+    guardCharges = _useState230[0],
+    setGuardCharges = _useState230[1];
+  var _useState231 = useState(gameState.bounties || []),
     _useState232 = _slicedToArray(_useState231, 2),
-    communityGoal = _useState232[0],
-    setCommunityGoal = _useState232[1];
-  var _useState233 = useState(gameState.singularity || null),
+    bounties = _useState232[0],
+    setBounties = _useState232[1];
+  var _useState233 = useState(gameState.community_goal || null),
     _useState234 = _slicedToArray(_useState233, 2),
-    singularity = _useState234[0],
-    setSingularity = _useState234[1];
+    communityGoal = _useState234[0],
+    setCommunityGoal = _useState234[1];
+  var _useState235 = useState(gameState.singularity || null),
+    _useState236 = _slicedToArray(_useState235, 2),
+    singularity = _useState236[0],
+    setSingularity = _useState236[1];
   // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
   // the safe "no risk" position and is valid — use ?? 0 not || 1.
-  var _useState235 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
-    _useState236 = _slicedToArray(_useState235, 2),
-    stakePct = _useState236[0],
-    setStakePct = _useState236[1];
+  var _useState237 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
+    _useState238 = _slicedToArray(_useState237, 2),
+    stakePct = _useState238[0],
+    setStakePct = _useState238[1];
   // T102: max stake percentage for this player (30 base, 35/40/45 with
   // stake extension items). Used to size the slider's max attribute.
-  var _useState237 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
-    _useState238 = _slicedToArray(_useState237, 2),
-    maxStakePct = _useState238[0],
-    setMaxStakePct = _useState238[1];
+  var _useState239 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
+    _useState240 = _slicedToArray(_useState239, 2),
+    maxStakePct = _useState240[0],
+    setMaxStakePct = _useState240[1];
   // T102+T105: live display of the stake amount (wins escrowed on next
   // spin). Recomputed on stake/wins/losses change and after each spin.
-  var _useState239 = useState(0),
-    _useState240 = _slicedToArray(_useState239, 2),
-    stakeValue = _useState240[0],
-    setStakeValue = _useState240[1];
+  var _useState241 = useState(0),
+    _useState242 = _slicedToArray(_useState241, 2),
+    stakeValue = _useState242[0],
+    setStakeValue = _useState242[1];
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
-  var _useState241 = useState(gameState.auto_spin_active || false),
-    _useState242 = _slicedToArray(_useState241, 2),
-    autoSpinActive = _useState242[0],
-    setAutoSpinActive = _useState242[1];
-  var _useState243 = useState(gameState.auto_spin_budget || 0),
+  var _useState243 = useState(gameState.auto_spin_active || false),
     _useState244 = _slicedToArray(_useState243, 2),
-    autoSpinBudget = _useState244[0],
-    setAutoSpinBudget = _useState244[1];
+    autoSpinActive = _useState244[0],
+    setAutoSpinActive = _useState244[1];
+  var _useState245 = useState(gameState.auto_spin_budget || 0),
+    _useState246 = _slicedToArray(_useState245, 2),
+    autoSpinBudget = _useState246[0],
+    setAutoSpinBudget = _useState246[1];
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
   // endpoint processes the pending server-side auto-spins and returns
@@ -6730,22 +6736,22 @@ function GameApp(_ref28) {
       return clearInterval(id);
     };
   }, [autoSpinActive, tick]);
-  var _useState245 = useState(false),
-    _useState246 = _slicedToArray(_useState245, 2),
-    showPrestigeConfirm = _useState246[0],
-    setShowPrestigeConfirm = _useState246[1];
-  var _useState247 = useState((gameState.onboarding_step || 0) < 5),
+  var _useState247 = useState(false),
     _useState248 = _slicedToArray(_useState247, 2),
-    showOnboarding = _useState248[0],
-    setShowOnboarding = _useState248[1];
-  var _useState249 = useState(false),
+    showPrestigeConfirm = _useState248[0],
+    setShowPrestigeConfirm = _useState248[1];
+  var _useState249 = useState((gameState.onboarding_step || 0) < 5),
     _useState250 = _slicedToArray(_useState249, 2),
-    showLegacyBoards = _useState250[0],
-    setShowLegacyBoards = _useState250[1];
-  var _useState251 = useState([]),
+    showOnboarding = _useState250[0],
+    setShowOnboarding = _useState250[1];
+  var _useState251 = useState(false),
     _useState252 = _slicedToArray(_useState251, 2),
-    legacyBoards = _useState252[0],
-    setLegacyBoards = _useState252[1];
+    showLegacyBoards = _useState252[0],
+    setShowLegacyBoards = _useState252[1];
+  var _useState253 = useState([]),
+    _useState254 = _slicedToArray(_useState253, 2),
+    legacyBoards = _useState254[0],
+    setLegacyBoards = _useState254[1];
   var refreshBountiesAndGoal = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
     var _yield$Promise$all, _yield$Promise$all2, bountyRes, goalRes;
     return _regenerator().w(function (_context21) {
@@ -7050,6 +7056,7 @@ function GameApp(_ref28) {
             setWagerLastStake(0);
             showToast(" Prestiged to Level ".concat(data.prestige_level, "!"));
             refreshBountiesAndGoal();
+            refreshPrestigeInfo();
           } else {
             showToast(data.error || 'Prestige failed');
           }
@@ -7059,21 +7066,52 @@ function GameApp(_ref28) {
     }, _callee25);
   })), [showToast]);
 
-  // Season 8: handle guard activation
-  var handleGuardActivate = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26() {
+  // T111: fetch the level-scaled prestige threshold. The server is the source
+  // of truth (PRESTIGE_LEVEL_MULTIPLIER lives in prestige.py), so the button's
+  // disabled state always matches the cost the POST endpoint will enforce.
+  var refreshPrestigeInfo = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26() {
     var _yield$apiGame16, ok, data;
     return _regenerator().w(function (_context26) {
       while (1) switch (_context26.n) {
         case 0:
           _context26.n = 1;
-          return apiGame('/api/guard', {
-            method: 'POST',
-            body: JSON.stringify({})
+          return apiGame('/api/prestige', {
+            method: 'GET'
           });
         case 1:
           _yield$apiGame16 = _context26.v;
           ok = _yield$apiGame16.ok;
           data = _yield$apiGame16.data;
+          if (ok) {
+            setNextPrestigeThreshold(data.next_threshold);
+            setPrestigeLevel(data.prestige_level);
+          }
+        case 2:
+          return _context26.a(2);
+      }
+    }, _callee26);
+  })), []);
+  useEffect(function () {
+    if (ownedItems.includes('prestige_unlock')) {
+      refreshPrestigeInfo();
+    }
+  }, [ownedItems, refreshPrestigeInfo]);
+
+  // Season 8: handle guard activation
+  var handleGuardActivate = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
+    var _yield$apiGame17, ok, data;
+    return _regenerator().w(function (_context27) {
+      while (1) switch (_context27.n) {
+        case 0:
+          _context27.n = 1;
+          return apiGame('/api/guard', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 1:
+          _yield$apiGame17 = _context27.v;
+          ok = _yield$apiGame17.ok;
+          data = _yield$apiGame17.data;
           if (ok) {
             setGuardCharges(function (prev) {
               return Math.max(0, prev - 1);
@@ -7083,19 +7121,19 @@ function GameApp(_ref28) {
             showToast(data.error || 'Guard failed');
           }
         case 2:
-          return _context26.a(2);
+          return _context27.a(2);
       }
-    }, _callee26);
+    }, _callee27);
   })), [showToast]);
 
   // Season 8: handle bounty claim
   var handleBountyClaim = useCallback(/*#__PURE__*/function () {
-    var _ref46 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27(bountyId) {
-      var _yield$apiGame17, ok, data, _data$rewards, _data$rewards2;
-      return _regenerator().w(function (_context27) {
-        while (1) switch (_context27.n) {
+    var _ref47 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(bountyId) {
+      var _yield$apiGame18, ok, data, _data$rewards, _data$rewards2;
+      return _regenerator().w(function (_context28) {
+        while (1) switch (_context28.n) {
           case 0:
-            _context27.n = 1;
+            _context28.n = 1;
             return apiGame('/api/bounties/claim', {
               method: 'POST',
               body: JSON.stringify({
@@ -7103,9 +7141,9 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame17 = _context27.v;
-            ok = _yield$apiGame17.ok;
-            data = _yield$apiGame17.data;
+            _yield$apiGame18 = _context28.v;
+            ok = _yield$apiGame18.ok;
+            data = _yield$apiGame18.data;
             if (ok) {
               if ((_data$rewards = data.rewards) !== null && _data$rewards !== void 0 && _data$rewards.cosmetic_fragments) setCosmeticFragments(function (prev) {
                 return prev + data.rewards.cosmetic_fragments;
@@ -7125,23 +7163,23 @@ function GameApp(_ref28) {
               showToast(data.error || 'Claim failed');
             }
           case 2:
-            return _context27.a(2);
+            return _context28.a(2);
         }
-      }, _callee27);
+      }, _callee28);
     }));
     return function (_x12) {
-      return _ref46.apply(this, arguments);
+      return _ref47.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
   var handleSingularityContribute = useCallback(/*#__PURE__*/function () {
-    var _ref47 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(amount) {
-      var _yield$apiGame18, ok, data, _data$contributed, actual;
-      return _regenerator().w(function (_context28) {
-        while (1) switch (_context28.n) {
+    var _ref48 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(amount) {
+      var _yield$apiGame19, ok, data, _data$contributed, actual;
+      return _regenerator().w(function (_context29) {
+        while (1) switch (_context29.n) {
           case 0:
-            _context28.n = 1;
+            _context29.n = 1;
             return apiGame('/api/singularity/contribute', {
               method: 'POST',
               body: JSON.stringify({
@@ -7149,9 +7187,9 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame18 = _context28.v;
-            ok = _yield$apiGame18.ok;
-            data = _yield$apiGame18.data;
+            _yield$apiGame19 = _context29.v;
+            ok = _yield$apiGame19.ok;
+            data = _yield$apiGame19.data;
             if (ok) {
               actual = (_data$contributed = data.contributed) !== null && _data$contributed !== void 0 ? _data$contributed : amount;
               setFishClicks(function (prev) {
@@ -7168,50 +7206,23 @@ function GameApp(_ref28) {
               showToast(data.error || 'Contribution failed');
             }
           case 2:
-            return _context28.a(2);
+            return _context29.a(2);
         }
-      }, _callee28);
+      }, _callee29);
     }));
     return function (_x13) {
-      return _ref47.apply(this, arguments);
+      return _ref48.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle double-down
-  var handleDoubleDown = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29() {
-    var _yield$apiGame19, ok, data;
-    return _regenerator().w(function (_context29) {
-      while (1) switch (_context29.n) {
-        case 0:
-          _context29.n = 1;
-          return apiGame('/api/wager/double-down', {
-            method: 'POST',
-            body: JSON.stringify({})
-          });
-        case 1:
-          _yield$apiGame19 = _context29.v;
-          ok = _yield$apiGame19.ok;
-          data = _yield$apiGame19.data;
-          if (ok) {
-            setDoubleDownPending(true);
-            showToast('⚡ Double down armed!');
-          } else {
-            showToast(data.error || 'Double down failed');
-          }
-        case 2:
-          return _context29.a(2);
-      }
-    }, _callee29);
-  })), [showToast]);
-
-  // Season 8: handle insurance
-  var handleInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30() {
+  var handleDoubleDown = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30() {
     var _yield$apiGame20, ok, data;
     return _regenerator().w(function (_context30) {
       while (1) switch (_context30.n) {
         case 0:
           _context30.n = 1;
-          return apiGame('/api/wager/insurance', {
+          return apiGame('/api/wager/double-down', {
             method: 'POST',
             body: JSON.stringify({})
           });
@@ -7219,6 +7230,33 @@ function GameApp(_ref28) {
           _yield$apiGame20 = _context30.v;
           ok = _yield$apiGame20.ok;
           data = _yield$apiGame20.data;
+          if (ok) {
+            setDoubleDownPending(true);
+            showToast('⚡ Double down armed!');
+          } else {
+            showToast(data.error || 'Double down failed');
+          }
+        case 2:
+          return _context30.a(2);
+      }
+    }, _callee30);
+  })), [showToast]);
+
+  // Season 8: handle insurance
+  var handleInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31() {
+    var _yield$apiGame21, ok, data;
+    return _regenerator().w(function (_context31) {
+      while (1) switch (_context31.n) {
+        case 0:
+          _context31.n = 1;
+          return apiGame('/api/wager/insurance', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 1:
+          _yield$apiGame21 = _context31.v;
+          ok = _yield$apiGame21.ok;
+          data = _yield$apiGame21.data;
           if (ok) {
             if (data.wager_insurance_charges != null) {
               setWagerInsuranceCharges(data.wager_insurance_charges);
@@ -7233,19 +7271,19 @@ function GameApp(_ref28) {
             showToast(data.error || 'Insurance failed');
           }
         case 2:
-          return _context30.a(2);
+          return _context31.a(2);
       }
-    }, _callee30);
+    }, _callee31);
   })), [showToast]);
 
   // Season 8: handle loadout save
   var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
-    var _ref50 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(slot, loadout) {
-      var _yield$apiGame21, ok;
-      return _regenerator().w(function (_context31) {
-        while (1) switch (_context31.n) {
+    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32(slot, loadout) {
+      var _yield$apiGame22, ok;
+      return _regenerator().w(function (_context32) {
+        while (1) switch (_context32.n) {
           case 0:
-            _context31.n = 1;
+            _context32.n = 1;
             return apiGame('/api/loadout', {
               method: 'POST',
               body: JSON.stringify({
@@ -7254,27 +7292,27 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame21 = _context31.v;
-            ok = _yield$apiGame21.ok;
+            _yield$apiGame22 = _context32.v;
+            ok = _yield$apiGame22.ok;
             if (ok) showToast("Loadout ".concat(slot, " saved"));else showToast('Save failed');
           case 2:
-            return _context31.a(2);
+            return _context32.a(2);
         }
-      }, _callee31);
+      }, _callee32);
     }));
     return function (_x14, _x15) {
-      return _ref50.apply(this, arguments);
+      return _ref51.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle loadout apply
   var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
-    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee32(slot) {
-      var _yield$apiGame22, ok, data;
-      return _regenerator().w(function (_context32) {
-        while (1) switch (_context32.n) {
+    var _ref52 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33(slot) {
+      var _yield$apiGame23, ok, data;
+      return _regenerator().w(function (_context33) {
+        while (1) switch (_context33.n) {
           case 0:
-            _context32.n = 1;
+            _context33.n = 1;
             return apiGame('/api/loadout/apply', {
               method: 'POST',
               body: JSON.stringify({
@@ -7282,9 +7320,9 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame22 = _context32.v;
-            ok = _yield$apiGame22.ok;
-            data = _yield$apiGame22.data;
+            _yield$apiGame23 = _context33.v;
+            ok = _yield$apiGame23.ok;
+            data = _yield$apiGame23.data;
             if (ok) {
               setEquippedClass(data.equipped_class);
               setActiveWheelMode(data.active_wheel_mode);
@@ -7293,33 +7331,33 @@ function GameApp(_ref28) {
               showToast(data.error || 'Apply failed');
             }
           case 2:
-            return _context32.a(2);
+            return _context33.a(2);
         }
-      }, _callee32);
+      }, _callee33);
     }));
     return function (_x16) {
-      return _ref51.apply(this, arguments);
+      return _ref52.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: fetch legacy boards
-  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33() {
-    var _yield$apiGame23, ok, data;
-    return _regenerator().w(function (_context33) {
-      while (1) switch (_context33.n) {
+  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34() {
+    var _yield$apiGame24, ok, data;
+    return _regenerator().w(function (_context34) {
+      while (1) switch (_context34.n) {
         case 0:
           setShowLegacyBoards(true);
-          _context33.n = 1;
+          _context34.n = 1;
           return apiGame('/api/legacy-boards');
         case 1:
-          _yield$apiGame23 = _context33.v;
-          ok = _yield$apiGame23.ok;
-          data = _yield$apiGame23.data;
+          _yield$apiGame24 = _context34.v;
+          ok = _yield$apiGame24.ok;
+          data = _yield$apiGame24.data;
           if (ok) setLegacyBoards(data.boards || []);
         case 2:
-          return _context33.a(2);
+          return _context34.a(2);
       }
-    }, _callee33);
+    }, _callee34);
   })), []);
 
   // Season 8: keyboard shortcuts (T37)
@@ -7801,20 +7839,20 @@ function GameApp(_ref28) {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34() {
-      var _yield$apiGame24, ok, data, w, l;
-      return _regenerator().w(function (_context34) {
-        while (1) switch (_context34.n) {
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
+      var _yield$apiGame25, ok, data, w, l;
+      return _regenerator().w(function (_context35) {
+        while (1) switch (_context35.n) {
           case 0:
-            _context34.n = 1;
+            _context35.n = 1;
             return apiGame('/api/wager/bank', {
               method: 'POST',
               body: '{}'
             });
           case 1:
-            _yield$apiGame24 = _context34.v;
-            ok = _yield$apiGame24.ok;
-            data = _yield$apiGame24.data;
+            _yield$apiGame25 = _context35.v;
+            ok = _yield$apiGame25.ok;
+            data = _yield$apiGame25.data;
             if (ok) {
               setWins(data.wins);
               if (data.losses != null) setLosses(data.losses);
@@ -7826,9 +7864,9 @@ function GameApp(_ref28) {
               if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
             } else showToast(data.error || 'Bank failed');
           case 2:
-            return _context34.a(2);
+            return _context35.a(2);
         }
-      }, _callee34);
+      }, _callee35);
     }))
   }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("div", {
     className: "wager-double-down-armed"
@@ -7945,12 +7983,13 @@ function GameApp(_ref28) {
   }), ownedItems.includes('prestige_unlock') && /*#__PURE__*/React.createElement("div", {
     className: "season8-prestige-panel"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "prestige-badge"
-  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "%)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "prestige-badge",
+    title: "+2% win multiplier per level (max +40% at level 20)"
+  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "% win mult)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
     className: "legacy-badge"
   }, "Legacy: ", fmt(legacyWins), " wins"), prestigeLevel < 20 && /*#__PURE__*/React.createElement("button", {
     className: "prestige-btn",
-    disabled: wins < (ownedItems.includes('prestige_efficiency') ? 500000 : 1000000),
+    disabled: nextPrestigeThreshold == null || wins < nextPrestigeThreshold,
     onClick: function onClick() {
       return setShowPrestigeConfirm(true);
     }
@@ -8140,74 +8179,74 @@ function GameApp(_ref28) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState253 = useState(undefined),
-    _useState254 = _slicedToArray(_useState253, 2),
-    user = _useState254[0],
-    setUser = _useState254[1];
-  var _useState255 = useState(null),
+  var _useState255 = useState(undefined),
     _useState256 = _slicedToArray(_useState255, 2),
-    gameState = _useState256[0],
-    setGameState = _useState256[1];
-  var _useState257 = useState(''),
+    user = _useState256[0],
+    setUser = _useState256[1];
+  var _useState257 = useState(null),
     _useState258 = _slicedToArray(_useState257, 2),
-    sessionMsg = _useState258[0],
-    setSessionMsg = _useState258[1];
+    gameState = _useState258[0],
+    setGameState = _useState258[1];
+  var _useState259 = useState(''),
+    _useState260 = _slicedToArray(_useState259, 2),
+    sessionMsg = _useState260[0],
+    setSessionMsg = _useState260[1];
   useEffect(function () {
-    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
+    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36() {
       var _yield$apiFetch2, ok, data, gs;
-      return _regenerator().w(function (_context35) {
-        while (1) switch (_context35.n) {
+      return _regenerator().w(function (_context36) {
+        while (1) switch (_context36.n) {
           case 0:
-            _context35.n = 1;
+            _context36.n = 1;
             return apiFetch('/api/me');
           case 1:
-            _yield$apiFetch2 = _context35.v;
+            _yield$apiFetch2 = _context36.v;
             ok = _yield$apiFetch2.ok;
             data = _yield$apiFetch2.data;
             storeCsrf(data);
             if (!(ok && data.username)) {
-              _context35.n = 3;
+              _context36.n = 3;
               break;
             }
-            _context35.n = 2;
+            _context36.n = 2;
             return apiFetch('/api/state');
           case 2:
-            gs = _context35.v;
+            gs = _context36.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(data.username);
             } else {
               setUser(null);
             }
-            _context35.n = 4;
+            _context36.n = 4;
             break;
           case 3:
             setUser(null);
           case 4:
-            return _context35.a(2);
+            return _context36.a(2);
         }
-      }, _callee35);
+      }, _callee36);
     }))();
   }, []);
   var handleAuth = /*#__PURE__*/function () {
-    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(username) {
+    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37(username) {
       var gs;
-      return _regenerator().w(function (_context36) {
-        while (1) switch (_context36.n) {
+      return _regenerator().w(function (_context37) {
+        while (1) switch (_context37.n) {
           case 0:
-            _context36.n = 1;
+            _context37.n = 1;
             return apiFetch('/api/state');
           case 1:
-            gs = _context36.v;
+            gs = _context37.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(username);
               setSessionMsg('');
             }
           case 2:
-            return _context36.a(2);
+            return _context37.a(2);
         }
-      }, _callee36);
+      }, _callee37);
     }));
     function handleAuth(_x17) {
       return _handleAuth.apply(this, arguments);
