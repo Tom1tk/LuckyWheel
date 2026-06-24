@@ -203,8 +203,8 @@ body::before {
 
 .wheel-wrapper {
   position: relative;
-  width: min(720px, calc(100vw - 240px), calc(100vh - 340px));
-  height: min(720px, calc(100vw - 240px), calc(100vh - 340px));
+  width: min(560px, calc(100vw - 240px), calc(100vh - 480px));
+  height: min(560px, calc(100vw - 240px), calc(100vh - 480px));
   cursor: pointer;
 }
 
@@ -295,7 +295,7 @@ body::before {
   animation: promptPulse 1s ease-in-out infinite;
   cursor: pointer;
   text-shadow: 0 0 10px var(--p);
-  margin: 2px 0;
+  margin: 0 0 14px 0;
 }
 
 @keyframes promptPulse {
@@ -312,6 +312,7 @@ body::before {
   gap: 12px;
   cursor: pointer;
   user-select: none;
+  margin: 8px 0;
 }
 
 .autospin-row input[type="checkbox"] {
@@ -531,6 +532,7 @@ body::before {
 .bulbs {
   display: flex;
   gap: 16px;
+  padding: 8px 0 12px 0;
 }
 
 .bulb {
@@ -553,6 +555,7 @@ body::before {
 .scoreboard {
   display: flex;
   gap: clamp(10px, 3vw, 28px);
+  margin: 4px 0 14px 0;
 }
 
 .score-box {
@@ -4614,6 +4617,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
     flex-direction: column;
     align-items: center;
     gap: 14px;
+    margin-top: 16px;
   }
   .season8-wager-panel {
     position: static;
@@ -4637,8 +4641,8 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
     align-items: center;
   }
   .wheel-wrapper {
-    width: min(580px, calc(100vw - 32px), calc(100vh - 480px));
-    height: min(580px, calc(100vw - 32px), calc(100vh - 480px));
+    width: min(560px, calc(100vw - 32px), calc(100vh - 520px));
+    height: min(560px, calc(100vw - 32px), calc(100vh - 520px));
   }
   .stake-label {
     min-width: 60px;
@@ -4651,6 +4655,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin: 4px 0 10px 0;
 }
 
 .wheel-mode-label {
