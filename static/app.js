@@ -7853,41 +7853,8 @@ function GameApp(_ref28) {
   }, "Casino")), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, "All or nothing")), /*#__PURE__*/React.createElement("div", {
-    className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
-    onClick: !spinning ? handleManualSpin : undefined,
-    title: spinning ? undefined : 'Click to spin!'
+    className: "wheel-and-wager"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pointer"
-  }), /*#__PURE__*/React.createElement("canvas", {
-    ref: canvasRef,
-    width: 420,
-    height: 420,
-    className: "wheel-canvas",
-    style: {
-      transform: "rotate(".concat(wheelRotation, "deg)"),
-      transition: "transform ".concat(WHEEL_SPIN_SPEED, "s cubic-bezier(0.17, 0.67, 0.12, 0.99)")
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "center-hub"
-  }, "\u2605")), /*#__PURE__*/React.createElement("div", {
-    className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
-    onClick: !spinning ? handleManualSpin : undefined
-  }, "\u25B6 Click to Spin \u25C0"), ownedItems.includes('auto_spin_unlock') && /*#__PURE__*/React.createElement("label", {
-    className: "autospin-row",
-    style: {
-      justifyContent: 'center',
-      marginTop: '0.4rem'
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: autoSpinActive,
-    onChange: function onChange(e) {
-      return e.target.checked ? handleStartAutoSpin() : handleStopAutoSpin();
-    },
-    title: "Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "autospin-label"
-  }, "Auto Spin")), /*#__PURE__*/React.createElement("div", {
     className: "season8-wager-panel"
   }, !autoSpinActive && /*#__PURE__*/React.createElement("div", {
     className: "wager-stake-control"
@@ -7946,7 +7913,6 @@ function GameApp(_ref28) {
               setWagerBankedWins(0);
               setWagerStreak(0);
               refreshBountiesAndGoal();
-              // T79: surface both banked wins and banked losses in the toast.
               w = data.banked_wins || 0, l = data.banked_losses || 0;
               if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
             } else showToast(data.error || 'Bank failed');
@@ -7979,6 +7945,41 @@ function GameApp(_ref28) {
       return setPayWithTokens(e.target.checked);
     }
   }), /*#__PURE__*/React.createElement("span", null, "Pay with tokens"))), /*#__PURE__*/React.createElement("div", {
+    className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
+    onClick: !spinning ? handleManualSpin : undefined,
+    title: spinning ? undefined : 'Click to spin!'
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pointer"
+  }), /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    width: 420,
+    height: 420,
+    className: "wheel-canvas",
+    style: {
+      transform: "rotate(".concat(wheelRotation, "deg)"),
+      transition: "transform ".concat(WHEEL_SPIN_SPEED, "s cubic-bezier(0.17, 0.67, 0.12, 0.99)")
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "center-hub"
+  }, "\u2605"))), /*#__PURE__*/React.createElement("div", {
+    className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
+    onClick: !spinning ? handleManualSpin : undefined
+  }, "\u25B6 Click to Spin \u25C0"), ownedItems.includes('auto_spin_unlock') && /*#__PURE__*/React.createElement("label", {
+    className: "autospin-row",
+    style: {
+      justifyContent: 'center',
+      marginTop: '0.4rem'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: autoSpinActive,
+    onChange: function onChange(e) {
+      return e.target.checked ? handleStartAutoSpin() : handleStopAutoSpin();
+    },
+    title: "Spin automatically at 0% stake. Stakes are disabled while auto-spin is on."
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "autospin-label"
+  }, "Auto Spin")), /*#__PURE__*/React.createElement("div", {
     className: "season8-wheel-mode"
   }, /*#__PURE__*/React.createElement("span", {
     className: "wheel-mode-label"

@@ -4391,12 +4391,15 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
 }
 
 /* ── Season 8: wager panel (vertical column, left of wheel) ─────────────── */
+.wheel-and-wager {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
 .season8-wager-panel {
-  position: fixed;
-  left: clamp(16px, 2vw, 32px);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 50;
   width: 96px;
   min-height: 320px;
   background: rgba(15,5,32,0.82);
@@ -4407,6 +4410,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* ── T107: auto-spin checkbox toggle (style mirrors the S5/S6/S7
