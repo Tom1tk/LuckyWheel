@@ -134,6 +134,44 @@ def test_wager_panel_does_not_overlap_wheel(name, width, height, logged_in_page)
 
 
 @pytest.mark.parametrize('name,width,height', RESOLUTIONS)
+def test_wager_panel_sits_close_to_wheel(name, width, height, logged_in_page):
+    """At >=1366px, the panel must sit immediately to the left of the wheel
+    (gap < 80px). At <1366px the layout falls back to below-the-wheel, so the
+    panel can sit below (large vertical gap is expected)."""
+    page = logged_in_page
+    page.set_viewport_size({'width': width, 'height': height})
+    page.wait_for_timeout(150)
+    panel = page.locator('.season8-wager-panel').bounding_box()
+    wheel = page.locator('.wheel-wrapper').bounding_box()
+    if width >= 1366:
+        gap_x = wheel['x'] - (panel['x'] + panel['width'])
+        assert 0 <= gap_x < 80, (
+            f'wager panel should sit immediately to the left of the wheel '
+            f'(gap_x={gap_x:.0f}px) at {name}; large gap means the panel '
+            f'is not anchored to the wheel'
+        )
+
+
+@pytest.mark.parametrize('name,width,height', RESOLUTIONS)
+def test_wager_panel_vertically_centered_with_wheel(name, width, height, logged_in_page):
+    """At >=1366px, the panel and wheel should have matching vertical centers
+    (offset < 5px). At <1366px the layout falls back to a vertical stack."""
+    page = logged_in_page
+    page.set_viewport_size({'width': width, 'height': height})
+    page.wait_for_timeout(150)
+    panel = page.locator('.season8-wager-panel').bounding_box()
+    wheel = page.locator('.wheel-wrapper').bounding_box()
+    if width >= 1366:
+        panel_cy = panel['y'] + panel['height'] / 2
+        wheel_cy = wheel['y'] + wheel['height'] / 2
+        offset = abs(panel_cy - wheel_cy)
+        assert offset < 5, (
+            f'wager panel center ({panel_cy:.0f}) should match wheel '
+            f'center ({wheel_cy:.0f}) at {name}; offset={offset:.0f}px'
+        )
+
+
+@pytest.mark.parametrize('name,width,height', RESOLUTIONS)
 def test_wager_panel_inside_viewport(name, width, height, logged_in_page):
     page = logged_in_page
     page.set_viewport_size({'width': width, 'height': height})

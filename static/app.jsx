@@ -4578,20 +4578,105 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="subtitle">All or nothing</div>
           </div>
 
-          <div
-            className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
-            onClick={!spinning ? handleManualSpin : undefined}
-            title={spinning ? undefined : 'Click to spin!'}
-          >
-            <div className="pointer" />
-            <canvas
-              ref={canvasRef}
-              width={420}
-              height={420}
-              className="wheel-canvas"
-              style={{ transform: `rotate(${wheelRotation}deg)`, transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
-            />
-            <div className="center-hub">★</div>
+          {/* T112: wager panel + wheel are siblings in a flex row so the
+              panel sits immediately to the left of the wheel, vertically
+              centered. The row collapses to a vertical stack at <1366px. */}
+          <div className="wheel-and-wager">
+            <div className="season8-wager-panel">
+              {!autoSpinActive && <div className="wager-stake-control">
+                <label>Stake</label>
+                <span className={`stake-label ${
+                  stakePct === 0 ? 'stake-safe' :
+                  stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
+                }`}>{stakePct}%</span>
+                <div className="wager-stake-value">
+                  {doubleDownPending && wagerLastWinAmount > 0 ? (
+                    <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
+                  ) : stakePct === 0 ? (
+                    <span className="stake-value-safe">🛡️ No stake</span>
+                  ) : activeWheelMode === 'inverted' ? (
+                    <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
+                  ) : (
+                    <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
+                  )}
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max={maxStakePct}
+                  step="5"
+                  value={stakePct}
+                  onChange={e => handleStakeChange(parseInt(e.target.value))}
+                  className="wager-slider"
+                  disabled={!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted'}
+                  title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
+                  style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                />
+                <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
+              </div>}
+              {!autoSpinActive && (<>
+              {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
+                <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
+              )}
+              {wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && (
+                <button className="wager-action-btn wager-bank-btn" onClick={async () => {
+                  const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
+                  if (ok) {
+                    setWins(data.wins);
+                    if (data.losses != null) setLosses(data.losses);
+                    setWagerBankedWins(0);
+                    setWagerStreak(0);
+                    refreshBountiesAndGoal();
+                    const w = data.banked_wins || 0, l = data.banked_losses || 0;
+                    if (w > 0 && l > 0) showToast(`Banked ${fmt(w)} wins + ${fmt(l)} losses!`);
+                    else if (l > 0)      showToast(`Banked ${fmt(l)} losses!`);
+                    else                 showToast(`Banked ${fmt(w)} wins!`);
+                  } else showToast(data.error || 'Bank failed');
+                }}>🏦 Bank {fmt(wagerBankedWins)}</button>
+              )}
+              {ownedItems.includes('wager_double_down') && doubleDownPending && (
+                <button className="wager-double-down-armed wager-cancel-btn" onClick={handleCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
+              )}
+              {ownedItems.includes('wager_double_down') && !doubleDownPending && (
+                <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double-Down (all-or-nothing)</button>
+              )}
+              {ownedItems.includes('wager_insurance') && wagerInsuranceArmed && (
+                <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
+              )}
+              {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && (
+                <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+              )}
+              </>)}
+              {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
+                <div className="wager-tokens-balance">🪙 {fmt(wagerTokens)} tokens</div>
+              )}
+              {ownedItems.includes('fish_to_wager') && wagerTokens > 0
+                && stakePct >= 30 && !doubleDownPending && (
+                <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with wager tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
+                  <input
+                    type="checkbox"
+                    checked={payWithTokens}
+                    onChange={e => setPayWithTokens(e.target.checked)}
+                  />
+                  <span>Pay with tokens</span>
+                </label>
+              )}
+            </div>
+            <div
+              className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
+              onClick={!spinning ? handleManualSpin : undefined}
+              title={spinning ? undefined : 'Click to spin!'}
+            >
+              <div className="pointer" />
+              <canvas
+                ref={canvasRef}
+                width={420}
+                height={420}
+                className="wheel-canvas"
+                style={{ transform: `rotate(${wheelRotation}deg)`, transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
+              />
+              <div className="center-hub">★</div>
+            </div>
           </div>
 
           <div className={`spin-prompt ${spinning ? 'hidden' : ''}`} onClick={!spinning ? handleManualSpin : undefined}>
@@ -4617,96 +4702,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               </span>
             </label>
           )}
-
-          {/* Season 8: Wager panel — always visible (T75); slider disabled until wager_unlock owned */}
-          <div className="season8-wager-panel">
-            {/* T107: stake slider is hidden while auto-spin is active (auto-spin
-                always uses 0% stake; manual input would be confusing). */}
-            {!autoSpinActive && <div className="wager-stake-control">
-              <label>Stake</label>
-              <span className={`stake-label ${
-                stakePct === 0 ? 'stake-safe' :
-                stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
-              }`}>{stakePct}%</span>
-              <div className="wager-stake-value">
-                {doubleDownPending && wagerLastWinAmount > 0 ? (
-                  <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
-                ) : stakePct === 0 ? (
-                  <span className="stake-value-safe">🛡️ No stake</span>
-                ) : activeWheelMode === 'inverted' ? (
-                  <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
-                ) : (
-                  <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
-                )}
-              </div>
-              <input
-                type="range"
-                min="0"
-                max={maxStakePct}
-                step="5"
-                value={stakePct}
-                onChange={e => handleStakeChange(parseInt(e.target.value))}
-                className="wager-slider"
-                disabled={!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted'}
-                title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
-                style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-              />
-              <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
-            </div>}
-            {!autoSpinActive && (<>
-            {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
-              <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
-            )}
-            {wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && (
-              <button className="wager-action-btn wager-bank-btn" onClick={async () => {
-                const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
-                if (ok) {
-                  setWins(data.wins);
-                  if (data.losses != null) setLosses(data.losses);
-                  setWagerBankedWins(0);
-                  setWagerStreak(0);
-                  refreshBountiesAndGoal();
-                  // T79: surface both banked wins and banked losses in the toast.
-                  const w = data.banked_wins || 0, l = data.banked_losses || 0;
-                  if (w > 0 && l > 0) showToast(`Banked ${fmt(w)} wins + ${fmt(l)} losses!`);
-                  else if (l > 0)      showToast(`Banked ${fmt(l)} losses!`);
-                  else                 showToast(`Banked ${fmt(w)} wins!`);
-                } else showToast(data.error || 'Bank failed');
-              }}>🏦 Bank {fmt(wagerBankedWins)}</button>
-            )}
-            {ownedItems.includes('wager_double_down') && doubleDownPending && (
-              <button className="wager-double-down-armed wager-cancel-btn" onClick={handleCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
-            )}
-            {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-              <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Arm Double-Down (all-or-nothing)</button>
-            )}
-            {ownedItems.includes('wager_insurance') && wagerInsuranceArmed && (
-              <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
-            )}
-            {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && (
-              <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
-            )}
-            </>)}
-            {/* T110: wager-tokens balance + pay-with-tokens toggle. The
-                toggle only shows at high stake (>= 30%) when the player
-                owns fish_to_wager and has tokens. The token balance is
-                always shown alongside (or just below) the stake value so
-                the player knows what they're working with. */}
-            {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
-              <div className="wager-tokens-balance">🪙 {fmt(wagerTokens)} tokens</div>
-            )}
-            {ownedItems.includes('fish_to_wager') && wagerTokens > 0
-              && stakePct >= 30 && !doubleDownPending && (
-              <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with wager tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
-                <input
-                  type="checkbox"
-                  checked={payWithTokens}
-                  onChange={e => setPayWithTokens(e.target.checked)}
-                />
-                <span>Pay with tokens</span>
-              </label>
-            )}
-          </div>
 
           {/* Season 8: Wheel mode selector */}
           <div className="season8-wheel-mode">
