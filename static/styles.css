@@ -123,6 +123,15 @@ body::before {
   padding: clamp(8px, 2vh, 24px) 0;
 }
 
+.casino-header,
+.casino-container > .spin-prompt,
+.casino-container > .autospin-row,
+.casino-container > .season8-wheel-mode,
+.casino-container > .scoreboard {
+  position: relative;
+  z-index: 60;
+}
+
 .casino-title {
   font-size: clamp(1.8rem, 5vw, 3.5rem);
   color: var(--p);
@@ -181,11 +190,20 @@ body::before {
   pointer-events: none;
 }
 
-/* Wheel wrapper */
+/* Wheel wrapper — dead center of viewport. Wager panel hangs off the LEFT
+   via position:absolute so it never pushes the wheel off-center. */
+.wheel-and-wager {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+}
+
 .wheel-wrapper {
   position: relative;
-  width: min(640px, calc(100vw - 220px), calc(100vh - 480px));
-  height: min(640px, calc(100vw - 220px), calc(100vh - 480px));
+  width: min(720px, calc(100vw - 240px), calc(100vh - 340px));
+  height: min(720px, calc(100vw - 240px), calc(100vh - 340px));
   cursor: pointer;
 }
 
@@ -268,14 +286,15 @@ body::before {
 }
 
 /* Spin button / prompt */
-.spin-prompt {
-  font-size: 1.5rem;
+ .spin-prompt {
+  font-size: 0.95rem;
   color: var(--p);
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   animation: promptPulse 1s ease-in-out infinite;
   cursor: pointer;
   text-shadow: 0 0 10px var(--p);
+  margin: 2px 0;
 }
 
 @keyframes promptPulse {
@@ -296,8 +315,8 @@ body::before {
 
 .autospin-row input[type="checkbox"] {
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--p);
   border-radius: 4px;
   background: rgba(var(--p-rgb),0.08);
@@ -324,8 +343,8 @@ body::before {
 }
 
 .autospin-label {
-  font-size: 0.9rem;
-  letter-spacing: 3px;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
   color: var(--p);
   text-transform: uppercase;
   text-shadow: 0 0 8px rgba(var(--p-rgb),0.4);
@@ -4391,15 +4410,12 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
 }
 
 /* ── Season 8: wager panel (vertical column, left of wheel) ─────────────── */
-.wheel-and-wager {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-}
-
 .season8-wager-panel {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 28px;
   width: 96px;
   min-height: 320px;
   background: rgba(15,5,32,0.82);
@@ -4410,7 +4426,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  z-index: 51;
 }
 
 /* ── T107: auto-spin checkbox toggle (style mirrors the S5/S6/S7
@@ -4590,6 +4606,14 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
 
 /* ── T112: narrow-viewport fallback for the vertical wager panel ─────────── */
 @media (max-width: 1365px) {
+  .wheel-and-wager {
+    position: static;
+    transform: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
   .season8-wager-panel {
     position: static;
     transform: none;
