@@ -3999,6 +3999,32 @@ var SHOP_SECTIONS = [{
     requires: 'bonusmult_2'
   }]
 }, {
+  label: '🏅 Season 8: Prestige',
+  items: [{
+    id: 'prestige_unlock',
+    emoji: '🏅',
+    name: 'Prestige Unlock',
+    cost: 1000000,
+    desc: 'Unlocks prestige reset (permanent +2% per level)',
+    tier: 3
+  }, {
+    id: 'prestige_efficiency',
+    emoji: '⚡',
+    name: 'Prestige Efficiency',
+    cost: 500000,
+    desc: 'Reduces prestige threshold from 1M to 500K wins',
+    tier: 3,
+    requires: 'prestige_unlock'
+  }, {
+    id: 'prestige_legacy',
+    emoji: '📜',
+    name: 'Prestige Legacy',
+    cost: 1000000,
+    desc: 'Keep functional upgrades when prestiging',
+    tier: 3,
+    requires: 'prestige_unlock'
+  }]
+}, {
   label: '🐟 Fishing Panel Size',
   items: [{
     id: 'fishsize_small',
@@ -4298,32 +4324,6 @@ var SHOP_SECTIONS = [{
     cost: 5000,
     desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)',
     tier: 1
-  }]
-}, {
-  label: '🏅 Season 8: Prestige',
-  items: [{
-    id: 'prestige_unlock',
-    emoji: '🏅',
-    name: 'Prestige Unlock',
-    cost: 1000000,
-    desc: 'Unlocks prestige reset (permanent +2% per level)',
-    tier: 3
-  }, {
-    id: 'prestige_efficiency',
-    emoji: '⚡',
-    name: 'Prestige Efficiency',
-    cost: 500000,
-    desc: 'Reduces prestige threshold from 1M to 500K wins',
-    tier: 3,
-    requires: 'prestige_unlock'
-  }, {
-    id: 'prestige_legacy',
-    emoji: '📜',
-    name: 'Prestige Legacy',
-    cost: 1000000,
-    desc: 'Keep functional upgrades when prestiging',
-    tier: 3,
-    requires: 'prestige_unlock'
   }]
 }, {
   label: '🎣 Season 8: Fishing',
