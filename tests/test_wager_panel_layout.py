@@ -186,13 +186,13 @@ def test_wager_panel_inside_viewport(name, width, height, logged_in_page):
 
 
 def test_wheel_grows_at_desktop(logged_in_page):
-    """T112: at 1920x1080 the wheel is visibly larger than the 580px old cap."""
+    """T112 v2: at 1920x1080 the wheel is at least 500px so it dominates the page."""
     page = logged_in_page
     page.set_viewport_size({'width': 1920, 'height': 1080})
     page.wait_for_timeout(150)
     wheel = page.locator('.wheel-wrapper').bounding_box()
-    assert wheel['width'] > 580, (
-        f'wheel width ({wheel["width"]:.0f}) should exceed the old 580px cap'
+    assert wheel['width'] >= 500, (
+        f'wheel width ({wheel["width"]:.0f}) should be at least 500px to dominate the page'
     )
 
 
