@@ -2460,6 +2460,11 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Power II', cost: 900,   desc: '4× streak bonuses', requires: 'bonusmult_1' },
     { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
+  { label: '🏅 Season 8: Prestige', items: [
+    { id: 'prestige_unlock',     emoji: '🏅', name: 'Prestige Unlock',     cost: 1000000, desc: 'Unlocks prestige reset (permanent +2% per level)', tier: 3 },
+    { id: 'prestige_efficiency', emoji: '⚡', name: 'Prestige Efficiency', cost: 500000,  desc: 'Reduces prestige threshold from 1M to 500K wins', tier: 3, requires: 'prestige_unlock' },
+    { id: 'prestige_legacy',     emoji: '📜', name: 'Prestige Legacy',     cost: 1000000, desc: 'Keep functional upgrades when prestiging', tier: 3, requires: 'prestige_unlock' },
+  ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
     { id: 'fishsize_1',     emoji: '🔎', name: 'Big Panel',    cost: 1,    desc: 'Fishing panel: 130% size' },
@@ -2511,11 +2516,6 @@ const SHOP_SECTIONS = [
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
     { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
     { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
-  ]},
-  { label: '🏅 Season 8: Prestige', items: [
-    { id: 'prestige_unlock',     emoji: '🏅', name: 'Prestige Unlock',     cost: 1000000, desc: 'Unlocks prestige reset (permanent +2% per level)', tier: 3 },
-    { id: 'prestige_efficiency', emoji: '⚡', name: 'Prestige Efficiency', cost: 500000,  desc: 'Reduces prestige threshold from 1M to 500K wins', tier: 3, requires: 'prestige_unlock' },
-    { id: 'prestige_legacy',     emoji: '📜', name: 'Prestige Legacy',     cost: 1000000, desc: 'Keep functional upgrades when prestiging', tier: 3, requires: 'prestige_unlock' },
   ]},
   { label: '🎣 Season 8: Fishing', items: [
     { id: 'fish_to_wager',      emoji: '🪙', name: 'Fish-to-Wager',      cost: 5000,   desc: 'Convert caught fish to wager tokens', tier: 1 },
