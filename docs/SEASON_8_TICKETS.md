@@ -5486,7 +5486,7 @@ None — operator confirmed all material decisions.
 
 ### T200: Mobile CSS scaffolding — drawer + below-wheel wager styles (styles.css only)
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — CSS for the mobile drawer (`.mobile-drawer`, `.mobile-drawer-tabs`, `.mobile-drawer-tab`, `.mobile-drawer-section`) and the below-wheel wager panel (`.mobile-below-wheel .season8-wager-panel`, `.wager-slider`, `.wager-action-btn`, `.wager-tokens-balance`, `.wager-tooltip-trigger`) appended at end of `static/styles.css` inside one new `@media (max-width: 768px)` block (line 5309). 3 source-string tests in `tests/test_mobile_css.py`. Sub-agent commit `8dd39a9` on branch `t200-mobile-css-scaffold`, merged `9d22946`. 412 pass, 2 skip after merge.
 - **Discovered:** 2026-06-26 (mobile UI audit found S8 panels hidden on mobile)
 - **Phase:** 1 (parallel with T201; parallel-safe because this ticket only
   touches `static/styles.css` and T201 only touches the new test file)
@@ -5691,7 +5691,7 @@ approach (drawer) and wager panel placement (below the wheel) on
 
 ### T201: Mobile E2E Playwright scaffold — baseline audit + post-fix assertions (tests/ only)
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — new `tests/test_mobile_e2e.py` (582 lines, 14 tests). 7 smoke tests PASS today (wheel visible at 3 viewports, mobile toolbar, leaderboard, shop, login form). 7 S8 panel regression baselines marked `@pytest.mark.xfail(strict=False)` (Prestige, Free Tokens, Bounties, Aquarium, Loadout, Community Goal, Wager panel overflow). Sub-agent commit `72d35e2` on branch `t201-mobile-e2e-baseline`, merged `9a813a5`. 416 pass, 2 skip, 6 xfail, 1 xpass after merge. Wheel-size assertion was lowered from 100 to 48 for iPhone SE (height-constrained by existing CSS at `styles.css:4663`). Patch-notes init script (`patchNotesSeen_s1..s12 = '1'`) added to dismiss the `.stats-overlay` that was covering the mobile toolbar. Module-scoped `playwright_instance` fixture to share one `sync_playwright()` context.
 - **Discovered:** 2026-06-26 (mobile UI audit; needed a reusable
   test harness for desktop + mobile that won't ignore mobile
  -only bugs again)
@@ -5881,7 +5881,7 @@ either order.
 
 ### T202: Mobile drawer architecture + relocate S8 panels + wager-below-wheel (single-agent JSX refactor)
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — 8 inline function components added to `static/app.jsx` (lines 3180-3360): `PrestigePanel`, `FreeTokensPanel`, `BountiesPanel`, `AquariumPanel`, `LoadoutPanel`, `CommunityGoalPanel`, `SingularityPanel`, `WagerPanel`. Each component is used in BOTH the desktop sidebar / bottom-left-stack (zero visual change) AND the new mobile drawer. New `.mobile-drawer` at line 5255 with 5 tabs (Prestige, Bounties, Aquarium, Loadout, Community). New 6th mobile-toolbar button (🎒 Drawer) at line 5357. Backdrop click extended to close the drawer. Wager panel relocated below the wheel on mobile (inside `.mobile-below-wheel` with StreakPanel + DicePanel) — still left-of-wheel on desktop. Small CSS follow-up at end of `styles.css` to set `.mobile-below-wheel` to `flex-direction: column` on mobile. Sub-agent commit `c283422` on branch `t202-mobile-drawer-and-panels`, merged `900112d`. 419 pass, 2 skip, 1 xfail, 6 xpass after merge. 5 of T201's 6 xfail tests became XPASS (S8 panels now in DOM inside the drawer); 1 xfail (community goal) correctly captures the test that needs flipping in T203. Visual verification: drawer opens, all 5 tabs switch, wager panel below wheel at 390x844 (`wagerBelowWheel: True`, `wagerOnScreen: True`); desktop at 1280x800 unchanged (`sidebarPrestige: True`).
 - **Discovered:** 2026-06-26 (mobile UI audit — biggest single
   fix; the architectural core of the batch)
 - **Phase:** 2 (single agent — NOT parallel-safe with anything
@@ -6193,7 +6193,7 @@ grep -c "mobile-drawer" static/styles.css
 
 ### T203: Mobile E2E test flip + wheel-mode/auto-spin responsive polish
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — flipped all 7 T201 xfail tests to plain passing assertions. Tests renamed to positive form: `test_prestige_panel_visible_on_mobile_after_t202`, `test_free_tokens_section_visible_on_mobile_after_t202`, `test_bounties_panel_visible_on_mobile_after_t202`, `test_aquarium_panel_visible_on_mobile_after_t202`, `test_loadout_panel_visible_on_mobile_after_t202`, `test_community_goal_visible_on_mobile_after_t202`, `test_wager_panel_on_screen_below_wheel_after_t202`. Two new helpers added: `_open_drawer(page)` and `_click_drawer_tab(page, title_substring)`. The wager-panel test was rewritten to assert the panel is on-screen AND below the wheel canvas. New `@media (max-width: 768px)` block at end of `static/styles.css` (line 5423) for `.season8-wheel-mode` (wraps to 2 rows of 50% width, 36px tap targets, label on its own row) and `.autospin-row` (44px tap target, 22px checkbox, 0.9rem label). T202 bug fix: the mobile drawer's Community tab was missing the `.season8-meta-panel` wrapper + `meta-divider` that the desktop bottom-left-stack uses — added so `test_community_goal_visible_on_mobile_after_t202` could assert `.season8-meta-panel` count >= 1. Sub-agent commit `fa33bff` on branch `t203-mobile-e2e-flip-and-polish`, merged `f7ab74b`. 426 pass, 2 skip, 0 xfail, 0 xpass after merge. Visual verification: `.wheel-mode-btns` height 76 on mobile 390x844 (2 rows ✓), 23 on desktop 1280x800 (single row ✓); `.autospin-row` height 44 on mobile ✓.
 - **Discovered:** 2026-06-26 (post-T202 verification + remaining
   small responsive issues)
 - **Phase:** 3 (single agent; depends on T202 merged; can be on
