@@ -2108,8 +2108,10 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
             <span className="lb-wins-h">W</span>
-            <span className="lb-wp-h" title="Win Power level">WP</span>
-            <span className="lb-bp-h" title="Bonus Power level">BP</span>
+            {/* T121 follow-up: replaced WP/BP columns with a single
+                Prestige column (Win Power / Bonus Power infinite
+                upgrades were retired). */}
+            <span className="lb-prestige-h" title="Prestige level">★</span>
             <span className="lb-streak-h">🔥</span>
           </div>
           {rows.map((r, i) => (
@@ -2117,8 +2119,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
               <span className="lb-wins">{fmt(r.wins)}</span>
-              <span className="lb-wp">{r.winmult_inf_level > 0 ? r.winmult_inf_level : '—'}</span>
-              <span className="lb-bp">{r.bonusmult_inf_level > 0 ? r.bonusmult_inf_level : '—'}</span>
+              <span className="lb-prestige">{r.prestige_level > 0 ? `Lv${r.prestige_level}` : '—'}</span>
               <span className={`lb-streak ${infernoClass(r.streak)}`}>
                 {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
               </span>

@@ -2359,17 +2359,15 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   line-height: 1.4;
 }
 
-/* ── Leaderboard WP/BP columns ─────────────────────────────────────────── */
-.lb-wp-h, .lb-bp-h, .lb-wp, .lb-bp {
+/* ── Leaderboard Prestige column (T121: replaced WP/BP) ───────────────── */
+.lb-prestige-h, .lb-prestige {
   font-size: 0.65rem;
   text-align: right;
   width: 26px;
   flex-shrink: 0;
 }
-.lb-wp-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
-.lb-bp-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
-.lb-wp  { color: #ffd700; }
-.lb-bp  { color: #88ddff; }
+.lb-prestige-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
+.lb-prestige  { color: var(--p, #c084fc); font-weight: 700; }
 
 /* ── Toast notification ────────────────────────────────────────────────── */
 .toast-notification {
