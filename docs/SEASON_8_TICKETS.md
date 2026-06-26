@@ -4065,7 +4065,7 @@ Means:
 
 ### T110: Wager tokens — spending mechanic
 
-- **Status:** [ ] (planned — referenced by T112; earning is implemented, spending is not)
+- **Status:** [x] (2026-06-26) — operator-confirmed option (a): 1 token = 1 insurance charge (capped at WAGER_INSURANCE_MAX_CHARGES). New POST /api/wager/insurance/buy endpoint; new wager-panel button '🪙 Buy Insurance (1 token)'. 12 tests. Note: this is the SECOND T110 — the original T110 (commit adb4764) implemented paying high-stake spin costs with tokens; this one ADDS a separate spending path.
 - **Discovered:** 2026-06-26 (operator: "Are wager tokens implemented yet?")
 - **Files:**
   - `game.py`
@@ -4095,7 +4095,7 @@ What does a wager token buy? Operator to decide one of: (a) free one-spin insura
 
 ### T111: Prestige tooltip — clarify what "2%" affects
 
-- **Status:** [ ] (planned — referenced by T112)
+- **Status:** [x] (2026-06-26) — accurate tooltip. Original AC proposed loss-protection wording ('saves 2% of your wins when you lose a spin') but the actual code is a +2% WIN multiplier (prestige.py:78, game.py:227). New tooltip: 'Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots.' 5 tests. Note: this is the SECOND T111 — the original T111 (commit e2ed881) added PRESTIGE_LEVEL_MULTIPLIER for scaling; this one fixes the user-facing tooltip.
 - **Discovered:** 2026-06-26 (operator: "Prestige tooltip still doesn't explain what the '2%' increase actually does or what value it increases")
 - **Files:**
   - `static/app.jsx` (prestige panel tooltip text only)
@@ -4319,7 +4319,7 @@ New vertical order (top → bottom inside the panel, long axis vertical):
 
 ### T113: Aquarium panel — text colour + luck tooltip
 
-- **Status:** [ ] — pre-release blocker
+- **Status:** [x] (2026-06-26) — aquarium species text now `color: #e0e0e0` (was inheriting black); new `(.aquarium-info-icon)` with tooltip 'Each unique fish species you catch adds +0.1% to your base win chance.' 5 tests.
 - **Discovered:** 2026-06-26 (operator: "Aquarium text is black, impossible to read")
 - **Files:**
   - `static/styles.css`
@@ -4343,7 +4343,7 @@ collecting fish. Without a tooltip, players have no idea why the aquarium matter
 
 ### T114: Pre-release: disable onboarding modal
 
-- **Status:** [ ] — pre-release blocker
+- **Status:** [x] (2026-06-26) — `showOnboarding` hardcoded to `false` (initial state + gameState refresh). `onboarding_step` preserved in backend for T43. 3 tests.
 - **Discovered:** 2026-06-26 (operator: "Can we disable the onboarding for now, it's
   faulty and we don't have time to fix")
 - **Depends on:** none (independent frontend hotfix)
@@ -4368,7 +4368,7 @@ which is out of scope for S8 launch tonight.
 
 ### T115: "Long Shot" wheel mode — replaces Mirror in weekly rotation
 
-- **Status:** [ ] — pre-release (needed before weekly rotation hits Mirror slot)
+- **Status:** [x] (2026-06-26) — `WHEEL_MODES['long_shot']` (20% win / 60% loss / 20% jackpot ×10); `_ROTATING_MODES = ['inverted', 'gravity', 'long_shot']`; `WHEEL_MODE_INFO['long_shot'] = 'Long Shot'`. 6 tests.
 - **Discovered:** 2026-06-26 (operator: mirror doesn't work yet, replace with win/loss%-only
   mode; defer two-wheels concept to 8.X — see T78)
 - **Depends on:** T11 (wheel modes foundation)
@@ -4430,7 +4430,7 @@ _ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
 
 ### T116: Wager panel arm buttons — truncation fix
 
-- **Status:** [ ] — pre-release blocker
+- **Status:** [x] (2026-06-26) — DD button label shortened '⚡ Arm Double-Down (all-or-nothing)' → '⚡ Double Down'. Insurance label was already 2 words. 'all-or-nothing' warning preserved in button `title` attribute. Added `white-space: normal; line-height: 1.2;` to `.wager-action-btn`, `.wager-cancel-btn`, `.wager-double-down-armed`. 6 tests.
 - **Discovered:** 2026-06-26 (operator: "'Arm Double Down' and 'Arm Insurance' buttons are
   truncated — make them wrap, max 2 words")
 - **Files:**

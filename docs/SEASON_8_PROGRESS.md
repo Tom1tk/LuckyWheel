@@ -1105,3 +1105,34 @@ pot buff duration, cron vs manual trigger, uncommitted JSX edits in master.
 - `docs/SEASON_8_MIGRATION_PLAN.md` (the full plan)
 - `docs/SEASON_8_TICKETS.md` T109 (the ticket)
 - `/home/user/wheel-app/seasons.py` (the rollover mechanism)
+
+---
+
+## Pre-release batch (2026-06-26)
+
+Six operator-flagged tickets, all pre-release blockers for tonight's
+S8 launch. Dispatched as parallel sub-agents in separate worktrees,
+each branch + PR'd independently, then merged into staging.
+
+| # | Ticket | Status | Branch | Tests |
+|---|--------|--------|--------|-------|
+| T110 (NEW) | Wager tokens → insurance | [x] | feature/t110-tokens-for-insurance | 12 |
+| T111 (NEW) | Prestige tooltip accurate | [x] | feature/t111-prestige-tooltip-accurate | 5 |
+| T113 | Aquarium panel text + tooltip | [x] | feature/t113-aquarium-text-tooltip | 5 |
+| T114 | Disable onboarding modal | [x] | feature/t114-disable-onboarding | 3 |
+| T115 | Long Shot wheel mode | [x] | feature/t115-long-shot-mode | 6 |
+| T116 | Arm button truncation | [x] | feature/t116-arm-button-truncation | 6 |
+
+Note on T110 / T111: these tickets have the same numbers as
+already-completed work (T110 = original wager-tokens spending on
+high-stake spins, commit adb4764; T111 = original prestige scaling,
+commit e2ed881). The new tickets AD a new mechanic / a tooltip
+fix. Ticket bodies annotated to reference the originals.
+
+**Audit:** one regression in T116 — shortening the DD label removed
+the literal string 'all-or-nothing' that test_dd_button_label_warns_all_or_nothing
+(T103) required. Fix: moved the warning into the button's
+`title` attribute. All 359 tests pass.
+
+**Merges:** clean (no conflicts). Pushed to `origin/staging`
+at commit 81223dc.
