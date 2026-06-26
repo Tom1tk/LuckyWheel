@@ -353,10 +353,6 @@ INFINITE_UPGRADES = {
     },
 }
 
-# Season 8: Fish-to-wager conversion rates by fish tier (spec S6)
-# Tier index: 0=common, 1=uncommon, 2=rare, 3=epic, 4=legendary, 5=mythic
-FISH_TO_WAGER_RATES = [5, 15, 40, 100, 250, 500]
-
 # Season 8: Singularity meter per-player contribution cap (spec S13).
 # Resets each time the meter fills (tracked per fill_count).
 SINGULARITY_PER_PLAYER_CAP = 25_000_000
@@ -406,11 +402,6 @@ def streak_bonus(count: int) -> int:
 # Dice roll constants (Season 5)
 DICE_RECHARGE_SECONDS = 600   # 10 minutes per charge
 DICE_MAX_CHARGES_BASE = 1     # default max without upgrades
-
-
-# Wager insurance constants (T74)
-WAGER_INSURANCE_RECHARGE_SECONDS = 600   # 10 minutes per charge
-WAGER_INSURANCE_MAX_CHARGES = 3         # hard cap (no upgrade tiers)
 
 
 def dice_max_charges(owned_items: list) -> int:

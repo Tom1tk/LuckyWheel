@@ -6,12 +6,9 @@ wager API endpoints (bank, double-down, insurance). They implement:
 - Hot-streak calculation (+5% per consecutive same-stake win, cap +50%)
 - Safety net (25% loss recovery at >=15% stake)
 - Stake-to-escrow risk model (T102: flat percentage of current wins/losses)
-- Insurance charge regeneration (T74)
 - DD-aware loss-mitigation gating (T103 placeholder, NO-OP for T102)
 """
 from datetime import timezone, timedelta
-
-from models import WAGER_INSURANCE_RECHARGE_SECONDS, WAGER_INSURANCE_MAX_CHARGES
 
 
 # T102: flat-percentage system
@@ -162,17 +159,6 @@ def _aware(dt_val):
     if dt_val is not None and dt_val.tzinfo is None:
         return dt_val.replace(tzinfo=timezone.utc)
     return dt_val
-
-
-def _recharge_wager_insurance(charges, last_recharge, max_charges, now_utc):
-    if last_recharge is None:
-        return charges, last_recharge
-    last_recharge = _aware(last_recharge)
-    elapsed = int((now_utc - last_recharge).total_seconds() // WAGER_INSURANCE_RECHARGE_SECONDS)
-    if elapsed > 0 and charges < max_charges:
-        charges = min(charges + elapsed, max_charges)
-        last_recharge = last_recharge + timedelta(seconds=WAGER_INSURANCE_RECHARGE_SECONDS * elapsed)
-    return charges, last_recharge
 
 
 if __name__ == '__main__':

@@ -142,7 +142,6 @@ def _load_game():
         apply_safety_net=lambda *a, **kw: 0,
         compute_wager_payout=lambda *a, **kw: (0, 0),
         compute_wager_loss=lambda *a, **kw: 0,
-        _recharge_wager_insurance=lambda *a, **kw: (0, None),
     ))
     spec = importlib.util.spec_from_file_location(
         'game',
