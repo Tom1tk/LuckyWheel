@@ -3837,6 +3837,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [wagerBankedWins, setWagerBankedWins]       = useState(gameState.wager_banked_wins || 0);
   const [wagerLastWinAmount, setWagerLastWinAmount] = useState(gameState.wager_last_win_amount || 0);
   const [wagerInsuranceCharges, setWagerInsuranceCharges] = useState(gameState.wager_insurance_charges || 0);
+  const wagerInsuranceMaxCharges = gameState.wager_insurance_max_charges || 3;
   const [wagerInsuranceArmed, setWagerInsuranceArmed]   = useState(gameState.wager_insurance_armed || false);
   const [activeWheelMode, setActiveWheelMode]       = useState(gameState.active_wheel_mode || 'steady');
   const [availableWheelModes, setAvailableWheelModes] = useState(gameState.available_wheel_modes || ['steady', 'volatile']);
@@ -4217,6 +4218,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       showToast('Insurance cancelled');
     } else {
       showToast(data.error || 'Cancel failed');
+    }
+  }, [showToast]);
+
+  // T110: spend a wager token to buy one insurance charge
+  const handleBuyInsuranceWithTokens = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/wager/insurance/buy', { method: 'POST', body: JSON.stringify({ token_cost: 1 }) });
+    if (ok) {
+      if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
+      if (data.wager_insurance_charges != null) setWagerInsuranceCharges(data.wager_insurance_charges);
+      const granted = data.granted || 0;
+      showToast(granted > 0 ? `🪙 Bought ${granted} insurance charge` : 'No charges granted');
+    } else {
+      showToast(data.error || 'Buy insurance failed');
     }
   }, [showToast]);
 
@@ -4646,6 +4660,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               )}
               {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && (
                 <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+              )}
+              {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed
+                && ownedItems.includes('fish_to_wager') && wagerTokens >= 1
+                && wagerInsuranceCharges < wagerInsuranceMaxCharges && (
+                <button className="wager-action-btn wager-buy-insurance-btn" onClick={handleBuyInsuranceWithTokens}>🪙 Buy Insurance (1 token)</button>
               )}
               </>)}
               {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
