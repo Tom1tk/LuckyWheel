@@ -312,21 +312,12 @@ def _panel_visible_in_viewport(page, selector, vw, vh):
 
 
 def _open_drawer(page):
-    """T203: click the 6th mobile-toolbar button (title="Drawer", glyph
+    """T204: click the 6th mobile-toolbar button (title="Drawer", glyph
     🎒) to open the mobile drawer. The drawer slides in via CSS transform
-    and the S8 panels (Prestige, Free Tokens, Bounties, Aquarium, Loadout,
-    Community + Singularity) are discoverable in the DOM after this.
+    and contains all S8 panels stacked in a single long scrollable column
+    (no tabs since T204).
     """
     page.locator('.mobile-toolbar-btn[title="Drawer"]').first.click()
-    page.wait_for_timeout(300)
-
-
-def _click_drawer_tab(page, title_substring):
-    """T203: click a tab inside the open mobile drawer. Uses substring
-    match on the tab button's `title` attribute (Bounties tab title is
-    "Bounties & Free Tokens", Community tab is "Community Goal & Singularity").
-    """
-    page.locator(f'.mobile-drawer-tab[title*="{title_substring}"]').first.click()
     page.wait_for_timeout(300)
 
 
@@ -456,18 +447,20 @@ def test_login_form_visible_on_mobile(server_url, playwright_instance):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# S8 panel visibility tests (T203: flipped from XFAIL to PASS).
+# S8 panel visibility tests (T203 flipped from XFAIL to PASS; T204
+# updated for the tab-less drawer — all panels stacked inline).
 # These assert the S8 panels are in the DOM inside the mobile drawer
 # (opened via the 🎒 toolbar button added by T202). The wager-panel
 # test additionally asserts the panel is on-screen AND below the wheel
-# canvas (T202 relocated it to .mobile-below-wheel).
+# canvas (T202 relocated it to .mobile-below-wheel), and the dice
+# button is reachable in the initial viewport (T204).
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 def test_prestige_panel_visible_on_mobile_after_t202(testing7_logged_in):
-    """T203: for testing7 (owns prestige_unlock), the .season8-prestige-panel
-    is in the mobile DOM after T202 added the mobile drawer. Open the
-    drawer via the 6th toolbar button (🎒) and assert the panel exists."""
+    """T204: for testing7 (owns prestige_unlock), the .season8-prestige-panel
+    is in the mobile drawer (tab-less long panel). Open the drawer via the
+    6th toolbar button (🎒) and assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
         _open_drawer(page)
@@ -478,13 +471,13 @@ def test_prestige_panel_visible_on_mobile_after_t202(testing7_logged_in):
 
 
 def test_free_tokens_section_visible_on_mobile_after_t202(testing7_logged_in):
-    """T203: for testing7 (claim date reset to NULL by the fixture), the
-    .free-tokens-section is in the mobile drawer's Bounties tab after T202.
-    Open the drawer, tap the Bounties tab, assert the section exists."""
+    """T204: for testing7 (claim date reset to NULL by the fixture), the
+    .free-tokens-section is in the mobile drawer (T204 made all sub-menus
+    visible in the drawer without tabs). Open the drawer, assert the
+    section exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
         _open_drawer(page)
-        _click_drawer_tab(page, 'Bounties')
         section = page.locator('.free-tokens-section').first
         assert section.count() == 1, '.free-tokens-section not in drawer DOM'
     finally:
@@ -492,13 +485,12 @@ def test_free_tokens_section_visible_on_mobile_after_t202(testing7_logged_in):
 
 
 def test_bounties_panel_visible_on_mobile_after_t202(testing7_logged_in):
-    """T203: for testing7 (has active bounties for today), the
-    .season8-bounties-panel is in the mobile drawer's Bounties tab after
-    T202. Open the drawer, tap the Bounties tab, assert the panel exists."""
+    """T204: for testing7 (has active bounties for today), the
+    .season8-bounties-panel is in the mobile drawer. Open the drawer,
+    assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
         _open_drawer(page)
-        _click_drawer_tab(page, 'Bounties')
         panel = page.locator('.season8-bounties-panel').first
         assert panel.count() == 1, '.season8-bounties-panel not in drawer DOM'
     finally:
@@ -506,9 +498,9 @@ def test_bounties_panel_visible_on_mobile_after_t202(testing7_logged_in):
 
 
 def test_aquarium_panel_visible_on_mobile_after_t202(aquarium_logged_in):
-    """T203: for a user with 'aquarium' granted via SQL, the
-    .season8-aquarium-panel is in the mobile drawer's Aquarium tab after
-    T202. Open the drawer, assert the panel exists."""
+    """T204: for a user with 'aquarium' granted via SQL, the
+    .season8-aquarium-panel is in the mobile drawer. Open the drawer,
+    assert the panel exists."""
     page = _open_mobile_page(aquarium_logged_in, 390, 844)
     try:
         _open_drawer(page)
@@ -519,9 +511,8 @@ def test_aquarium_panel_visible_on_mobile_after_t202(aquarium_logged_in):
 
 
 def test_loadout_panel_visible_on_mobile_after_t202(testing7_logged_in):
-    """T203: for testing7 (owns page_season8), the .season8-loadout-panel
-    is in the mobile drawer's Loadout tab after T202. Open the drawer,
-    assert the panel exists."""
+    """T204: for testing7 (owns page_season8), the .season8-loadout-panel
+    is in the mobile drawer. Open the drawer, assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
         _open_drawer(page)
@@ -532,15 +523,11 @@ def test_loadout_panel_visible_on_mobile_after_t202(testing7_logged_in):
 
 
 def test_community_goal_visible_on_mobile_after_t202(testing7_logged_in):
-    """T203: for testing7, the .season8-meta-panel (community goal +
-    singularity) is in the mobile drawer's Community tab after T202.
-    T203 also added the .season8-meta-panel wrapper inside the drawer
-    community pane (app.jsx) so the desktop-class selector matches.
-    Open the drawer, tap the Community tab, assert the panel exists."""
+    """T204: for testing7, the .season8-meta-panel (community goal +
+    singularity) is in the mobile drawer."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
         _open_drawer(page)
-        _click_drawer_tab(page, 'Community')
         panel = page.locator('.season8-meta-panel').first
         assert panel.count() == 1, '.season8-meta-panel not in drawer DOM'
     finally:
@@ -548,11 +535,10 @@ def test_community_goal_visible_on_mobile_after_t202(testing7_logged_in):
 
 
 def test_wager_panel_on_screen_below_wheel_after_t202(wager_logged_in):
-    """T203: for a user with 'wager_unlock' granted via SQL, T202 relocated
-    the .season8-wager-panel to .mobile-below-wheel (below the wheel
-    canvas) on mobile. Assert the panel is fully on-screen (rect.x >= 0,
-    rect.right <= viewport width) AND positioned below the wheel canvas
-    (rect.y > wheel canvas's rect.bottom)."""
+    """T202 relocated the .season8-wager-panel to .mobile-below-wheel
+    (below the wheel canvas) on mobile. Assert the panel is fully
+    on-screen (rect.x >= 0, rect.right <= viewport width) AND positioned
+    below the wheel canvas (rect.y > wheel canvas's rect.bottom)."""
     page = _open_mobile_page(wager_logged_in, 390, 844)
     try:
         data = page.evaluate(
@@ -586,6 +572,39 @@ def test_wager_panel_on_screen_below_wheel_after_t202(wager_logged_in):
         assert p['y'] > w['bottom'], (
             f'wager panel not below wheel: panel.y={p["y"]:.0f} '
             f'<= wheel.bottom={w["bottom"]:.0f}'
+        )
+    finally:
+        page.close()
+
+
+def test_dice_button_visible_in_initial_viewport(wager_logged_in):
+    """T204: the dice roll button must be reachable in the initial
+    390x844 viewport (not pushed off the bottom by the wager panel
+    above it). User reported: "The dice roll section is now not
+    possible to see or use except from its title." After T204 the
+    wager + streak + dice stack in a column with streak+dice sharing
+    a sub-row, so the dice button stays on-screen without scrolling.
+    """
+    page = _open_mobile_page(wager_logged_in, 390, 844)
+    try:
+        data = page.evaluate(
+            '''() => {
+                const btn = document.querySelector('.dice-roll-btn');
+                if (!btn) return null;
+                const r = btn.getBoundingClientRect();
+                return {x: r.x, y: r.y, right: r.right, bottom: r.bottom,
+                        width: r.width, height: r.height, vh: window.innerHeight};
+            }'''
+        )
+        assert data is not None, '.dice-roll-btn not in DOM at all'
+        assert data['width'] > 0 and data['height'] > 0, (
+            f'dice button has zero size: {data}'
+        )
+        # Reachable in the initial viewport: bottom <= vh (with a tiny
+        # tolerance for fractional pixels).
+        assert data['bottom'] <= data['vh'] + 1, (
+            f'dice button below viewport: bottom={data["bottom"]:.0f} '
+            f'> vh={data["vh"]:.0f} — user must scroll to roll the dice'
         )
     finally:
         page.close()
