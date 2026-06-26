@@ -4842,7 +4842,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {ownedItems.includes('aquarium') && (
                 <div className="season8-aquarium-panel">
                   <div className="aquarium-header">
-                    <span>🐠 Aquarium</span>
+                    <span>
+                      🐠 Aquarium
+                      <span className="aquarium-info-icon" title="Each unique fish species you catch adds +0.1% to your base win chance.">?</span>
+                    </span>
                     <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}%</span>
                   </div>
                   <div className="aquarium-grid">

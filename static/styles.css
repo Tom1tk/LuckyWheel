@@ -4993,6 +4993,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
+  color: #e0e0e0;
 }
 
 .aquarium-header {
@@ -5020,11 +5021,28 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   gap: 1px;
   max-height: 48px;
   overflow: hidden;
+  color: #e0e0e0;
 }
 
 .aquarium-species {
   font-size: 0.88rem;
   line-height: 1.2;
+  color: #e0e0e0;
+}
+
+.aquarium-info-icon {
+  display: inline-block;
+  margin-left: 6px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #44aacc;
+  background: rgba(68,170,204,0.15);
+  border: 1px solid rgba(68,170,204,0.4);
+  border-radius: 50%;
+  cursor: help;
 }
 
 .wager-tokens {
