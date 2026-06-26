@@ -6391,3 +6391,570 @@ No parallelism needed.
   rather than adding a 6th button? — A: Same as above — T201's
   tests must reference the actual button location. T203 updates
   the locator accordingly.
+
+---
+
+## T204-batch: Mobile UI bug fixes (post-T204 audit, 2026-06-26)
+
+> Three bugs surfaced after T204 was deployed. Operator reported
+> (2026-06-26): "The S8 menu is the only menu that appears over the
+> toolbar. Please make it match the style and functions of the other
+> toolbar menus. It should have a black background just like the
+> shop also. There doesn't need to be an 'x' in the top corner because
+> the user should be able to open and close it with the toolbar icon.
+> Also modes aren't centered for some reason, they skew to the left.
+> Still not able to use the dice to roll."
+>
+> Three tickets, each independent and small. Run in parallel on
+> separate worktrees/branches (different file regions).
+>
+> Ticket  | Files                              | Depends
+> --------|------------------------------------|--------
+> T205    | app.jsx, styles.css                | none
+> T206    | styles.css (one rule)              | none
+> T207    | styles.css                         | none
+>
+> All three can run in parallel because they edit non-overlapping
+> regions of `styles.css` and the JSX change in T205 is in a
+> different file from T206/T207.
+
+---
+
+### T205: S8 drawer — match shop style, drop ✕ button, no toolbar overlap
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (operator visual feedback after T204 ship)
+- **Files:** `static/app.jsx`, `static/styles.css`
+- **Go/No-Go:** Do NOT touch the S8 panel component bodies (PrestigePanel,
+  FreeTokensPanel, etc.) — only the drawer wrapper + close button.
+
+**Operator's vision (verbatim 2026-06-26):**
+
+> "The S8 menu is the only menu that appears over the toolbar.
+> Please make it match the style and functions of the other toolbar
+> menus. It should have a black background just like the shop also.
+> There doesn't need to be an 'x' in the top corner because the user
+> should be able to open and close it with the toolbar icon."
+
+**Bug:** T204's `.mobile-drawer` has `z-index: 10000` and `top:0; bottom:0`
+(full viewport height). It overlays the `.mobile-toolbar` (which is
+`position:fixed; bottom:0; height:56px`). The shop panel by contrast
+sits at `z-index: 150` and `y=56..844` (top:56 = below header, height
+788 = stops above the toolbar's y=788). The shop's `.game-right.mobile-open`
+has `transform: translateX(0)` to slide in from the right.
+
+Measured (testing7, viewport 390x844):
+- Shop:   `{x: 0, y: 56, w: 390, h: 788, bg: transparent, z: 150}` — toolbar NOT covered
+- Drawer: `{x: 31, y: 0, w: 359, h: 844, bg: rgba(20,20,28,0.96), z: 10000, closeBtn: true}` — toolbar COVERED
+
+**Goal:** Make the S8 drawer visually and functionally match the shop:
+1. Drop the `.mobile-drawer-close` button entirely (operator wants
+   open/close via the 🎒 toolbar icon only).
+2. Drop the `.mobile-drawer-header` (the "📋 S8 Menu" title row). The
+   shop has no header; the toolbar is the menu. A header inside the
+   drawer would be redundant.
+3. Lower the z-index to match the shop (`z-index: 150`).
+4. Position the drawer so it does NOT cover the toolbar:
+   `position: fixed; right: 0; top: 56px; bottom: 56px;` (or use
+   `height: calc(100vh - 112px)` to stop above the toolbar).
+5. Keep the slide-in animation (`transform: translateX(100%)` when
+   closed, `translateX(0)` when open — already in T200's CSS at
+   line 5314).
+6. Keep the dark background. Current is `rgba(20, 20, 28, 0.96)` —
+   matches the shop's `.game-right-body` panel items. Operator said
+   "black background" — the drawer is already dark; no change needed.
+7. Keep the `.mobile-drawer-section` flex layout (panels stack).
+
+**Acceptance criteria (all must pass):**
+
+1. **No ✕ close button** in the JSX. `document.querySelector('.mobile-drawer-close')`
+   returns `null` on the live page.
+2. **No header bar** in the JSX. The `.mobile-drawer-header` div is
+   removed. `document.querySelector('.mobile-drawer-header')` returns null.
+3. **Toolbar not covered** by the open drawer.
+   - Drawer rect: `bottom <= 788` (where 788 = toolbar top y at
+     viewport 390x844).
+   - Drawer rect: `top >= 56` (where 56 = header bottom y).
+4. **Drawer z-index** is ≤ 150 (same as shop), NOT 10000.
+5. **Slide-in animation works**: open via 🎒 click, close via 🎒 click.
+   Bounding rect slides from `x > viewport_width` to `x = 0` (or
+   similar off-screen → on-screen transition).
+6. **All 6 S8 panels still render inside the drawer** when open
+   (Prestige, Free Tokens, Bounties, Aquarium, Loadout, Community +
+   Singularity) — same DOM checks as T203 tests.
+7. **Existing tests still pass**: 428 passed, 1 skipped (or higher
+   with new T205 tests).
+
+**Files to touch:**
+
+- `static/app.jsx`:
+  - **REMOVE** the `.mobile-drawer-close` button JSX (currently
+    `app.jsx` lines around the drawer JSX — search for
+    `mobile-drawer-close`).
+  - **REMOVE** the `.mobile-drawer-header` div wrapping the title
+    and close button. Keep the section div but drop the header.
+  - **DO NOT** change the S8 panel components (PrestigePanel etc.)
+    or the `_open_drawer` test helper.
+
+- `static/styles.css`:
+  - **MODIFY** the existing `.mobile-drawer` block at line 5314:
+    change `z-index: 10000` → `z-index: 150`; change
+    `top: 0; bottom: 0` → `top: 56px; bottom: 56px`.
+  - **REMOVE** the `.mobile-drawer .mobile-drawer-header` and
+    `.mobile-drawer .mobile-drawer-close` blocks at the end of
+    styles.css (around line 5460-5480 in T204's append).
+  - **DO NOT** touch any other CSS rules.
+
+**Files NOT to touch:**
+- `static/app.js` (rebuilt by `make build`)
+- `tests/test_mobile_e2e.py` (T201's `_open_drawer` helper still
+  works — it just clicks the toolbar button)
+- `game.py` / any backend
+- The 8 S8 panel function components (PrestigePanel, etc.)
+- Other tickets' regions of styles.css
+
+**Implementation hints:**
+
+In `app.jsx`, the current drawer JSX looks like (approximate, around
+the bottom of the Game component):
+
+```jsx
+{isMobile && (
+  <div className={`mobile-drawer${mobileDrawerOpen ? ' mobile-drawer-open' : ''}`}>
+    <div className="mobile-drawer-section">
+      <div className="mobile-drawer-header">
+        <span>📋 S8 Menu</span>
+        <button className="mobile-drawer-close"
+                onClick={() => setMobileDrawerOpen(false)}
+                title="Close">✕</button>
+      </div>
+      <PrestigePanel ... />
+      <FreeTokensPanel ... />
+      <BountiesPanel ... />
+      <AquariumPanel ... />
+      <LoadoutPanel ... />
+      <div className="season8-meta-panel">
+        <CommunityGoalPanel ... />
+        ...
+      </div>
+    </div>
+  </div>
+)}
+```
+
+Change to:
+
+```jsx
+{isMobile && (
+  <div className={`mobile-drawer${mobileDrawerOpen ? ' mobile-drawer-open' : ''}`}>
+    <div className="mobile-drawer-section">
+      <PrestigePanel ... />
+      <FreeTokensPanel ... />
+      <BountiesPanel ... />
+      <AquariumPanel ... />
+      <LoadoutPanel ... />
+      <div className="season8-meta-panel">
+        <CommunityGoalPanel ... />
+        ...
+      </div>
+    </div>
+  </div>
+)}
+```
+
+In `styles.css`, the existing T200 block at line 5314 has:
+
+```css
+.mobile-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(360px, 92vw);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  background: rgba(20, 20, 28, 0.96);
+  z-index: 10000;
+  overflow-y: auto;
+  padding: 12px;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+}
+```
+
+Change to:
+
+```css
+.mobile-drawer {
+  position: fixed;
+  right: 0;
+  top: 56px;        /* below the page header (which is ~56px tall) */
+  bottom: 56px;     /* above the mobile toolbar (56px) */
+  width: min(360px, 92vw);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  background: rgba(20, 20, 28, 0.96);
+  z-index: 150;     /* match the shop panel's z-index */
+  overflow-y: auto;
+  padding: 12px;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+}
+```
+
+**Verification with Playwright:**
+
+```python
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    b = p.chromium.launch()
+    ctx = b.new_context(viewport={'width': 390, 'height': 844})
+    page = ctx.new_page()
+    # login as testing7
+    page.goto('http://127.0.0.1:5001/')
+    ...
+    # open drawer
+    page.locator('.mobile-toolbar-btn[title="Drawer"]').click()
+    page.wait_for_timeout(500)
+    rect = page.evaluate("""() => {
+        const dr = document.querySelector('.mobile-drawer');
+        const tb = document.querySelector('.mobile-toolbar');
+        const r = dr.getBoundingClientRect();
+        const tr = tb.getBoundingClientRect();
+        return {drawer: r, toolbar: tr,
+                zIndex: getComputedStyle(dr).zIndex,
+                hasCloseBtn: !!document.querySelector('.mobile-drawer-close'),
+                hasHeader: !!document.querySelector('.mobile-drawer-header')};
+    }""")
+    assert rect['drawer']['bottom'] <= rect['toolbar']['top']  # not covering
+    assert rect['drawer']['top'] >= 56                         # below header
+    assert int(rect['zIndex']) <= 150                          # match shop
+    assert not rect['hasCloseBtn']
+    assert not rect['hasHeader']
+```
+
+**Test additions:**
+
+In `tests/test_mobile_e2e.py`, add 4 tests after the existing
+drawer tests (around line 540):
+
+1. `test_s8_drawer_does_not_cover_toolbar` — assert drawer bottom
+   <= toolbar top when open.
+2. `test_s8_drawer_z_index_matches_shop` — assert drawer z-index <= 150.
+3. `test_s8_drawer_no_close_button` — assert `.mobile-drawer-close` count == 0.
+4. `test_s8_drawer_no_header` — assert `.mobile-drawer-header` count == 0.
+
+**Hard constraints:**
+- ONE commit on a new branch `t205-s8-drawer-style`.
+- Do NOT push, do NOT merge — main agent handles that.
+- Do NOT touch any of the 8 S8 panel function components.
+- Do NOT touch `tests/test_mobile_e2e.py` (main agent will add the
+  new tests after your branch is merged, OR you can add them to a
+  separate test file `tests/test_mobile_drawer_style.py` — pick
+  ONE and document the choice).
+- If you add tests, the new test file must be in `tests/` and
+  follow the same `_open_drawer` + `_open_mobile_page` pattern as
+  `test_mobile_e2e.py`.
+- After commit, do NOT push. Report back with: commit SHA, the
+  diff stat, the test results (full pytest suite tail), and the
+  Playwright drawer-rect measurements from the verification step.
+
+---
+
+### T206: Mode buttons centered (CSS only)
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (operator: "modes aren't centered for
+  some reason, they skew to the left")
+- **Files:** `static/styles.css` (one rule)
+- **Depends on:** none
+- **Go/No-Go:** Do NOT touch any other rule.
+
+**Operator's vision (verbatim 2026-06-26):** "modes aren't centered
+for some reason, they skew to the left."
+
+**Bug:** `.season8-wheel-mode .wheel-mode-btns` is a flex row but
+has no `justify-content`, so the buttons left-align inside the
+container. T203 made the buttons fit on one line via
+`flex: 1 1 0; min-width: 0`, but the buttons shrink first (because
+they all have `flex: 1 1 0` so they distribute the space evenly).
+The visual result: the buttons cluster on the left side of the
+container, with empty space on the right.
+
+Measured (testing7, viewport 390x844, no drawer open):
+- `.season8-wheel-mode` rect: `{x: 72.5, w: 245, right: 317.5}`
+- `.season8-wheel-mode-label` rect: `{x: 72.5, w: 245}` — label fills
+  the full width (text-align: center → label is visually centered)
+- `.wheel-mode-btns` rect: `{x: 72.5, w: 202, right: 274.5}` — buttons
+  start at the same x as the parent (left-aligned) but only occupy
+  202px of the 245px parent width.
+- centerDiff: 21.5px — the buttons' center is 21.5px LEFT of the
+  parent's center.
+
+The label row is centered (because `.season8-wheel-mode .wheel-mode-label`
+has `width: 100%; text-align: center` from T203), but the button row
+isn't. The visual mismatch is jarring.
+
+**Goal:** Center the button row to match the label row.
+
+**Acceptance criteria (all must pass):**
+
+1. `.season8-wheel-mode .wheel-mode-btns` rect at 390x844 viewport:
+   `gapLeft` ≈ `gapRight` (within 1px tolerance). Currently
+   `gapLeft=0, gapRight=43`.
+2. `centerDiff` between btns center and parent center is 0 (±1px).
+3. All 3 mode buttons (Steady, Volatile, Long Shot) are still visible
+   and tappable at 390x844. The mode selector row height stays
+   ~66px (single line, was 100px with 2-row wrap).
+4. Desktop at 1280x800: no regression. The mode selector row height
+   stays the same as pre-T206 (~23px in the prior test data, single
+   row, no wrap).
+5. The label is still centered above the buttons.
+6. All existing tests still pass (428 passed, 1 skipped minimum;
+   with the existing `test_dice_button_visible_in_initial_viewport`
+   test, expect 429 passed, 1 skipped if you add a centering test).
+
+**Files to touch:**
+
+- `static/styles.css`: modify the `.season8-wheel-mode .wheel-mode-btns`
+  block (inside the `@media (max-width: 768px)` block at the end of
+  styles.css, added by T203 around line 5425-5430). Add
+  `justify-content: center;` to that block.
+
+  Current:
+  ```css
+  .season8-wheel-mode .wheel-mode-btns {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  ```
+
+  New:
+  ```css
+  .season8-wheel-mode .wheel-mode-btns {
+    flex-wrap: nowrap;
+    gap: 4px;
+    justify-content: center;
+  }
+  ```
+
+**Files NOT to touch:**
+- `static/app.jsx`
+- `static/app.js` (no JSX changes, but harmless to run `make build`)
+- `game.py` / any backend
+- Any existing test file
+- The desktop media query for `.season8-wheel-mode` (if any) — the
+  centering fix is mobile-only because the issue is at <768px.
+  The desktop layout already centers (because the flex row sizes
+  to its content naturally when `flex-wrap` is at default).
+
+**Test additions (optional):**
+
+If you add a test, put it in a new file `tests/test_mobile_mode_centering.py`:
+
+```python
+def test_mode_buttons_centered_on_mobile(testing7_logged_in):
+    """T206: the .wheel-mode-btns container is centered inside
+    .season8-wheel-mode on <=768px viewports."""
+    page = _open_mobile_page(testing7_logged_in, 390, 844)
+    try:
+        data = page.evaluate("""() => {
+            const wm = document.querySelector('.season8-wheel-mode');
+            const btns = wm.querySelector('.wheel-mode-btns');
+            const wr = wm.getBoundingClientRect();
+            const br = btns.getBoundingClientRect();
+            return {wm: {x: wr.x, w: wr.width, right: wr.right},
+                    btns: {x: br.x, w: br.width, right: br.right},
+                    gapLeft: br.x - wr.x,
+                    gapRight: wr.right - br.right};
+        }""")
+        assert abs(data['gapLeft'] - data['gapRight']) <= 1, (
+            f"mode buttons not centered: gapLeft={data['gapLeft']:.1f}, "
+            f"gapRight={data['gapRight']:.1f}"
+        )
+    finally:
+        page.close()
+```
+
+This is optional — if you skip the test, the main agent will add it
+in a follow-up commit. Document the choice in your report.
+
+**Hard constraints:**
+- ONE commit on a new branch `t206-mode-buttons-centered`.
+- Do NOT push, do NOT merge.
+- Do NOT modify any other CSS rule.
+- After commit, report: commit SHA, diff stat, pytest tail, and
+  the Playwright gapLeft/gapRight values from the verification step.
+
+---
+
+### T207: Dice roll button is blocked by the mobile toolbar
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (operator: "Still not able to use the
+  dice to roll")
+- **Files:** `static/styles.css`
+- **Depends on:** none
+- **Go/No-Go:** Do NOT change the DicePanel JSX or the dice logic
+  (the dice rolls correctly when triggered — the issue is the click
+  is intercepted by the mobile toolbar button below it).
+
+**Operator's vision (verbatim 2026-06-26):** "Still not able to use
+the dice to roll."
+
+**Bug:** The `.dice-roll-btn` renders at `y=812..837` on a 390x844
+viewport, but the `.mobile-toolbar` (56px tall, `position:fixed;
+bottom:0`) is at `y=788..844`. The toolbar has a higher z-index
+than the page content, so `document.elementFromPoint(btn.cx, btn.cy)`
+returns the `<button class="mobile-toolbar-btn">` from the toolbar
+— NOT the dice button. The user's tap is intercepted by the toolbar
+button (whichever is at the same x,y), the dice never receives the
+click, and the user cannot roll the dice without scrolling first.
+
+Measured (testing7, wager_unlock granted, streak=4 for the streak
+panel to render, viewport 390x844):
+- `.dice-roll-btn` rect: `{x: 101, y: 812.203, w: 283, h: 25, bottom: 837.203}`
+- `.mobile-toolbar` rect: `{y: 788, h: 56, bottom: 844}`
+- `elementFromPoint(btn.cx, btn.cy)` → `<BUTTON class="mobile-toolbar-btn">…</BUTTON>`
+- `btn.inViewport` is True (bottom < 844) but the button is inside
+  the toolbar's hit-test area.
+- Programmatic `.click()` works (because it dispatches a synthetic
+  event) but a real user tap is intercepted.
+
+The user CAN scroll to bring the dice button above the toolbar
+(dice moves to y < 788 once the user scrolls ~25px). But the user
+shouldn't have to scroll just to roll the dice.
+
+**Goal:** Make the dice roll button reachable in the initial
+viewport (no scrolling required) AND not blocked by the toolbar.
+The cleanest fix is to compact the dice panel so the button is
+at a y position above the toolbar (y < 788).
+
+**Diagnosis:** The dice panel is 147px tall because of:
+- Label + desc: ~20px
+- Charges row: ~16px
+- Dice images: 3 dice × 32px = 96px (from T204's `.mobile-streak-dice-row .die { width: 32px; height: 32px; }`)
+- Roll button: 25px
+- Padding: ~10px
+- Total: ~167px (height clamps to 147 because of flex shrink)
+
+If the dice images are reduced to 24px each, the dice row shrinks
+from 96px to 72px (saving 24px). The panel height drops to ~123px.
+The dice button (at the bottom of the panel) moves up by ~24px.
+
+**Acceptance criteria (all must pass):**
+
+1. `.dice-roll-btn` rect at 390x844 viewport: `bottom <= 788` (the
+   toolbar's top y). Currently `bottom ≈ 837`.
+2. `document.elementFromPoint(btn.cx, btn.cy)` returns the dice
+   button itself, NOT a toolbar button. Currently returns
+   `<BUTTON class="mobile-toolbar-btn">`.
+3. The dice button is still visible and the dice images are still
+   recognizable. Dice can be 24px or 28px (don't go below 20px or
+   the pips become invisible).
+4. The dice panel still has its label "🎲 Dice Roll" and the
+   "How it works ⓘ" tooltip trigger.
+5. The dice rolls correctly when clicked (wins/streak update).
+6. Desktop at 1280x800: no regression. The dice panel is unchanged
+   on desktop (use the existing desktop CSS, not the mobile block).
+7. The existing test `test_dice_button_visible_in_initial_viewport`
+   still passes (it asserts `bottom <= vh + 1`, which is 845 — so
+   the test currently passes but the BUTTON IS STILL BLOCKED. T207
+   must ensure the test is strengthened: the new assertion is
+   `bottom <= toolbar_top`).
+8. All existing tests pass (428 passed, 1 skipped minimum; with
+   the strengthened test, expect 429+ passed, 1 skipped if you
+   add a "not blocked by toolbar" assertion).
+
+**Strategy options (pick ONE):**
+
+**Option A (recommended) — Compact the dice images:** Reduce
+`.mobile-streak-dice-row .die` from 32px to 24px. This saves
+~24px and brings the dice button above the toolbar. Easiest fix.
+
+**Option B — Restructure the dice panel:** Move the `.dice-roll-btn`
+above the dice images (label/desc/charges/button/dice-images). The
+button is at the top of the panel, so it's at the top of the
+mobile-below-wheel. Saves more vertical space but changes the
+visual order.
+
+**Option C — Sticky dice button:** Make the `.dice-roll-btn`
+`position: sticky; bottom: 56px` so it stays at the bottom of the
+mobile-below-wheel as the user scrolls. More complex.
+
+Recommended: **Option A** — minimal change, preserves the existing
+visual order, and gets the dice button above the toolbar.
+
+**Files to touch:**
+
+- `static/styles.css`:
+  - Modify the `.mobile-streak-dice-row .die { ... }` rule in the
+    `@media (max-width: 768px)` block at the end of styles.css
+    (added by T204 around line 5438-5440). Change `width: 32px;
+    height: 32px;` → `width: 24px; height: 24px;`.
+  - Adjust the dice pip size if needed
+    (`.mobile-streak-dice-row .pip { width: 5px; height: 5px; }` →
+    `width: 4px; height: 4px;` to keep proportions).
+  - Adjust the dice-row gap if needed.
+  - The goal: the dice panel ends ~25-30px shorter so the dice
+    button moves above the toolbar.
+
+  You may also need to tighten the dice panel padding and the
+  label/desc font sizes to save additional space. Test with
+  Playwright after each change.
+
+**Files NOT to touch:**
+- `static/app.jsx` (no JSX changes needed for Option A)
+- `static/app.js`
+- `game.py` / any backend
+- The DicePanel component definition (line 1690+)
+- The desktop `.dice-panel` rules (in the existing mobile
+  `@media (max-width: 768px)` block — only edit the mobile ones)
+- Other tickets' regions of styles.css
+
+**Test additions (REQUIRED — strengthen the existing test):**
+
+The existing `test_dice_button_visible_in_initial_viewport` in
+`tests/test_mobile_e2e.py` (line 580+) asserts
+`bottom <= vh + 1` (which is 845). That assertion is too weak —
+the button is at 837 which is "in viewport" but still covered
+by the toolbar at 788. Strengthen it:
+
+In `tests/test_mobile_e2e.py`, modify the existing test to also
+assert:
+- `bottom <= toolbar_top` (i.e., the button is above the toolbar)
+- `document.elementFromPoint(btn.cx, btn.cy)` is the dice button
+  itself (not a toolbar button)
+
+Current test (around line 605):
+```python
+assert data['bottom'] <= data['vh'] + 1, (...)
+```
+
+Replace with:
+```python
+toolbar_top = page.evaluate("() => document.querySelector('.mobile-toolbar').getBoundingClientRect().top")
+assert data['bottom'] <= toolbar_top, (
+    f'dice button below toolbar: bottom={data["bottom"]:.0f} > toolbar_top={toolbar_top:.0f}'
+)
+center_el = page.evaluate(f"""() => {{
+    const r = document.querySelector('.dice-roll-btn').getBoundingClientRect();
+    const el = document.elementFromPoint(r.x + r.width/2, r.y + r.height/2);
+    return el ? {{tag: el.tagName, classes: el.className || ''}} : null;
+}}""")
+assert center_el and 'mobile-toolbar-btn' not in (center_el.get('classes') or ''), (
+    f'dice button blocked by {center_el} — user cannot tap it'
+)
+```
+
+If you prefer a separate test file, put it in
+`tests/test_mobile_dice_button.py`. Document the choice in the
+report.
+
+**Hard constraints:**
+- ONE commit on a new branch `t207-dice-button-blocked`.
+- Do NOT push, do NOT merge.
+- Do NOT change the DicePanel component or any JSX.
+- The dice button MUST be reachable by a real user tap (not just
+  programmatic `.click()`).
+- After commit, report: commit SHA, diff stat, pytest tail, and
+  the Playwright measurements (diceBtn y/bottom, toolbar y, and
+  `elementFromPoint` result).
