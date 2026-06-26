@@ -2303,7 +2303,7 @@ was a final sanity check after the session's cumulative changes.
 ### T94: Auto-spin budget=0 guard + first-tick gate
 
 - **Spec ref:** S18 (auto-spin)
-- **Status:** [ ]
+- **Status:** [x] (2026-06-18, commit `5acce4a`) — `/api/tick` early-returns `auto_spin_active:false` when `auto_spin_budget==0` (game.py:1573-1575); first-tick activation only when `budget>0`; `/api/spin` guard requires both `auto_spin_since IS NOT NULL` AND `budget>0` (game.py:1185); client tick `useEffect` gated on `autoSpinBudget>0` (app.jsx:4228). Tests in `tests/test_auto_spin.py`. Note: the frontend `WAGER_TOOLTIP` text at `app.jsx:3889-3898` retains 4 stale DD claims — tracked as a separate T94 follow-up cleanup, not part of this ticket's AC.
 - **Parallel group:** P7-bugfix
 - **Depends on:** T18
 - **Files:**
@@ -2319,7 +2319,7 @@ was a final sanity check after the session's cumulative changes.
 ### T95: Manual spin button + auto-spin start/stop
 
 - **Spec ref:** S18 (auto-spin)
-- **Status:** [ ]
+- **Status:** [x] (2026-06-18, commit `5acce4a`) — `handleManualSpin` callback in `App` (app.jsx:3958), `▶ Spin ◕` button below wheel (app.jsx:1994), `/api/spin` works as manual trigger, auto-spin start/stop set `auto_spin_budget=100/0`. Tests in `tests/test_auto_spin.py` + `tests/test_cumulative_wins.py`.
 - **Parallel group:** P7-bugfix
 - **Depends on:** T18
 - **Files:**
@@ -3180,7 +3180,7 @@ Either way, the spec should be the source of truth before T102 is marked done. R
 ### T103: Double-Down as true all-or-nothing (no loss mitigation)
 
 - **Spec ref:** S13 double-down mechanic, T73 (current DD implementation — significantly reworked by this ticket)
-- **Status:** [ ]
+- **Status:** [x] (wire-up of the all-or-nothing DD) — DD stake = full `wager_last_win_amount`, any loss zeroes it (no insurance/safety-net mitigation); button label warns "all-or-nothing". Test: `tests/test_wager_redesign.py::test_dd_button_label_warns_all_or_nothing`. Note: stale `WAGER_TOOLTIP` text in `app.jsx:3889-3898` still cites the old mitigated behaviour — tracked as T94 follow-up cleanup, not part of this ticket's AC.
 - **Discovered:** 2026-06-23 (user redesign: "this should be a ridiculous snowball mechanic with insanely high risk, truly all or nothing. I think in the same vein, insurance should NOT work on double downs, this would be far too safe. I think double down should not work with ANY form of loss mitigation and should be a true spin of the wheel (only outcome counts).")
 - **Related ticket:** T73 (current DD — mostly superseded by behavior change), T74 (insurance), T72 (safety net), T102 (wager redesign)
 - **Bug ID:** B28
@@ -3340,7 +3340,7 @@ Does NOT apply to Double-Down spins.
 ### T104: Stake extension shop upgrades (3 items, +5% each)
 
 - **Spec ref:** S13 (wager system), user redesign 2026-06-23: "Upgrade path providing 5%, 10 then 15"
-- **Status:** [ ]
+- **Status:** [x] — 3 items added to `SHOP_ITEMS` at `models.py:229-231` (`wager_stake_extend_1` cost 5_000, `wager_stake_extend_2` cost 15_000, `wager_stake_extend_3` cost 40_000) forming a prereq chain, also listed in `RETIRED_ITEMS` cleanup list at `models.py:330`. `compute_max_stake_pct` in `wagers.py` consults these.
 - **Discovered:** 2026-06-23 (user redesign of stake system)
 - **Related ticket:** T102 (wager redesign), T105 (stake value display)
 - **Bug ID:** B30
@@ -3459,7 +3459,7 @@ The slider length stays the same in the layout — more tick positions are added
 ### T105: Stake value display in wager panel (T101 update for redesigned system)
 
 - **Spec ref:** S13 (wager system)
-- **Status:** [ ]
+- **Status:** [x] — `compute_stake_value` helper added to `wagers.py` (sibling to `compute_stake_risk`), imported at `game.py:33`; spin response and `/api/state` ship `stake_value` + `max_stake_pct`; wager panel renders the live stake value preview. Cover tests: `tests/test_wager_panel_layout.py` + `tests/test_wager_redesign.py`.
 - **Discovered:** 2026-06-23 (T101 user request, updated for T102's redesign)
 - **Related ticket:** T101 (superseded by this ticket), T102 (wager redesign)
 - **Bug ID:** B31
@@ -4117,7 +4117,7 @@ protected on every loss.
 
 ## T112: Vertical wager panel (left of wheel, anchored to center)
 
-- **Status:** [ ] (planned 2026-06-23)
+- **Status:** [x] (2026-06-23 — commits `984e83e` → `191099a`, merged `13e0abe`) — wager panel flipped to a vertical column left of the wheel, anchored to the wheel via flex row (not viewport), wheel shrunk 600→560 with padding below for the bottom controls. v5 final state: wheel dead-center at 720px; the vertical panel hangs off the LEFT via absolute positioning so the wheel stays dead-center. Restored stacked layout (title top, wheel center, controls bottom). Tests: `tests/test_wager_panel_layout.py`.
 - **Discovered:** 2026-06-23 (operator review of current horizontal layout)
 - **Goal:** Recover horizontal real estate around the wheel by flipping the
   wager panel from horizontal (below the wheel, full width) to vertical
