@@ -3,10 +3,14 @@
 Three bounties are selected per user per UTC day from a pool of definitions.
 Selection is deterministic per (user_id, date) using a hash seed, ensuring
 the same 3 bounties are shown all day regardless of which worker handles
-the request. Bounties reset at UTC midnight — incomplete progress is discarded.
+the request. Bounties reset at the UTC 00:00 boundary (a "day" flips at
+23:59 the prior day, per operator UX language) — the previous day's
+progress is implicitly discarded because `bounty_date` is recomputed
+at request time and yesterday's rows are never queried.
 """
 
 import hashlib
+import datetime as dt
 from datetime import date
 
 
@@ -131,7 +135,14 @@ def increment_bounty(conn, user_id, bounty_id, bounty_date, amount=1):
 
 
 def get_bounty_status(conn, user_id, bounty_date=None):
-    """Return today's 3 bounties with current progress for this user."""
+    """Return today's 3 bounties with current progress for this user.
+
+    Each entry uses `bounty_id` as the key (matching the claim handler's
+    request body), includes the 1-indexed `position` in the deterministic
+    set (used by the claim handler to award position-based tokens), and
+    a `claimed` flag (per-bounty; was a single per-day `bounty_claimed_date`
+    on game_state before T117).
+    """
     if bounty_date is None:
         bounty_date = date.today()
 
@@ -141,48 +152,55 @@ def get_bounty_status(conn, user_id, bounty_date=None):
     import psycopg2.extras
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        for b in selected:
+        for position, b in enumerate(selected, start=1):
             cur.execute(
-                '''SELECT progress, completed, completed_at
+                '''SELECT progress, completed, completed_at, claimed, claimed_at
                    FROM bounty_progress
                    WHERE user_id = %s AND bounty_date = %s AND bounty_id = %s''',
                 (user_id, bounty_date, b['id']),
             )
             row = cur.fetchone()
             result.append({
-                'id': b['id'],
+                'bounty_id': b['id'],
                 'description': b['description'],
                 'target': b['target'],
                 'progress': row['progress'] if row else 0,
                 'completed': row['completed'] if row else False,
+                'claimed': row['claimed'] if row else False,
+                'position': position,
                 'reward_tokens': b['reward_tokens'],
             })
 
     return result
 
 
-def get_claim_rewards(conn, user_id, bounty_date=None):
-    """Return a dict of rewards for the given user on the given date.
+def get_claim_rewards_for_bounty(conn, user_id, bounty_date, bounty_id):
+    """Return per-bounty claim rewards for the given (user, date, bounty_id).
 
-    Rewards are based on how many of today's 3 bounties are completed:
-    | 1 bounty | 100 tokens, 0 fragments |
-    | 2 bounties | 250 tokens, 0 fragments |
-    | 3 bounties (all) | 500 tokens, 1 fragment |
+    Per-bounty semantics (T117): the token amount is the bounty's 1-indexed
+    position in the deterministic 3-bounty set returned by get_daily_bounties.
+    Bounty #1 → 1 token, #2 → 2 tokens, #3 → 3 tokens (max 6/day). No
+    cosmetic fragments are awarded (T117 removes the legacy 3/3 fragment
+    bonus — fragments are now earned only via other paths TBD).
     """
     if bounty_date is None:
         bounty_date = date.today()
-    import psycopg2.extras
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            '''SELECT COUNT(*) AS cnt FROM bounty_progress
-               WHERE user_id = %s AND bounty_date = %s AND completed = TRUE''',
-            (user_id, bounty_date),
-        )
-        row = cur.fetchone()
-        completed_count = row['cnt'] if row else 0
-    tokens, fragments = {
-        3: (500, 1),
-        2: (250, 0),
-        1: (100, 0),
-    }.get(completed_count, (0, 0))
-    return {'tokens': tokens, 'cosmetic_fragments': fragments}
+    selected = get_daily_bounties(user_id, bounty_date)
+    for i, b in enumerate(selected, start=1):
+        if b['id'] == bounty_id:
+            return {'tokens': i, 'cosmetic_fragments': 0}
+    return None
+
+
+def get_bounty_reset_seconds(now_utc):
+    """Seconds until the next UTC 00:00 boundary (called "23:59" in UX).
+
+    The substantive reset is implicit — `bounty_date` is recomputed at
+    request time, so yesterday's rows are simply not queried. This helper
+    is for an optional UI countdown ("Resets in 4h 32m") and reflects the
+    operator's UX framing of the boundary moment.
+    """
+    boundary = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    if now_utc >= boundary:
+        boundary += dt.timedelta(days=1)
+    return int((boundary - now_utc).total_seconds())
