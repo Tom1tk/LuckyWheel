@@ -1061,6 +1061,7 @@ def get_state():
             'wager_last_win_amount': int(gs.get('wager_last_win_amount', 0) or 0),
             'wager_insurance_charges': int(wager_insurance_charges),
             'wager_insurance_armed': bool(gs.get('wager_insurance_armed', False)),
+            'wager_insurance_max_charges': WAGER_INSURANCE_MAX_CHARGES,
             'wager_insurance_last_recharge': (
                 wager_insurance_last_recharge.isoformat()
                 if hasattr(wager_insurance_last_recharge, 'isoformat')
@@ -3292,6 +3293,70 @@ def wager_insurance_cancel():
                         (current_user.id,))
         conn.commit()
     return jsonify({'ok': True})
+
+
+@game_bp.route('/api/wager/insurance/buy', methods=['POST'])
+@login_required
+@csrf.exempt
+def wager_insurance_buy():
+    """T110: spend wager tokens to buy insurance charges. 1 token = 1
+    charge (fixed rate), added to the player's existing charges and
+    capped at WAGER_INSURANCE_MAX_CHARGES. Unused tokens (cap hit) are
+    NOT spent — the spec calls this "refund unused tokens" so a click
+    at cap is a no-op."""
+    err = require_json()
+    if err:
+        return err
+    body = request.get_json(silent=True) or {}
+    try:
+        token_cost = int(body.get('token_cost', 1))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid token_cost'}), 400
+    if token_cost < 1:
+        return jsonify({'error': 'token_cost must be >= 1'}), 400
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if 'fish_to_wager' not in gs['owned_items']:
+                return jsonify({'error': 'fish_to_wager not unlocked'}), 403
+            if 'wager_insurance' not in gs['owned_items']:
+                return jsonify({'error': 'Insurance not unlocked'}), 403
+            current_tokens = int(gs.get('wager_tokens', 0) or 0)
+            if current_tokens < token_cost:
+                return jsonify({'error': 'Not enough wager tokens'}), 400
+            # Refresh charges so the cap is measured against the freshest count
+            # (mirrors /api/wager/insurance behaviour).
+            now_utc = dt.datetime.now(timezone.utc)
+            charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
+                          WAGER_INSURANCE_MAX_CHARGES)
+            last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
+            charges, last_recharge = _recharge_wager_insurance(
+                charges, last_recharge, WAGER_INSURANCE_MAX_CHARGES, now_utc,
+            )
+            headroom = WAGER_INSURANCE_MAX_CHARGES - charges
+            if headroom <= 0:
+                return jsonify({'error': 'Insurance charges already at cap'}), 409
+            granted = min(token_cost, headroom)
+            new_tokens = current_tokens - granted
+            new_charges = charges + granted
+            # T74 AC#5: reset the recharge timer only if the new charge count
+            # is still below the cap (timer pauses at cap).
+            new_last_recharge = now_utc if new_charges < WAGER_INSURANCE_MAX_CHARGES else last_recharge
+            cur.execute(
+                '''UPDATE game_state
+                   SET wager_tokens = %s,
+                       wager_insurance_charges = %s,
+                       wager_insurance_last_recharge = %s
+                   WHERE user_id = %s''',
+                (new_tokens, new_charges, new_last_recharge, current_user.id),
+            )
+        conn.commit()
+    return jsonify({
+        'ok': True,
+        'wager_tokens': new_tokens,
+        'wager_insurance_charges': new_charges,
+        'granted': granted,
+    })
 
 
 def _prestige_default(col):
