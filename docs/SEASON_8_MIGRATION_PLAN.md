@@ -5,10 +5,12 @@
 > historical breakage (wrong season numbers, missing snapshots, un-reset
 > pot, upgrade levels not cleared, missing migrations).
 >
-> **Target window:** Friday 26 June 2026, 00:00 BST (UTC+1)
-> (the existing `seasons.ends_at` in `wheeldb` is `2026-06-26 23:59:00+01`,
-> so the rollover should land in the first hour of Saturday to give
-> ourselves the full backup window from 03:00 Friday as our rollback.)
+> **Target window:** Friday 26 June 2026, 23:59 BST (UTC+1) — the exact
+> instant `seasons.ends_at` in `wheeldb` already expires
+> (`2026-06-26 23:59:00+01`). Firing right at `ends_at` removes the
+> Friday/Saturday ambiguity from the earlier draft. The 03:00 UTC daily
+> backup plus the manual 22:30 BST backup (§6.7) both land well before
+> this, giving the full rollback window.
 >
 > **Authoritative refs:**
 > - `SEASON_8_BUILD_SPEC.md` — what Season 8 *is* (the design)
@@ -200,6 +202,18 @@ verify:
 - [ ] `game_state` `legacy_wins` ACCUMULATED (old value + current `wins`)
 - [ ] `game_state` `prestige_level`/`prestige_count` reset to 0
 - [ ] `game_state` `wager_streak`/`wager_banked_wins`/etc. reset
+- [ ] `game_state` `wager_banked_losses` reset to 0 — **currently
+      MISSING from the reset UPDATE in `seasons.py`.** `wager_banked_wins`
+      resets but its loss counterpart doesn't; same "forgot the new
+      field" pattern as §4.
+- [ ] `game_state` `gravity_drift` reset to 0 — **currently MISSING.**
+      Carries wheel-mode bias into the new season.
+- [ ] `game_state` `wager_last_win_amount` reset to 0 — **currently
+      MISSING.** Stale double-down escrow would carry over.
+- [ ] Decide: does `wager_tokens` persist across seasons (it's an
+      earned currency, arguably fine to keep) or should it reset like
+      everything else? **Currently NOT reset** — confirm this is a
+      deliberate choice, not an oversight.
 - [ ] `game_state` `active_wheel_mode` reset to `'steady'`
 - [ ] `community_pot` reset to `target=40000`, `win_chance_pct=51.0`,
       `filled=false`, `total_contributed=0`
@@ -216,25 +230,44 @@ and re-test. Do not promote a broken reset to main.
 > way we don't want, take a staging backup first
 > (`pg_dump wheeldb_staging > /tmp/staging-pre-rollover.sql`).
 
-### 6.2 — Verify `user_season_history` INSERT covers S8 columns
+### 6.2 — `user_season_history` is missing the S8 columns — schema AND code
 
-Main's `user_season_history` table has the S7 columns. The S8 INSERT
-needs to add the S8 columns too, or they'll be silently dropped on
-rollover and we won't be able to restore them. The full list:
+**Correction (checked against the live `wheeldb_staging` schema
+2026-06-25):** the earlier claim that "staging already has these
+columns" was wrong. `\d user_season_history` on staging shows only the
+S7 columns — no migration in 031–051 ever touches this table (only
+`000_baseline` and `026_history_upgrade_snapshot` do, both pre-S8).
+
+Worse, even if the columns existed: the `INSERT INTO
+user_season_history` inside `advance_season()` in `seasons.py` only
+writes the legacy S7 fields today (`final_wins`, the upgrade levels,
+etc.) — it has zero references to any S8 column. Adding the migration
+alone wouldn't snapshot anything; the INSERT itself needs editing too.
+
+Two changes needed, both **main-only** — staging has no real user
+data, so there's no need to backport this to staging's migration
+ledger first:
+
+1. A new migration `052_user_season_history_s8.sql` adding the S8
+   columns to `user_season_history`.
+2. An edit to the `INSERT INTO user_season_history` statement in
+   `seasons.py::advance_season()` to actually populate them.
+
+Full column list (cross-checked against every S8 `game_state` column
+added by migrations 031–051, not just the ones named in §1's gap
+summary):
 
 ```
-wager_streak, wager_last_stake, wager_banked_wins, wager_insurance_charges,
-wager_insurance_armed, double_down_pending, active_wheel_mode,
-auto_spin_budget, guard_charges, guard_last_regen_spin,
-resilience_last_use_spin, legacy_wins, prestige_level, prestige_count,
-cumulative_wins
+wager_streak, wager_last_stake, wager_banked_wins, wager_banked_losses,
+wager_insurance_charges, wager_insurance_armed, wager_last_win_amount,
+wager_tokens, double_down_pending, active_wheel_mode, auto_spin_budget,
+guard_charges, guard_last_regen_spin, resilience_last_use_spin,
+legacy_wins, prestige_level, prestige_count, cumulative_wins,
+gravity_drift, biggest_win_announced
 ```
 
-This requires **schema changes to `user_season_history` in main** (a
-migration) before the rollover. The staging version of the table
-already has them; main doesn't. Add this as a new migration
-`052_user_season_history_s8.sql` and apply to main after the S8 schema
-migrations land but before the rollover.
+(`aquarium_species` deliberately excluded — `game.py:212` notes it's
+never written anywhere; it's dead schema, not real player state.)
 
 ### 6.3 — Promote staging → master (the code, not the rollover)
 
@@ -311,10 +344,11 @@ trigger; no manual fallback needed in normal operation (the
 T-30 / T-5 pre-flight catches anything the cron would silently mess
 up).
 
-The current schedule is "midnight Friday 26 June" (per operator). In
-UTC that is **2026-06-26 23:00:00 UTC** (BST is UTC+1; 00:00 BST = 23:00
-the previous day UTC). The `seasons.ends_at` in `wheeldb` is
-`2026-06-26 23:59:00+01` which matches this.
+The schedule is **Friday 26 June 2026, 23:59 BST** — the same instant
+`seasons.ends_at` already expires. In UTC that is **2026-06-26
+22:59:00 UTC** (BST is UTC+1). Firing at this exact timestamp avoids
+the earlier draft's confusion between "Friday" and "the first hour of
+Saturday."
 
 The cron entry will live in `/etc/cron.d/wheel-rollover`:
 
@@ -323,10 +357,10 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ADMIN_SECRET_FILE=/home/user/wheel-app/.env
 
-# Season 8 launch: Friday 26 June 2026 23:00 UTC = Saturday 00:00 BST
+# Season 8 launch: Friday 26 June 2026 23:59 BST = 22:59 UTC
 # One-shot — delete this file after the rollover fires (or leave for
 # future rollovers and update the schedule).
-0 23 26 6 * user /home/user/wheel-app/bin/rollover.sh >> /var/log/wheel-rollover.log 2>&1
+59 22 26 6 * user /home/user/wheel-app/bin/rollover.sh >> /var/log/wheel-rollover.log 2>&1
 ```
 
 The `rollover.sh` wrapper script (new, lives in `wheel-app/bin/`)
@@ -364,7 +398,7 @@ before the rollover.** That's the one we'd actually restore from.
 
 ---
 
-## 7. Migration day procedure (Saturday 27 June 2026 00:00 BST)
+## 7. Migration day procedure (Friday 26 June 2026 23:59 BST)
 
 ### T-30 minutes (23:30 BST Friday)
 
@@ -386,7 +420,7 @@ before the rollover.** That's the one we'd actually restore from.
 - [ ] Verify the staging `.env` has `ADMIN_SECRET` set, OR know the
       command needed to set it.
 
-### T-0 (00:00 BST Saturday = 23:00 UTC Friday)
+### T-0 (23:59 BST Friday = 22:59 UTC Friday)
 
 - [ ] **The cron fires** automatically (`/etc/cron.d/wheel-rollover`
       → `/home/user/wheel-app/bin/rollover.sh`). The wrapper script
@@ -614,7 +648,7 @@ migration-night concern.
 | **Fri 26 Jun 22:30** | Manual pre-rollover backup (§6.7) | Dev |
 | **Fri 26 Jun 23:30** | T-30 pre-flight (§7) | Dev |
 | **Fri 26 Jun 23:55** | T-5 pre-flight (§7) | Dev |
-| **Sat 27 Jun 00:00** | T-0 rollover fires (§7) | **Cron** (operator-fallback only) |
+| **Fri 26 Jun 23:59** | T-0 rollover fires (§7) | **Cron** (operator-fallback only) |
 | **Sat 27 Jun 00:05–00:15** | T+5 / T+15 verification (§7) | Dev |
 | **Sat 27 Jun 01:00** | T+1h final check (§7) | Dev |
 | **Sat 27 Jun** | Announce launch, close out T109 | Operator |
