@@ -578,12 +578,21 @@ def test_wager_panel_on_screen_below_wheel_after_t202(wager_logged_in):
 
 
 def test_dice_button_visible_in_initial_viewport(wager_logged_in):
-    """T204: the dice roll button must be reachable in the initial
-    390x844 viewport (not pushed off the bottom by the wager panel
-    above it). User reported: "The dice roll section is now not
-    possible to see or use except from its title." After T204 the
-    wager + streak + dice stack in a column with streak+dice sharing
-    a sub-row, so the dice button stays on-screen without scrolling.
+    """T204 + T207: the dice roll button must be (1) reachable in the
+    initial 390x844 viewport AND (2) NOT blocked by the mobile toolbar.
+
+    T204 fixed: dice button was below viewport (bottom > 844) after
+    adding the wager panel below the wheel. Stretched the
+    mobile-below-wheel column so the dice button stayed on-screen
+    but landed at y=812-837 — IN the viewport but UNDER the toolbar's
+    y=788-844 hit-test area.
+
+    T207 fixes: compact the dice images from 32px to 24px in the
+    mobile streak-dice row, saving ~24px of vertical space. The dice
+    button now ends above y=788 (toolbar top) and a real user tap
+    reaches it.
+
+    Operator: "Still not able to use the dice to roll" (2026-06-26).
     """
     page = _open_mobile_page(wager_logged_in, 390, 844)
     try:
@@ -592,19 +601,50 @@ def test_dice_button_visible_in_initial_viewport(wager_logged_in):
                 const btn = document.querySelector('.dice-roll-btn');
                 if (!btn) return null;
                 const r = btn.getBoundingClientRect();
+                const tb = document.querySelector('.mobile-toolbar');
+                const tr = tb ? tb.getBoundingClientRect() : null;
                 return {x: r.x, y: r.y, right: r.right, bottom: r.bottom,
-                        width: r.width, height: r.height, vh: window.innerHeight};
+                        width: r.width, height: r.height,
+                        cx: r.x + r.width/2, cy: r.y + r.height/2,
+                        vh: window.innerHeight,
+                        toolbarTop: tr ? tr.top : null};
             }'''
         )
         assert data is not None, '.dice-roll-btn not in DOM at all'
         assert data['width'] > 0 and data['height'] > 0, (
             f'dice button has zero size: {data}'
         )
-        # Reachable in the initial viewport: bottom <= vh (with a tiny
-        # tolerance for fractional pixels).
+        # T204: reachable in the initial viewport.
         assert data['bottom'] <= data['vh'] + 1, (
             f'dice button below viewport: bottom={data["bottom"]:.0f} '
             f'> vh={data["vh"]:.0f} — user must scroll to roll the dice'
+        )
+        # T207: must NOT be covered by the mobile toolbar. The toolbar
+        # is at y=788-844 (56px tall, position:fixed, bottom:0). The
+        # dice button must end ABOVE the toolbar's top, otherwise the
+        # toolbar intercepts the click and `elementFromPoint(btn.cx,
+        # btn.cy)` returns a `<button class="mobile-toolbar-btn">`
+        # instead of the dice button.
+        assert data['toolbarTop'] is not None, '.mobile-toolbar not in DOM'
+        assert data['bottom'] <= data['toolbarTop'] + 1, (
+            f'dice button below toolbar: bottom={data["bottom"]:.0f} '
+            f'> toolbarTop={data["toolbarTop"]:.0f} — toolbar intercepts '
+            f'the click; user must scroll to roll the dice'
+        )
+        # T207: hit-test the dice button's center. It must return
+        # the dice button itself, NOT a toolbar button.
+        hit = page.evaluate(
+            '''(c) => {
+                const el = document.elementFromPoint(c.cx, c.cy);
+                if (!el) return null;
+                return {tag: el.tagName, classes: el.className || ''};
+            }''',
+            data,
+        )
+        assert hit is not None, 'no element at dice button center'
+        assert 'mobile-toolbar-btn' not in (hit.get('classes') or ''), (
+            f'dice button blocked by {hit["tag"]}.{hit["classes"]} — '
+            f'the toolbar intercepts the click'
         )
     finally:
         page.close()
