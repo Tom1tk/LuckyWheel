@@ -5058,7 +5058,7 @@ None.
 
 ### T121: Prestige rework — drop efficiency/legacy, move trigger to shop with confirmation modal
 
-- **Status:** [ ] (planned 2026-06-26)
+- **Status:** [x] (2026-06-26) — `prestige_efficiency` and `prestige_legacy` removed from shop; `/api/buy` returns 403 'Item retired' for them. `get_legacy_keep_count` and `compute_wins_kept` both return 0. Side-panel Prestige button + `showPrestigeConfirm` modal deleted. Shop buy of `prestige_unlock` opens a patch-notes-style confirmation modal (title "⚠️ Prestige Reset", Confirm/Cancel); Confirm calls atomic `/api/prestige` (deducts 1M wins on first buy, adds the unlock, and resets state in one tx). Threshold still scales by 1.05× per level (T111). 22 new tests in `tests/test_prestige.py`; full suite 395 pass, 1 skip.
 - **Discovered:** 2026-06-26 (operator: "Remove prestige_efficiency + prestige_legacy. No
   side-panel button. Buying prestige in the shop shows a confirmation modal first.")
 - **Depends on:** none (independent of T117/T118/T119)
