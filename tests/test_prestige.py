@@ -575,17 +575,18 @@ def test_prestige_endpoint_already_owned():
     )
     # legacy_wins is 1.1M (the prior wins — T121 carries the full total).
     assert result['legacy_wins'] == 1_100_000
-    # The unlock is dropped (T85: functionals are removed on prestige; the
-    # atomic flow only re-adds it for the !already_owned case). The player
-    # re-buys from the shop before the next prestige.
+    # T121 follow-up: prestige_unlock is the permanent gate for prestige —
+    # it must always be in the new owned_items. The server re-adds it
+    # after filter_kept_items drops it (since keep_count=0 strips
+    # functionals). The shop re-shows the buy button on subsequent
+    # prestiges for the next-level threshold.
     sql, params = next(
         (s, p) for s, p in conn.log
         if s.lstrip().upper().startswith('UPDATE')
     )
     new_owned = params[4]
-    assert 'prestige_unlock' not in new_owned, (
-        f"prestige_unlock should be dropped after prestige (T85 + T121 "
-        f"contract), got {new_owned}"
+    assert 'prestige_unlock' in new_owned, (
+        f"prestige_unlock must be preserved as the permanent gate, got {new_owned}"
     )
 
 
