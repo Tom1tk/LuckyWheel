@@ -5320,12 +5320,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             </div>
             <div className="mobile-drawer-pane" data-tab="community"
                  style={{ display: mobileDrawerTab === 'community' ? 'block' : 'none' }}>
-              <CommunityGoalPanel communityGoal={communityGoal} />
-              <SingularityPanel
-                singularity={singularity}
-                fishClicks={fishClicks}
-                onContribute={handleSingularityContribute}
-              />
+              {/* T203 bug fix: wrap community + singularity in .season8-meta-panel
+                  to match the desktop rendering at app.jsx:5216 and let
+                  test_community_goal_visible_on_mobile_after_t202 assert
+                  `.season8-meta-panel` count >= 1. */}
+              <div className="season8-meta-panel">
+                <CommunityGoalPanel communityGoal={communityGoal} />
+                {communityGoal && singularity && <div className="meta-divider" />}
+                <SingularityPanel
+                  singularity={singularity}
+                  fishClicks={fishClicks}
+                  onContribute={handleSingularityContribute}
+                />
+              </div>
             </div>
           </div>
         </div>

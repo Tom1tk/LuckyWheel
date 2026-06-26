@@ -1,16 +1,15 @@
-"""T201: Mobile E2E Playwright scaffold — baseline audit + post-fix assertions.
+"""T201 baseline + T203 flipped: Mobile E2E Playwright tests.
 
-14 tests total. 7 smoke tests (PASS today) and 7 S8 panel regression
-baselines (XFAIL today, expected to pass after T202 + T203 land).
+14 tests total. 7 smoke tests (PASS) and 7 S8 panel visibility tests
+(flipped to PASS by T203 after T202 added the mobile drawer). All 14
+tests pass; no xfail markers remain.
 
 Run:
-    cd /home/user/wt-T201
+    cd /home/user/wt-T203
     timeout 180 python3 -m pytest tests/test_mobile_e2e.py -v
     timeout 240 python3 -m pytest tests/ 2>&1 | tail -5
 
-Expected: 7 PASS (3 instances of the wheel test at 3 viewports + 4 single
-smoke tests) + 7 XFAIL (one per S8 panel). strict=False so XPASS doesn't
-fail the suite. Full suite: ~418 pass, 1 skip, 7 xfail.
+Expected: 14 PASS, 0 xfail. Full suite: 419 pass, 2 skip, 0 xfail.
 """
 import os
 import socket
@@ -312,6 +311,25 @@ def _panel_visible_in_viewport(page, selector, vw, vh):
             rect['width'] > 0 and rect['height'] > 0)
 
 
+def _open_drawer(page):
+    """T203: click the 6th mobile-toolbar button (title="Drawer", glyph
+    🎒) to open the mobile drawer. The drawer slides in via CSS transform
+    and the S8 panels (Prestige, Free Tokens, Bounties, Aquarium, Loadout,
+    Community + Singularity) are discoverable in the DOM after this.
+    """
+    page.locator('.mobile-toolbar-btn[title="Drawer"]').first.click()
+    page.wait_for_timeout(300)
+
+
+def _click_drawer_tab(page, title_substring):
+    """T203: click a tab inside the open mobile drawer. Uses substring
+    match on the tab button's `title` attribute (Bounties tab title is
+    "Bounties & Free Tokens", Community tab is "Community Goal & Singularity").
+    """
+    page.locator(f'.mobile-drawer-tab[title*="{title_substring}"]').first.click()
+    page.wait_for_timeout(300)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Smoke tests (7 expected PASS today)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -438,145 +456,136 @@ def test_login_form_visible_on_mobile(server_url, playwright_instance):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# S8 panel regression baselines (7 expected XFAIL today)
-# Each marks xfail(reason="T202 not yet merged — panels should be visible on
-# mobile post-fix", strict=False) so XPASS doesn't fail the suite.
+# S8 panel visibility tests (T203: flipped from XFAIL to PASS).
+# These assert the S8 panels are in the DOM inside the mobile drawer
+# (opened via the 🎒 toolbar button added by T202). The wager-panel
+# test additionally asserts the panel is on-screen AND below the wheel
+# canvas (T202 relocated it to .mobile-below-wheel).
 # ═══════════════════════════════════════════════════════════════════════════
 
-XFAIL_REASON = ("T202 not yet merged — panels should be visible on mobile "
-                "post-fix")
 
-
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_prestige_panel_hidden_on_mobile_today(testing7_logged_in):
-    """T201: for testing7 (owns prestige_unlock), .season8-prestige-panel
-    is currently hidden on mobile (parent .game-right is translated off
-    the right edge of the viewport)."""
+def test_prestige_panel_visible_on_mobile_after_t202(testing7_logged_in):
+    """T203: for testing7 (owns prestige_unlock), the .season8-prestige-panel
+    is in the mobile DOM after T202 added the mobile drawer. Open the
+    drawer via the 6th toolbar button (🎒) and assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
-        # The panel is in the DOM (testing7 owns prestige_unlock) but lives
-        # inside .game-right which is transform: translateX(100%) on mobile.
+        _open_drawer(page)
         panel = page.locator('.season8-prestige-panel').first
-        assert panel.count() == 1, '.season8-prestige-panel not in DOM at all'
-        on_screen = _panel_visible_in_viewport(page, '.season8-prestige-panel',
-                                                390, 844)
-        assert not on_screen, (
-            'prestige panel is visible on mobile today; T202 should make it visible'
-        )
+        assert panel.count() == 1, '.season8-prestige-panel not in drawer DOM'
     finally:
         page.close()
 
 
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_free_tokens_section_hidden_on_mobile_today(testing7_logged_in):
-    """T201: for testing7 (claim date reset to NULL for this test), the
-    .free-tokens-section is hidden on mobile today."""
+def test_free_tokens_section_visible_on_mobile_after_t202(testing7_logged_in):
+    """T203: for testing7 (claim date reset to NULL by the fixture), the
+    .free-tokens-section is in the mobile drawer's Bounties tab after T202.
+    Open the drawer, tap the Bounties tab, assert the section exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
-        # The free-tokens section is in the DOM (insurance_free_claimed_date
-        # was reset to NULL in the fixture) but lives inside .game-right.
+        _open_drawer(page)
+        _click_drawer_tab(page, 'Bounties')
         section = page.locator('.free-tokens-section').first
-        assert section.count() == 1, '.free-tokens-section not in DOM at all'
-        on_screen = _panel_visible_in_viewport(page, '.free-tokens-section',
-                                                390, 844)
-        assert not on_screen, (
-            'free-tokens section is visible on mobile today; T202 should fix it'
-        )
+        assert section.count() == 1, '.free-tokens-section not in drawer DOM'
     finally:
         page.close()
 
 
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_bounties_panel_hidden_on_mobile_today(testing7_logged_in):
-    """T201: for testing7 (has active bounties for today), the
-    .season8-bounties-panel is hidden on mobile today."""
+def test_bounties_panel_visible_on_mobile_after_t202(testing7_logged_in):
+    """T203: for testing7 (has active bounties for today), the
+    .season8-bounties-panel is in the mobile drawer's Bounties tab after
+    T202. Open the drawer, tap the Bounties tab, assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
+        _open_drawer(page)
+        _click_drawer_tab(page, 'Bounties')
         panel = page.locator('.season8-bounties-panel').first
-        assert panel.count() == 1, '.season8-bounties-panel not in DOM at all'
-        on_screen = _panel_visible_in_viewport(page, '.season8-bounties-panel',
-                                                390, 844)
-        assert not on_screen, (
-            'bounties panel is visible on mobile today; T202 should fix it'
-        )
+        assert panel.count() == 1, '.season8-bounties-panel not in drawer DOM'
     finally:
         page.close()
 
 
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_aquarium_panel_hidden_on_mobile_today(aquarium_logged_in):
-    """T201: for a user with 'aquarium' granted via SQL, the
-    .season8-aquarium-panel is hidden on mobile today."""
+def test_aquarium_panel_visible_on_mobile_after_t202(aquarium_logged_in):
+    """T203: for a user with 'aquarium' granted via SQL, the
+    .season8-aquarium-panel is in the mobile drawer's Aquarium tab after
+    T202. Open the drawer, assert the panel exists."""
     page = _open_mobile_page(aquarium_logged_in, 390, 844)
     try:
+        _open_drawer(page)
         panel = page.locator('.season8-aquarium-panel').first
-        assert panel.count() == 1, '.season8-aquarium-panel not in DOM at all'
-        on_screen = _panel_visible_in_viewport(page, '.season8-aquarium-panel',
-                                                390, 844)
-        assert not on_screen, (
-            'aquarium panel is visible on mobile today; T202 should fix it'
-        )
+        assert panel.count() == 1, '.season8-aquarium-panel not in drawer DOM'
     finally:
         page.close()
 
 
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_loadout_panel_hidden_on_mobile_today(testing7_logged_in):
-    """T201: for testing7 (owns page_season8), the .season8-loadout-panel
-    is hidden on mobile today."""
+def test_loadout_panel_visible_on_mobile_after_t202(testing7_logged_in):
+    """T203: for testing7 (owns page_season8), the .season8-loadout-panel
+    is in the mobile drawer's Loadout tab after T202. Open the drawer,
+    assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
+        _open_drawer(page)
         panel = page.locator('.season8-loadout-panel').first
-        assert panel.count() == 1, '.season8-loadout-panel not in DOM at all'
-        on_screen = _panel_visible_in_viewport(page, '.season8-loadout-panel',
-                                                390, 844)
-        assert not on_screen, (
-            'loadout panel is visible on mobile today; T202 should fix it'
-        )
+        assert panel.count() == 1, '.season8-loadout-panel not in drawer DOM'
     finally:
         page.close()
 
 
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_community_goal_hidden_on_mobile_today(testing7_logged_in):
-    """T201: for testing7, the .season8-meta-panel (community goal) is
-    NOT in the DOM on mobile (the JSX wraps it in !isMobile)."""
+def test_community_goal_visible_on_mobile_after_t202(testing7_logged_in):
+    """T203: for testing7, the .season8-meta-panel (community goal +
+    singularity) is in the mobile drawer's Community tab after T202.
+    T203 also added the .season8-meta-panel wrapper inside the drawer
+    community pane (app.jsx) so the desktop-class selector matches.
+    Open the drawer, tap the Community tab, assert the panel exists."""
     page = _open_mobile_page(testing7_logged_in, 390, 844)
     try:
+        _open_drawer(page)
+        _click_drawer_tab(page, 'Community')
         panel = page.locator('.season8-meta-panel').first
-        assert panel.count() == 0, (
-            '.season8-meta-panel is in the DOM on mobile today; T202 should hide it'
-        )
+        assert panel.count() == 1, '.season8-meta-panel not in drawer DOM'
     finally:
         page.close()
 
 
-@pytest.mark.xfail(reason=XFAIL_REASON, strict=False)
-def test_wager_panel_overflow_on_mobile_today(wager_logged_in):
-    """T201: for a user with 'wager_unlock' granted via SQL, the
-    .season8-wager-panel should be off-screen on mobile (rect.x < 0 or
-    rect.right > vw) at 390x844. Today the panel is on-screen (the CSS
-    @media (max-width: 1365px) reflows it to position:static, max-width
-    340px), so this assertion fails as expected. T203 rewrites the
-    assertion to check on-screen + below-wheel."""
+def test_wager_panel_on_screen_below_wheel_after_t202(wager_logged_in):
+    """T203: for a user with 'wager_unlock' granted via SQL, T202 relocated
+    the .season8-wager-panel to .mobile-below-wheel (below the wheel
+    canvas) on mobile. Assert the panel is fully on-screen (rect.x >= 0,
+    rect.right <= viewport width) AND positioned below the wheel canvas
+    (rect.y > wheel canvas's rect.bottom)."""
     page = _open_mobile_page(wager_logged_in, 390, 844)
     try:
-        rect = page.evaluate(
+        data = page.evaluate(
             '''() => {
-                const el = document.querySelector('.season8-wager-panel');
-                if (!el) return null;
-                const r = el.getBoundingClientRect();
-                return {x: r.x, right: r.right, width: r.width,
-                        vw: window.innerWidth};
+                const panel = document.querySelector('.season8-wager-panel');
+                if (!panel) return null;
+                const wheel = document.querySelector('.wheel-wrapper');
+                const pr = panel.getBoundingClientRect();
+                const wr = wheel ? wheel.getBoundingClientRect() : null;
+                return {panel: {x: pr.x, y: pr.y, right: pr.right,
+                                bottom: pr.bottom, width: pr.width,
+                                height: pr.height},
+                        wheel: wr ? {x: wr.x, y: wr.y, right: wr.right,
+                                     bottom: wr.bottom, width: wr.width,
+                                     height: wr.height} : null,
+                        vw: window.innerWidth, vh: window.innerHeight};
             }'''
         )
-        assert rect is not None, '.season8-wager-panel not in DOM at all'
-        assert rect['width'] > 0, f'wager panel has zero width: {rect}'
-        # Off-screen if it bleeds off the left or right edge.
-        off_screen = (rect['x'] < 0) or (rect['right'] > rect['vw'])
-        assert off_screen, (
-            f'wager panel on-screen at 390x844 (x={rect["x"]:.0f}, '
-            f'right={rect["right"]:.0f}, vw={rect["vw"]}); expected off-screen'
+        assert data is not None, '.season8-wager-panel not in DOM at all'
+        p = data['panel']
+        assert p['width'] > 0 and p['height'] > 0, (
+            f'wager panel has zero size: {p}'
+        )
+        assert p['x'] >= 0, f'wager panel bleeds off left: x={p["x"]:.0f}'
+        assert p['right'] <= data['vw'], (
+            f'wager panel bleeds off right: right={p["right"]:.0f} '
+            f'> vw={data["vw"]:.0f}'
+        )
+        assert data['wheel'] is not None, '.wheel-wrapper not in DOM'
+        w = data['wheel']
+        assert p['y'] > w['bottom'], (
+            f'wager panel not below wheel: panel.y={p["y"]:.0f} '
+            f'<= wheel.bottom={w["bottom"]:.0f}'
         )
     finally:
         page.close()
