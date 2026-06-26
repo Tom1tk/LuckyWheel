@@ -4258,18 +4258,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T119: spend an insurance token to buy one insurance charge. URL
   // renamed from /api/wager/insurance/buy to /api/insurance/buy; cap
   // removed (1 token = 1 charge, no max).
-  const handleBuyInsuranceWithTokens = useCallback(async () => {
-    const { ok, data } = await apiGame('/api/insurance/buy', { method: 'POST', body: JSON.stringify({ token_cost: 1 }) });
-    if (ok) {
-      if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
-      if (data.insurance_charges != null) setInsuranceCharges(data.insurance_charges);
-      const granted = data.granted || 0;
-      showToast(granted > 0 ? `🪙 Bought ${granted} insurance charge` : 'No charges granted');
-    } else {
-      showToast(data.error || 'Buy insurance failed');
-    }
-  }, [showToast]);
-
+  // [Removed 2026-06-26: the buy-charge button was confusing — the
+  // operator cut it from the UI. Arm insurance now consumes a token
+  // directly, so the token→charge exchange has no role.]
   // T119: claim 3 free insurance tokens once per UTC day.
   const handleClaimFreeTokens = useCallback(async () => {
     const { ok, data } = await apiGame('/api/insurance/claim-free', { method: 'POST', body: JSON.stringify({}) });
@@ -4712,11 +4703,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
               )}
               {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
-                <button className="wager-action-btn" onClick={handleInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">🛡️ Arm Insurance ({insuranceTokens} tokens)</button>
-              )}
-              {ownedItems.includes('wager_insurance') && !insuranceArmed
-                && ownedItems.includes('fish_to_wager') && insuranceTokens >= 1 && (
-                <button className="wager-action-btn wager-buy-insurance-btn" onClick={handleBuyInsuranceWithTokens}>🪙 Buy 1 charge (1 token)</button>
+                <button className="wager-action-btn" onClick={handleInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">Insurance</button>
               )}
               </>)}
               {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
@@ -4889,15 +4876,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   "Claimed today" indicator after the claim succeeds. The
                   section is always present (the operator wants the player
                   to see the daily ceiling, not have the panel disappear). */}
-              <div className="free-tokens-section">
-                {insuranceFreeClaimedToday ? (
-                  <div className="free-tokens-claimed">✓ 3 free tokens claimed today</div>
-                ) : (
+              {!insuranceFreeClaimedToday && (
+                <div className="free-tokens-section">
                   <button className="free-tokens-claim-btn" onClick={handleClaimFreeTokens}>
                     🪙 Claim 3 free tokens
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Season 8: Bounties panel */}
               {bounties && bounties.length > 0 && (
