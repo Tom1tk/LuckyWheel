@@ -5249,21 +5249,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <div className="mobile-backdrop" onClick={() => { setMobilePanel(null); setMobileDrawerOpen(false); }} />
       )}
 
-      {/* T204: mobile drawer — single long scrollable column containing
+      {/* T204/T205: mobile drawer — single long scrollable column containing
           all S8 sub-menus (Prestige, Free Tokens, Bounties, Aquarium,
           Loadout, Community + Singularity). No tabs — operator wants
-          all sub-menus visible at once like the desktop sidebar. The
-          drawer is closed by default (transform: translateX(100%));
-          the 🎒 button on the toolbar toggles it. */}
+          all sub-menus visible at once like the desktop sidebar. T205
+          dropped the header/close button — open/close is via the 🎒
+          toolbar icon only. The drawer is closed by default (transform:
+          translateX(100%)); the 🎒 button on the toolbar toggles it. */}
       {isMobile && (
         <div className={`mobile-drawer${mobileDrawerOpen ? ' mobile-drawer-open' : ''}`}>
           <div className="mobile-drawer-section">
-            <div className="mobile-drawer-header">
-              <span>📋 S8 Menu</span>
-              <button className="mobile-drawer-close"
-                      onClick={() => setMobileDrawerOpen(false)}
-                      title="Close">✕</button>
-            </div>
             <PrestigePanel
               ownedItems={ownedItems}
               prestigeLevel={prestigeLevel}

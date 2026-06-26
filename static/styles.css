@@ -5314,13 +5314,13 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   .mobile-drawer {
     position: fixed;
     right: 0;
-    top: 0;
-    bottom: 0;
+    top: 56px;
+    bottom: 56px;
     width: min(360px, 92vw);
     transform: translateX(100%);
     transition: transform 0.25s ease;
     background: rgba(20, 20, 28, 0.96);
-    z-index: 10000;
+    z-index: 150;
     overflow-y: auto;
     padding: 12px;
     box-shadow: -4px 0 24px rgba(0,0,0,0.5);
@@ -5524,34 +5524,9 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   }
 }
 
-/* T204: mobile drawer — tab-less long panel. Header with close button
-   at the top; S8 sub-menus stack underneath, scrollable. */
+/* T204/T205: mobile drawer — tab-less long panel. T205 dropped the
+   header/close button; S8 sub-menus stack underneath, scrollable. */
 @media (max-width: 768px) {
-  .mobile-drawer .mobile-drawer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 8px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    font-size: 0.85rem;
-    color: #fff;
-  }
-  .mobile-drawer .mobile-drawer-close {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    color: rgba(255,255,255,0.8);
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    line-height: 1;
-    padding: 0;
-  }
-  .mobile-drawer .mobile-drawer-close:hover {
-    background: rgba(255,255,255,0.08);
-  }
   /* T204: the drawer's children (S8 panels) are stacked naturally;
      no need for .mobile-drawer-section column flex. */
   .mobile-drawer .mobile-drawer-section {
