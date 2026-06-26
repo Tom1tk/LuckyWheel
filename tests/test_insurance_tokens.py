@@ -855,25 +855,6 @@ def test_jsx_free_tokens_section():
     )
 
 
-def test_buy_button_hidden_when_armed():
-    """T119 AC#16: the "Buy Insurance" button is hidden when
-    insuranceArmed is true. The JSX condition gates on
-    !insuranceArmed (was !wagerInsuranceArmed in T110/T74)."""
-    jsx = _read(JSX_PATH)
-    # Locate the buy button by its className.
-    pos = jsx.find("wager-buy-insurance-btn")
-    assert pos != -1, "JSX must include the wager-buy-insurance-btn element"
-    # Walk back to the start of the surrounding JSX expression and
-    # forward to the matching `)}`. The condition must include
-    # `!insuranceArmed`.
-    expr_start = jsx.rfind("{", 0, pos)
-    expr_end = jsx.find(")}", pos)
-    cond = jsx[expr_start:expr_end + 2]
-    assert "!insuranceArmed" in cond, (
-        f"buy button must be hidden when insurance is armed, condition was:\n{cond}"
-    )
-
-
 def test_pay_with_tokens_renamed():
     """T119 AC#17: the "Pay with tokens" toggle is renamed to "Pay with
     insurance tokens" (the old label was ambiguous between the

@@ -220,13 +220,14 @@ def _find_dd_arm_button(page):
 
 
 def _find_insurance_arm_button(page):
-    # T119: the arm button label changed from "🛡️ Insurance (N)" to
-    # "🛡️ Arm Insurance (N tokens)". The locator matches on "Arm
-    # Insurance" so it doesn't pick up the (now-hidden) buy button or
-    # the ARMED indicator.
+    # T119: the arm button label was simplified to just "Insurance"
+    # (the token count is shown in the wager-tokens-balance row above).
+    # The ARMED indicator (class .wager-cancel-btn) is excluded via
+    # :not(.wager-cancel-btn); the buy-with-tokens button is gone from
+    # the UI (2026-06-26).
     return page.locator(
-        'button.wager-action-btn:not(.wager-bank-btn)'
-    ).filter(has_text='Arm Insurance').first
+        'button.wager-action-btn:not(.wager-bank-btn):not(.wager-cancel-btn)'
+    ).filter(has_text='Insurance').first
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -273,9 +274,8 @@ def test_double_down_label_fully_visible_at_1366x768(armed_user):
 
 def test_insurance_label_fully_visible_at_1366x768(armed_user):
     """T116/T119: at 1366x768 the Insurance arm button renders its full
-    label. T119 renamed the label to "🛡️ Arm Insurance (N tokens)"
-    (was "🛡️ Insurance (N)") — the new label is longer and exercises
-    the wrap behaviour the T116 CSS introduced.
+    label. The label is just "Insurance" (simplified 2026-06-26 — the
+    token count is in the wager-tokens-balance row above the buttons).
     """
     page = armed_user['page']
     page.set_viewport_size({'width': 1366, 'height': 768})
@@ -289,9 +289,9 @@ def test_insurance_label_fully_visible_at_1366x768(armed_user):
     panel_right = panel['x'] + panel['width']
 
     text = btn.evaluate('(el) => el.textContent.trim()')
-    assert text.startswith('🛡️ Arm Insurance'), (
-        f'Insurance arm button label is {text!r}; expected to start with '
-        '"🛡️ Arm Insurance" (T119)'
+    assert text == 'Insurance', (
+        f'Insurance arm button label is {text!r}; expected exactly "Insurance" '
+        '(simplified 2026-06-26)'
     )
     assert '…' not in text and '...' not in text, (
         f'Insurance arm button label still shows an ellipsis: {text!r}'

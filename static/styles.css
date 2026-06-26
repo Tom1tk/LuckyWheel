@@ -4883,9 +4883,22 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   text-transform: uppercase;
   font-family: inherit;
   align-self: flex-start;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
   transition: opacity 0.15s;
 }
 .bounty-claim-btn:hover { opacity: 0.82; }
+
+/* Match the claim button's reserved height so the panel doesn't jump
+   when a card flips from "claim" to "claimed". */
+.bounty-claimed {
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6rem;
+  color: #4caf50;
+}
 
 /* T119: free-tokens section — sits above the bounties panel. A single
    row, themed to match the bounty panel. The claim button uses a

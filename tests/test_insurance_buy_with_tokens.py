@@ -339,59 +339,29 @@ def test_buy_endpoint_registered_in_game_py():
 def test_buy_handler_wired_in_jsx():
     """T119: a callback + button must exist in app.jsx for the buy flow.
     The new buy URL is /api/insurance/buy; the button label uses
-    insuranceTokens (was wagerTokens)."""
-    src = open(os.path.join(REPO, 'static', 'app.jsx')).read()
-    # Endpoint URL is the new /api/insurance/buy.
+    insuranceTokens (was wagerTokens).
+
+    [Updated 2026-06-26: the "Buy 1 charge" button was removed from the
+    UI per the operator's request — they didn't know what it did. The
+    /api/insurance/buy endpoint is still registered (T110's buy with
+    tokens mechanic is preserved for any future re-enable), but the
+    button + handler are gone. This test now only asserts the endpoint
+    is registered in game.py and reachable from app.js (bundle).]"""
+    src = open(os.path.join(REPO, 'game.py')).read()
     assert "/api/insurance/buy" in src, (
-        "the buy callback must POST to /api/insurance/buy (T119 renamed)"
+        "game.py must register POST /api/insurance/buy (T119 renamed from /api/wager/insurance/buy)"
     )
-    # The column is now insurance_tokens; the JSX variable is
-    # insuranceTokens (T119 renamed from wagerTokens).
-    assert "setInsuranceTokens(data.insurance_tokens)" in src, (
-        "buy callback must call setInsuranceTokens(data.insurance_tokens) "
-        "(T119 renamed from setWagerTokens(data.wager_tokens))"
+    bundle = open(os.path.join(REPO, 'static', 'app.js')).read()
+    assert "/api/insurance/buy" in bundle, (
+        "the bundle (static/app.js) must include the /api/insurance/buy URL "
+        "(JSX handler may have been removed from the UI, but the bundle still "
+        "carries the URL for any future re-enable)"
     )
-    assert "setInsuranceCharges(data.insurance_charges)" in src, (
-        "buy callback must call setInsuranceCharges(data.insurance_charges) "
-        "(T119 renamed from setWagerInsuranceCharges(data.wager_insurance_charges))"
+    # JSX no longer contains the buy button.
+    jsx = open(os.path.join(REPO, 'static', 'app.jsx')).read()
+    assert "wager-buy-insurance-btn" not in jsx, (
+        "the wager-buy-insurance-btn className must be gone (button removed from UI 2026-06-26)"
     )
-    assert "wager-buy-insurance-btn" in src, (
-        "the wager panel must still have a 'wager-buy-insurance-btn' element"
-    )
-    # T119: button label is "Buy 1 charge (1 token)" (T110's
-    # "Buy Insurance" label was a bit ambiguous — T119 clarifies it
-    # converts 1 token to 1 charge).
-    assert "Buy 1 charge" in src, (
-        "the buy button must include the new 'Buy 1 charge' text (T119)"
-    )
-    # The condition no longer references a cap (the cap is removed).
-    # The button is gated on insuranceTokens >= 1, ownership, and not armed.
-    assert "insuranceTokens >= 1" in src, (
-        "the buy button must be gated on insuranceTokens >= 1 "
-        "(T119 renamed from wagerTokens >= 1)"
-    )
-    assert "fish_to_wager" in src.split("wager-buy-insurance-btn", 1)[0], (
-        "the buy button must still be gated on fish_to_wager ownership"
-    )
-    # T119: the "Buy Insurance" button is hidden when insurance is armed.
-    # The condition includes `!insuranceArmed` (was `!wagerInsuranceArmed`).
-    # Walk from the button to find the surrounding JSX gate expression.
-    pos = src.find("wager-buy-insurance-btn")
-    assert pos != -1
-    expr_start = src.rfind("{", 0, pos)
-    expr_end = src.find(")}", pos)
-    cond = src[expr_start:expr_end + 2]
-    assert "!insuranceArmed" in cond, (
-        f"buy button must be hidden when insurance is armed, condition was:\n{cond}"
-    )
-    # T119: the cap is removed. The old "wagerInsuranceMaxCharges" reference
-    # is gone, and no "wager_insurance_max_charges" key is read.
-    assert "wagerInsuranceMaxCharges" not in cond, (
-        f"buy button must not reference the removed cap constant, condition was:\n{cond}"
-    )
-    # The /api/state no longer exposes wager_insurance_max_charges; the
-    # JSX must not read it.
-    full_jsx = src
-    assert "wager_insurance_max_charges" not in full_jsx, (
-        "JSX must not read the removed wager_insurance_max_charges key from /api/state"
+    assert "Buy 1 charge" not in jsx, (
+        "the 'Buy 1 charge' button label must be gone (button removed from UI 2026-06-26)"
     )
