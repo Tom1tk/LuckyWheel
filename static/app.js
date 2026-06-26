@@ -3307,12 +3307,9 @@ function Leaderboard(_ref20) {
   }, "Player"), /*#__PURE__*/React.createElement("span", {
     className: "lb-wins-h"
   }, "W"), /*#__PURE__*/React.createElement("span", {
-    className: "lb-wp-h",
-    title: "Win Power level"
-  }, "WP"), /*#__PURE__*/React.createElement("span", {
-    className: "lb-bp-h",
-    title: "Bonus Power level"
-  }, "BP"), /*#__PURE__*/React.createElement("span", {
+    className: "lb-prestige-h",
+    title: "Prestige level"
+  }, "\u2605"), /*#__PURE__*/React.createElement("span", {
     className: "lb-streak-h"
   }, "\uD83D\uDD25")), rows.map(function (r, i) {
     return /*#__PURE__*/React.createElement("div", {
@@ -3325,10 +3322,8 @@ function Leaderboard(_ref20) {
     }, r.username), /*#__PURE__*/React.createElement("span", {
       className: "lb-wins"
     }, fmt(r.wins)), /*#__PURE__*/React.createElement("span", {
-      className: "lb-wp"
-    }, r.winmult_inf_level > 0 ? r.winmult_inf_level : '—'), /*#__PURE__*/React.createElement("span", {
-      className: "lb-bp"
-    }, r.bonusmult_inf_level > 0 ? r.bonusmult_inf_level : '—'), /*#__PURE__*/React.createElement("span", {
+      className: "lb-prestige"
+    }, r.prestige_level > 0 ? "Lv".concat(r.prestige_level) : '—'), /*#__PURE__*/React.createElement("span", {
       className: "lb-streak ".concat(infernoClass(r.streak))
     }, r.streak > 0 ? "".concat(r.streak, "\uD83D\uDD25") : r.streak < 0 ? "".concat(r.streak, "\uD83D\uDC80") : '0'));
   })), tab === 'winners' && /*#__PURE__*/React.createElement("div", {

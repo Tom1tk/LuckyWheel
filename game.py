@@ -3022,8 +3022,7 @@ def leaderboard():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
-                              gs.winmult_inf_level, gs.bonusmult_inf_level,
-                              gs.last_spin_at
+                              gs.prestige_level, gs.last_spin_at
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
                        WHERE gs.wins > 0
@@ -3038,14 +3037,17 @@ def leaderboard():
             last_spin = _aware(last_spin)
             active = last_spin and (now_utc - last_spin).total_seconds() < 86400
             result.append({
-                'username':           r['username'],
-                'wins':               int(r['wins']),
-                'losses':             r['losses'],
-                'streak':             r['streak'],
-                'best_streak':        r['best_streak'],
-                'winmult_inf_level':  r['winmult_inf_level'],
-                'bonusmult_inf_level': r['bonusmult_inf_level'],
-                'active':             bool(active),
+                'username':        r['username'],
+                'wins':            int(r['wins']),
+                'losses':          r['losses'],
+                'streak':          r['streak'],
+                'best_streak':     r['best_streak'],
+                # T121 follow-up: replace the retired Win Power / Bonus
+                # Power infinite-upgrade columns with prestige_level.
+                # Both winmult_inf_level and bonusmult_inf_level are
+                # retired (zero on every player since the S8 reset).
+                'prestige_level':  r.get('prestige_level', 0),
+                'active':          bool(active),
             })
         return jsonify(result)
     except Exception:
