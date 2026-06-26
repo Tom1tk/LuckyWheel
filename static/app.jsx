@@ -4024,6 +4024,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     inverted:    { label: 'Inverted',    desc: '60% win · 35% loss · 5% jackpot. Losses still build your streak bonus.' },
     gravity:     { label: 'Gravity',     desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.' },
     mirror:      { label: 'Mirror',      desc: '65% win · 30% loss · 5% jackpot. Two spins resolved; the better result wins.' },
+    long_shot:   { label: 'Long Shot',   desc: '20% win · 60% loss · 20% jackpot (×10). Most spins lose; jackpots hit often but pay less.' },
     singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
   };
 

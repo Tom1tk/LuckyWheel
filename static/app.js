@@ -6966,6 +6966,10 @@ function GameApp(_ref28) {
       label: 'Mirror',
       desc: '65% win · 30% loss · 5% jackpot. Two spins resolved; the better result wins.'
     },
+    long_shot: {
+      label: 'Long Shot',
+      desc: '20% win · 60% loss · 20% jackpot (×10). Most spins lose; jackpots hit often but pay less.'
+    },
     singularity: {
       label: 'Singularity',
       desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.'
