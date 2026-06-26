@@ -7997,3 +7997,250 @@ chosen):**
 ticket is independent and can be picked up by a sub-agent. The branch
 naming convention is `t###-<short-slug>` per the SEASON_8_TICKETS.md
 hard-constraints convention.*
+
+### T216: Auto-spin runs invisibly in the background — wins/streak accumulate without user awareness
+
+- **Status:** [ ] (2026-06-27) — URGENT, reported by operator on main
+- **Discovered:** 2026-06-27 ~00:43 (operator: "very strange and urgent bug,
+  my wins keep jumping without me doing anything. I haven't been spinning
+  the wheel but for some reason I have almost 4 million wins all of a sudden?
+  auto spin is not on and im not clicking. I also have a 39x win streak?
+  is there leftover 'afk' behaviour kicking in here?")
+- **Files:** `game.py`, `static/app.jsx`, `static/styles.css`, `tests/test_auto_spin_visibility.py` (new)
+- **Depends on:** none
+
+**Operator's vision (verbatim 2026-06-27):** "very strange and urgent bug, my
+wins keep jumping without me doing anything. I haven't been spinning the
+wheel but for some reason I have almost 4 million wins all of a sudden?
+auto spin is not on and im not clicking. I also have a 39x win streak?
+is there leftover 'afk' behaviour kicking in here?"
+
+**Bug investigation (what actually happened):**
+
+The server access log shows the operator (tom7) made **3 explicit
+`POST /api/auto-spin/start` calls** during their S8 testing session:
+
+```
+23:59:07  POST /api/auto-spin/start   (right after rollover — exploring S8)
+00:04:34  POST /api/auto-spin/start   (5 min later — restarted)
+00:38:30  POST /api/spin              (one manual spin)
+00:38:32  POST /api/auto-spin/start   (2s later — THIS one ran 5 min unchecked)
+```
+
+The checkbox `onChange` at `static/app.jsx:5021` is the **only** code path
+that calls `handleStartAutoSpin`. There is no client-side auto-trigger.
+The operator clicked the auto-spin checkbox (likely while testing the new
+S8 features) and walked away. The server kept running auto-spins via
+`/api/tick` every 3 seconds until the 100-spin budget was exhausted at
+~00:43:30. During that 5-minute window:
+
+- spin_count went from 140 → 365 (225 extra spins, but only 100 were
+  the auto-spin budget; the other 125 were earlier in the session)
+- wins went from 140 → 3,736,603 (3.7M wins accumulated during auto-spin
+  at 0% stake)
+- streak climbed to 39 (each auto-spin at 0% stake resolves the wheel
+  normally; on steady mode the win probability is ~50% so a 39-streak
+  is plausible)
+
+**Why it feels like AFK behaviour:**
+
+1. **Auto-spin state is server-side** — `auto_spin_since` (timestamp) +
+   `auto_spin_budget` (int) on `game_state`. Persists across page
+   reloads indefinitely until budget is exhausted OR the user explicitly
+   stops it.
+2. **No visual indicator of remaining budget** — the checkbox is checked,
+   but the player has no way to know "73 spins left" or "1 minute to go".
+   The player can easily forget it's running.
+3. **No auto-stop on page unload** — closing the tab does NOT stop
+   auto-spin. The server keeps running until budget hits 0.
+4. **Resume on page load** — when the player opens the page later,
+   `/api/state` returns `auto_spin_active: true` and the client
+   silently re-starts the 3-second tick interval. The player sees
+   their wins climbing and assumes "this is broken" — not "I left
+   auto-spin on 30 minutes ago".
+
+**Goal:** Make auto-spin visible and bounded so the player can never
+lose track of it. Specifically:
+
+1. **Visible budget counter** — when auto-spin is active, the wager
+   panel / spin area shows "🔁 Auto-spin: 73/100 spins left" in a
+   small badge. The counter updates as the server processes spins.
+2. **No resume on page load** — if `/api/state` returns
+   `auto_spin_active: true` (server is mid-session), the client
+   **does not** start ticking. Instead it shows a toast:
+   "Auto-spin was running on the server (52/100 left). It has been
+   stopped. Click the checkbox to start a new session." The server
+   clears its state on this first contact from the new tab.
+3. **Heartbeat-based auto-stop** — the server tracks the timestamp
+   of the last `/api/tick` from the player's session. If 60s pass
+   without a tick, the server auto-stops the auto-spin
+   (`auto_spin_since = NULL, auto_spin_budget = 0`). This catches
+   the case where the player closes the tab or the network drops
+   without an explicit stop.
+
+**Diagnosis (what to edit):**
+
+**A. Server-side heartbeat + auto-stop (`game.py`):**
+
+The `/api/tick` endpoint (at `game.py:1557`) already runs on every
+auto-spin tick. Add a `last_tick_at` column to `game_state` (or use
+`last_spin_at` as a proxy — it's already updated each tick) and a
+check at the start of the tick handler:
+
+```python
+# Auto-stop if the client hasn't ticked in 60 seconds (tab closed
+# or network dropped without an explicit /api/auto-spin/stop).
+if gs.get('auto_spin_since') is not None and gs.get('last_spin_at') is not None:
+    last_tick = _aware(gs['last_spin_at'])
+    if (now_utc - last_tick).total_seconds() > 60 and int(gs.get('auto_spin_budget', 0)) > 0:
+        # Also catches the "first tick of a stale session" case where
+        # auto_spin_since is from a previous tab and last_spin_at is
+        # also stale.
+        log.warning('AUTO_SPIN_STALE: user_id=%s, no tick for %ds, auto-stopping',
+                    current_user.id, int((now_utc - last_tick).total_seconds()))
+        cur.execute(
+            'UPDATE game_state SET auto_spin_since = NULL, auto_spin_budget = 0 WHERE user_id = %s',
+            (current_user.id,),
+        )
+        conn.commit()
+        return jsonify({'spins': [], 'auto_spin_active': False, 'auto_spin_stopped': 'stale', 'elapsed_ms': 0})
+```
+
+**B. Client-side: don't resume on page load (`static/app.jsx`):**
+
+In the state-sync `useEffect` (around line 4282):
+```js
+if (gameState.auto_spin_active != null) {
+  if (gameState.auto_spin_active === true) {
+    // Stale server state from a previous tab/session. Auto-stop and
+    // notify the player. They can restart manually if they want.
+    apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' })
+      .then(() => showToast('Auto-spin was running on the server — stopped. Click the checkbox to start a new session.'));
+    setAutoSpinActive(false);
+    setAutoSpinBudget(0);
+  } else {
+    setAutoSpinActive(false);
+    setAutoSpinBudget(0);
+  }
+}
+```
+
+This means: if a player refreshes or opens a new tab while auto-spin is
+still running server-side, the page will NOT continue auto-spinning. The
+existing budget is forfeited (cleared on first contact).
+
+**C. Visible budget counter (CSS + JSX):**
+
+Add a small badge below the auto-spin checkbox (in the
+`.autospin-row` block at `static/app.jsx:5016-5027`):
+
+```jsx
+{autoSpinActive && (
+  <span className="autospin-budget">
+    🔁 {autoSpinBudget} spins left
+  </span>
+)}
+```
+
+CSS in `static/styles.css` (within the existing `.autospin-row` rules):
+```css
+.autospin-budget {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--p-lt);
+  text-align: center;
+}
+```
+
+The `autoSpinBudget` state is already updated by the tick handler at
+`static/app.jsx:4077` (`if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);`),
+so it will tick down as spins are processed.
+
+**Acceptance criteria:**
+
+1. With auto-spin OFF and `auto_spin_budget = 0`: opening the page
+   shows the checkbox unchecked and the budget badge is hidden.
+2. With auto-spin ON (server `auto_spin_active = true`, budget > 0):
+   - The checkbox is checked.
+   - The budget badge "🔁 {N} spins left" is visible below the checkbox.
+   - The budget ticks down with each /api/tick.
+3. **Page reload while auto-spin is active:** the new page does NOT
+   resume auto-spin. A toast appears: "Auto-spin was running on the
+   server — stopped. Click the checkbox to start a new session." The
+   server's `auto_spin_since` and `auto_spin_budget` are cleared.
+4. **Tab closed (no /api/tick for 60s) while auto-spin is active:** the
+   next time /api/tick fires (e.g., from a different tab or after the
+   player returns), the server detects the stale session, logs
+   `AUTO_SPIN_STALE: user_id=...`, and returns
+   `auto_spin_active: false, auto_spin_stopped: 'stale'`. The next
+   tick returns no spins.
+5. **No data loss** — the player's wins/losses from the auto-spin
+   session are preserved. The fix only changes auto-spin state
+   management, not the spin history.
+6. All existing tests pass; new tests in
+   `tests/test_auto_spin_visibility.py` cover the resume-prevention
+   and stale-detection logic.
+
+**Files to touch:**
+
+- `game.py` (the `/api/tick` endpoint — add the stale-detection
+  check at the top)
+- `static/app.jsx` (state sync at line 4282 — add the resume-prevention;
+  the wager panel at line 5016 — add the budget badge)
+- `static/styles.css` (add `.autospin-budget` rule)
+- `tests/test_auto_spin_visibility.py` (new file)
+
+**Files NOT to touch:**
+
+- `seasons.py` (auto-spin state is not part of season rollover logic
+  beyond the existing `auto_spin_since = NULL` reset)
+- The `auto_spin_start` / `auto_spin_stop` endpoints themselves — only
+  add stale-detection in `tick`, not the start/stop
+- The existing `autoSpinActive` useEffect at line 4241 (the 3-second
+  polling interval) — only the state-sync at line 4282 changes
+- Any wager / DD / insurance logic
+
+**Test additions (REQUIRED):**
+
+New file `tests/test_auto_spin_visibility.py`:
+
+- `test_no_resume_on_page_load` — set server `auto_spin_active = true,
+  budget = 50`. Call /api/state from a fresh client session. Assert
+  the response has `auto_spin_active: false` (or that the client-side
+  flow auto-stops and clears the server state). Verify the server's
+  `auto_spin_budget` is now 0 after the call.
+- `test_stale_session_auto_stopped` — set `auto_spin_active = true,
+  last_spin_at = NOW() - INTERVAL '90 seconds'`. Call /api/tick.
+  Assert response has `auto_spin_active: false,
+  auto_spin_stopped: 'stale'`. Assert the server's
+  `auto_spin_since IS NULL`.
+- `test_fresh_session_keeps_running` — set `auto_spin_active = true,
+  last_spin_at = NOW() - INTERVAL '5 seconds'`. Call /api/tick.
+  Assert response has `auto_spin_active: true` and the tick processes
+  spins normally.
+- `test_budget_badge_visible` — Playwright e2e: load page with
+  auto-spin active, assert `.autospin-budget` is in the DOM and shows
+  a number.
+- `test_toast_on_resume_prevention` — Playwright e2e: with server
+  auto-spin active, load the page, assert the toast appears within
+  2 seconds and the auto-spin checkbox is unchecked.
+
+**Hard constraints:**
+
+- ONE commit on a new branch `t216-auto-spin-visibility`.
+- Do NOT push, do NOT merge.
+- Do NOT change the spin outcome logic (still 0% stake, 50% win rate).
+- Do NOT change the existing `/api/auto-spin/start` and
+  `/api/auto-spin/stop` endpoints' signatures.
+- The heartbeat threshold (60s) is a magic number — leave a comment
+  referencing the ticket and explaining the choice (60s = 20 missed
+  ticks at 3s/tick; gives time for slow networks but catches
+  abandoned tabs).
+- After commit, report: chosen approach for the 3 changes (A/B/C),
+  commit SHA, diff stat, pytest tail, and a Playwright measurement
+  of the badge text + a manual stop / start cycle.
+
+**Postmortem link:** This bug is the third major issue from the S8
+launch (after T122: page_season9 cosmetic bug, and T123: chat username
+regression). See `SEASON_8_LAUNCH_POSTMORTEM.md` for context.
