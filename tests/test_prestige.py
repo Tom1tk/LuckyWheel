@@ -124,7 +124,6 @@ def _install_stubs():
         compute_stake_risk=lambda *a, **kw: 0,
         compute_max_stake_pct=lambda *a, **kw: 30,
         compute_stake_value=lambda *a, **kw: 0,
-        _recharge_wager_insurance=lambda *a, **kw: None,
         HIGH_STAKE_TOKEN_THRESHOLD=30,
     ))
     sys.modules.setdefault('wheel_modes', _make_stub('wheel_modes',
@@ -438,7 +437,7 @@ def _drive_prestige(gs, *, capture_log=True):
     full_gs.setdefault('prestige_count', 0)
     full_gs.setdefault('legacy_wins', 0)
     full_gs.setdefault('onboarding_step', 0)
-    full_gs.setdefault('wager_tokens', 0)
+    full_gs.setdefault('insurance_tokens', 0)
     full_gs.setdefault('active_cosmetics', [])
     full_gs.setdefault('cosmetic_fragments', 0)
     full_gs.setdefault('caught_species', [])

@@ -276,7 +276,10 @@ def _invoke_bounties_endpoint(onboarding_step):
 
 
 def test_bounty_endpoint_advances_step_3_to_5():
-    """T87: step 3 → step 5 transition grants 100 wager_tokens and reports advance."""
+    """T87/T119: step 3 → step 5 transition advances the step but no
+    longer grants 100 tokens. T119 removed the onboarding token grant —
+    the only token sources are now: 3/day free claim, 1/2/3 per bounty,
+    +5 on first fish_to_wager purchase."""
     result, log = _invoke_bounties_endpoint(onboarding_step=3)
 
     assert result['onboarding_advance'] is True
@@ -284,7 +287,11 @@ def test_bounty_endpoint_advances_step_3_to_5():
     updates = [sql for sql in log if sql.lstrip().upper().startswith('UPDATE')]
     assert len(updates) == 1, f"expected one UPDATE, got: {updates}"
     assert 'onboarding_step = 5' in updates[0]
-    assert 'wager_tokens = wager_tokens + 100' in updates[0]
+    # T119: the 100-token grant is gone. The UPDATE only flips the step.
+    assert 'wager_tokens' not in updates[0], (
+        f"T119: the 100-token grant is removed, but UPDATE still references "
+        f"wager_tokens: {updates[0]}"
+    )
 
 
 def test_bounty_endpoint_no_advance_at_step_4():

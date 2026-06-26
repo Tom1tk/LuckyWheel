@@ -19,12 +19,11 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
-                    WAGER_INSURANCE_RECHARGE_SECONDS, WAGER_INSURANCE_MAX_CHARGES,
                     UPGRADE_TIER_THRESHOLDS, item_tier,
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
-                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC, FISH_TO_WAGER_RATES,
+                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
                     SINGULARITY_PER_PLAYER_CAP,
                     RETIRED_ITEMS)
 from seasons import ensure_current_season, get_season_info, advance_season
@@ -32,7 +31,7 @@ from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
                     compute_stake_risk, compute_max_stake_pct, compute_stake_value,
-                    _recharge_wager_insurance, HIGH_STAKE_TOKEN_THRESHOLD)
+                    HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
                      get_prestige_threshold, filter_kept_items,
@@ -118,11 +117,12 @@ _GAME_STATE_SQL = '''
            auto_fish_enabled, auto_fish_last_tick,
            prestige_level, prestige_count, legacy_wins, onboarding_step, auto_spin_budget,
            wager_streak, wager_last_stake, double_down_pending, wager_banked_wins,
-           wager_insurance_charges, wager_insurance_armed, active_wheel_mode,
-           wager_tokens, aquarium_species, cosmetic_fragments,
+           insurance_charges, insurance_armed, active_wheel_mode,
+           insurance_tokens, aquarium_species, cosmetic_fragments,
            guard_charges, guard_last_regen_spin, resilience_last_use_spin,
            bounty_claimed_date, biggest_win_announced,
-           wager_last_win_amount, wager_banked_losses, wager_insurance_last_recharge,
+           wager_last_win_amount, wager_banked_losses,
+           insurance_free_claimed_date, insurance_unlock_grant_given,
            gravity_drift
     FROM game_state WHERE user_id = %s
 '''
@@ -290,8 +290,10 @@ def _resolve_spin(
     gravity_drift: int = 0,
     # ── T79: inverted mode tracks banked losses ──
     wager_banked_losses: int = 0,
-    # ── T110: wager-token spend (1:1 with the wins cost) ──
-    wager_tokens: int = 0,
+    # ── T110: insurance-token spend (1:1 with the wins cost). T119
+    # renamed the column wager_tokens → insurance_tokens; the function
+    # parameter follows the new name.
+    insurance_tokens: int = 0,
     pay_with_tokens: bool = False,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
@@ -413,7 +415,7 @@ def _resolve_spin(
         pay_with_tokens
         and actual_stake >= HIGH_STAKE_TOKEN_THRESHOLD
         and not double_down_active
-        and wager_tokens > 0
+        and insurance_tokens > 0
     )
     if is_inverted:
         # T102: stake_losses = int(current_losses * stake_pct / 100), capped
@@ -433,8 +435,8 @@ def _resolve_spin(
         # T110: cover (part of) the stake with tokens; reduce the cash debit
         # by the same amount. 1:1 rate — see HIGH_STAKE_TOKEN_THRESHOLD.
         if token_spend_eligible and stake_losses > 0:
-            tokens_spent = min(wager_tokens, stake_losses)
-            wager_tokens -= tokens_spent
+            tokens_spent = min(insurance_tokens, stake_losses)
+            insurance_tokens -= tokens_spent
             stake_losses -= tokens_spent
         losses -= stake_losses
     else:
@@ -462,8 +464,8 @@ def _resolve_spin(
         # T110: cover (part of) the stake with tokens; reduce the cash debit
         # by the same amount. 1:1 rate — see HIGH_STAKE_TOKEN_THRESHOLD.
         if token_spend_eligible and stake_wins > 0:
-            tokens_spent = min(wager_tokens, stake_wins)
-            wager_tokens -= tokens_spent
+            tokens_spent = min(insurance_tokens, stake_wins)
+            insurance_tokens -= tokens_spent
             stake_wins -= tokens_spent
         wins -= stake_wins
 
@@ -834,9 +836,12 @@ def _resolve_spin(
         'gravity_drift':           gravity_drift,
         'gravity_drift_delta':     gravity_drift - original_gravity_drift,
         'wheel_probabilities':     response_probs,
-        # T110: wager-token spend accounting.
+        # T110/T119: insurance-token spend accounting. The key
+        # `insurance_tokens` is what the spin response and the
+        # insurance buy endpoint both read; the previous key
+        # `wager_tokens` was renamed for T119.
         'tokens_spent':            tokens_spent,
-        'wager_tokens':            wager_tokens,
+        'insurance_tokens':        insurance_tokens,
         'message':                 _build_spin_message(
             result=outcome, wins_delta=wins - original_wins, losses_delta=losses - original_losses,
             is_inverted=(active_wheel_mode == 'inverted'),
@@ -881,7 +886,7 @@ _RESPONSE_KEYS = (
     'wheel_probabilities',
     'active_wheel_mode',
     'tokens_spent',
-    'wager_tokens',
+    'insurance_tokens',
     'message',
 )
 
@@ -954,10 +959,10 @@ def get_state():
                               prestige_level, prestige_count, legacy_wins,
                               onboarding_step, auto_spin_budget,
                               wager_streak, wager_last_stake, double_down_pending,
-                              wager_banked_wins, wager_insurance_charges,
-                              wager_insurance_armed, wager_insurance_last_recharge,
+                              wager_banked_wins,
+                              insurance_charges, insurance_armed,
                               wager_last_win_amount, wager_banked_losses,
-                              active_wheel_mode, wager_tokens, aquarium_species,
+                              active_wheel_mode, insurance_tokens, aquarium_species,
                               cosmetic_fragments, guard_charges,
                               gravity_drift
                        FROM game_state WHERE user_id = %s''',
@@ -982,14 +987,10 @@ def get_state():
         last_recharge   = gs['dice_last_recharge']
         dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
-        # T74: wager insurance recharge (mirrors dice recharge semantics).
-        wager_insurance_charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
-                                      WAGER_INSURANCE_MAX_CHARGES)
-        wager_insurance_last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
-        wager_insurance_charges, wager_insurance_last_recharge = _recharge_wager_insurance(
-            wager_insurance_charges, wager_insurance_last_recharge,
-            WAGER_INSURANCE_MAX_CHARGES, now_utc,
-        )
+        # T119: insurance has no recharge. Charges are now derived purely
+        # from tokens spent on insurance buys. The old
+        # wager_insurance_charges/wager_insurance_last_recharge fields and
+        # the WAGER_INSURANCE_MAX_CHARGES cap are gone (see migration 054).
 
         # Season 8: available wheel modes for this week
         week_num = get_week_number(now_utc)
@@ -1059,12 +1060,11 @@ def get_state():
             'wager_banked_wins':    gs.get('wager_banked_wins', 0),
             'wager_banked_losses':  gs.get('wager_banked_losses', 0),
             'wager_last_win_amount': int(gs.get('wager_last_win_amount', 0) or 0),
-            'wager_insurance_charges': int(wager_insurance_charges),
-            'wager_insurance_armed': bool(gs.get('wager_insurance_armed', False)),
-            'wager_insurance_max_charges': WAGER_INSURANCE_MAX_CHARGES,
-            'wager_insurance_last_recharge': (
-                wager_insurance_last_recharge.isoformat()
-                if hasattr(wager_insurance_last_recharge, 'isoformat')
+            'insurance_charges':     int(gs.get('insurance_charges', 0) or 0),
+            'insurance_armed':       bool(gs.get('insurance_armed', False)),
+            'insurance_free_claimed_date': (
+                gs.get('insurance_free_claimed_date').isoformat()
+                if gs.get('insurance_free_claimed_date') is not None
                 else None
             ),
             'active_wheel_mode':    gs.get('active_wheel_mode', 'steady'),
@@ -1076,7 +1076,7 @@ def get_state():
                 gs.get('active_wheel_mode', 'steady'),
                 int(gs.get('gravity_drift', 0) or 0),
             ),
-            'wager_tokens':         gs.get('wager_tokens', 0),
+            'insurance_tokens':     gs.get('insurance_tokens', 0),
             'aquarium_species':     list(gs.get('caught_species', [])),
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
             'guard_charges':        gs.get('guard_charges', 0),
@@ -1221,15 +1221,9 @@ def spin():
             dice_charges   = min(dice_charges, max_charges)
             dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
-            # T74: wager insurance recharge (1 charge per 10 min, capped at 3).
-            wager_insurance_charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
-                                          WAGER_INSURANCE_MAX_CHARGES)
-            wager_insurance_last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
-            (wager_insurance_charges,
-             wager_insurance_last_recharge) = _recharge_wager_insurance(
-                wager_insurance_charges, wager_insurance_last_recharge,
-                WAGER_INSURANCE_MAX_CHARGES, now_utc,
-            )
+            # T119: insurance has no recharge — charges are derived purely
+            # from tokens spent on /api/insurance/buy. Cap is removed; the
+            # insurance_charges value from the DB is the truth.
 
             # Build spin context (immutable for this request)
             ctx = _build_spin_context(gs)
@@ -1245,7 +1239,7 @@ def spin():
             except (TypeError, ValueError):
                 req_stake = 0
             double_down_active = bool(gs.get('double_down_pending', False))
-            insurance_active = bool(gs.get('wager_insurance_armed', False))
+            insurance_active = bool(gs.get('insurance_armed', False))
 
             # T110: pay_with_tokens opt-in for high-stake spins. The actual
             # spend is computed inside _resolve_spin (which knows the final
@@ -1260,9 +1254,9 @@ def spin():
                     return jsonify({
                         'error': 'Pay-with-tokens is not compatible with Double-Down'
                     }), 400
-                if int(gs.get('wager_tokens', 0)) <= 0:
+                if int(gs.get('insurance_tokens', 0)) <= 0:
                     return jsonify({
-                        'error': 'No wager tokens to spend'
+                        'error': 'No insurance tokens to spend'
                     }), 400
 
             new_spin_count = gs['spin_count'] + 1
@@ -1301,8 +1295,8 @@ def spin():
                 gravity_drift=int(gs.get('gravity_drift', 0) or 0),
                 # T79: banked losses
                 wager_banked_losses=int(gs.get('wager_banked_losses', 0)),
-                # T110: wager-token spend
-                wager_tokens=int(gs.get('wager_tokens', 0)),
+                # T110: insurance-token spend (column renamed to insurance_tokens in T119)
+                insurance_tokens=int(gs.get('insurance_tokens', 0)),
                 pay_with_tokens=pay_with_tokens,
             )
 
@@ -1407,12 +1401,11 @@ def spin():
                           wager_banked_losses = %s,
                           wager_last_win_amount = %s,
                           double_down_pending = FALSE,
-                          wager_insurance_armed = FALSE,
-                          wager_insurance_charges = %s,
-                          wager_insurance_last_recharge = %s,
+                          insurance_armed = FALSE,
+                          insurance_charges = %s,
                           biggest_win_announced = %s,
                           gravity_drift = %s,
-                          wager_tokens = %s,
+                          insurance_tokens = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                       WHERE user_id = %s''',
                     (new_state['wins'], new_state['losses'],
@@ -1428,11 +1421,10 @@ def spin():
                      new_state.get('wager_banked_wins', 0),
                      new_state.get('wager_banked_losses', 0),
                      new_state.get('wager_last_win_amount', 0),
-                     wager_insurance_charges,
-                     wager_insurance_last_recharge,
+                     int(gs.get('insurance_charges', 0) or 0),
                      new_biggest_win_announced,
                      new_state.get('gravity_drift', 0),
-                     int(events.get('wager_tokens', 0)),
+                     int(events.get('insurance_tokens', 0)),
                      current_user.id),
                 )
             conn.commit()
@@ -1461,21 +1453,18 @@ def spin():
                                             compute_max_stake_pct(list(gs['owned_items'])))
         resp['onboarding_advance'] = onboarding_advance
         resp['double_down_active'] = double_down_active
-        # T74: surface insurance state on spin response.
-        resp['wager_insurance_charges'] = wager_insurance_charges
-        resp['wager_insurance_armed'] = False
-        resp['wager_insurance_last_recharge'] = (
-            wager_insurance_last_recharge.isoformat()
-            if hasattr(wager_insurance_last_recharge, 'isoformat')
-            else None
-        )
+        # T119: surface insurance state on spin response. Column renamed
+        # from wager_insurance_charges/armed to insurance_charges/armed;
+        # the recharge timestamp key is gone.
+        resp['insurance_charges'] = int(gs.get('insurance_charges', 0) or 0)
+        resp['insurance_armed'] = False
         # T77: gravity drift + drift-adjusted probabilities on the spin
         # response so the wheel redraws correctly after each resolve.
         resp['gravity_drift'] = new_state.get('gravity_drift', 0)
         resp['wheel_probabilities'] = events.get('wheel_probabilities')
         # T110: surface the post-spend token balance + amount spent so the
         # client can update its display without a /api/state poll.
-        resp['wager_tokens'] = int(events.get('wager_tokens', gs.get('wager_tokens', 0)))
+        resp['insurance_tokens'] = int(events.get('insurance_tokens', gs.get('insurance_tokens', 0)))
         resp['tokens_spent'] = int(events.get('tokens_spent', 0))
         return jsonify(resp)
     except Exception:
@@ -2152,7 +2141,25 @@ def buy():
             if item_id == 'wager_insurance':
                 with conn.cursor() as cur:
                     cur.execute(
-                        'UPDATE game_state SET wager_insurance_charges = wager_insurance_charges + 3 WHERE user_id = %s',
+                        'UPDATE game_state SET insurance_charges = insurance_charges + 3 WHERE user_id = %s',
+                        (current_user.id,),
+                    )
+                conn.commit()
+
+            # T119: the very first purchase of fish_to_wager grants 5
+            # insurance_tokens. The insurance_unlock_grant_given column
+            # gates the one-time grant — after the first buy the player
+            # has 5 tokens to spend; further buys cost the same 5,000 wins
+            # but grant no further tokens. The grant is added in the same
+            # transaction as the item buy so the user can never end up
+            # with the item and no grant, or vice versa.
+            if item_id == 'fish_to_wager' and not bool(gs.get('insurance_unlock_grant_given', False)):
+                with conn.cursor() as cur:
+                    cur.execute(
+                        '''UPDATE game_state
+                           SET insurance_tokens = insurance_tokens + 5,
+                               insurance_unlock_grant_given = TRUE
+                           WHERE user_id = %s''',
                         (current_user.id,),
                     )
                 conn.commit()
@@ -2560,46 +2567,33 @@ def reel_line():
                     log.warning('SUSPICIOUS_REEL user_id=%s pct=%.1f ewma=%.1f catch_count=%d suspicious=%d',
                                 current_user.id, precise_pct, new_ewma, new_catch_count, new_suspicious)
 
-            # Season 8: award wager_tokens if fish_to_wager owned
-            wager_tokens_awarded = 0
+            # T119: fish catches no longer award insurance_tokens. The
+            # tier-based FISH_TO_WAGER_RATES path is gone — tokens are
+            # earned from the three new sources: 3 free/day claim,
+            # 1/2/3 per bounty (T117), and +5 on the first purchase of
+            # fish_to_wager. catch_of_the_day still tracks its date
+            # column (the upgrade itself is unchanged) but it no longer
+            # multiplies any token award since no tokens are awarded
+            # here in the first place.
             catch_of_day_bonus = False
-            if 'fish_to_wager' in owned:
-                tier_map = {'Common': 0, 'Uncommon': 1, 'Rare': 2, 'Legendary': 3}
-                tier_idx = tier_map.get(species.get('tier', 'Common'), 0)
-                wager_tokens_awarded = FISH_TO_WAGER_RATES[tier_idx]
-                # catch_of_the_day: first catch each UTC day worth 5x
-                if 'catch_of_the_day' in owned:
-                    today = now_utc.date().isoformat()
-                    last_cotd = gs.get('catch_of_the_day_date') or ''
-                    if last_cotd != today:
-                        wager_tokens_awarded *= 5
-                        catch_of_day_bonus = True
+            if 'catch_of_the_day' in owned:
+                today = now_utc.date().isoformat()
+                last_cotd = gs.get('catch_of_the_day_date') or ''
+                if last_cotd != today:
+                    catch_of_day_bonus = True
 
             with conn.cursor() as cur:
-                if wager_tokens_awarded > 0 and catch_of_day_bonus:
+                if catch_of_day_bonus:
                     cur.execute(
                         '''UPDATE game_state
                            SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
                                fastest_catch_pct = %s,
                                suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s,
-                               wager_tokens = wager_tokens + %s,
                                catch_of_the_day_date = %s
                            WHERE user_id = %s''',
                         (new_fish_clicks, new_lucky_next, caught_species, new_best,
                          new_suspicious, new_catch_count, new_ewma,
-                         wager_tokens_awarded, now_utc.date(), current_user.id),
-                    )
-                elif wager_tokens_awarded > 0:
-                    cur.execute(
-                        '''UPDATE game_state
-                           SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
-                               fastest_catch_pct = %s,
-                               suspicious_catches = %s, catch_count = %s, catch_pct_ewma = %s,
-                               wager_tokens = wager_tokens + %s
-                           WHERE user_id = %s''',
-                        (new_fish_clicks, new_lucky_next, caught_species, new_best,
-                         new_suspicious, new_catch_count, new_ewma,
-                         wager_tokens_awarded, current_user.id),
+                         now_utc.date(), current_user.id),
                     )
                 else:
                     cur.execute(
@@ -2655,7 +2649,6 @@ def reel_line():
             'precise_pct':      precise_pct,
             'lucky_next_active': new_lucky_next,
             'fish_clicks':      new_fish_clicks,
-            'wager_tokens':     wager_tokens_awarded,
             'catch_of_day_bonus': catch_of_day_bonus,
             'onboarding_advance': gs.get('onboarding_step', 0) == 2,
         })
@@ -3240,13 +3233,13 @@ def wager_double_down_cancel():
     return jsonify({'ok': True})
 
 
-@game_bp.route('/api/wager/insurance', methods=['POST'])
+@game_bp.route('/api/insurance/arm', methods=['POST'])
 @login_required
 @csrf.exempt
 def wager_insurance():
-    """T74: Activate insurance — consumes a charge immediately, caps the next
-    loss at the stake, refunds the escrowed wins on a loss. Charge is wasted
-    on a win (it's a gamble, by design)."""
+    """T119: Arm insurance. Consumes 1 insurance_token per arm (was: 1
+    charge). No recharge, no cap. Charge is wasted on a win (by design,
+    inherited from T74)."""
     err = require_json()
     if err:
         return err
@@ -3255,63 +3248,49 @@ def wager_insurance():
             gs = _load_game_state(cur, current_user.id, for_update=True)
             if 'wager_insurance' not in gs['owned_items']:
                 return jsonify({'error': 'Insurance not unlocked'}), 403
-            # T74: refresh charges before arming so the player always sees the
-            # freshest count (mirrors /api/state behaviour).
-            now_utc = dt.datetime.now(timezone.utc)
-            charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
-                          WAGER_INSURANCE_MAX_CHARGES)
-            last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
-            charges, last_recharge = _recharge_wager_insurance(
-                charges, last_recharge, WAGER_INSURANCE_MAX_CHARGES, now_utc,
-            )
-            if charges <= 0:
-                return jsonify({'error': 'No insurance charges left'}), 403
-            if gs.get('wager_insurance_armed'):
+            if gs.get('insurance_armed'):
                 return jsonify({'error': 'Insurance already armed'}), 409
-            new_charges = charges - 1
-            # T74 AC#5: reset the recharge timer only if the new charge count
-            # is still below the cap (timer pauses at cap).
-            new_last_recharge = now_utc if new_charges < WAGER_INSURANCE_MAX_CHARGES else last_recharge
+            current_tokens = int(gs.get('insurance_tokens', 0) or 0)
+            if current_tokens < 1:
+                return jsonify({'error': 'No insurance tokens left'}), 403
+            new_tokens = current_tokens - 1
             cur.execute(
                 '''UPDATE game_state
-                   SET wager_insurance_charges = %s,
-                       wager_insurance_armed = TRUE,
-                       wager_insurance_last_recharge = %s
+                   SET insurance_tokens = %s,
+                       insurance_armed = TRUE
                    WHERE user_id = %s''',
-                (new_charges, new_last_recharge, current_user.id),
+                (new_tokens, current_user.id),
             )
         conn.commit()
     return jsonify({'ok': True, 'message': 'Insurance activated',
-                    'wager_insurance_charges': new_charges})
+                    'insurance_tokens': new_tokens})
 
 
-@game_bp.route('/api/wager/insurance/cancel', methods=['POST'])
+@game_bp.route('/api/insurance/cancel', methods=['POST'])
 @login_required
 @csrf.exempt
 def wager_insurance_cancel():
-    """T108: cancel armed insurance. The consumed charge is NOT refunded —
-    by design (T74: charge is wasted on a win too). The player takes the loss;
-    that's the gamble."""
+    """T108/T119: cancel armed insurance. The 1 insurance_token consumed
+    on arm is NOT refunded — by design (T74: charge is wasted on a win
+    too). The player takes the loss; that's the gamble."""
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
-            if not gs.get('wager_insurance_armed'):
+            if not gs.get('insurance_armed'):
                 return jsonify({'error': 'Insurance not armed'}), 409
-            cur.execute('UPDATE game_state SET wager_insurance_armed = FALSE WHERE user_id = %s',
+            cur.execute('UPDATE game_state SET insurance_armed = FALSE WHERE user_id = %s',
                         (current_user.id,))
         conn.commit()
     return jsonify({'ok': True})
 
 
-@game_bp.route('/api/wager/insurance/buy', methods=['POST'])
+@game_bp.route('/api/insurance/buy', methods=['POST'])
 @login_required
 @csrf.exempt
-def wager_insurance_buy():
-    """T110: spend wager tokens to buy insurance charges. 1 token = 1
-    charge (fixed rate), added to the player's existing charges and
-    capped at WAGER_INSURANCE_MAX_CHARGES. Unused tokens (cap hit) are
-    NOT spent — the spec calls this "refund unused tokens" so a click
-    at cap is a no-op."""
+def insurance_buy_with_tokens():
+    """T119: spend insurance tokens to buy insurance charges. 1 token =
+    1 charge (fixed rate). No cap — players can stockpile as many
+    charges as they've bought."""
     err = require_json()
     if err:
         return err
@@ -3329,42 +3308,58 @@ def wager_insurance_buy():
                 return jsonify({'error': 'fish_to_wager not unlocked'}), 403
             if 'wager_insurance' not in gs['owned_items']:
                 return jsonify({'error': 'Insurance not unlocked'}), 403
-            current_tokens = int(gs.get('wager_tokens', 0) or 0)
+            current_tokens = int(gs.get('insurance_tokens', 0) or 0)
             if current_tokens < token_cost:
-                return jsonify({'error': 'Not enough wager tokens'}), 400
-            # Refresh charges so the cap is measured against the freshest count
-            # (mirrors /api/wager/insurance behaviour).
-            now_utc = dt.datetime.now(timezone.utc)
-            charges = min(int(gs.get('wager_insurance_charges', 0) or 0),
-                          WAGER_INSURANCE_MAX_CHARGES)
-            last_recharge = gs.get('wager_insurance_last_recharge') or now_utc
-            charges, last_recharge = _recharge_wager_insurance(
-                charges, last_recharge, WAGER_INSURANCE_MAX_CHARGES, now_utc,
-            )
-            headroom = WAGER_INSURANCE_MAX_CHARGES - charges
-            if headroom <= 0:
-                return jsonify({'error': 'Insurance charges already at cap'}), 409
-            granted = min(token_cost, headroom)
-            new_tokens = current_tokens - granted
-            new_charges = charges + granted
-            # T74 AC#5: reset the recharge timer only if the new charge count
-            # is still below the cap (timer pauses at cap).
-            new_last_recharge = now_utc if new_charges < WAGER_INSURANCE_MAX_CHARGES else last_recharge
+                return jsonify({'error': 'Not enough insurance tokens'}), 400
+            new_tokens = current_tokens - token_cost
+            new_charges = int(gs.get('insurance_charges', 0) or 0) + token_cost
             cur.execute(
                 '''UPDATE game_state
-                   SET wager_tokens = %s,
-                       wager_insurance_charges = %s,
-                       wager_insurance_last_recharge = %s
+                   SET insurance_tokens = %s,
+                       insurance_charges = %s
                    WHERE user_id = %s''',
-                (new_tokens, new_charges, new_last_recharge, current_user.id),
+                (new_tokens, new_charges, current_user.id),
             )
         conn.commit()
     return jsonify({
         'ok': True,
-        'wager_tokens': new_tokens,
-        'wager_insurance_charges': new_charges,
-        'granted': granted,
+        'insurance_tokens': new_tokens,
+        'insurance_charges': new_charges,
+        'granted': token_cost,
     })
+
+
+@game_bp.route('/api/insurance/claim-free', methods=['POST'])
+@login_required
+@csrf.exempt
+def insurance_claim_free():
+    """T119: claim 3 free insurance tokens once per UTC day. Gated on
+    the `insurance_free_claimed_date` column — if today's date equals
+    the stored date, the request is rejected with 409. The atomic
+    check inside the FOR UPDATE transaction prevents double-claims
+    when two concurrent requests race the gate."""
+    err = require_json()
+    if err:
+        return err
+    FREE_PER_DAY = 3
+    today = dt.datetime.now(timezone.utc).date()
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if gs.get('insurance_free_claimed_date') == today:
+                return jsonify({'error': 'Already claimed today'}), 409
+            cur.execute(
+                '''UPDATE game_state
+                   SET insurance_tokens = insurance_tokens + %s,
+                       insurance_free_claimed_date = %s
+                   WHERE user_id = %s
+                   RETURNING insurance_tokens''',
+                (FREE_PER_DAY, today, current_user.id),
+            )
+            new_tokens = int(cur.fetchone()['insurance_tokens'])
+        conn.commit()
+    return jsonify({'ok': True, 'tokens_awarded': FREE_PER_DAY,
+                    'insurance_tokens': new_tokens})
 
 
 def _prestige_default(col):
@@ -3381,7 +3376,7 @@ def _prestige_default(col):
         'streak_armor_level', 'jackpot_resonance_level', 'echo_amp_level',
         'proc_streak_level', 'proc_streak', 'lure_mastery_level',
         'wager_streak', 'wager_last_stake', 'wager_banked_wins',
-        'wager_banked_losses', 'wager_insurance_charges',
+        'wager_banked_losses', 'insurance_charges',
         'wager_last_win_amount',
         'guard_charges', 'guard_last_regen_spin', 'resilience_last_use_spin',
         'dice_charges', 'fish_clicks', 'fish_exchange_total',
@@ -3389,19 +3384,20 @@ def _prestige_default(col):
     ):
         return 0
     if col in (
-        'double_down_pending', 'wager_insurance_armed',
+        'double_down_pending', 'insurance_armed',
         'dice_rolled_since_spin', 'fishing_lucky_next',
     ):
         return False
     if col == 'active_wheel_mode':
         return 'steady'
     if col in (
-        'wager_insurance_last_recharge', 'dice_last_recharge',
+        'dice_last_recharge',
         'fishing_cast_at', 'fishing_bite_at',
     ):
         return dt.datetime.now(timezone.utc)
     if col in (
         'pending_dice', 'fastest_catch_pct', 'equipped_class', 'bounty_claimed_date',
+        'insurance_free_claimed_date',
     ):
         return None
     if col == 'caught_species':
@@ -3428,7 +3424,8 @@ def prestige_reset():
     T85: resets the full AC#1 scope — every retired / per-season column
     listed in PRESTIGE_RESET_COLUMNS. Preserves prestige_level (advanced
     by 1), prestige_count, legacy_wins, active_cosmetics, aquarium_species,
-    cosmetic_fragments, onboarding_step, and wager_tokens.
+    cosmetic_fragments, onboarding_step, and insurance_tokens
+    (T119: column renamed from wager_tokens).
 
     T86: removed by T121 — wins are fully reset to 0 (compute_wins_kept
     always returns 0). legacy_wins carries the prior total forward.
@@ -3473,7 +3470,7 @@ def prestige_reset():
             # T85: one UPDATE per prestige, every reset column cleared.
             # Preserved columns (per AC#2): prestige_count, legacy_wins,
             # active_cosmetics, aquarium_species, cosmetic_fragments,
-            # onboarding_step, wager_tokens. wins is the new 0 (was the
+            # onboarding_step, insurance_tokens. wins is the new 0 (was the
             # compute_wins_kept result in T86). owned_items is rewritten
             # to the filtered list — T121 means filter_kept_items(0) drops
             # all functional upgrades; the only thing re-added is
@@ -3492,7 +3489,7 @@ def prestige_reset():
                     continue  # handled above (set to 0, not the retained value)
                 reset_sql_parts.append(f'{col} = %s')
                 reset_params.append(_prestige_default(col))
-            reset_sql_parts.append('wager_tokens = wager_tokens')  # preserve
+            reset_sql_parts.append('insurance_tokens = insurance_tokens')  # preserve
             cur.execute(
                 f'''UPDATE game_state
                     SET {', '.join(reset_sql_parts)}
@@ -3551,7 +3548,14 @@ def prestige_info():
 @game_bp.route('/api/bounties', methods=['GET'])
 @login_required
 def get_bounties_endpoint():
-    """Get today's bounty status."""
+    """Get today's bounty status.
+
+    T119: onboarding step 3 (visit bounties panel) used to grant 100
+    wager_tokens. That earning path is now gone — the new free-claim,
+    per-bounty, and initial-purchase paths are the only sources. The
+    step is still advanced so the modal disappears, but no tokens
+    are credited.
+    """
     bounty_date = dt.datetime.now(timezone.utc).date()
     onboarding_advance = False
     with db_connection() as conn:
@@ -3565,8 +3569,7 @@ def get_bounties_endpoint():
             if gs and gs.get('onboarding_step', 0) == 3:
                 cur.execute(
                     '''UPDATE game_state
-                       SET onboarding_step = 5,
-                           wager_tokens = wager_tokens + 100
+                       SET onboarding_step = 5
                        WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -3610,7 +3613,7 @@ def claim_bounty():
                 (current_user.id, bounty_date, bounty_id),
             )
             cur.execute(
-                '''UPDATE game_state SET wager_tokens = wager_tokens + %s
+                '''UPDATE game_state SET insurance_tokens = insurance_tokens + %s
                    WHERE user_id = %s''',
                 (rewards['tokens'], current_user.id),
             )
@@ -3914,7 +3917,7 @@ def aquarium_status():
     species = list(gs.get('caught_species', []))
     return jsonify({
         'species': species,
-        'wager_tokens': gs.get('wager_tokens', 0),
+        'insurance_tokens': gs.get('insurance_tokens', 0),
         'luck_bonus': len(species) * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0,
     })
 
@@ -3955,13 +3958,13 @@ def set_wheel_mode():
                 cur.execute(
                     '''UPDATE game_state SET active_wheel_mode = %s,
                                               wager_streak = 0,
-                                              wager_insurance_armed = FALSE,
+                                              insurance_armed = FALSE,
                                               double_down_pending = FALSE,
                                               gravity_drift = 0
                        WHERE user_id = %s''',
                     (mode, current_user.id))
                 response['wager_streak'] = 0
-                response['wager_insurance_armed'] = False
+                response['insurance_armed'] = False
                 response['double_down_pending'] = False
                 response['gravity_drift'] = 0
             else:
@@ -3971,7 +3974,10 @@ def set_wheel_mode():
     return jsonify(response)
 
 
-# Note: there is no separate /api/fish-to-wager endpoint. wager_tokens are
-# awarded automatically at catch time in reel() when fish_to_wager is owned —
-# a second manual conversion endpoint keyed on the permanent caught_species
+# Note: there is no separate /api/insurance/earn endpoint. insurance_tokens are
+# earned through three paths in T119: the daily /api/insurance/claim-free
+# claim, per-bounty rewards (T117, credited on /api/bounties/claim), and the
+# one-time +5 grant on the player's first purchase of fish_to_wager. A
+# second manual conversion endpoint would let players mint tokens
+# indefinitely from the same source — not safe.
 # list would let players re-claim the same catch for tokens indefinitely.

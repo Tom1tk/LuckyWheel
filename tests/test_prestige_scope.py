@@ -134,7 +134,7 @@ def _drive_prestige(gs, extra_gs_keys=None):
     full_gs.setdefault('prestige_count', 0)
     full_gs.setdefault('legacy_wins', 0)
     full_gs.setdefault('onboarding_step', 0)
-    full_gs.setdefault('wager_tokens', 0)
+    full_gs.setdefault('insurance_tokens', 0)
     full_gs.setdefault('active_cosmetics', [])
     full_gs.setdefault('cosmetic_fragments', 0)
     full_gs.setdefault('caught_species', [])
@@ -166,17 +166,18 @@ def _find_update_sql(conn):
 
 
 def test_prestige_preserves_wager_tokens():
-    """T85 AC#4 / AC#2: wager_tokens persist across prestige."""
+    """T85/T119 AC#2: insurance_tokens (renamed from wager_tokens in
+    T119) persist across prestige."""
     gs = {
-        'owned_items': ['prestige_unlock', 'prestige_efficiency'],
+        'owned_items': ['prestige_unlock'],
         'wins': 1_000_000,
         'losses': 0,
     }
-    conn, result = _drive_prestige(gs, extra_gs_keys={'wager_tokens': 1000})
+    conn, result = _drive_prestige(gs, extra_gs_keys={'insurance_tokens': 1000})
     sql = _find_update_sql(conn)
-    # wager_tokens must be explicitly preserved (wager_tokens = wager_tokens).
-    assert 'wager_tokens = wager_tokens' in sql, (
-        f"expected wager_tokens preserved, got SQL:\n{sql}"
+    # insurance_tokens must be explicitly preserved (insurance_tokens = insurance_tokens).
+    assert 'insurance_tokens = insurance_tokens' in sql, (
+        f"expected insurance_tokens preserved, got SQL:\n{sql}"
     )
     # And the result echoes the new state.
     assert result['prestige_level'] == 1
