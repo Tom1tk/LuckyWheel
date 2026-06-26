@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, jsonify, request
@@ -30,6 +31,44 @@ MAX_MSG_LEN = 150
 SPAM_WINDOW_SECS = 6
 SPAM_THRESHOLD = 5
 BLOCK_RESET_HOURS = 1
+MAX_CHAT_MESSAGES = 200
+CHAT_PAGE_SIZE = 50
+CHAT_PAGE_MAX = 200
+
+
+def _build_chat_query(args):
+    """Build (sql, params) for chat SELECT with optional cursor pagination.
+
+    args: dict-like with optional 'before' (id cursor) and 'limit' keys.
+    Returns (sql, params), or None if 'before' is present but not a valid int.
+    """
+    try:
+        limit = int(args.get('limit', CHAT_PAGE_SIZE))
+    except (TypeError, ValueError):
+        limit = CHAT_PAGE_SIZE
+    limit = max(1, min(limit, CHAT_PAGE_MAX))
+
+    before = args.get('before')
+    if before is not None and before != '':
+        try:
+            before_id = int(before)
+        except (TypeError, ValueError):
+            return None
+        return (
+            'SELECT id, username, message, created_at, message_type '
+            'FROM chat_messages '
+            'WHERE id < %s '
+            'ORDER BY id DESC '
+            'LIMIT %s',
+            (before_id, limit),
+        )
+    return (
+        'SELECT id, username, message, created_at, message_type '
+        'FROM chat_messages '
+        'ORDER BY id DESC '
+        'LIMIT %s',
+        (limit,),
+    )
 
 
 def _check_and_update_spam(conn, user_id, is_blocked_word=False):
@@ -107,14 +146,14 @@ def _check_and_update_spam(conn, user_id, is_blocked_word=False):
 @chat_bp.route('/api/chat', methods=['GET'])
 @limiter.limit('30 per minute')
 def get_chat():
+    query = _build_chat_query(request.args)
+    if query is None:
+        return jsonify({'error': 'Invalid before id'}), 400
+    sql, params = query
+
     with db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                '''SELECT id, username, message, created_at
-                   FROM chat_messages
-                   ORDER BY id DESC
-                   LIMIT 30'''
-            )
+            cur.execute(sql, params)
             rows = cur.fetchall()
     # Reverse so oldest is first
     rows = list(reversed(rows))
@@ -124,6 +163,7 @@ def get_chat():
             'username': r[1],
             'message': r[2],
             'created_at': r[3].isoformat(),
+            'message_type': r[4] if r[4] else 'user',
         }
         for r in rows
     ]
@@ -165,16 +205,62 @@ def post_chat():
 
         with conn.cursor() as cur:
             cur.execute(
-                'INSERT INTO chat_messages (user_id, username, message) VALUES (%s, %s, %s)',
-                (current_user.id, current_user.username, message),
+                'INSERT INTO chat_messages (user_id, username, message, message_type) VALUES (%s, %s, %s, %s)',
+                (current_user.id, current_user.username, message, 'user'),
             )
-            # Trim to 50 most recent messages
+            # Trim to MAX_CHAT_MESSAGES most recent messages
             cur.execute(
-                '''DELETE FROM chat_messages
+                f'''DELETE FROM chat_messages
                    WHERE id NOT IN (
-                       SELECT id FROM chat_messages ORDER BY id DESC LIMIT 50
+                       SELECT id FROM chat_messages ORDER BY id DESC LIMIT {MAX_CHAT_MESSAGES}
                    )'''
             )
         conn.commit()
 
     return jsonify({'ok': True}), 201
+
+
+SYSTEM_MESSAGE_THROTTLE_SECS = 30
+# Per-worker, in-memory (same pattern as game.py's _fish_clicks_cache) -- this
+# is a chat-spam nicety, not a security boundary, so per-worker approximation
+# under gunicorn's multiple workers is an acceptable tradeoff against adding a
+# new DB table just for a 30s cooldown.
+_system_message_last_posted: dict = {}
+
+
+def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None):
+    """Insert a system message into chat (user_id=NULL, username='SYSTEM').
+
+    Throttled to at most one message per SYSTEM_MESSAGE_THROTTLE_SECS per
+    event_kind (defaults to message_type), so a rapid chain of the same kind
+    of event (e.g. repeated jackpots) can't flood the channel. Different
+    event kinds throttle independently.
+
+    Used by Season 8 features: bounty completions, singularity fills,
+    prestige announcements, jackpots. Must be called within an existing
+    db_connection() context — caller manages commit/rollback.
+    """
+    if not message:
+        return
+    kind = event_kind or message_type
+    now = time.monotonic()
+    if now - _system_message_last_posted.get(kind, 0.0) < SYSTEM_MESSAGE_THROTTLE_SECS:
+        return
+    _system_message_last_posted[kind] = now
+
+    message = message[:MAX_MSG_LEN]
+    with conn.cursor() as cur:
+        cur.execute(
+            '''INSERT INTO chat_messages (user_id, username, message, message_type)
+               VALUES (NULL, 'SYSTEM', %s, %s)''',
+            (message, message_type),
+        )
+        # Trim to MAX_CHAT_MESSAGES most recent (system messages share the table with
+        # player chat; post_chat() already does this for its own inserts,
+        # but a quiet stretch of system-only activity skipped this entirely).
+        cur.execute(
+            f'''DELETE FROM chat_messages
+               WHERE id NOT IN (
+                   SELECT id FROM chat_messages ORDER BY id DESC LIMIT {MAX_CHAT_MESSAGES}
+               )'''
+        )

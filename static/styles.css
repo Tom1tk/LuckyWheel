@@ -117,11 +117,21 @@ body::before {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(10px, 2.5vh, 32px);
-  position: relative;
+  position: fixed;
+  top: 50px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 101;
   padding: clamp(8px, 2vh, 24px) 0;
+  pointer-events: none;
 }
+
+.casino-container > * { pointer-events: auto; }
+
+.casino-container > .bulbs:first-of-type { display: none; }
+
+.casino-container > .spin-prompt { margin-top: auto; }
 
 .casino-title {
   font-size: clamp(1.8rem, 5vw, 3.5rem);
@@ -181,11 +191,21 @@ body::before {
   pointer-events: none;
 }
 
-/* Wheel wrapper */
+/* Wheel wrapper — dead center of viewport. Wager panel hangs off the LEFT
+   via position:absolute so it never pushes the wheel off-center. */
+.wheel-and-wager {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+}
+
 .wheel-wrapper {
   position: relative;
-  width: min(380px, calc(100vw - 120px), calc(100vh - 440px));
-  height: min(380px, calc(100vw - 120px), calc(100vh - 440px));
+  width: min(560px, calc(100vw - 240px), calc(100vh - 480px));
+  height: min(560px, calc(100vw - 240px), calc(100vh - 480px));
+  cursor: pointer;
 }
 
 /* Glow ring behind wheel */
@@ -267,14 +287,15 @@ body::before {
 }
 
 /* Spin button / prompt */
-.spin-prompt {
-  font-size: 1.5rem;
+ .spin-prompt {
+  font-size: 0.95rem;
   color: var(--p);
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   animation: promptPulse 1s ease-in-out infinite;
   cursor: pointer;
   text-shadow: 0 0 10px var(--p);
+  margin: 0 0 14px 0;
 }
 
 @keyframes promptPulse {
@@ -291,12 +312,13 @@ body::before {
   gap: 12px;
   cursor: pointer;
   user-select: none;
+  margin: 8px 0;
 }
 
 .autospin-row input[type="checkbox"] {
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--p);
   border-radius: 4px;
   background: rgba(var(--p-rgb),0.08);
@@ -323,8 +345,8 @@ body::before {
 }
 
 .autospin-label {
-  font-size: 0.9rem;
-  letter-spacing: 3px;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
   color: var(--p);
   text-transform: uppercase;
   text-shadow: 0 0 8px rgba(var(--p-rgb),0.4);
@@ -510,6 +532,7 @@ body::before {
 .bulbs {
   display: flex;
   gap: 16px;
+  padding: 8px 0 12px 0;
 }
 
 .bulb {
@@ -531,15 +554,16 @@ body::before {
 /* Win/Loss Counter */
 .scoreboard {
   display: flex;
-  gap: clamp(12px, 4vw, 40px);
+  gap: clamp(10px, 3vw, 28px);
+  margin: 4px 0 14px 0;
 }
 
 .score-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: clamp(8px, 1.5vh, 12px) clamp(16px, 4vw, 36px);
+  gap: 2px;
+  padding: clamp(5px, 1vh, 8px) clamp(12px, 3vw, 26px);
   border-radius: 6px;
   border: 2px solid;
 }
@@ -566,7 +590,7 @@ body::before {
 .score-box.losses-box .score-label { color: var(--s-lt); }
 
 .score-value {
-  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  font-size: clamp(1.2rem, 3vw, 2.1rem);
   line-height: 1;
 }
 
@@ -696,7 +720,13 @@ body::before {
 .fishing-panel {
   position: fixed;
   left: 40px;
-  top: 50%;
+  /* Centered on tall viewports; on short ones (laptop heights ~650-800px,
+     common once browser chrome eats into innerHeight), pulled up so it can't
+     collide with .bottom-left-stack below it. 426px keeps ~20px clearance
+     between this panel's bottom edge and the stack's top edge at any height
+     up to ~850px. Recompute (= stack height + ~168) if .bottom-left-stack's
+     content grows. */
+  top: min(50%, calc(100vh - 426px));
   /* transform is applied via inline style (translateY(-50%) scale(N)) */
   display: flex;
   flex-direction: column;
@@ -2008,22 +2038,6 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .patch-notes-body::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Apology Popup ──────────────────────────────────────────────────────── */
-.apology-card { max-width: 520px; border-top: 3px solid #e05c5c; }
-.apology-body { padding: 4px 24px 8px; line-height: 1.65; color: rgba(255,255,255,0.85); }
-.apology-body p { margin: 0 0 14px; }
-.apology-body strong { color: #fff; }
-.apology-sig { margin-top: 18px !important; opacity: 0.6; font-style: italic; }
-.apology-dismiss-btn {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
-  color: #fff;
-  padding: 8px 32px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.15s;
-}
-.apology-dismiss-btn:hover { background: rgba(255,255,255,0.22); }
 
 /* Markdown content styling */
 .patch-notes-content { color: #ccc; font-size: 0.78rem; line-height: 1.7; }
@@ -2345,17 +2359,15 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   line-height: 1.4;
 }
 
-/* ── Leaderboard WP/BP columns ─────────────────────────────────────────── */
-.lb-wp-h, .lb-bp-h, .lb-wp, .lb-bp {
+/* ── Leaderboard Prestige column (T121: replaced WP/BP) ───────────────── */
+.lb-prestige-h, .lb-prestige {
   font-size: 0.65rem;
   text-align: right;
   width: 26px;
   flex-shrink: 0;
 }
-.lb-wp-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
-.lb-bp-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
-.lb-wp  { color: #ffd700; }
-.lb-bp  { color: #88ddff; }
+.lb-prestige-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
+.lb-prestige  { color: var(--p, #c084fc); font-weight: 700; }
 
 /* ── Toast notification ────────────────────────────────────────────────── */
 .toast-notification {
@@ -2413,11 +2425,33 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   }
 
   /* Wheel — hero of the page */
-  .casino-container { padding: 8px 0 70px 0; flex: 1; min-width: 0; width: auto; }
+  .casino-container {
+    padding: 56px 0 170px 0;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    /* T207-scroll: switch from position:fixed to position:static on mobile
+       so the main page can scroll vertically and the user can reach the
+       dice roll button. On desktop, .casino-container stays position:fixed
+       (centered wheel + right sidebar). On mobile the content flows
+       naturally and the body scrolls.
+       Top padding 56px (was 8px) clears the .user-bar which is
+       position:fixed; top:0; height:44px; z-index:200. Without this
+       the "Casino Wheel" title renders at y=8, hidden behind the
+       user-bar. 56px gives a 12px breathing room below the bar.
+       Bottom padding 170px adds 100px of scrollable space so the
+       dice button is reachable on iPhone Safari (where the address
+       bar consumes ~80px of the bottom viewport). */
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+  }
   .subtitle { font-size: 0.65rem; letter-spacing: 2px; margin-top: -10px; }
   .wheel-wrapper {
-    width:  min(300px, calc(100vw - 20px), calc(100vh - 380px));
-    height: min(300px, calc(100vw - 20px), calc(100vh - 380px));
+    width:  min(480px, calc(100vw - 20px), calc(100vh - 420px));
+    height: min(480px, calc(100vw - 20px), calc(100vh - 420px));
   }
 
   /* Below-wheel row: streak (left 50%) + dice (right 50%) */
@@ -2449,7 +2483,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .mobile-below-wheel .dice-row { gap: 5px; }
   .mobile-below-wheel .dice-panel-label { font-size: 9px; }
   .mobile-below-wheel .dice-panel-desc { font-size: 0.5rem; }
-  .mobile-below-wheel .dice-roll-btn { font-size: 10px; padding: 5px 6px; width: 100%; box-sizing: border-box; }
+  .mobile-below-wheel .dice-roll-btn { font-size: 10px; padding: 5px 6px; box-sizing: border-box; }
   .mobile-below-wheel .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
   .bulbs { gap: 8px; }
   .bulb  { width: 10px; height: 10px; }
@@ -3177,21 +3211,6 @@ body.low-spec::before                 { display: none; }
 /* Pointer drop-shadow is expensive; replace with simpler border color */
 .low-spec .pointer                    { filter: none; border-top-color: #4422EE; }
 
-/* ── Respect OS-level reduced motion preference ──────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .casino-title, .pointer, .spin-prompt, .bulb, .fish-body,
-  .streak-fire, .shop-item.singularity-item,
-  [class*="trail-"] .fish-body {
-    animation: none !important;
-  }
-  .fish-aura           { display: none; }
-  .wheel-wrapper::before { box-shadow: none; }
-  body::before         { display: none; }
-  .pointer             { filter: none; }
-  .confetti-container  { display: none; }
-  .fire-canvas         { display: none; }
-}
-
 /* ── Fire Effect ─────────────────────────────────────────────────────────── */
 .fire-canvas {
   position: fixed;
@@ -3771,6 +3790,34 @@ body.page-season7 .score-box.wins-box { border-color: #9966FF; background: rgba(
 body.page-season7 .score-box.wins-box .score-label { color: #BB88FF; }
 body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow: 0 0 12px #9966FF; }
 
+/* ── Season 8: Casino theme — green (wins) / red (losses) ──────────────────── */
+/* The solid background also guarantees the page is never blank-white if the
+   casino canvas (static/js/casino-bg.js) fails to load. */
+body.page-season8 {
+  background: radial-gradient(ellipse 90% 70% at 50% 42%, #0a2e18 0%, #061a0e 55%, #03100a 100%);
+  --p:        #1FBE5C;
+  --p-lt:     #45E27A;
+  --p-md:     #138C42;
+  --p-dk:     #0F7838;
+  --p-xs:     #0B5A2A;
+  --p-2x:     #063E1C;
+  --p-rgb:    31, 190, 92;
+  --p-dk-rgb: 15, 120, 56;
+  --s:        #E23030;
+  --s-lt:     #FF5656;
+  --s-rgb:    226, 48, 48;
+  --bg:       #03100a;
+}
+body.page-season8 .wheel-wrapper::before {
+  box-shadow: 0 0 30px 12px rgba(31,190,92,0.45), 0 0 70px 25px rgba(226,48,48,0.18), inset 0 0 20px rgba(31,190,92,0.1);
+}
+body.page-season8 .pointer { border-top-color: #45E27A; filter: drop-shadow(0 0 10px #1FBE5C) drop-shadow(0 0 22px #E23030); }
+body.page-season8 .center-hub { background: radial-gradient(circle, #5BE88A, #0F7838); border-color: #8FF0AE; box-shadow: 0 0 20px #1FBE5C, 0 0 45px #E23030; }
+body.page-season8 .result-text.win { color: #45E27A; border-color: #45E27A; text-shadow: 0 0 20px #1FBE5C, 0 0 50px #1FBE5C; box-shadow: 0 0 40px #1FBE5C, inset 0 0 20px rgba(31,190,92,0.1); }
+body.page-season8 .score-box.wins-box { border-color: #1FBE5C; background: rgba(31,190,92,0.08); box-shadow: 0 0 16px rgba(31,190,92,0.2); }
+body.page-season8 .score-box.wins-box .score-label { color: #45E27A; }
+body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow: 0 0 12px #1FBE5C; }
+
 /* ── Hiatus Screen ────────────────────────────────────────────────────────── */
 .hiatus-screen {
   min-height: 100vh;
@@ -4039,4 +4086,1476 @@ body.page-season7 .score-box.wins-box .score-value { color: #BB88FF; text-shadow
   .hiatus-body { flex-direction: column; align-items: center; padding: 24px 16px; gap: 24px; }
   .hiatus-col  { min-width: unset; width: 100%; max-width: 320px; }
   .hiatus-lb.leaderboard-panel { max-width: 100%; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEASON 8 — WHEEL THEMES & ACCESSIBILITY (T19/T23/T37/T38/T39)
+   New wheel-container themes (.wheel-theme-<name>) and a11y utilities.
+   All rules appended below; no existing rules modified.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── T19 · Tidal — cool blue/teal, animated wave gradient, smooth flow ────── */
+.wheel-theme-tidal {
+  background: linear-gradient(135deg, #001f3f 0%, #003d5c 25%, #006d77 50%, #00a8a8 75%, #0a9396 100%);
+  background-size: 300% 300%;
+  border: 4px solid #0a9396;
+  color: #caf0f8;
+  box-shadow: 0 0 24px rgba(10,147,150,0.5), inset 0 0 30px rgba(0,168,168,0.15);
+  animation: tidal-wave 8s ease-in-out infinite;
+}
+.wheel-theme-tidal.win {
+  animation: tidal-wave 8s ease-in-out infinite, tidal-surge 0.8s ease-out;
+  border-color: #94f0e6;
+  box-shadow: 0 0 48px rgba(148,240,230,0.8), inset 0 0 40px rgba(0,213,213,0.3);
+}
+.wheel-theme-tidal.lose {
+  animation: tidal-recede 0.7s ease-in forwards;
+  border-color: #2c6e7f;
+  box-shadow: 0 0 12px rgba(44,110,127,0.4), inset 0 0 30px rgba(0,30,50,0.4);
+}
+@keyframes tidal-wave {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes tidal-surge {
+  0%   { transform: scale(1); filter: brightness(1); }
+  40%  { transform: scale(1.04); filter: brightness(1.35); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+@keyframes tidal-recede {
+  0%   { transform: scale(1); filter: brightness(1) saturate(1); }
+  50%  { transform: scale(0.97); filter: brightness(0.7) saturate(0.5); }
+  100% { transform: scale(1); filter: brightness(0.8) saturate(0.7); }
+}
+
+/* ── T23 · Ember — warm orange/red, spark animation on volatile wins ──────── */
+.wheel-theme-ember {
+  background: linear-gradient(135deg, #1a0000 0%, #4a0e0e 30%, #8b1a1a 60%, #d62828 85%, #f77f00 100%);
+  border: 4px solid #f77f00;
+  color: #ffd6a5;
+  box-shadow: 0 0 24px rgba(247,127,0,0.5), inset 0 0 30px rgba(214,40,40,0.2);
+}
+.wheel-theme-ember.win {
+  animation: ember-spark 0.6s ease-out;
+  border-color: #ffba08;
+  box-shadow: 0 0 48px rgba(255,186,8,0.85), inset 0 0 40px rgba(247,127,0,0.4);
+}
+.wheel-theme-ember.lose {
+  animation: ember-smolder 0.8s ease-in forwards;
+  border-color: #6a040f;
+  box-shadow: 0 0 12px rgba(106,4,15,0.5), inset 0 0 30px rgba(26,0,0,0.5);
+}
+@keyframes ember-spark {
+  0%   { transform: scale(1) skewX(0); filter: brightness(1); }
+  15%  { transform: scale(1.05) skewX(-2deg); filter: brightness(1.6) drop-shadow(0 0 12px #ffba08); }
+  30%  { transform: scale(1.02) skewX(2deg); filter: brightness(1.4) drop-shadow(0 0 18px #f77f00); }
+  50%  { transform: scale(1.04) skewX(-1deg); filter: brightness(1.5) drop-shadow(0 0 14px #ffd60a); }
+  70%  { transform: scale(1.01) skewX(1deg); filter: brightness(1.3) drop-shadow(0 0 10px #f48c06); }
+  100% { transform: scale(1) skewX(0); filter: brightness(1); }
+}
+@keyframes ember-smolder {
+  0%   { filter: brightness(1) saturate(1); transform: scale(1); }
+  50%  { filter: brightness(0.6) saturate(0.6); transform: scale(0.98); }
+  100% { filter: brightness(0.75) saturate(0.8); transform: scale(1); }
+}
+
+/* ── T23 · Frost — ice-crystal cyan/white, cracking animation on losses ───── */
+.wheel-theme-frost {
+  background: linear-gradient(135deg, #03045e 0%, #0077b6 30%, #00b4d8 60%, #90e0ef 85%, #caf0f8 100%);
+  border: 4px solid #90e0ef;
+  color: #f1faff;
+  box-shadow: 0 0 24px rgba(144,224,239,0.5), inset 0 0 30px rgba(0,180,216,0.2);
+}
+.wheel-theme-frost.win {
+  animation: frost-shimmer 0.8s ease-out;
+  border-color: #caf0f8;
+  box-shadow: 0 0 48px rgba(202,240,248,0.85), inset 0 0 40px rgba(144,224,239,0.4);
+}
+.wheel-theme-frost.lose {
+  animation: frost-crack 0.6s ease-in forwards;
+  border-color: #5390b8;
+  box-shadow: 0 0 12px rgba(83,144,184,0.4), inset 0 0 30px rgba(3,4,94,0.4);
+}
+@keyframes frost-shimmer {
+  0%   { filter: brightness(1); }
+  40%  { filter: brightness(1.4) drop-shadow(0 0 16px #ffffff); }
+  100% { filter: brightness(1); }
+}
+@keyframes frost-crack {
+  0%   { transform: translateX(0) scale(1); filter: brightness(1); }
+  10%  { transform: translateX(-4px) scale(1.01); filter: brightness(1.5) drop-shadow(0 0 8px #ffffff); }
+  20%  { transform: translateX(5px) scale(0.99); filter: brightness(1.3) drop-shadow(0 0 10px #caf0f8); }
+  35%  { transform: translateX(-3px) scale(1.01); filter: brightness(1.4) drop-shadow(0 0 6px #90e0ef); }
+  50%  { transform: translateX(3px) scale(0.98); filter: brightness(1.1); }
+  70%  { transform: translateX(-2px) scale(1); filter: brightness(0.9); }
+  100% { transform: translateX(0) scale(1); filter: brightness(0.75) saturate(0.7); }
+}
+
+/* ── T38 · Aurora — shifting greens/purples, northern-lights pointer trail ── */
+.wheel-theme-aurora {
+  background: linear-gradient(135deg, #03071e 0%, #1b2a4a 25%, #2d6a4f 50%, #5a189a 75%, #3c096c 100%);
+  background-size: 200% 200%;
+  border: 4px solid #52b788;
+  color: #d8f3dc;
+  box-shadow: 0 0 24px rgba(82,183,136,0.5), inset 0 0 30px rgba(90,24,154,0.25);
+  animation: aurora-shift 10s ease-in-out infinite;
+}
+/* Northern-lights trail rides the wheel pointer */
+.wheel-theme-aurora .pointer {
+  animation: aurora-shift 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px #52b788) drop-shadow(0 0 16px #5a189a);
+}
+.wheel-theme-aurora.win {
+  animation: aurora-shift 10s ease-in-out infinite, aurora-flare 0.8s ease-out;
+  border-color: #95d5b2;
+  box-shadow: 0 0 48px rgba(149,213,178,0.85), inset 0 0 40px rgba(82,183,136,0.35);
+}
+.wheel-theme-aurora.lose {
+  animation: aurora-fade 0.8s ease-in forwards;
+  border-color: #3a4a5a;
+  box-shadow: 0 0 12px rgba(58,74,90,0.4), inset 0 0 30px rgba(3,7,30,0.5);
+}
+@keyframes aurora-shift {
+  0%   { background-position: 0% 50%; filter: hue-rotate(0deg); }
+  33%  { background-position: 50% 100%; filter: hue-rotate(40deg); }
+  66%  { background-position: 100% 50%; filter: hue-rotate(-30deg); }
+  100% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+}
+@keyframes aurora-flare {
+  0%   { filter: brightness(1); transform: scale(1); }
+  40%  { filter: brightness(1.5) saturate(1.3); transform: scale(1.03); }
+  100% { filter: brightness(1); transform: scale(1); }
+}
+@keyframes aurora-fade {
+  0%   { filter: brightness(1) saturate(1); }
+  100% { filter: brightness(0.7) saturate(0.5); }
+}
+
+/* ── T39 · Vintage — retro sepia, Season 1-2 aesthetic callback ───────────── */
+.wheel-theme-vintage {
+  background: linear-gradient(135deg, #2b1d0e 0%, #4a3320 30%, #6b4423 60%, #8b6f47 85%, #c9a875 100%);
+  border: 4px solid #c9a875;
+  color: #f4e4bc;
+  box-shadow: 0 0 20px rgba(201,168,117,0.4), inset 0 0 30px rgba(74,51,32,0.3);
+  filter: sepia(0.15) contrast(0.95);
+}
+.wheel-theme-vintage.win {
+  animation: vintage-glow 0.8s ease-out;
+  border-color: #ffd700;
+  box-shadow: 0 0 44px rgba(255,215,0,0.8), inset 0 0 40px rgba(201,168,117,0.4);
+}
+.wheel-theme-vintage.lose {
+  animation: vintage-fade 0.8s ease-in forwards;
+  border-color: #5c4423;
+  box-shadow: 0 0 12px rgba(92,68,35,0.4), inset 0 0 30px rgba(43,29,14,0.5);
+}
+@keyframes vintage-glow {
+  0%   { filter: sepia(0.15) contrast(0.95) brightness(1); transform: scale(1); }
+  40%  { filter: sepia(0.1) contrast(1.1) brightness(1.3) drop-shadow(0 0 16px #ffd700); transform: scale(1.03); }
+  100% { filter: sepia(0.15) contrast(0.95) brightness(1); transform: scale(1); }
+}
+@keyframes vintage-fade {
+  0%   { filter: sepia(0.15) contrast(0.95) brightness(1); }
+  100% { filter: sepia(0.4) contrast(0.85) brightness(0.75); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   T37 · ACCESSIBILITY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+
+/* aria-live region — visually hidden, available to screen readers */
+.aria-live-region {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Keyboard focus — visible outline for keyboard navigation */
+.keyboard-focus:focus,
+.keyboard-focus:focus-visible {
+  outline: 3px solid #ffd700;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(255,215,0,0.4);
+}
+
+/* Season 8: auto-spin controls */
+
+
+/* Season 8: double-down armed indicator */
+.wager-double-down-armed {
+  font-size: 0.8rem;
+  color: #ffd700;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #ffd700;
+  border-radius: 4px;
+  animation: pulse-glow 1.2s ease-in-out infinite alternate;
+  white-space: normal;  /* T116: long cancel label wraps, no truncation */
+  line-height: 1.2;
+}
+/* T119: insurance armed indicator. The original element had no
+   explicit color rule and was inheriting black-on-dark, which the
+   operator reported as unreadable. This is the T74-era class name
+   (we kept the same class for the button to avoid a CSS churn) — the
+   new color matches the cyan/insurance theme (closer to
+   .wager-action-btn's existing colour palette). */
+.wager-insurance-armed {
+  font-size: 0.8rem;
+  color: #44ddff;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #44ddff;
+  border-radius: 4px;
+  animation: pulse-glow 1.2s ease-in-out infinite alternate;
+  white-space: normal;  /* T116: long cancel label wraps, no truncation */
+  line-height: 1.2;
+}
+/* T108: cancel affordance for armed indicators (strip default <button> chrome) */
+.wager-cancel-btn {
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  transition: filter 0.15s;
+  white-space: normal;  /* T116: long cancel label wraps, no truncation */
+  line-height: 1.2;
+}
+.wager-cancel-btn:hover { filter: brightness(1.3); }
+.wager-bank-btn {
+  background: rgba(40,200,120,0.15);
+  border-color: #28c878;
+  color: #28c878;
+}
+
+/* ── Season 8: missing keyframes ─────────────────────────────────────────── */
+@keyframes pulse-glow {
+  from { box-shadow: 0 0 4px rgba(255,215,0,0.4); }
+  to   { box-shadow: 0 0 14px rgba(255,215,0,0.9); }
+}
+
+@keyframes s8-fade-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Season 8: modals (onboarding, prestige confirm, legacy boards) ───────── */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: s8-fade-in 0.2s ease;
+}
+
+.onboarding-modal {
+  background: rgba(2,5,22,0.98);
+  border: 1px solid var(--p-dk);
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 460px;
+  width: 90vw;
+  box-shadow: 0 0 50px rgba(var(--p-rgb),0.22), 0 12px 40px rgba(0,0,0,0.85);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: s8-fade-in 0.2s ease;
+}
+
+.onboarding-modal h3 {
+  font-size: 1.2rem;
+  color: var(--p);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px var(--p);
+}
+
+.onboarding-modal p {
+  font-size: 0.85rem;
+  color: #aaa;
+  letter-spacing: 1px;
+  line-height: 1.55;
+}
+
+.onboarding-modal button {
+  background: linear-gradient(135deg, var(--p-xs), var(--p));
+  border: none;
+  color: #fff;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  padding: 9px 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: opacity 0.15s;
+}
+.onboarding-modal button:hover { opacity: 0.85; }
+
+.onboarding-modal table th,
+.onboarding-modal table td {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  color: #ccc;
+}
+.onboarding-modal table th { color: var(--p-lt); font-size: 0.75rem; letter-spacing: 1px; }
+
+/* ── Season 8: Coach-mark onboarding ── */
+.coach-mark {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+}
+.coach-mark-content {
+  background: #0d0d1a;
+  border: 1px solid var(--p);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  max-width: 280px;
+}
+.coach-mark-text {
+  color: #eee;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.coach-mark-actions {
+  flex-shrink: 0;
+}
+.coach-mark-dismiss {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.coach-mark-dismiss:hover {
+  color: #eee;
+}
+.coach-mark-arrow {
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  position: absolute;
+}
+
+/* ── Season 8: wager panel (vertical column, left of wheel) ─────────────── */
+.season8-wager-panel {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 28px;
+  width: 96px;
+  min-height: 320px;
+  background: rgba(15,5,32,0.82);
+  border: 1px solid rgba(var(--p-rgb),0.28);
+  border-radius: 8px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 51;
+}
+
+/* ── T107: auto-spin checkbox toggle (style mirrors the S5/S6/S7
+       pre-removal `.autospin-row` from initial commit 30def55) ───── */
+.autospin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.autospin-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #FFD700;
+  border-radius: 4px;
+  background: rgba(255,215,0,0.08);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+  margin: 0;
+}
+
+.autospin-row input[type="checkbox"]:checked {
+  background: #FFD700;
+  box-shadow: 0 0 12px #FFD700;
+}
+
+.autospin-row input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  color: #000;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.autospin-label {
+  font-size: 0.9rem;
+  letter-spacing: 3px;
+  color: #FFD700;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(255,215,0,0.4);
+}
+
+.autospin-row input:checked ~ .autospin-label {
+  text-shadow: 0 0 14px #FFD700;
+}
+
+.wager-stake-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.wager-stake-control label {
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  color: var(--p-lt);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.wager-slider {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 24px;
+  height: 140px;
+  background: rgba(var(--p-rgb),0.18);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.wager-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--p-lt);
+  box-shadow: 0 0 7px var(--p);
+  cursor: pointer;
+}
+.wager-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--p-lt);
+  border: none;
+  cursor: pointer;
+}
+
+.stake-label {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  font-weight: 700;
+  text-align: center;
+  flex-shrink: 0;
+  color: #f0e6ff;  /* Light text matching the dark wager panel theme */
+}
+.stake-label.stake-safe     { color: #44dd88; text-shadow: 0 0 6px rgba(68,221,136,0.4); }
+.stake-label.stake-bold     { color: #ffcc44; text-shadow: 0 0 6px rgba(255,204,68,0.4); }
+.stake-label.stake-reckless { color: var(--s-lt); text-shadow: 0 0 6px rgba(var(--s-rgb),0.4); }
+.stake-safe     { color: #44dd88; text-shadow: 0 0 6px rgba(68,221,136,0.4); }
+.stake-bold     { color: #ffcc44; text-shadow: 0 0 6px rgba(255,204,68,0.4); }
+.stake-reckless { color: var(--s-lt); text-shadow: 0 0 6px rgba(var(--s-rgb),0.4); }
+
+/* ── T102+T105: live stake value display ────────────────────────────────────── */
+.wager-stake-value {
+  margin-top: 0;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stake-value-safe {
+  color: #888;
+  font-style: italic;
+}
+
+.stake-value-normal {
+  color: #4ade80; /* green for wins */
+}
+
+.stake-value-inverted {
+  color: #f87171; /* red for losses */
+}
+
+.stake-value-dd {
+  color: #fbbf24; /* yellow for DD */
+  font-weight: 600;
+}
+
+.wager-hotstreak {
+  font-size: 0.7rem;
+  color: #ff8844;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 3px 0;
+}
+
+.wager-action-btn {
+  background: none;
+  border: 1px solid rgba(var(--p-rgb),0.35);
+  color: var(--p-lt);
+  font-size: 0.62rem;
+  letter-spacing: 0.5px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+  text-transform: uppercase;
+  width: 100%;
+  white-space: normal;  /* T116: arm/cancel labels wrap if panel is narrow */
+  line-height: 1.2;
+}
+.wager-action-btn:hover { background: rgba(var(--p-rgb),0.1); }
+
+/* ── T112: narrow-viewport fallback for the vertical wager panel ─────────── */
+@media (max-width: 1365px) {
+  .wheel-and-wager {
+    position: static;
+    transform: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .season8-wager-panel {
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: 340px;
+    min-height: 0;
+    margin: 0 auto;
+    flex-direction: column;
+  }
+  .wager-slider {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+  }
+  .wager-stake-control {
+    flex-direction: row;
+    align-items: center;
+  }
+  .wheel-wrapper {
+    width: min(560px, calc(100vw - 32px), calc(100vh - 520px));
+    height: min(560px, calc(100vw - 32px), calc(100vh - 520px));
+  }
+  .stake-label {
+    min-width: 60px;
+  }
+}
+
+/* ── Season 8: wheel mode selector ───────────────────────────────────────── */
+.season8-wheel-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px 0;
+}
+
+.wheel-mode-label {
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  color: #666;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.wheel-mode-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.wheel-mode-btn {
+  position: relative;
+  background: none;
+  border: 1px solid rgba(var(--p-rgb), 0.25);
+  color: #555;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: border-color 0.15s, color 0.15s;
+  outline: none;
+}
+.wheel-mode-btn.active {
+  border-color: var(--p);
+  color: var(--p);
+  text-shadow: 0 0 6px rgba(var(--p-rgb), 0.5);
+}
+.wheel-mode-btn:hover:not(.active) {
+  border-color: rgba(var(--p-rgb), 0.5);
+  color: #999;
+}
+.wheel-mode-btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0d0d1a;
+  border: 1px solid var(--p);
+  color: #eee;
+  font-size: 0.6rem;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: normal;
+  width: max-content;
+  max-width: 200px;
+  z-index: 999;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  font-family: 'Oswald', sans-serif;
+}
+
+/* ── Season 8: prestige panel (in sidebar) ───────────────────────────────── */
+.season8-prestige-panel {
+  padding: 7px 10px;
+  background: rgba(5,4,22,0.88);
+  border: 1px solid rgba(255,215,0,0.22);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.prestige-badge {
+  font-size: 0.65rem;
+  color: #ffd700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(255,215,0,0.45);
+}
+
+.legacy-badge {
+  font-size: 0.58rem;
+  color: #888;
+  letter-spacing: 0.5px;
+}
+
+.prestige-btn {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.18));
+  border: 1px solid rgba(255,215,0,0.6);
+  color: #ffd700;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+.prestige-btn:hover:not(:disabled) { background: rgba(255,215,0,0.22); }
+.prestige-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Season 8: guard charges (inside shield-indicator) ───────────────────── */
+.guard-charges {
+  font-size: 0.65rem;
+  color: var(--p-lt);
+  letter-spacing: 1px;
+}
+
+.guard-activate-btn {
+  background: none;
+  border: 1px solid rgba(var(--p-rgb),0.4);
+  color: var(--p-lt);
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  margin-top: 2px;
+  transition: background 0.15s;
+}
+.guard-activate-btn:hover:not(:disabled) { background: rgba(var(--p-rgb),0.1); }
+.guard-activate-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Season 8: bounties panel (in sidebar) ───────────────────────────────── */
+.season8-bounties-panel {
+  padding: 7px 10px;
+  background: rgba(5,5,25,0.88);
+  border: 1px solid rgba(var(--p-rgb),0.18);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bounties-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.62rem;
+  color: var(--p-lt);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.fragment-count {
+  font-size: 0.6rem;
+  color: #b388ff;
+  letter-spacing: 1px;
+}
+
+.bounty-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 6px;
+  border-left: 2px solid rgba(var(--p-rgb),0.25);
+}
+
+.bounty-desc {
+  font-size: 0.6rem;
+  color: #bbb;
+  letter-spacing: 0.4px;
+  line-height: 1.3;
+}
+
+.bounty-progress-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bounty-progress-fill {
+  height: 100%;
+  background: var(--p);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.bounty-progress-text {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+.bounty-claim-btn {
+  background: linear-gradient(135deg, var(--p-xs), var(--p-md));
+  border: none;
+  color: #fff;
+  font-size: 0.58rem;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  align-self: flex-start;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+.bounty-claim-btn:hover { opacity: 0.82; }
+
+/* Match the claim button's reserved height so the panel doesn't jump
+   when a card flips from "claim" to "claimed". */
+.bounty-claimed {
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6rem;
+  color: #4caf50;
+}
+
+/* T119: free-tokens section — sits above the bounties panel. A single
+   row, themed to match the bounty panel. The claim button uses a
+   golden palette so the free daily token source is visually distinct
+   from the per-bounty (claim +N tokens) buttons below. */
+.free-tokens-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.free-tokens-claim-btn {
+  background: linear-gradient(135deg, #ffb84d, #ff8800);
+  border: none;
+  color: #1a1a1a;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  font-weight: 700;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.free-tokens-claim-btn:hover { opacity: 0.85; }
+.free-tokens-claim-btn:active { transform: scale(0.97); }
+.free-tokens-claimed {
+  font-size: 0.6rem;
+  color: #999;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  font-style: italic;
+}
+
+/* ── Season 8: community goal + singularity, merged into one slim panel in .bottom-left-stack ─────────────── */
+/* Two separate bordered panels used to sit here and collided with the vertically-centered
+   .fishing-panel on shorter viewports (e.g. 1366x768) — merged into one shell to cut the
+   duplicate padding/border/gap overhead. */
+.mini-panel {
+  width: 265px;
+}
+
+.season8-meta-panel {
+  padding: 5px 10px;
+  background: rgba(4,8,12,0.9);
+  border: 1px solid rgba(120,120,170,0.2);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.meta-goal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 1px 0;
+}
+
+.goal-label {
+  font-size: 0.6rem;
+  color: #44bb66;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+}
+
+.goal-progress-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 1px;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #228844, #44dd88);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+
+.goal-progress-text {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+.singularity-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.singularity-label {
+  font-size: 0.62rem;
+  color: #aa66ff;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.singularity-progress-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 1px;
+}
+
+.singularity-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5511bb, #aa44ff);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+
+.singularity-progress-text {
+  font-size: 0.54rem;
+  color: #555;
+  letter-spacing: 0.4px;
+}
+
+.singularity-buttons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.singularity-buttons button {
+  background: none;
+  border: 1px solid rgba(120,60,200,0.45);
+  color: #aa66ff;
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.singularity-buttons button:hover:not(:disabled) { background: rgba(120,60,200,0.12); }
+.singularity-buttons button:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Season 8: aquarium panel (in sidebar) ───────────────────────────────── */
+.season8-aquarium-panel {
+  padding: 7px 10px;
+  background: rgba(0,8,18,0.88);
+  border: 1px solid rgba(0,150,200,0.22);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  color: #e0e0e0;
+}
+
+.aquarium-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.aquarium-header > span:first-child {
+  font-size: 0.62rem;
+  color: #44aacc;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.aquarium-luck {
+  font-size: 0.6rem;
+  color: #44dd88;
+  letter-spacing: 0.5px;
+}
+
+.aquarium-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-height: 48px;
+  overflow: hidden;
+  color: #e0e0e0;
+}
+
+.aquarium-species {
+  font-size: 0.88rem;
+  line-height: 1.2;
+  color: #e0e0e0;
+}
+
+.aquarium-info-icon {
+  display: inline-block;
+  position: relative;
+  margin-left: 6px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #44aacc;
+  background: rgba(68,170,204,0.15);
+  border: 1px solid rgba(68,170,204,0.4);
+  border-radius: 50%;
+  cursor: help;
+}
+.aquarium-info-icon:hover {
+  border-color: #44aacc;
+  color: #88ddff;
+}
+.aquarium-info-icon[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0d0d1a;
+  color: #eee;
+  border: 1px solid #44aacc;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  white-space: normal;
+  max-width: 220px;
+  width: max-content;
+  pointer-events: none;
+  z-index: 999;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.wager-tokens {
+  font-size: 0.6rem;
+  color: #ffd700;
+  letter-spacing: 0.5px;
+}
+
+/* T110: wager-tokens balance + pay-with-tokens toggle inside the wager panel. */
+.wager-tokens-balance {
+  font-size: 0.7rem;
+  color: #ffd700;
+  letter-spacing: 0.5px;
+  text-align: center;
+  margin-top: 2px;
+}
+.wager-pay-tokens-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #ffd700;
+  cursor: pointer;
+  margin-top: 2px;
+  user-select: none;
+}
+.wager-pay-tokens-toggle input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #ffd700;
+}
+.wager-pay-tokens-toggle:hover {
+  color: #fff3a0;
+}
+
+/* ── Season 8: loadout panel (in sidebar) ────────────────────────────────── */
+.season8-loadout-panel {
+  padding: 7px 10px;
+  background: rgba(5,5,25,0.88);
+  border: 1px solid rgba(var(--p-rgb),0.14);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.loadout-label {
+  font-size: 0.62rem;
+  color: #777;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.loadout-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loadout-slot {
+  display: flex;
+  gap: 3px;
+}
+
+.loadout-save-btn,
+.loadout-apply-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid rgba(var(--p-rgb),0.2);
+  color: #666;
+  font-size: 0.58rem;
+  letter-spacing: 0.5px;
+  padding: 3px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s;
+}
+.loadout-save-btn:hover { color: var(--p-lt); border-color: rgba(var(--p-rgb),0.45); }
+.loadout-apply-btn:hover { color: #44dd88; border-color: rgba(68,221,136,0.45); }
+
+/* ── Season 8: chat system & replay messages ─────────────────────────────── */
+.chat-msg-system {
+  background: rgba(var(--p-rgb),0.06);
+  border-left: 2px solid rgba(var(--p-rgb),0.45);
+  border-radius: 2px;
+  padding: 5px 8px;
+}
+
+.chat-system-text {
+  font-size: 0.7rem;
+  color: var(--p-lt);
+  letter-spacing: 0.5px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.chat-msg-replay {
+  padding: 4px 6px;
+}
+
+.replay-card {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(var(--p-rgb),0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.replay-card:hover { border-color: rgba(var(--p-rgb),0.45); }
+
+.replay-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.replay-text {
+  font-size: 0.7rem;
+  color: #999;
+  letter-spacing: 0.4px;
+  line-height: 1.3;
+}
+
+.wager-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(var(--p-rgb), 0.1);
+  border: 1px solid rgba(var(--p-rgb), 0.45);
+  color: var(--p-lt);
+  font-size: 0.62rem;
+  font-weight: bold;
+  cursor: help;
+  position: relative;
+  margin-top: 4px;
+}
+
+.wager-tooltip-trigger:hover {
+  border-color: var(--p);
+  color: var(--p);
+}
+
+.wager-tooltip-trigger[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #0d0d1a;
+  color: #eee;
+  border: 1px solid var(--p);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  white-space: normal;
+  max-width: 280px;
+  width: max-content;
+  pointer-events: none;
+  z-index: 999;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* T200: mobile drawer + below-wheel wager scaffolding (<=768px viewports). */
+@media (max-width: 768px) {
+  /* T200: drawer section wrapper. Content scrolls via the parent .mobile-drawer overflow-y: auto */
+  .mobile-drawer-section {
+  }
+
+  .mobile-drawer {
+    position: fixed;
+    right: 0;
+    top: 56px;
+    bottom: 56px;
+    width: min(360px, 92vw);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    background: rgba(20, 20, 28, 0.96);
+    z-index: 150;
+    overflow-y: auto;
+    padding: 12px;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+  }
+
+  .mobile-drawer.mobile-drawer-open {
+    transform: translateX(0);
+  }
+
+  .mobile-drawer-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-drawer-tab {
+    flex: 1 1 calc(33% - 4px);
+    padding: 8px 4px;
+    font-size: 0.7rem;
+    text-align: center;
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.7);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    min-height: 32px;
+  }
+
+  .mobile-drawer-tab.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border-color: currentColor;
+  }
+
+  .mobile-below-wheel .season8-wager-panel {
+    position: static;
+    width: 100%;
+    max-width: none;
+    right: auto;
+    top: auto;
+    transform: none;
+    margin: 0 0 8px 0;
+    padding: 8px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+  }
+
+  .mobile-below-wheel .wager-stake-control {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mobile-below-wheel .wager-slider {
+    width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .mobile-below-wheel .wager-action-btn {
+    width: 100%;
+    padding: 12px 8px;
+    font-size: 0.85rem;
+  }
+
+  .mobile-below-wheel .wager-tokens-balance {
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .mobile-below-wheel .wager-tooltip-trigger {
+    flex: 0 0 auto;
+    margin-left: 4px;
+  }
+
+  /* T200: backdrop already styled; reusable for drawer */
+  .mobile-backdrop.mobile-drawer-open {
+  }
+}
+
+/* T202 follow-up: .mobile-below-wheel hosts the wager panel + streak +
+   dice in vertical order. T204: streak + dice now share a sub-row
+   (.mobile-streak-dice-row) so the dice roll button stays in view. */
+@media (max-width: 768px) {
+  .mobile-below-wheel {
+    flex-direction: column;
+  }
+
+  /* T204: compact wager panel — make the panel itself a flex
+     container so the DD/Insurance buttons wrap into rows. */
+  .mobile-below-wheel .season8-wager-panel {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mobile-below-wheel .wager-stake-control {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .mobile-below-wheel .wager-stake-control > label,
+  .mobile-below-wheel .wager-stake-control > .stake-label,
+  .mobile-below-wheel .wager-stake-control > .wager-stake-value {
+    flex: 0 0 auto;
+  }
+  .mobile-below-wheel .wager-slider {
+    flex: 1 1 100%;
+  }
+  /* T204: action buttons live inside .wager-action-row (added to JSX
+     so the row is a guaranteed flex container). */
+  .mobile-below-wheel .wager-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .mobile-below-wheel .wager-action-row > .wager-action-btn,
+  .mobile-below-wheel .wager-action-row > .wager-cancel-btn {
+    flex: 1 1 calc(50% - 2px);
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    min-height: 32px;
+    margin: 0;
+  }
+  .mobile-below-wheel .wager-hotstreak {
+    font-size: 0.7rem;
+  }
+  .mobile-below-wheel .wager-tokens-balance {
+    font-size: 0.7rem;
+    text-align: center;
+  }
+  .mobile-below-wheel .wager-pay-tokens-toggle {
+    font-size: 0.7rem;
+  }
+  /* Keep wager-bank-btn (when shown) on its own line */
+  .mobile-below-wheel .wager-bank-btn {
+    flex: 1 1 100%;
+  }
+
+  /* Streak + dice share a row */
+  .mobile-streak-dice-row {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+  }
+  .mobile-streak-dice-row .streak-panel {
+    flex: 0 0 auto;  /* streak at natural width */
+    border-right: 1px solid rgba(var(--p-rgb), 0.12);
+    align-self: stretch;
+    justify-content: center;
+    padding: 6px 6px;
+  }
+  .mobile-streak-dice-row .dice-panel {
+    flex: 1 1 auto;  /* dice takes remaining space */
+    border-top: none;
+    margin-top: 0;
+    padding: 4px 6px 4px 8px;
+  }
+  .mobile-streak-dice-row .die { width: 36px; height: 36px; padding: 3px; border-radius: 5px; }
+  .mobile-streak-dice-row .pip { width: 6px; height: 6px; }
+  .mobile-streak-dice-row .dice-row { gap: 3px; }
+  .mobile-streak-dice-row .dice-panel-label { font-size: 9px; }
+  .mobile-streak-dice-row .dice-panel-desc { font-size: 0.5rem; }
+  .mobile-streak-dice-row .dice-roll-btn { font-size: 10px; padding: 4px 6px; box-sizing: border-box; }
+  .mobile-streak-dice-row .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
+}
+
+/* T203: responsive polish for wheel-mode selector + auto-spin on
+   <=768px viewports. */
+@media (max-width: 768px) {
+  .season8-wheel-mode .wheel-mode-btns {
+    flex-wrap: nowrap;  /* T204: keep all mode buttons on one line */
+    gap: 4px;
+    margin: 0 auto;  /* T206: center the row inside .season8-wheel-mode */
+  }
+  .season8-wheel-mode .wheel-mode-btn {
+    min-height: 26px;  /* was 32px — slimmer on mobile */
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .season8-wheel-mode .wheel-mode-label {
+    display: block;  /* on its own row at <=768px */
+    width: 100%;
+    text-align: center;
+    font-size: 0.65rem;  /* was 0.7rem — slightly smaller */
+  }
+
+  .autospin-row {
+    padding: 12px 16px;  /* tap target padding */
+    min-height: 44px;
+  }
+  .autospin-row input[type=checkbox] {
+    width: 22px;
+    height: 22px;
+    margin-right: 8px;
+  }
+  .autospin-row .autospin-label {
+    font-size: 0.9rem;
+  }
+}
+
+/* T204/T205: mobile drawer — tab-less long panel. T205 dropped the
+   header/close button; S8 sub-menus stack underneath, scrollable. */
+@media (max-width: 768px) {
+  /* T204: the drawer's children (S8 panels) are stacked naturally;
+     no need for .mobile-drawer-section column flex. */
+  .mobile-drawer .mobile-drawer-section {
+    display: block;
+  }
+  .mobile-drawer .mobile-drawer-section > * {
+    margin-bottom: 8px;
+  }
 }

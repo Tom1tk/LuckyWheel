@@ -48,14 +48,6 @@ def advance_season(conn):
         conn.rollback()
         raise RuntimeError('No season row found')
 
-    _perform_rollover(conn, season)
-
-
-def _perform_rollover(conn, season):
-    """
-    Advance the season by exactly one. Snapshots current standings, resets game_state,
-    and sets next ends_at to 7 days from now. Commits at the end.
-    """
     now = datetime.now(timezone.utc)
     season_id = season['id']
     current_number = season['season_number']
@@ -96,14 +88,32 @@ def _perform_rollover(conn, season):
                    winmult_inf_level, bonusmult_inf_level, clickmult_inf_level,
                    streak_armor_level, lure_mastery_level, jackpot_resonance_level,
                    echo_amp_level, proc_streak_level,
-                   owned_items, active_cosmetics, equipped_fish, equipped_class
+                   owned_items, active_cosmetics, equipped_fish, equipped_class,
+                   wager_streak, wager_last_stake, wager_banked_wins, wager_banked_losses,
+                   insurance_charges, insurance_armed, wager_last_win_amount,
+                   insurance_tokens, double_down_pending, active_wheel_mode,
+                   auto_spin_budget, guard_charges, guard_last_regen_spin,
+                   resilience_last_use_spin, legacy_wins, prestige_level, prestige_count,
+                   cumulative_wins, gravity_drift, biggest_win_announced,
+                   cosmetic_fragments, bounty_claimed_date, catch_of_the_day_date,
+                   insurance_free_claimed_date, insurance_unlock_grant_given,
+                   onboarding_step
                )
                SELECT gs.user_id, %s, NULL,
                       gs.wins, gs.losses, gs.fish_clicks,
                       gs.winmult_inf_level, gs.bonusmult_inf_level, gs.clickmult_inf_level,
                       gs.streak_armor_level, gs.lure_mastery_level, gs.jackpot_resonance_level,
                       gs.echo_amp_level, gs.proc_streak_level,
-                      gs.owned_items, gs.active_cosmetics, gs.equipped_fish, gs.equipped_class
+                      gs.owned_items, gs.active_cosmetics, gs.equipped_fish, gs.equipped_class,
+                      gs.wager_streak, gs.wager_last_stake, gs.wager_banked_wins, gs.wager_banked_losses,
+                      gs.insurance_charges, gs.insurance_armed, gs.wager_last_win_amount,
+                      gs.insurance_tokens, gs.double_down_pending, gs.active_wheel_mode,
+                      gs.auto_spin_budget, gs.guard_charges, gs.guard_last_regen_spin,
+                      gs.resilience_last_use_spin, gs.legacy_wins, gs.prestige_level, gs.prestige_count,
+                      gs.cumulative_wins, gs.gravity_drift, gs.biggest_win_announced,
+                      gs.cosmetic_fragments, gs.bounty_claimed_date, gs.catch_of_the_day_date,
+                      gs.insurance_free_claimed_date, gs.insurance_unlock_grant_given,
+                      gs.onboarding_step
                FROM game_state gs
                ON CONFLICT (user_id, season_number) DO NOTHING''',
             (current_number,),
@@ -124,7 +134,7 @@ def _perform_rollover(conn, season):
             """UPDATE game_state SET
                    wins = 0, losses = 0, fish_clicks = 0, streak = 0, best_streak = 0,
                    owned_items = %s, equipped_fish = 'default',
-                   shield_charges = 0, regen_recharge_wins = 0,
+                   regen_recharge_wins = 0,
                    active_cosmetics = %s, spin_count = 0, win_count = 0, loss_count = 0,
                    total_fish_clicks = 0,
                    winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0,
@@ -140,7 +150,21 @@ def _perform_rollover(conn, season):
                    fastest_catch_pct = NULL,
                    auto_spin_since = CASE WHEN season_registered THEN %s ELSE NULL END,
                    last_spin_at    = CASE WHEN season_registered THEN %s ELSE NULL END,
-                   season_registered = FALSE""",
+                   season_registered = FALSE,
+                   -- Season 8: preserve legacy_wins (accumulate), reset prestige per-season
+                   legacy_wins = legacy_wins + wins,
+                   prestige_level = 0, prestige_count = 0,
+                   auto_spin_budget = 0,
+                    wager_streak = 0, wager_last_stake = 0, double_down_pending = FALSE,
+                    wager_banked_wins = 0, insurance_charges = 0,
+                    insurance_armed = FALSE,
+                    active_wheel_mode = 'steady',
+                   guard_charges = 0, guard_last_regen_spin = 0,
+                   resilience_last_use_spin = 0,
+                   wager_banked_losses = 0,
+                   gravity_drift = 0,
+                   wager_last_win_amount = 0,
+                   biggest_win_announced = 0""",
             ([new_theme], [new_theme], next_starts, next_starts),
         )
 
@@ -156,7 +180,8 @@ def _perform_rollover(conn, season):
     with conn.cursor() as cur:
         cur.execute(
             '''UPDATE seasons
-               SET season_number = %s, started_at = %s, ends_at = %s
+               SET season_number = %s, name = 'Casino',
+                   started_at = %s, ends_at = %s
                WHERE id = %s''',
             (next_number, next_starts, next_ends, season_id),
         )
