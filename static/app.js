@@ -7927,7 +7927,7 @@ function GameApp(_ref28) {
   }, "\u26A1 Double-Down armed! (click to cancel) \u26A0\uFE0F"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
     onClick: handleDoubleDown
-  }, "\u26A1 Arm Double-Down (all-or-nothing)"), ownedItems.includes('wager_insurance') && wagerInsuranceArmed && /*#__PURE__*/React.createElement("button", {
+  }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && wagerInsuranceArmed && /*#__PURE__*/React.createElement("button", {
     className: "wager-insurance-armed wager-cancel-btn",
     onClick: handleCancelInsurance
   }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
