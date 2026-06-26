@@ -3894,8 +3894,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [autoSpinActive, tick]);
   const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
   const [showOnboarding, setShowOnboarding]         = useState(false);  // T114: disabled for S8 launch
-  const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
-  const [legacyBoards, setLegacyBoards]             = useState([]);
 
   const refreshBountiesAndGoal = useCallback(async () => {
     const [bountyRes, goalRes] = await Promise.all([
@@ -4253,13 +4251,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
-  // Season 8: fetch legacy boards
-  const handleShowLegacyBoards = useCallback(async () => {
-    setShowLegacyBoards(true);
-    const { ok, data } = await apiGame('/api/legacy-boards');
-    if (ok) setLegacyBoards(data.boards || []);
-  }, []);
-
   // Season 8: keyboard shortcuts (T37)
   useEffect(() => {
     const handler = (e) => {
@@ -4394,33 +4385,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       )}
 
-      {/* Legacy boards modal (T36) */}
-      {showLegacyBoards && (
-        <div className="onboarding-overlay" onClick={() => setShowLegacyBoards(false)}>
-          <div className="onboarding-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <h3>🏆 Hall of Fame — Legacy Wins</h3>
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              {legacyBoards.length === 0 ? <p>No legacy wins recorded yet.</p> : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead><tr><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Player</th><th style={{ textAlign: 'right' }}>Legacy Wins</th></tr></thead>
-                  <tbody>
-                    {legacyBoards.map((b, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #333' }}>
-                        <td>{i + 1}</td>
-                        <td>{b.username}</td>
-                        <td style={{ textAlign: 'right' }}>{fmt(b.legacy_wins)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <button onClick={() => setShowLegacyBoards(false)}>Close</button>
-          </div>
-        </div>
-      )}
-
-
       <Confetti active={confetti} count={confettiCount} />
       {wormholeActive && (
         <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
@@ -4481,7 +4445,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           >💬</button>
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
-        <button className="stats-btn" title="Hall of Fame — Legacy Wins" onClick={handleShowLegacyBoards}>🏆</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         {season && <SeasonInfo seasonName={season.season_name || season.season_number} endsAt={season.ends_at} />}
       </div>

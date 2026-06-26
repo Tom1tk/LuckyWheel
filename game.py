@@ -3778,22 +3778,6 @@ def apply_loadout():
     return jsonify({'ok': True, 'equipped_class': equipped_value, 'active_wheel_mode': mode})
 
 
-@game_bp.route('/api/legacy-boards', methods=['GET'])
-@login_required
-def legacy_boards():
-    """Get legacy wins leaderboard (across all seasons)."""
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                '''SELECT u.username, gs.legacy_wins
-                   FROM game_state gs JOIN users u ON u.id = gs.user_id
-                   WHERE gs.legacy_wins > 0
-                   ORDER BY gs.legacy_wins DESC LIMIT 50'''
-            )
-            rows = cur.fetchall()
-    return jsonify({'boards': [{'username': r['username'], 'legacy_wins': int(r['legacy_wins'])} for r in rows]})
-
-
 @game_bp.route('/api/guard', methods=['POST'])
 @login_required
 @csrf.exempt

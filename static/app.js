@@ -36,17 +36,17 @@ function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
 function _apiFetch() {
-  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee41(path) {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(path) {
     var opts,
       method,
       headers,
       res,
       json,
-      _args41 = arguments;
-    return _regenerator().w(function (_context41) {
-      while (1) switch (_context41.n) {
+      _args40 = arguments;
+    return _regenerator().w(function (_context40) {
+      while (1) switch (_context40.n) {
         case 0:
-          opts = _args41.length > 1 && _args41[1] !== undefined ? _args41[1] : {};
+          opts = _args40.length > 1 && _args40[1] !== undefined ? _args40[1] : {};
           method = (opts.method || 'GET').toUpperCase();
           headers = {
             'Content-Type': 'application/json'
@@ -54,25 +54,25 @@ function _apiFetch() {
           if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
             headers['X-CSRFToken'] = _csrfToken;
           }
-          _context41.n = 1;
+          _context40.n = 1;
           return fetch(path, _objectSpread({
             headers: headers
           }, opts));
         case 1:
-          res = _context41.v;
-          _context41.n = 2;
+          res = _context40.v;
+          _context40.n = 2;
           return res.json()["catch"](function () {
             return {};
           });
         case 2:
-          json = _context41.v;
-          return _context41.a(2, {
+          json = _context40.v;
+          return _context40.a(2, {
             ok: res.ok,
             status: res.status,
             data: json
           });
       }
-    }, _callee41);
+    }, _callee40);
   }));
   return _apiFetch.apply(this, arguments);
 }
@@ -6764,14 +6764,7 @@ function GameApp(_ref28) {
     _useState252 = _slicedToArray(_useState251, 2),
     showOnboarding = _useState252[0],
     setShowOnboarding = _useState252[1]; // T114: disabled for S8 launch
-  var _useState253 = useState(false),
-    _useState254 = _slicedToArray(_useState253, 2),
-    showLegacyBoards = _useState254[0],
-    setShowLegacyBoards = _useState254[1];
-  var _useState255 = useState([]),
-    _useState256 = _slicedToArray(_useState255, 2),
-    legacyBoards = _useState256[0],
-    setLegacyBoards = _useState256[1];
+
   var refreshBountiesAndGoal = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
     var _yield$Promise$all, _yield$Promise$all2, bountyRes, goalRes;
     return _regenerator().w(function (_context21) {
@@ -7453,26 +7446,6 @@ function GameApp(_ref28) {
     };
   }(), [showToast]);
 
-  // Season 8: fetch legacy boards
-  var handleShowLegacyBoards = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
-    var _yield$apiGame27, ok, data;
-    return _regenerator().w(function (_context37) {
-      while (1) switch (_context37.n) {
-        case 0:
-          setShowLegacyBoards(true);
-          _context37.n = 1;
-          return apiGame('/api/legacy-boards');
-        case 1:
-          _yield$apiGame27 = _context37.v;
-          ok = _yield$apiGame27.ok;
-          data = _yield$apiGame27.data;
-          if (ok) setLegacyBoards(data.boards || []);
-        case 2:
-          return _context37.a(2);
-      }
-    }, _callee37);
-  })), []);
-
   // Season 8: keyboard shortcuts (T37)
   useEffect(function () {
     var handler = function handler(e) {
@@ -7615,57 +7588,7 @@ function GameApp(_ref28) {
     onClick: function onClick() {
       return setShowPrestigeConfirm(false);
     }
-  }, "Cancel")))), showLegacyBoards && /*#__PURE__*/React.createElement("div", {
-    className: "onboarding-overlay",
-    onClick: function onClick() {
-      return setShowLegacyBoards(false);
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "onboarding-modal",
-    onClick: function onClick(e) {
-      return e.stopPropagation();
-    },
-    style: {
-      maxWidth: '500px'
-    }
-  }, /*#__PURE__*/React.createElement("h3", null, "\uD83C\uDFC6 Hall of Fame \u2014 Legacy Wins"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      maxHeight: '400px',
-      overflowY: 'auto'
-    }
-  }, legacyBoards.length === 0 ? /*#__PURE__*/React.createElement("p", null, "No legacy wins recorded yet.") : /*#__PURE__*/React.createElement("table", {
-    style: {
-      width: '100%',
-      borderCollapse: 'collapse'
-    }
-  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: 'left'
-    }
-  }, "#"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: 'left'
-    }
-  }, "Player"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: 'right'
-    }
-  }, "Legacy Wins"))), /*#__PURE__*/React.createElement("tbody", null, legacyBoards.map(function (b, i) {
-    return /*#__PURE__*/React.createElement("tr", {
-      key: i,
-      style: {
-        borderBottom: '1px solid #333'
-      }
-    }, /*#__PURE__*/React.createElement("td", null, i + 1), /*#__PURE__*/React.createElement("td", null, b.username), /*#__PURE__*/React.createElement("td", {
-      style: {
-        textAlign: 'right'
-      }
-    }, fmt(b.legacy_wins)));
-  })))), /*#__PURE__*/React.createElement("button", {
-    onClick: function onClick() {
-      return setShowLegacyBoards(false);
-    }
-  }, "Close"))), /*#__PURE__*/React.createElement(Confetti, {
+  }, "Cancel")))), /*#__PURE__*/React.createElement(Confetti, {
     active: confetti,
     count: confettiCount
   }), wormholeActive && /*#__PURE__*/React.createElement("div", {
@@ -7764,10 +7687,6 @@ function GameApp(_ref28) {
       return setShowPatchNotes(true);
     }
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
-    className: "stats-btn",
-    title: "Hall of Fame \u2014 Legacy Wins",
-    onClick: handleShowLegacyBoards
-  }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
     className: "logout-btn",
     onClick: handleLogout
   }, "Logout"), season && /*#__PURE__*/React.createElement(SeasonInfo, {
@@ -7929,20 +7848,20 @@ function GameApp(_ref28) {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
-      var _yield$apiGame28, ok, data, w, l;
-      return _regenerator().w(function (_context38) {
-        while (1) switch (_context38.n) {
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
+      var _yield$apiGame27, ok, data, w, l;
+      return _regenerator().w(function (_context37) {
+        while (1) switch (_context37.n) {
           case 0:
-            _context38.n = 1;
+            _context37.n = 1;
             return apiGame('/api/wager/bank', {
               method: 'POST',
               body: '{}'
             });
           case 1:
-            _yield$apiGame28 = _context38.v;
-            ok = _yield$apiGame28.ok;
-            data = _yield$apiGame28.data;
+            _yield$apiGame27 = _context37.v;
+            ok = _yield$apiGame27.ok;
+            data = _yield$apiGame27.data;
             if (ok) {
               setWins(data.wins);
               if (data.losses != null) setLosses(data.losses);
@@ -7953,9 +7872,9 @@ function GameApp(_ref28) {
               if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
             } else showToast(data.error || 'Bank failed');
           case 2:
-            return _context38.a(2);
+            return _context37.a(2);
         }
-      }, _callee38);
+      }, _callee37);
     }))
   }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("button", {
     className: "wager-double-down-armed wager-cancel-btn",
@@ -8313,74 +8232,74 @@ function GameApp(_ref28) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState257 = useState(undefined),
+  var _useState253 = useState(undefined),
+    _useState254 = _slicedToArray(_useState253, 2),
+    user = _useState254[0],
+    setUser = _useState254[1];
+  var _useState255 = useState(null),
+    _useState256 = _slicedToArray(_useState255, 2),
+    gameState = _useState256[0],
+    setGameState = _useState256[1];
+  var _useState257 = useState(''),
     _useState258 = _slicedToArray(_useState257, 2),
-    user = _useState258[0],
-    setUser = _useState258[1];
-  var _useState259 = useState(null),
-    _useState260 = _slicedToArray(_useState259, 2),
-    gameState = _useState260[0],
-    setGameState = _useState260[1];
-  var _useState261 = useState(''),
-    _useState262 = _slicedToArray(_useState261, 2),
-    sessionMsg = _useState262[0],
-    setSessionMsg = _useState262[1];
+    sessionMsg = _useState258[0],
+    setSessionMsg = _useState258[1];
   useEffect(function () {
-    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39() {
+    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
       var _yield$apiFetch2, ok, data, gs;
-      return _regenerator().w(function (_context39) {
-        while (1) switch (_context39.n) {
+      return _regenerator().w(function (_context38) {
+        while (1) switch (_context38.n) {
           case 0:
-            _context39.n = 1;
+            _context38.n = 1;
             return apiFetch('/api/me');
           case 1:
-            _yield$apiFetch2 = _context39.v;
+            _yield$apiFetch2 = _context38.v;
             ok = _yield$apiFetch2.ok;
             data = _yield$apiFetch2.data;
             storeCsrf(data);
             if (!(ok && data.username)) {
-              _context39.n = 3;
+              _context38.n = 3;
               break;
             }
-            _context39.n = 2;
+            _context38.n = 2;
             return apiFetch('/api/state');
           case 2:
-            gs = _context39.v;
+            gs = _context38.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(data.username);
             } else {
               setUser(null);
             }
-            _context39.n = 4;
+            _context38.n = 4;
             break;
           case 3:
             setUser(null);
           case 4:
-            return _context39.a(2);
+            return _context38.a(2);
         }
-      }, _callee39);
+      }, _callee38);
     }))();
   }, []);
   var handleAuth = /*#__PURE__*/function () {
-    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(username) {
+    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39(username) {
       var gs;
-      return _regenerator().w(function (_context40) {
-        while (1) switch (_context40.n) {
+      return _regenerator().w(function (_context39) {
+        while (1) switch (_context39.n) {
           case 0:
-            _context40.n = 1;
+            _context39.n = 1;
             return apiFetch('/api/state');
           case 1:
-            gs = _context40.v;
+            gs = _context39.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(username);
               setSessionMsg('');
             }
           case 2:
-            return _context40.a(2);
+            return _context39.a(2);
         }
-      }, _callee40);
+      }, _callee39);
     }));
     function handleAuth(_x17) {
       return _handleAuth.apply(this, arguments);
