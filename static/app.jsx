@@ -4653,7 +4653,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 <button className="wager-double-down-armed wager-cancel-btn" onClick={handleCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
               )}
               {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-                <button className="wager-action-btn" onClick={handleDoubleDown}>⚡ Double Down</button>
+                <button className="wager-action-btn" onClick={handleDoubleDown} title="Arm Double-Down — all-or-nothing (no insurance, no safety net)">⚡ Double Down</button>
               )}
               {ownedItems.includes('wager_insurance') && wagerInsuranceArmed && (
                 <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>

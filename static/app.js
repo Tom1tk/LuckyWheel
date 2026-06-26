@@ -7962,7 +7962,8 @@ function GameApp(_ref28) {
     onClick: handleCancelDoubleDown
   }, "\u26A1 Double-Down armed! (click to cancel) \u26A0\uFE0F"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
-    onClick: handleDoubleDown
+    onClick: handleDoubleDown,
+    title: "Arm Double-Down \u2014 all-or-nothing (no insurance, no safety net)"
   }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && wagerInsuranceArmed && /*#__PURE__*/React.createElement("button", {
     className: "wager-insurance-armed wager-cancel-btn",
     onClick: handleCancelInsurance
