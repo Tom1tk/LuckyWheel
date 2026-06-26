@@ -6422,7 +6422,8 @@ No parallelism needed.
 
 ### T205: S8 drawer — match shop style, drop ✕ button, no toolbar overlap
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — merged as `bc91f2a` after audit; live measurements
+  (testing7, 390x844): z-index=150, drawer rect y=56-788, 0 close buttons, 0 headers.
 - **Discovered:** 2026-06-26 (operator visual feedback after T204 ship)
 - **Files:** `static/app.jsx`, `static/styles.css`
 - **Go/No-Go:** Do NOT touch the S8 panel component bodies (PrestigePanel,
@@ -6661,7 +6662,8 @@ drawer tests (around line 540):
 
 ### T206: Mode buttons centered (CSS only)
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — merged as `6c81b99` after audit; live
+  measurements (testing7, 390x844): gapLeft=21.5, gapRight=21.5 (was 0/43).
 - **Discovered:** 2026-06-26 (operator: "modes aren't centered for
   some reason, they skew to the left")
 - **Files:** `static/styles.css` (one rule)
@@ -6788,7 +6790,11 @@ in a follow-up commit. Document the choice in your report.
 
 ### T207: Dice roll button is blocked by the mobile toolbar
 
-- **Status:** [ ]
+- **Status:** [x] (2026-06-26) — merged as `af6e4d7` after audit; live
+  measurements (testing7, 390x844): dice btn bottom=787.2 ≤ toolbar top=788;
+  elementFromPoint returns the dice button (was a toolbar button).
+  Strengthened `test_dice_button_visible_in_initial_viewport` to assert
+  `bottom <= toolbar_top` and `elementFromPoint` is not a toolbar button.
 - **Discovered:** 2026-06-26 (operator: "Still not able to use the
   dice to roll")
 - **Files:** `static/styles.css`
