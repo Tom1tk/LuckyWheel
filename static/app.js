@@ -4739,6 +4739,17 @@ var TIER_THRESHOLDS = {
   2: 10000,
   3: 100000
 };
+
+// T111/T121: prestige threshold scales by 1.05× per level (T111). The
+// server is the source of truth — `gameState.next_prestige_threshold`
+// carries the live value. These constants are the client-side fallback
+// for the very first render before the next_threshold is in state.
+var PRESTIGE_BASE_THRESHOLD = 1000000;
+var PRESTIGE_LEVEL_MULTIPLIER = 1.05;
+var PRESTIGE_MAX_LEVEL = 20;
+function clientPrestigeThreshold(level) {
+  return Math.round(PRESTIGE_BASE_THRESHOLD * Math.pow(PRESTIGE_LEVEL_MULTIPLIER, level));
+}
 function ShopPanel(_ref23) {
   var fishClicks = _ref23.fishClicks,
     wins = _ref23.wins,
@@ -4758,7 +4769,9 @@ function ShopPanel(_ref23) {
     collapsed = _ref23.collapsed,
     cumulativeWins = _ref23.cumulativeWins,
     caughtSpecies = _ref23.caughtSpecies,
-    procStreak = _ref23.procStreak;
+    procStreak = _ref23.procStreak,
+    prestigeLevel = _ref23.prestigeLevel,
+    nextPrestigeThreshold = _ref23.nextPrestigeThreshold;
   var _useState63 = useState('functional'),
     _useState64 = _slicedToArray(_useState63, 2),
     activeTab = _useState64[0],
@@ -4815,7 +4828,16 @@ function ShopPanel(_ref23) {
       var infLevel = item.infinite ? infLevels[item.id] || 0 : null;
       var cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
       var atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
-      var displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
+      // T121: prestige_unlock is special. After the first prestige, the
+      // item is in owned_items, but the player can still buy it again
+      // to prestige to the next level (cost = scaled threshold, not 1M).
+      // We override owned/displayCost here so the shop always shows the
+      // action button until the player hits MAX_PRESTIGE_LEVEL.
+      var isPrestige = item.id === 'prestige_unlock';
+      var prestigeAtMax = isPrestige && (prestigeLevel || 0) >= PRESTIGE_MAX_LEVEL;
+      var prestigeOwnedButCanBuy = isPrestige && ownedItems.includes('prestige_unlock') && !prestigeAtMax;
+      var itemOwned = !item.infinite && ownedItems.includes(item.id) && !prestigeOwnedButCanBuy;
+      var displayCost = isPrestige ? prestigeAtMax ? 0 : nextPrestigeThreshold || clientPrestigeThreshold(prestigeLevel || 0) : item.infinite ? infCost(item.id, infLevel) : item.cost;
       var currency = getItemCurrency(item.id);
       var balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
 
@@ -4893,10 +4915,10 @@ function ShopPanel(_ref23) {
         isCosmetic: isCosmetic,
         isClass: isClass,
         isClassEquipped: isClassEquipped,
-        owned: !item.infinite && ownedItems.includes(item.id),
+        owned: itemOwned,
         equipped: false,
         active: isCosmetic && activeCosmetics.includes(item.id),
-        canAfford: !atMaxLevel && balance >= displayCost,
+        canAfford: !atMaxLevel && !prestigeAtMax && balance >= displayCost,
         infLevel: infLevel,
         displayCost: atMaxLevel ? 0 : displayCost,
         procStreak: procStreak,
@@ -7167,7 +7189,7 @@ function GameApp(_ref28) {
     if (ownedItems.includes('prestige_unlock')) {
       refreshPrestigeInfo();
     }
-  }, [ownedItems, refreshPrestigeInfo]);
+  }, [ownedItems, prestigeLevel, refreshPrestigeInfo]);
 
   // Season 8: handle guard activation
   var handleGuardActivate = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
@@ -8262,7 +8284,9 @@ function GameApp(_ref28) {
     collapsed: shopCollapsed,
     cumulativeWins: cumulativeWins,
     caughtSpecies: caughtSpecies,
-    procStreak: procStreak
+    procStreak: procStreak,
+    prestigeLevel: prestigeLevel,
+    nextPrestigeThreshold: nextPrestigeThreshold
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
   }, !isMobile && (communityGoal || singularity) && /*#__PURE__*/React.createElement("div", {

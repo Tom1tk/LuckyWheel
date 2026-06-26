@@ -2705,7 +2705,18 @@ const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Tr
 // values (1000 / 10000) to match the new metric scale.
 const TIER_THRESHOLDS = { 2: 10000, 3: 100000 };
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, cumulativeWins, caughtSpecies, procStreak }) {
+// T111/T121: prestige threshold scales by 1.05× per level (T111). The
+// server is the source of truth — `gameState.next_prestige_threshold`
+// carries the live value. These constants are the client-side fallback
+// for the very first render before the next_threshold is in state.
+const PRESTIGE_BASE_THRESHOLD = 1000000;
+const PRESTIGE_LEVEL_MULTIPLIER = 1.05;
+const PRESTIGE_MAX_LEVEL = 20;
+function clientPrestigeThreshold(level) {
+  return Math.round(PRESTIGE_BASE_THRESHOLD * Math.pow(PRESTIGE_LEVEL_MULTIPLIER, level));
+}
+
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, cumulativeWins, caughtSpecies, procStreak, prestigeLevel, nextPrestigeThreshold }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -2748,7 +2759,18 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
         const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
         const atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
-        const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
+        // T121: prestige_unlock is special. After the first prestige, the
+        // item is in owned_items, but the player can still buy it again
+        // to prestige to the next level (cost = scaled threshold, not 1M).
+        // We override owned/displayCost here so the shop always shows the
+        // action button until the player hits MAX_PRESTIGE_LEVEL.
+        const isPrestige = item.id === 'prestige_unlock';
+        const prestigeAtMax = isPrestige && (prestigeLevel || 0) >= PRESTIGE_MAX_LEVEL;
+        const prestigeOwnedButCanBuy = isPrestige && ownedItems.includes('prestige_unlock') && !prestigeAtMax;
+        const itemOwned = !item.infinite && ownedItems.includes(item.id) && !prestigeOwnedButCanBuy;
+        const displayCost = isPrestige
+          ? (prestigeAtMax ? 0 : (nextPrestigeThreshold || clientPrestigeThreshold(prestigeLevel || 0)))
+          : (item.infinite ? infCost(item.id, infLevel) : item.cost);
         const currency = getItemCurrency(item.id);
         const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
 
@@ -2795,10 +2817,10 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
             isCosmetic={isCosmetic}
             isClass={isClass}
             isClassEquipped={isClassEquipped}
-            owned={!item.infinite && ownedItems.includes(item.id)}
+            owned={itemOwned}
             equipped={false}
             active={isCosmetic && activeCosmetics.includes(item.id)}
-            canAfford={!atMaxLevel && balance >= displayCost}
+            canAfford={!atMaxLevel && !prestigeAtMax && balance >= displayCost}
             infLevel={infLevel}
             displayCost={atMaxLevel ? 0 : displayCost}
             procStreak={procStreak}
@@ -4188,7 +4210,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (ownedItems.includes('prestige_unlock')) {
       refreshPrestigeInfo();
     }
-  }, [ownedItems, refreshPrestigeInfo]);
+  }, [ownedItems, prestigeLevel, refreshPrestigeInfo]);
 
   // Season 8: handle guard activation
   const handleGuardActivate = useCallback(async () => {
@@ -4987,6 +5009,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             cumulativeWins={cumulativeWins}
             caughtSpecies={caughtSpecies}
             procStreak={procStreak}
+            prestigeLevel={prestigeLevel}
+            nextPrestigeThreshold={nextPrestigeThreshold}
           />
         </div>
       </div>
