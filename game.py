@@ -25,7 +25,8 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC, FISH_TO_WAGER_RATES,
-                    SINGULARITY_PER_PLAYER_CAP)
+                    SINGULARITY_PER_PLAYER_CAP,
+                    RETIRED_ITEMS)
 from seasons import ensure_current_season, get_season_info, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
@@ -34,8 +35,7 @@ from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_strea
                     _recharge_wager_insurance, HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
-                     get_prestige_threshold, get_legacy_keep_count,
-                     compute_wins_kept, filter_kept_items,
+                     get_prestige_threshold, filter_kept_items,
                      PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
 from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty, BOUNTY_DEFS
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
@@ -1987,6 +1987,14 @@ def buy():
     data = request.get_json(silent=True) or {}
     item_id = data.get('item_id') or ''
 
+    # T121: items retired from the shop (prestige_efficiency, prestige_legacy)
+    # return 403. They're no longer in SHOP_ITEMS, so the 400 "Unknown item"
+    # branch below would also catch them — this guard produces a clearer
+    # error and is documented as defence-in-depth for any client that still
+    # references the old item IDs.
+    if item_id in RETIRED_ITEMS:
+        return jsonify({'error': 'Item retired'}), 403
+
     # Infinite repeatable upgrades — handled separately (no "already owned" restriction)
     if item_id in INFINITE_UPGRADES:
         inf      = INFINITE_UPGRADES[item_id]
@@ -3407,43 +3415,69 @@ def _prestige_default(col):
 @login_required
 @csrf.exempt
 def prestige_reset():
-    """Prestige: reset wins for permanent bonus + legacy_wins preservation.
+    """T121 atomic prestige: deduct 1M wins (if not yet owned), add the
+    unlock, and reset state. All in one transaction.
+
+    Replaces the old two-call flow (/api/buy prestige_unlock then
+    /api/prestige) which had a race window where a buy could succeed
+    and the prestige could fail, leaving the player with 0 wins and
+    the unlock but no prestige applied. The shop now intercepts the
+    buy and routes the user through a confirmation modal which calls
+    this single endpoint.
 
     T85: resets the full AC#1 scope — every retired / per-season column
-    listed in PRESTIGE_RESET_COLUMNS. Preserves prestige_level, prestige_count,
-    legacy_wins, owned_cosmetics, active_cosmetics, aquarium_species, loadouts,
-    cosmetic_fragments, onboarding_step (T88), and wager_tokens (T85 AC#2).
+    listed in PRESTIGE_RESET_COLUMNS. Preserves prestige_level (advanced
+    by 1), prestige_count, legacy_wins, active_cosmetics, aquarium_species,
+    cosmetic_fragments, onboarding_step, and wager_tokens.
 
-    T86: wins are not zeroed — ``compute_wins_kept`` retains a fraction of
-    them based on the player's prestige_efficiency level.
+    T86: removed by T121 — wins are fully reset to 0 (compute_wins_kept
+    always returns 0). legacy_wins carries the prior total forward.
     """
     err = require_json()
     if err:
         return err
+    PRESTIGE_COST = 1_000_000
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
-            if 'prestige_unlock' not in gs['owned_items']:
-                return jsonify({'error': 'Prestige not unlocked'}), 403
+            already_owned = 'prestige_unlock' in gs['owned_items']
+            current_wins = int(gs['wins'])
             current_level = gs.get('prestige_level', 0)
             if current_level >= MAX_PRESTIGE_LEVEL:
                 return jsonify({'error': 'Already at max prestige'}), 403
-            threshold = get_prestige_threshold(gs['owned_items'], current_level)
-            if int(gs['wins']) < threshold:
-                return jsonify({'error': f'Need {threshold} wins to prestige', 'current_wins': int(gs['wins'])}), 403
+            if already_owned:
+                threshold = get_prestige_threshold(gs['owned_items'], current_level)
+                if current_wins < threshold:
+                    return jsonify({
+                        'error': f'Need {threshold} wins to prestige',
+                        'current_wins': current_wins,
+                        'threshold': threshold,
+                    }), 403
+                cost = 0
+            else:
+                if current_wins < PRESTIGE_COST:
+                    return jsonify({
+                        'error': f'Need {PRESTIGE_COST} wins to prestige',
+                        'current_wins': current_wins,
+                        'threshold': PRESTIGE_COST,
+                    }), 403
+                cost = PRESTIGE_COST
             new_level = current_level + 1
             new_prestige_count = gs.get('prestige_count', 0) + 1
-            legacy_keep = get_legacy_keep_count(gs['owned_items'])
-            current_wins = int(gs['wins'])
             new_legacy_wins = int(gs.get('legacy_wins', 0)) + current_wins
-            new_wins = compute_wins_kept(current_wins, gs['owned_items'])
-            new_owned_items = filter_kept_items(gs['owned_items'], legacy_keep)
+            new_wins = 0  # T121: wins are fully reset; legacy_wins carries the total.
+            new_owned_items = filter_kept_items(gs['owned_items'], 0)
+            if not already_owned:
+                new_owned_items = list(new_owned_items) + ['prestige_unlock']
             starting_prestige = get_starting_prestige(new_legacy_wins)
             # T85: one UPDATE per prestige, every reset column cleared.
-            # Preserved columns (per AC#2): prestige_level, prestige_count,
-            # legacy_wins, active_cosmetics, aquarium_species, cosmetic_fragments,
-            # onboarding_step, wager_tokens. owned_items is rewritten to the
-            # filtered list (kept functional + all cosmetics).
+            # Preserved columns (per AC#2): prestige_count, legacy_wins,
+            # active_cosmetics, aquarium_species, cosmetic_fragments,
+            # onboarding_step, wager_tokens. wins is the new 0 (was the
+            # compute_wins_kept result in T86). owned_items is rewritten
+            # to the filtered list — T121 means filter_kept_items(0) drops
+            # all functional upgrades; the only thing re-added is
+            # prestige_unlock itself on the first prestige.
             reset_sql_parts = [
                 'prestige_level = %s',
                 'prestige_count = %s',
@@ -3455,7 +3489,7 @@ def prestige_reset():
                             new_wins, new_owned_items]
             for col in PRESTIGE_RESET_COLUMNS:
                 if col == 'wins':
-                    continue  # handled above (retained, not zeroed)
+                    continue  # handled above (set to 0, not the retained value)
                 reset_sql_parts.append(f'{col} = %s')
                 reset_params.append(_prestige_default(col))
             reset_sql_parts.append('wager_tokens = wager_tokens')  # preserve
@@ -3486,6 +3520,7 @@ def prestige_reset():
         'prestige_count': new_prestige_count,
         'legacy_wins': new_legacy_wins,
         'wins_kept': new_wins,
+        'cost': cost,
         'starting_prestige': starting_prestige,
     })
 
