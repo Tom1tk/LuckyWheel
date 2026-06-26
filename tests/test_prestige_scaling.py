@@ -221,7 +221,7 @@ def test_prestige_info_endpoint_returns_scaled_threshold():
         'prestige_count': 5,
         'legacy_wins': 0,
     }
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
 
     @contextmanager
     def cm():
@@ -245,7 +245,7 @@ def test_prestige_info_endpoint_at_max_level_no_threshold():
         'prestige_count': 20,
         'legacy_wins': 0,
     }
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
 
     @contextmanager
     def cm():
@@ -269,7 +269,7 @@ def test_prestige_reset_rejects_when_below_scaled_threshold():
         'prestige_count': 1,
         'legacy_wins': 0,
     }
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
 
     @contextmanager
     def cm():
@@ -301,7 +301,7 @@ def test_prestige_reset_advances_level_uses_new_threshold_for_next():
         'prestige_count': 1,
         'legacy_wins': 0,
     }
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
 
     @contextmanager
     def cm():

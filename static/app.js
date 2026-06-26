@@ -5932,9 +5932,13 @@ function GameApp(_ref28) {
   }(), [showToast, ownedItems]);
 
   // T121: confirm the shop-triggered prestige. The server deducts the
-  // 1M cost (if not yet owned) and resets state in a single transaction.
+  // 1M cost (if not yet owned) and resets state in a single transaction,
+  // then returns the post-reset state in the response. We use that
+  // state to refresh all relevant React fields (PRESTIGE_RESET_COLUMNS
+  // strips every functional upgrade — owned_items is rewritten, so
+  // the shop's "owned" badges need a real update, not a hard refresh).
   var handleConfirmPrestigeBuy = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10() {
-    var _yield$apiGame7, ok, data;
+    var _yield$apiGame7, ok, data, s;
     return _regenerator().w(function (_context10) {
       while (1) switch (_context10.n) {
         case 0:
@@ -5952,18 +5956,35 @@ function GameApp(_ref28) {
             setPrestigeLevel(data.prestige_level);
             setPrestigeCount(data.prestige_count);
             setLegacyWins(data.legacy_wins);
-            setWins(0);
-            setLosses(0);
-            setStreak(0);
-            setSpinCount(0);
-            setWagerStreak(0);
-            setWagerLastStake(0);
-            // Make sure the unlock shows up in the shop's "owned" set so the
-            // player can immediately see it was applied.
-            if (!ownedItems.includes('prestige_unlock')) {
-              setOwnedItems(function (prev) {
-                return [].concat(_toConsumableArray(prev), ['prestige_unlock']);
-              });
+            if (data.state) {
+              s = data.state;
+              setWins(s.wins);
+              setLosses(s.losses);
+              setStreak(s.streak);
+              setSpinCount(s.spin_count);
+              setWagerStreak(s.wager_streak);
+              setWagerLastStake(s.wager_last_stake);
+              setInsuranceTokens(s.insurance_tokens);
+              setInsuranceCharges(s.insurance_charges);
+              setInsuranceArmed(s.insurance_armed);
+              setDoubleDownPending(s.double_down_pending);
+              setOwnedItems(s.owned_items);
+              if (s.cumulative_wins != null) setCumulativeWins(s.cumulative_wins);
+            } else {
+              // Server didn't return state (older build) — fall back to the
+              // hand-rolled resets. Player will see stale shop "owned" badges
+              // until a hard refresh.
+              setWins(0);
+              setLosses(0);
+              setStreak(0);
+              setSpinCount(0);
+              setWagerStreak(0);
+              setWagerLastStake(0);
+              if (!ownedItems.includes('prestige_unlock')) {
+                setOwnedItems(function (prev) {
+                  return [].concat(_toConsumableArray(prev), ['prestige_unlock']);
+                });
+              }
             }
             showToast(" Prestiged to Level ".concat(data.prestige_level, "!"));
             refreshBountiesAndGoal();

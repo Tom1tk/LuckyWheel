@@ -225,7 +225,7 @@ def test_legacy_not_in_shop():
 # ════════════════════════════════════════════════════════════════════════════
 def _drive_buy(item_id, gs):
     """Drive game.buy() with a fully-populated gs."""
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
     @contextmanager
     def cm():
         yield conn
@@ -243,7 +243,7 @@ def test_buy_efficiency_returns_403():
     gs = {'owned_items': ['prestige_unlock'], 'wins': 10_000_000, 'losses': 0}
     _drive_buy('prestige_efficiency', gs)  # warm up; assert on a fresh call
     # Direct call: hit the buy handler with a real gs and assert.
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
     @contextmanager
     def cm():
         yield conn
@@ -263,7 +263,7 @@ def test_buy_efficiency_returns_403():
 def test_buy_legacy_returns_403():
     """T121 AC#2: /api/buy prestige_legacy returns 403 'Item retired'."""
     gs = {'owned_items': ['prestige_unlock'], 'wins': 10_000_000, 'losses': 0}
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
     @contextmanager
     def cm():
         yield conn
@@ -442,7 +442,7 @@ def _drive_prestige(gs, *, capture_log=True):
     full_gs.setdefault('cosmetic_fragments', 0)
     full_gs.setdefault('caught_species', [])
 
-    conn = _FakeConn(fetchone_queue=[full_gs])
+    conn = _FakeConn(fetchone_queue=[full_gs, full_gs])
     @contextmanager
     def cm():
         yield conn
@@ -521,7 +521,7 @@ def test_prestige_endpoint_insufficient_wins():
         'wins': 999_999,
         'losses': 0,
     }
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
     @contextmanager
     def cm():
         yield conn

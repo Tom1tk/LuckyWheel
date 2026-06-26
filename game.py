@@ -3496,6 +3496,15 @@ def prestige_reset():
                     WHERE user_id = %s''',
                 tuple(reset_params) + (current_user.id,),
             )
+        # T121 follow-up: reload the post-reset state in the SAME
+        # transaction so the client can refresh the shop's "owned"
+        # badges (PRESTIGE_RESET_COLUMNS strips every functional upgrade
+        # — owned_items is rewritten). Without this the player has to
+        # hard-refresh to see the reset. We read inside this transaction
+        # (before commit) so the post-UPDATE values are visible to the
+        # same connection.
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            fresh = _load_game_state(cur, current_user.id)
         # Season 8: post system message on prestige
         post_system_message(conn, chat_triggers.prestige_msg(current_user.username, new_level),
                             'system', event_kind='prestige')
@@ -3519,6 +3528,26 @@ def prestige_reset():
         'wins_kept': new_wins,
         'cost': cost,
         'starting_prestige': starting_prestige,
+        'state': {
+            'wins': int(fresh['wins']),
+            'losses': int(fresh.get('losses', 0)),
+            'streak': int(fresh.get('streak', 0)),
+            'best_streak': int(fresh.get('best_streak', 0)),
+            'spin_count': int(fresh.get('spin_count', 0)),
+            'win_count': int(fresh.get('win_count', 0)),
+            'loss_count': int(fresh.get('loss_count', 0)),
+            'wager_streak': int(fresh.get('wager_streak', 0)),
+            'wager_last_stake': int(fresh.get('wager_last_stake', 0)),
+            'wager_last_win_amount': int(fresh.get('wager_last_win_amount', 0)),
+            'wager_banked_wins': int(fresh.get('wager_banked_wins', 0)),
+            'wager_banked_losses': int(fresh.get('wager_banked_losses', 0)),
+            'insurance_tokens': int(fresh.get('insurance_tokens', 0)),
+            'insurance_charges': int(fresh.get('insurance_charges', 0)),
+            'insurance_armed': bool(fresh.get('insurance_armed', False)),
+            'double_down_pending': bool(fresh.get('double_down_pending', False)),
+            'owned_items': list(fresh.get('owned_items', [])),
+            'cumulative_wins': int(fresh.get('cumulative_wins', 0)),
+        },
     })
 
 
