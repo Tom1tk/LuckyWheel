@@ -22,6 +22,87 @@
 
 ---
 
+## 0. Audit (2026-06-26) — corrections to this plan
+
+> This section is the audit record. The body of the plan was written
+> 2026-06-23; the items below correct drift caused by later work
+> (T117–T121, T200–T207) and an unresolved pre-existing bug. Inline
+> changes have been made to the affected sections; this section
+> summarises them and lists the open operator decisions that must be
+> resolved **before** the §6.1 dry-run.
+
+### Critical (would break the rollover if not fixed)
+
+- **`seasons.py::advance_season()` line 119 references `shield_charges`** —
+  column was dropped by migration `030_drop_shield_charges.sql`. The
+  function would throw `column "shield_charges" does not exist` if
+  actually invoked. The existing rollover test `tests/test_rollover.py:54`
+  notes this explicitly: "We can't run `advance_season()` end-to-end
+  against the staging DB because the function also references columns
+  the current schema no longer has (e.g. `shield_charges`, dropped by
+  migration 030)." → §6.1 must include deleting that one line.
+- **`UPDATE seasons` (lines 158–164) does NOT set `name = 'Casino'`.**
+  Plan §6.5 says it does; reality says it doesn't. After rollover
+  the new row would have `name=''`, and `get_season_info` would fall
+  back to `season_name=str(season_number)` → `'9'`, not `'Casino'`.
+  → §6.1 / §6.4 must add `name = 'Casino'` to the UPDATE.
+- **`INSERT INTO user_season_history` (lines 85–99) only writes S7
+  columns.** Even after migration 052 adds the S8 columns, the INSERT
+  would write NULLs/defaults into them. → §6.2 needs both the migration
+  AND the seasons.py INSERT edit.
+- **Missing reset clauses** (against the live staging schema, 2026-06-26):
+  `wager_banked_losses`, `gravity_drift`, `wager_last_win_amount`,
+  `biggest_win_announced`. The plan §6.1 listed the first three; the
+  fourth is new (added by T90-era auto-spin chat post work, not in the
+  original audit). → Add all four to §6.1 checklist.
+
+### Plan factual errors corrected inline
+
+- Migration count: was "22 (031–052)" → **24 (031–051 + 053 + 054 + new
+  052)**. T117 added migration `053_bounty_per_claim.sql`; T119 added
+  `054_rename_wager_to_insurance_tokens.sql`.
+- §6.2 column list had pre-T119 names: `wager_insurance_charges`,
+  `wager_insurance_armed`, `wager_tokens` all renamed by migration 054.
+  Updated to current names: `insurance_charges`, `insurance_armed`,
+  `insurance_tokens`. Plus new columns to snapshot: `biggest_win_announced`,
+  `cosmetic_fragments`, `bounty_claimed_date`, `catch_of_the_day_date`,
+  `insurance_free_claimed_date`, `insurance_unlock_grant_given`.
+- §2/§3 stale facts: main gunicorn PID, staging gunicorn PID, "last
+  migration applied" (now `054`), `game.py:2125` (now `game.py:3093`),
+  the "manual-trigger only, no cron" paragraph in §3 contradicted the
+  §6.6 cron decision.
+- §6.1 dry-run procedure: staging `.env` has NO `ADMIN_SECRET` (only
+  main's `.env` does). Documented alternative: invoke
+  `seasons.advance_season(conn)` directly from a Python REPL with a
+  real `psycopg2` connection to `wheeldb_staging`, bypassing the HTTP
+  endpoint and its secret check.
+- §6.3 manual sub-steps: `deploy.sh` (existing on main) already
+  automates merge → dry-run → apply → build → restart gunicorn. The
+  §6.3 step is now "create migration 052 in main's `migrations/`, then
+  run `./deploy.sh`".
+
+### Open operator decisions (resolve before §6.1)
+
+These are columns that exist in `game_state` whose reset policy the
+original plan did not pin down. **Recommendations** are listed; the
+operator must confirm.
+
+| Column | Stage introduced | Reset? | Recommendation |
+|---|---|---|---|
+| `insurance_tokens` (renamed from `wager_tokens` by T119) | 032/054 | preserve | earned currency, not transient season state |
+| `cosmetic_fragments` | 046/T118 | preserve | cosmetic-crafting currency |
+| `cumulative_wins` | 049 (T106) | **DO NOT reset** | lifetime counter tier-gating auto-spin unlock |
+| `biggest_win_announced` | 043 (T90) | reset to 0 | per-season jackpots-announced-once flag |
+| `bounty_claimed_date` | 044 (T117) | preserve (daily-reset by date) | reset by UTC date flip, not by season |
+| `catch_of_the_day_date` | 042 | preserve (daily) | same |
+| `insurance_free_claimed_date` | 054 (T119) | preserve (daily) | same |
+| `insurance_unlock_grant_given` | 054 (T119) | preserve (lifetime) | one-time grant guard |
+
+If any of these decisions disagree with the recommendations, edit
+§6.1's checklist accordingly before running the dry-run.
+
+---
+
 ## 1. TL;DR
 
 The main server (`wheel-app/`, `wheeldb`) is currently in season
@@ -40,7 +121,7 @@ interfere with the manual promotion. See §11 for all 7 decisions.
 
 The migration has two halves:
 
-1. **Promote the work** — push staging's 51-migration series and Season 8
+1. **Promote the work** — push staging's 54-migration series and Season 8
    code from the `staging` branch to `master`, deploy, and **verify the
    live server still runs cleanly while still in 7.7** (i.e. the S8
    columns exist, but the live game is still in 7.7 mode).
@@ -67,12 +148,12 @@ verification on staging** as a hard gate.
 | Branch | `master` |
 | Code | Season 7.7 (no wager, no prestige, no bounties, no casino) |
 | `game_state` columns | 49 S7-era columns (no `wager_*`, `prestige_*`, `cumulative_wins`, `auto_spin_budget`, `guard_*`, `resilience_*`, `legacy_wins`, `caught_species`, `equipped_class`, etc.) |
-| Last migration applied | `030_drop_shield_charges` (2026-05-13) |
-| `seasons` row | `season_number=8, name='7.7', ends_at=2026-06-26 23:59 BST` |
+| Last migration applied | `030_drop_shield_charges` (2026-05-13) — schema_migrations has 30 rows |
+| `seasons` row | `season_number=8, name='7.7', ends_at=2026-06-26 23:59:00+01` |
 | `season_snapshots` | 21 rows (3 winners × 7 seasons) |
-| `user_season_history` | 50 rows |
+| `user_season_history` | 50 rows, S7-era columns only |
 | Active players | 3 (tom7, worm67, dylan) — see `SEASON_8_PLANNING.md` for details |
-| Gunicorn PID | 48937 (running since 2026-06-17) |
+| Gunicorn arbiter | PID 319 (port 5000 master, conf `gunicorn.conf.py`); 4 workers on 5000. PIDs are ephemeral — verify with `pgrep -af gunicorn` at T-30 |
 | Uncommitted edits | `static/app.js`, `static/app.jsx` (do not lose) |
 | Backup cron | `0 3 * * * /home/user/backup-wheeldb.sh` — 03:00 UTC daily, last 14 days retained |
 
@@ -81,13 +162,13 @@ verification on staging** as a hard gate.
 | Thing | Value |
 |---|---|
 | Branch | `staging` |
-| Code | Full Season 8 (wager, prestige, bounties, community goals, singularity, loadouts, casino theme) |
-| `game_state` columns | 67 (all S7 + 18 new S8 columns) |
-| Last migration applied | `051_season8_theme_equip` (2026-06-23) |
-| `seasons` row | `season_number=7, ends_at=2026-05-01 23:59 BST` (stuck at 7, intentionally — we use it to test S8 mechanics in isolation) |
-| `season_snapshots` | 6 rows (no real seasons rolled over yet) |
-| Gunicorn PID | 306013 (running since 2026-06-23, reloaded multiple times) |
-| `ADMIN_SECRET` | (same `.env` template; not yet confirmed set in staging) |
+| Code | Full Season 8 (wager, prestige, bounties, community goals, singularity, loadouts, casino theme, mobile drawer) |
+| `game_state` columns | 68 (all S7 + 19 new S8 columns; the S8 count grew by 2 since the original plan via T117 + T119) |
+| Last migration applied | `054_rename_wager_to_insurance_tokens` (2026-06-26); 54 rows in `schema_migrations` |
+| `seasons` row | `season_number=7, name='' (EMPTY), ends_at=2026-05-01 23:59:00+01` (stuck at 7, intentionally — used to test S8 mechanics in isolation) |
+| `season_snapshots` | 6 rows (no real seasons rolled over yet — staging has never run `advance_season()` end-to-end; see §6.1 shield_charges bug) |
+| Gunicorn arbiter | PID 243257 (port 5001 master); 4 workers. PIDs are ephemeral |
+| `ADMIN_SECRET` | **NOT set in staging `.env`** (only main's `.env` has it: `ADMIN_SECRET=d4da0a…`). The §6.1 dry-run therefore bypasses the HTTP endpoint and calls `seasons.advance_season(conn)` directly from Python |
 
 ### The gap (what main is missing)
 
@@ -105,7 +186,7 @@ will fail with `column does not exist`.
 
 ## 3. The rollover mechanism (unchanged from main)
 
-`POST /api/admin/advance-season` (game.py:2125), with header
+`POST /api/admin/advance-season` (`game.py:3093`), with header
 `X-Admin-Secret: $ADMIN_SECRET`, calls `seasons.advance_season(conn)`:
 
 1. Lock + read the `seasons` row (`FOR UPDATE`).
@@ -120,9 +201,11 @@ will fail with `column does not exist`.
    the one critical weekly tx.
 
 The endpoint is **manual-trigger only** (commit `a2bf578` explicitly
-removed auto-rollover). Whoever runs the migration curls it at the
-right time. No cron, no scheduler. **This is correct by design** — we
-do not want seasons advancing without operator oversight.
+removed auto-rollover). No code path inside the server calls it. The
+only triggers are: (a) the §6.6 cron entry firing `bin/rollover.sh`
+at the scheduled time, and (b) the operator-fallback curl in §7 T-0.
+Both require the `ADMIN_SECRET` header — the endpoint never advances
+the season without an explicit external call.
 
 `ADMIN_SECRET` for main is set in `/home/user/wheel-app/.env`:
 `ADMIN_SECRET=d4da0abe8a184c5958371d9123189ddcf9d9812031694b3e`
@@ -157,7 +240,12 @@ No writing it "live" at midnight.
 
 ### In scope
 
-- Promote the 21 S8 migrations (031–051) to main.
+- Promote the 24 S8 migrations (031–054 + the new 052) to main.
+  - 031–051: existing S8 schema (21 files).
+  - 053_bounty_per_claim.sql: T117 bounty per-claim tracking.
+  - 054_rename_wager_to_insurance_tokens.sql: T119 insurance rename.
+  - 052_user_season_history_s8.sql: created in §6.2 (the new
+    `user_season_history` S8 columns).
 - Promote the S8 code (game.py, models.py, seasons.py, app.jsx, etc.)
   to main.
 - Update main's `seasons.py` to reset S8 fields in the rollover UPDATE.
@@ -185,96 +273,194 @@ No writing it "live" at midnight.
 
 ### 6.1 — Re-verify S8 reset logic on staging
 
-The staging `seasons.py` already has the S8 reset clauses (diffed against
-main — the S8 additions are the `legacy_wins` accumulate, the
-prestige/wager/guard/resilience/auto-spin-budget resets, and the
-`active_wheel_mode = 'steady'` clause). The staging working tree
-currently has the S8 work dirty (uncommitted); the dry-run is
-intentionally done against the dirty tree because that matches what
-main will look like after the §6.3 promote.
+**Phase A — fix `seasons.py` BEFORE the dry-run.** The staging
+`seasons.py::advance_season()` (see current source lines 116–145) has
+several issues that must be fixed before any dry-run will succeed:
 
-Re-run by calling `POST /api/admin/advance-season` on staging, and
-verify:
+- [ ] **Remove the `shield_charges = 0,` line (line ~119)** — column
+      was dropped by migration 030. This is a pre-existing bug noted
+      in `tests/test_rollover.py:54`. Without removing it the entire
+      `UPDATE game_state` would throw `column "shield_charges" does
+      not exist` on first run, on staging OR main.
+- [ ] **Add `name = 'Casino'` to the `UPDATE seasons` clause** (lines
+      158–164). Currently the UPDATE sets only `season_number`,
+      `started_at`, `ends_at` — without a `name` clause the new season
+      row would inherit `name=''`, and `get_season_info` (line 211)
+      falls back to `season_name=str(season_number)` → the UI would
+      display `'9'` instead of `'Casino'`. The §6.5 operator decision
+      is unimplemented until this is fixed.
+- [ ] **Add the four missing reset clauses** to the `UPDATE game_state`
+      block:
+      - `wager_banked_losses = 0` (mirrors `wager_banked_wins = 0`)
+      - `gravity_drift = 0` (clears wheel-mode bias carry-over)
+      - `wager_last_win_amount = 0` (clears stale double-down escrow)
+      - `biggest_win_announced = 0` (per-season jackpot-announced flag;
+        T90 added the column; without reset, jackpots can't be
+        re-announced next season)
+- [ ] **Confirm decisions on the columns in the §0 audit table.**
+      Per the recommendations there, the reset should:
+      - Leave `insurance_tokens` untouched (preserve earned currency;
+        T119 rename from `wager_tokens`).
+      - Leave `cosmetic_fragments` untouched (preserve T118 currency).
+      - Leave `cumulative_wins` untouched (lifetime — T106 tier gate).
+      - Leave `bounty_claimed_date`, `catch_of_the_day_date`,
+        `insurance_free_claimed_date` untouched (date-stamped, reset
+        by UTC date flip via their own logic).
+      - Leave `insurance_unlock_grant_given` untouched (one-time grant).
+      If any of these decisions disagree, edit the §6.1 reset block
+      to add the explicit reset clause.
+- [ ] Wait for §6.2 (the migration 052 + the
+      `INSERT INTO user_season_history` edit) before running the
+      dry-run — otherwise the INSERT in step 3 of `advance_season()`
+      won't populate the new columns.
 
-- [ ] `season_snapshots` got 3 new rows for the current season
-- [ ] `user_season_history` got 1 new row per user
-- [ ] `game_state` wins/losses/levels all reset
-- [ ] `game_state` `legacy_wins` ACCUMULATED (old value + current `wins`)
-- [ ] `game_state` `prestige_level`/`prestige_count` reset to 0
-- [ ] `game_state` `wager_streak`/`wager_banked_wins`/etc. reset
-- [ ] `game_state` `wager_banked_losses` reset to 0 — **currently
-      MISSING from the reset UPDATE in `seasons.py`.** `wager_banked_wins`
-      resets but its loss counterpart doesn't; same "forgot the new
-      field" pattern as §4.
-- [ ] `game_state` `gravity_drift` reset to 0 — **currently MISSING.**
-      Carries wheel-mode bias into the new season.
-- [ ] `game_state` `wager_last_win_amount` reset to 0 — **currently
-      MISSING.** Stale double-down escrow would carry over.
-- [ ] Decide: does `wager_tokens` persist across seasons (it's an
-      earned currency, arguably fine to keep) or should it reset like
-      everything else? **Currently NOT reset** — confirm this is a
-      deliberate choice, not an oversight.
-- [ ] `game_state` `active_wheel_mode` reset to `'steady'`
+**Phase B — the dry-run.** The original plan called `POST
+/api/admin/advance-season` on staging. That doesn't work cleanly
+because staging `.env` has no `ADMIN_SECRET`. Use the direct
+Python invocation instead — it bypasses HTTP and the secret check:
+
+```bash
+cd /home/user/wheel-app-staging
+python3 - <<'PY'
+import os
+from dotenv import load_dotenv
+load_dotenv()
+import psycopg2
+import seasons
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+try:
+    # staging has 6 snapshot rows + season_number=7; take a fresh
+    # backup first if you want to be able to revert (see Note below).
+    seasons.advance_season(conn)
+    print("ROLLOVER OK — see logs above for SEASON_ROLLOVER_START/DONE")
+finally:
+    conn.close()
+PY
+```
+
+Then verify against the staging DB (use `psql -d wheeldb_staging`):
+
+- [ ] `SELECT season_number, name FROM seasons;` returns
+      `season_number=8, name='Casino'` (was 7 / empty).
+- [ ] `season_snapshots` got 3 new rows for the current season (count
+      goes from 6 to 9). `SELECT COUNT(*) FROM season_snapshots WHERE
+      season_number=7;` → 3.
+- [ ] `user_season_history` got 1 new row per user — and the new rows
+      have non-default `wager_streak`/`legacy_wins`/`prestige_level`/
+      etc. populated by the §6.2 INSERT edit.
+- [ ] `game_state` wins/losses/levels all reset to 0.
+- [ ] `game_state` `legacy_wins` ACCUMULATED (new value = old value
+      + old wins).
+- [ ] `game_state` `prestige_level`/`prestige_count` reset to 0.
+- [ ] `game_state` `wager_streak`/`wager_banked_wins`/
+      `wager_banked_losses`/`wager_last_win_amount` all reset to 0.
+- [ ] `game_state` `gravity_drift` reset to 0.
+- [ ] `game_state` `biggest_win_announced` reset to 0.
+- [ ] `game_state` `active_wheel_mode` reset to `'steady'`.
+- [ ] `game_state` `insurance_tokens` is **unchanged** (preserved).
+- [ ] `game_state` `cosmetic_fragments` is **unchanged** (preserved).
+- [ ] `game_state` `cumulative_wins` is **unchanged** (preserved; this
+      is the lifetime counter gated on by T106).
 - [ ] `community_pot` reset to `target=40000`, `win_chance_pct=51.0`,
-      `filled=false`, `total_contributed=0`
-- [ ] `seasons` row updated: number+1, started_at=NOW, ends_at=NOW+7d
-- [ ] `/api/season` returns the new number and the new ends_at
+      `filled=false`, `filled_at=NULL`, `total_contributed=0`.
+- [ ] `/api/season` returns the new number and the new `ends_at` (need
+      to set a temporary `ADMIN_SECRET` in staging `.env` OR just query
+      `get_season_info` from a Python shell — see Phase B example).
 
 If any of those fail on staging, **fix the staging `seasons.py` first**
 and re-test. Do not promote a broken reset to main.
 
-> **Note:** the dry-run does roll staging over to a new season. The
-> staging `seasons` row will go from `season_number=7, ends_at=2026-05-01`
-> to `season_number=8, ends_at=2026-06-30-ish` — that's fine, the
-> staging DB is a dev environment. If the dry-run is destructive in a
-> way we don't want, take a staging backup first
-> (`pg_dump wheeldb_staging > /tmp/staging-pre-rollover.sql`).
+> **Note:** the dry-run rolls staging's season forward (7 → 8 → and so
+> on). Staging `seasons.ends_at` will move to `now+7d`, which is fine
+> for a dev env. To reset the staging `seasons` row back to 7 + the
+> May 1st `ends_at` after the dry-run, either take a `pg_dump
+> wheeldb_staging` first and restore it, or issue a manual UPDATE:
+> `UPDATE seasons SET season_number=7, name='', ends_at='2026-05-01
+> 23:59:00+01' WHERE id=1;`.
 
 ### 6.2 — `user_season_history` is missing the S8 columns — schema AND code
 
-**Correction (checked against the live `wheeldb_staging` schema
-2026-06-25):** the earlier claim that "staging already has these
-columns" was wrong. `\d user_season_history` on staging shows only the
-S7 columns — no migration in 031–051 ever touches this table (only
-`000_baseline` and `026_history_upgrade_snapshot` do, both pre-S8).
+**Audit 2026-06-26:** the original plan was correct on the structural
+point but listed some column names that T119 has since renamed. Updated
+below.
+
+**Status confirmed against the live `wheeldb_staging` schema
+2026-06-26:** `\d user_season_history` on staging shows only the
+18 S7-era columns — no migration in 031–054 ever touches this table
+(only `000_baseline` and `026_history_upgrade_snapshot` do, both
+pre-S8).
 
 Worse, even if the columns existed: the `INSERT INTO
-user_season_history` inside `advance_season()` in `seasons.py` only
-writes the legacy S7 fields today (`final_wins`, the upgrade levels,
-etc.) — it has zero references to any S8 column. Adding the migration
-alone wouldn't snapshot anything; the INSERT itself needs editing too.
+user_season_history` inside `advance_season()` in `seasons.py`
+(lines 85–99) only writes the legacy S7 fields today (`final_wins`,
+the upgrade levels, `equipped_class`, etc.) — it has zero references
+to any S8 column. Adding the migration alone wouldn't snapshot
+anything; the INSERT itself needs editing too.
 
-Two changes needed, both **main-only** — staging has no real user
-data, so there's no need to backport this to staging's migration
-ledger first:
+Two changes needed:
 
 1. A new migration `052_user_season_history_s8.sql` adding the S8
-   columns to `user_season_history`.
+   columns to `user_season_history`. **Land this on staging first** so
+   §6.1's dry-run can verify the INSERT actually populates the new
+   columns. The migration must also be present on main's
+   `migrations/` dir **before** `deploy.sh` runs §6.3 (else it won't
+   be applied to `wheeldb`).
 2. An edit to the `INSERT INTO user_season_history` statement in
-   `seasons.py::advance_season()` to actually populate them.
+   `seasons.py::advance_season()` to actually populate them — adds
+   the column names to the column list AND the SELECT list.
 
-Full column list (cross-checked against every S8 `game_state` column
-added by migrations 031–051, not just the ones named in §1's gap
-summary):
+Full column list (cross-checked against every column on staging
+`game_state` 2026-06-26, minus pre-S8 cols already in the table and
+minus the deliberate exclusions):
 
 ```
 wager_streak, wager_last_stake, wager_banked_wins, wager_banked_losses,
-wager_insurance_charges, wager_insurance_armed, wager_last_win_amount,
-wager_tokens, double_down_pending, active_wheel_mode, auto_spin_budget,
-guard_charges, guard_last_regen_spin, resilience_last_use_spin,
-legacy_wins, prestige_level, prestige_count, cumulative_wins,
-gravity_drift, biggest_win_announced
+insurance_charges, insurance_armed, wager_last_win_amount,
+insurance_tokens, double_down_pending, active_wheel_mode,
+auto_spin_budget, guard_charges, guard_last_regen_spin,
+resilience_last_use_spin, legacy_wins, prestige_level, prestige_count,
+cumulative_wins, gravity_drift, biggest_win_announced,
+cosmetic_fragments, bounty_claimed_date, catch_of_the_day_date,
+insurance_free_claimed_date, insurance_unlock_grant_given,
+wager_last_stake (already listed above — dedup),
+onboarding_step
 ```
 
-(`aquarium_species` deliberately excluded — `game.py:212` notes it's
-never written anywhere; it's dead schema, not real player state.)
+Removed from the plan's earlier list (pre-T119 names that no longer
+exist): `wager_insurance_charges`, `wager_insurance_armed`,
+`wager_tokens` — migration 054 renamed them to `insurance_charges`,
+`insurance_armed`, `insurance_tokens`.
+
+Added vs the original list (newer columns the plan missed):
+`biggest_win_announced` (T90), `cosmetic_fragments` (T118),
+`bounty_claimed_date` (T117), `catch_of_the_day_date` (T118/042),
+`insurance_free_claimed_date` + `insurance_unlock_grant_given` (T119),
+`onboarding_step` (T88 — preserved across seasons, useful to snapshot).
+
+Deliberate exclusions:
+
+- `aquarium_species` — `game.py:212` notes it's never written
+  anywhere; it's dead schema, not real player state.
+- All `fishing_*`, `auto_*`, `dice_*`, `click_window_*`, `tab_*`,
+  `proc_streak`, `low_spec_mode`, `suspicious_catches`, etc. — these
+  are S7-era transient or anti-cheat state with no seasonal-meaning
+  worth preserving in the permanent history table. (They are still in
+  `game_state` and stay untouched across rollover, just not snapshotted.)
+
+The migration is straightforward `ALTER TABLE … ADD COLUMN IF NOT
+EXISTS …` with safe defaults (0 / FALSE / NULL as appropriate per
+column). The `seasons.py` INSERT edit: append the new column names to
+both the column list AND the `SELECT gs.…` list, in the same order.
 
 ### 6.3 — Promote staging → master (the code, not the rollover)
 
-This is a normal `deploy.sh` run with the S8 code + migrations bundled.
-**Critical:** main must remain functional while still in 7.7. The S8
-code must not break 7.7 play. The S8 schema migrations (031–051 + 052)
-add columns with safe defaults — they should be inert on 7.7.
+The promotion is handled by `deploy.sh` (existing on main at
+`/home/user/wheel-app/deploy.sh`). It already automates: check clean
+tree → merge staging → master → `migrate.py --dry-run` → prompt →
+`migrate.py` → `make build` → clear bytecode cache → restart gunicorn
+via `systemctl` (fallback: HUP). **Critical:** main must remain
+functional while still in 7.7. The S8 schema migrations (031–054 +
+new 052) add columns with safe defaults — they should be inert on 7.7.
 
 **Pre-step (already done 2026-06-23):** the uncommitted `static/app.js{,x}`
 edits in master (S7 timer fix) have been committed (`3c67350`) and merged
@@ -283,58 +469,91 @@ into staging (`4d8316f`). The `sync-staging.yml` workflow is disabled
 
 **Sub-steps (in order):**
 
-- [ ] In staging: commit the S8 working tree as one or more atomic
-      commits (all the new files: `migrations/047–051`, the `static/js/`
-      modules, `static/casino-preview.{html,css,js}`, the new test
-      files; plus the modified files: `game.py`, `models.py`,
-      `seasons.py`, `app.jsx`, etc.). This is the S8 work the last 5
-      weeks produced; the dirty working tree IS the S8 code.
-- [ ] Push `origin/staging`. (Safe — the disabled workflow won't fire
-      on a push to staging; it only fires on master.)
-- [ ] In master: `git merge origin/staging` (or use the existing
-      `deploy.sh` workflow which does this).
-- [ ] Resolve any merge conflicts. Likely sources: the S7 timer fix
-      already in master (the S8 app.jsx has its own SeasonInfo), the
-      staging migrations vs. main's migration numbering (no overlap —
-      main is at 030, staging goes 031–052, so the 052 migration just
-      needs to be added to main's migrations/ dir and to main's
-      `schema_migrations` table).
-- [ ] Run `python3 migrate.py --dry-run` on main's DB to confirm what
-      will apply. Should be 22 migrations (031–052).
-- [ ] Run `python3 migrate.py` on main. If any migration fails, STOP
-      and roll back. (Each migration should be individually reversible
-      per the existing pattern.)
-- [ ] `make build` to rebuild `static/app.js` from `static/app.jsx`.
-- [ ] Restart gunicorn (`sudo systemctl restart wheel-app`, fall back
-      to HUP via the `gunicorn.ctl` socket).
-- [ ] Smoke test: `curl http://localhost:5000/` returns 200, `/api/season`
-      returns `season_number=8, name='7.7'`, login still works, can
-      still spin (this proves 7.7 still functions with S8 code live).
+- [ ] Confirm staging `seasons.py` has all the §6.1 + §6.2 edits
+      committed (the dry-run in §6.1 must have passed before this
+      step).
+- [ ] Confirm migration `052_user_season_history_s8.sql` exists in
+      **main's** `migrations/` directory. Two options:
+      - (preferred) Commit it to staging `migrations/` and let
+        `deploy.sh`'s merge bring it across.
+      - (acceptable) Add it directly to main's `migrations/` after
+        the merge but before `migrate.py --dry-run` runs. Risk: the
+        staging `migrations/` ledger and main's would diverge; the
+        SHA match between branches only happens at the next staging
+        merge.
+- [ ] Run `./deploy.sh` from `/home/user/wheel-app/`. It will:
+      - merge `staging` → `master` (130 commits between them as of
+        2026-06-26; should be a clean fast-forward or a small set
+        of conflicts in well-known spots — `seasons.py`, `app.jsx`,
+        `static/styles.css`).
+      - print `migrate.py --dry-run` listing the 24 pending
+        migrations (031–054 + new 052).
+      - prompt for confirmation.
+      - apply the migrations to `wheeldb` on confirmation.
+      - rebuild `static/app.js` from `static/app.jsx` via `make build`.
+      - clear `__pycache__` and restart gunicorn.
+- [ ] **If any migration fails** during the `migrate.py` run, STOP and
+      roll back. Each migration in the 031–054 series is intended to
+      be individually reversible per the existing pattern — but the
+      failure may indicate a schema mismatch (e.g. a column already
+      there). Inspect `schema_migrations`, the failed SQL, and the
+      staging schema for the same column / constraint.
+- [ ] Smoke test after `deploy.sh` returns: `curl http://localhost:5000/`
+      returns 200, `/api/season` returns `season_number=8, name='7.7'`,
+      login still works, can still spin. This proves 7.7 still
+      functions with S8 code live (the S8 reset clauses are inert
+      until the rollover fires).
 
 ### 6.4 — Update main's `seasons.py` (if not already via merge)
 
 The staging `seasons.py` is the new main `seasons.py`. The merge in
-§6.3 should bring it across. After the merge, confirm:
+§6.3 should bring it across (including the §6.1 + §6.2 edits).
+After the merge, confirm:
 
-- [ ] The reset UPDATE includes all S8 columns (see §6.1 checklist).
-- [ ] The `user_season_history` INSERT includes all S8 columns (see §6.2).
-- [ ] The `community_pot` reset values are S8 values.
-- [ ] The `get_season_info` returns `season_name='8'` (or whatever the
-      new S8 name is — see §6.5).
+- [ ] The reset UPDATE **does NOT contain `shield_charges = 0`**
+      (the line was removed in §6.1; column was dropped by migration
+      030). `grep -n shield_charges seasons.py` should return nothing.
+- [ ] The reset UPDATE includes all S8 columns (see §6.1 checklist) —
+      including `wager_banked_losses = 0`, `gravity_drift = 0`,
+      `wager_last_win_amount = 0`, `biggest_win_announced = 0`.
+- [ ] The reset UPDATE does NOT touch `insurance_tokens`,
+      `cosmetic_fragments`, `cumulative_wins`,
+      `bounty_claimed_date`, `catch_of_the_day_date`,
+      `insurance_free_claimed_date`, `insurance_unlock_grant_given`
+      (the §0 preserved-columns decision).
+- [ ] The `UPDATE seasons` clause (lines 158–164) **includes
+      `name = 'Casino'`** as well as `season_number`, `started_at`,
+      `ends_at`. This is the §6.5 operator decision; the original
+      staging code did NOT have it but the §6.1 fix adds it.
+- [ ] The `user_season_history` INSERT includes all S8 columns
+      (see §6.2).
+- [ ] The `community_pot` reset values are S8 values
+      (`target=40000, win_chance_pct=51.0, filled=false, filled_at=NULL,
+      fib_prev=0, total_contributed=0, last_decay_check=NOW()`).
+- [ ] The `get_season_info` returns `season_name='Casino'` once the
+      rollover fires. Today, returning `'7.7'` for the still-current
+      season is correct; after the rollover, the row's `name` column
+      must be `'Casino'` (verified in §6.1 dry-run).
 - [ ] `synchronous_commit=on` is still set (it is — staging kept it).
 - [ ] No other side effects on the live 7.7 game (test login + spin).
 
 ### 6.5 — Decide the Season 8 name
 
-**Decision (operator, 2026-06-23):** the new `seasons.name` will be
-**`'Casino'`** (matches the new `page_season8` background, themed, and
-the existing `'7.7'` precedent shows themed names are preferred over
-raw numbers).
+**Decision (operator, 2026-06-23 — confirmed in §0 audit 2026-06-26):**
+the new `seasons.name` will be **`'Casino'`** (matches the new
+`page_season8` background, themed, and the existing `'7.7'` precedent
+shows themed names are preferred over raw numbers).
 
-The rollover will set `seasons.name = 'Casino'` in the same UPDATE that
-bumps `season_number`. The `get_season_info` already returns
-`season['name'] or str(season['season_number'])`, so a non-blank name
-displays correctly throughout the UI.
+**Code requirement (added in the §0 audit):** the staging
+`seasons.py::advance_season()` `UPDATE seasons` clause (lines 158–164)
+must be edited in §6.1 to include `name = 'Casino'`. The original code
+does NOT set the name; without this edit, after rollover the row would
+have `name=''` and the UI would display `season_name='9'` (the
+`get_season_info` fallback to `str(season_number)`), not `'Casino'`.
+
+The `get_season_info` already returns `season['name'] or str(season['season_number'])`,
+so once the §6.1 edit lands the `'Casino'` non-blank name displays
+correctly throughout the UI.
 
 ### 6.6 — Schedule the rollover
 
