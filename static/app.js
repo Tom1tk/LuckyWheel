@@ -8607,15 +8607,7 @@ function GameApp(_ref36) {
     className: "mobile-drawer".concat(mobileDrawerOpen ? ' mobile-drawer-open' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "mobile-drawer-section"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mobile-drawer-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB S8 Menu"), /*#__PURE__*/React.createElement("button", {
-    className: "mobile-drawer-close",
-    onClick: function onClick() {
-      return setMobileDrawerOpen(false);
-    },
-    title: "Close"
-  }, "\u2715")), /*#__PURE__*/React.createElement(PrestigePanel, {
+  }, /*#__PURE__*/React.createElement(PrestigePanel, {
     ownedItems: ownedItems,
     prestigeLevel: prestigeLevel,
     legacyWins: legacyWins
