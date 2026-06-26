@@ -2426,20 +2426,22 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 
   /* Wheel — hero of the page */
   .casino-container {
-    padding: 8px 0 170px 0;
+    padding: 56px 0 170px 0;
     flex: 1;
     min-width: 0;
     width: auto;
     /* T207-scroll: switch from position:fixed to position:static on mobile
        so the main page can scroll vertically and the user can reach the
-       dice roll button (which sits at the bottom of the mobile-below-wheel
-       column). On desktop, .casino-container stays position:fixed
+       dice roll button. On desktop, .casino-container stays position:fixed
        (centered wheel + right sidebar). On mobile the content flows
-       naturally and the body scrolls. The mobile-toolbar stays
-       position:fixed; bottom:0 so it's always pinned.
-       Bottom padding 170px (was 70px) adds 100px of scrollable space
-       so the dice button is reachable on iPhone Safari (where the
-       address bar consumes ~80px of the bottom viewport). */
+       naturally and the body scrolls.
+       Top padding 56px (was 8px) clears the .user-bar which is
+       position:fixed; top:0; height:44px; z-index:200. Without this
+       the "Casino Wheel" title renders at y=8, hidden behind the
+       user-bar. 56px gives a 12px breathing room below the bar.
+       Bottom padding 170px adds 100px of scrollable space so the
+       dice button is reachable on iPhone Safari (where the address
+       bar consumes ~80px of the bottom viewport). */
     position: static;
     top: auto;
     left: auto;
