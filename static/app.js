@@ -3671,7 +3671,7 @@ function ChatPanel(_ref21) {
       fontSize: '0.65rem'
     }
   }, "Loading older\u2026"), messages.map(function (m) {
-    var isSystem = m.message_type && m.message_type !== 'user';
+    var isSystem = m.message_type === 'system';
     if (isSystem) {
       return /*#__PURE__*/React.createElement("div", {
         key: m.id,
