@@ -5480,12 +5480,32 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
     margin-top: 0;
     padding: 4px 6px 4px 8px;
   }
-  .mobile-streak-dice-row .die { width: 20px; height: 20px; padding: 2px; border-radius: 4px; }
-  .mobile-streak-dice-row .pip { width: 4px; height: 4px; }
-  .mobile-streak-dice-row .dice-row { gap: 3px; }
+  .mobile-streak-dice-row .die { width: 28px; height: 28px; padding: 2px; border-radius: 4px; }
+  .mobile-streak-dice-row .pip { width: 5px; height: 5px; }
+  .mobile-streak-dice-row .dice-row { gap: 4px; }
   .mobile-streak-dice-row .dice-panel-label { font-size: 9px; }
   .mobile-streak-dice-row .dice-panel-desc { font-size: 0.5rem; }
-  .mobile-streak-dice-row .dice-roll-btn { font-size: 10px; padding: 4px 6px; width: 100%; box-sizing: border-box; }
+  /* T207-fix: dice + roll button side-by-side so the button is prominent
+     and well above the toolbar. Button takes the remaining space, dice
+     stay at 28px each. Saves ~30px of vertical space vs stacked layout. */
+  .mobile-streak-dice-row .dice-action-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+  .mobile-streak-dice-row .dice-action-row .dice-row,
+  .mobile-streak-dice-row .dice-action-row .dice-triangle {
+    flex: 0 0 auto;
+  }
+  .mobile-streak-dice-row .dice-action-row .dice-roll-btn {
+    flex: 1 1 auto;
+    font-size: 11px;
+    padding: 6px 8px;
+    min-height: 32px;
+    width: auto;
+    box-sizing: border-box;
+  }
   .mobile-streak-dice-row .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
 }
 
