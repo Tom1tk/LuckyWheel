@@ -115,10 +115,11 @@ _spec.loader.exec_module(_game)
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# T86 AC#1: compute_wins_kept formula
+# T86 AC#1 (retired by T121): compute_wins_kept now always returns 0
 # ════════════════════════════════════════════════════════════════════════════
 def test_efficiency_level_0_keeps_zero_wins():
     from prestige import compute_wins_kept
+    # T121: prestige_efficiency is retired — the helper is now a no-op.
     # 2,000,000 wins with no prestige_efficiency → 0 retained.
     assert compute_wins_kept(2_000_000, ['prestige_unlock']) == 0
     assert compute_wins_kept(2_000_000, []) == 0
@@ -126,39 +127,35 @@ def test_efficiency_level_0_keeps_zero_wins():
     assert compute_wins_kept(5_000_000, ['prestige_unlock']) == 0
 
 
-def test_efficiency_level_5_keeps_half_wins():
-    """T86 AC#1: at level 5, new_wins = floor(wins * 0.5)."""
+def test_efficiency_level_5_keeps_zero_wins():
+    """T121: even at level 5, wins are fully reset to 0 (operator removed
+    the prestige_efficiency retention mechanic entirely)."""
     from prestige import compute_wins_kept
     owned = ['prestige_unlock'] + ['prestige_efficiency'] * 5
-    # 2,000,000 * 0.5 = 1,000,000.
-    assert compute_wins_kept(2_000_000, owned) == 1_000_000
-    # 4,000,000 * 0.5 = 2,000,000.
-    assert compute_wins_kept(4_000_000, owned) == 2_000_000
-    # 1,000,000 * 0.5 = 500,000.
-    assert compute_wins_kept(1_000_000, owned) == 500_000
+    assert compute_wins_kept(2_000_000, owned) == 0
+    assert compute_wins_kept(4_000_000, owned) == 0
+    assert compute_wins_kept(1_000_000, owned) == 0
 
 
 def test_efficiency_intermediate_levels():
-    """T86 AC#1: level 1 → 10%, level 2 → 20%, etc."""
+    """T121: every level returns 0 (operator removed the level scaling)."""
     from prestige import compute_wins_kept
-    for level, expected_pct in [(1, 0.10), (2, 0.20), (3, 0.30), (4, 0.40)]:
+    for level in (1, 2, 3, 4, 5):
         owned = ['prestige_unlock'] + ['prestige_efficiency'] * level
         result = compute_wins_kept(1_000_000, owned)
-        assert result == int(1_000_000 * expected_pct), (
-            f"level {level}: expected {int(1_000_000 * expected_pct)}, "
-            f"got {result}"
+        assert result == 0, (
+            f"level {level}: T121 retired retention, expected 0, got {result}"
         )
 
 
 def test_efficiency_floor_behavior():
-    """T86 AC#1: result is ``int(...)``, so it floors for positive numbers."""
+    """T121: floor behaviour is moot because the function always returns 0
+    — but the regression guard stays so anyone re-introducing the formula
+    notices immediately."""
     from prestige import compute_wins_kept
-    # 1.5M * 0.1 = 150,000 (whole).
-    assert compute_wins_kept(1_500_000, ['prestige_efficiency']) == 150_000
-    # 7 * 0.1 = 0.7 → 0.
+    assert compute_wins_kept(1_500_000, ['prestige_efficiency']) == 0
     assert compute_wins_kept(7, ['prestige_efficiency']) == 0
-    # 11 * 0.1 = 1.1 → 1.
-    assert compute_wins_kept(11, ['prestige_efficiency']) == 1
+    assert compute_wins_kept(11, ['prestige_efficiency']) == 0
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -211,7 +208,9 @@ def test_losses_column_in_prestige_reset_set():
 
 
 def test_losses_zeroed_at_efficiency_level_5():
-    """T86 AC#3 + AC#4: even at level 5, losses are reset, not retained."""
+    """T86 AC#3 + AC#4 (T121 update): even with the retired items in the
+    owned list (staging legacy data), losses are reset to 0 and wins are
+    reset to 0."""
     gs = {
         'owned_items': ['prestige_unlock'] + ['prestige_efficiency'] * 5,
         'wins': 2_000_000,
@@ -234,14 +233,12 @@ def test_losses_zeroed_at_efficiency_level_5():
 
     result = _game.prestige_reset()
 
-    # wins_kept is 1M (retained from level 5 efficiency).
-    assert result['wins_kept'] == 1_000_000
+    # T121: wins_kept is 0 regardless of prestige_efficiency level.
+    assert result['wins_kept'] == 0
     # The UPDATE zeroes losses.
     sql, params = next((s, p) for s, p in conn.log
                        if s.lstrip().upper().startswith('UPDATE'))
     assert 'losses = %s' in sql
-    losses_position = sql.split('SET ', 1)[1].split(' WHERE ')[0] \
-        .split(', ').index('losses = %s')
     # The UPDATE param tuple is: (new_level, new_prestige_count, new_legacy_wins,
     # new_wins, new_owned_items, *reset defaults in PRESTIGE_RESET_COLUMNS order*,
     # user_id). We can't index without the full param layout, so assert 0 is
