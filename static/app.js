@@ -4644,7 +4644,13 @@ var ShopItem = React.memo(function ShopItem(_ref22) {
     displayCost = _ref22.displayCost,
     procStreak = _ref22.procStreak;
   var isInfinite = !!item.infinite;
-  var cost = isInfinite ? displayCost : item.cost;
+  // T121 follow-up: use displayCost (the parent's override) for all
+  // items, not just infinite ones. The parent sets displayCost to the
+  // scaled prestige threshold for prestige_unlock, the infinite cost for
+  // infinite upgrades, or item.cost as the default. Previously this
+  // component used item.cost for non-infinite items, which ignored the
+  // prestige override and showed a hardcoded 1M.
+  var cost = displayCost != null ? displayCost : item.cost;
   var actionEl;
   if (isInfinite) {
     actionEl = /*#__PURE__*/React.createElement("button", {
@@ -5978,6 +5984,13 @@ function GameApp(_ref28) {
             setPrestigeLevel(data.prestige_level);
             setPrestigeCount(data.prestige_count);
             setLegacyWins(data.legacy_wins);
+            // T121 follow-up: refresh the next-threshold synchronously from
+            // the response so the shop's prestige price updates immediately
+            // (was: wait for refreshPrestigeInfo's GET roundtrip → flash of
+            // stale 1M).
+            if (data.next_threshold !== undefined) {
+              setNextPrestigeThreshold(data.next_threshold);
+            }
             if (data.state) {
               s = data.state;
               setWins(s.wins);

@@ -253,7 +253,14 @@ def test_prestige_filter_keeps_cosmetics_and_legacy_count_functionals():
 
 
 def test_prestige_writes_filtered_owned_items():
-    """T85: the UPDATE's owned_items param is the filtered list."""
+    """T85: the UPDATE's owned_items param is the filtered list.
+
+    T121 follow-up: prestige_unlock is the permanent gate for prestige
+    — it must always be in the new owned_items (filter_kept_items drops
+    functionals at keep_count=0, but the server now re-adds
+    prestige_unlock after the filter). The first-buy and subsequent-
+    prestige cases both produce ['fish_tropical', 'prestige_unlock'].
+    """
     gs = {
         'owned_items': ['prestige_unlock', 'fish_tropical', 'wager_unlock', 'winmult_1'],
         'wins': 1_000_000,
@@ -267,8 +274,8 @@ def test_prestige_writes_filtered_owned_items():
     assert isinstance(new_owned, list)
     assert 'fish_tropical' in new_owned
     assert 'wager_unlock' not in new_owned
-    # No prestige_legacy owned → keep_count=0 → no functionals retained.
-    assert 'prestige_unlock' not in new_owned
+    # prestige_unlock is always preserved (permanent unlock).
+    assert 'prestige_unlock' in new_owned
     assert 'winmult_1' not in new_owned
 
 
@@ -298,8 +305,11 @@ def test_prestige_writes_filtered_owned_items_with_legacy_keep():
     # The result: only the cosmetic fish_tropical survives.
     assert 'prestige_legacy' not in new_owned
     assert 'winmult_1' not in new_owned
-    # And the player no longer has prestige_unlock — they'd need to re-buy.
-    assert 'prestige_unlock' not in new_owned
+    # T121 follow-up: prestige_unlock is the permanent gate for
+    # prestige — it must always be in the new owned_items. The
+    # server re-adds it after filter_kept_items drops it (since
+    # keep_count=0 strips functionals).
+    assert 'prestige_unlock' in new_owned
 
 
 # ════════════════════════════════════════════════════════════════════════════

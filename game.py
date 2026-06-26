@@ -3468,7 +3468,12 @@ def prestige_reset():
             new_legacy_wins = int(gs.get('legacy_wins', 0)) + current_wins
             new_wins = 0  # T121: wins are fully reset; legacy_wins carries the total.
             new_owned_items = filter_kept_items(gs['owned_items'], 0)
-            if not already_owned:
+            # prestige_unlock is the permanent gate for prestige — it
+            # must NEVER be removed from owned_items (filter_kept_items
+            # drops functional items at keep_count=0). The first-buy
+            # case grants it here; the subsequent-prestige case
+            # preserves it (it's a functional the player already owns).
+            if 'prestige_unlock' not in new_owned_items:
                 new_owned_items = list(new_owned_items) + ['prestige_unlock']
             starting_prestige = get_starting_prestige(new_legacy_wins)
             # T85: one UPDATE per prestige, every reset column cleared.
@@ -3532,6 +3537,13 @@ def prestige_reset():
         'wins_kept': new_wins,
         'cost': cost,
         'starting_prestige': starting_prestige,
+        # T121 follow-up: include the level-scaled next threshold so the
+        # client can refresh the shop's prestige price synchronously
+        # (no flash of stale 1M). None at MAX_PRESTIGE_LEVEL.
+        'next_threshold': (
+            get_prestige_threshold(new_owned_items, new_level)
+            if new_level < MAX_PRESTIGE_LEVEL else None
+        ),
         'state': {
             'wins': int(fresh['wins']),
             'losses': int(fresh.get('losses', 0)),
