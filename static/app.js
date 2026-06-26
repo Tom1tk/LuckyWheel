@@ -8128,9 +8128,7 @@ function GameApp(_ref28) {
     className: "season8-bounties-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bounties-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties"), cosmeticFragments > 0 && /*#__PURE__*/React.createElement("span", {
-    className: "fragment-count"
-  }, "\uD83D\uDC8E ", cosmeticFragments)), bounties.map(function (b) {
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties")), bounties.map(function (b) {
     return /*#__PURE__*/React.createElement("div", {
       key: b.bounty_id,
       className: "bounty-card"
@@ -8150,7 +8148,9 @@ function GameApp(_ref28) {
       onClick: function onClick() {
         return handleBountyClaim(b.bounty_id);
       }
-    }, "Claim"));
+    }, "Claim +", b.position, " token", b.position > 1 ? 's' : ''), b.claimed && /*#__PURE__*/React.createElement("span", {
+      className: "bounty-claimed"
+    }, "\u2713 +", b.position, " claimed"));
   })), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
     className: "season8-aquarium-panel"
   }, /*#__PURE__*/React.createElement("div", {

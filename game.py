@@ -37,7 +37,7 @@ from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
                      get_prestige_threshold, get_legacy_keep_count,
                      compute_wins_kept, filter_kept_items,
                      PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
-from bounties import increment_bounty, get_bounty_status, get_claim_rewards, BOUNTY_DEFS
+from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty, BOUNTY_DEFS
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message
 import chat_triggers
@@ -3544,7 +3544,7 @@ def get_bounties_endpoint():
 @login_required
 @csrf.exempt
 def claim_bounty():
-    """Claim a completed bounty."""
+    """Claim a completed bounty (per-bounty, T117)."""
     err = require_json()
     if err:
         return err
@@ -3554,18 +3554,30 @@ def claim_bounty():
     bounty_date = dt.datetime.now(timezone.utc).date()
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id, for_update=True)
-            if gs.get('bounty_claimed_date') == bounty_date:
-                return jsonify({'error': 'Already claimed today'}), 400
-            rewards = get_claim_rewards(conn, current_user.id, bounty_date)
+            rewards = get_claim_rewards_for_bounty(conn, current_user.id, bounty_date, bounty_id)
             if rewards is None:
                 return jsonify({'error': 'Bounty not claimable'}), 400
             cur.execute(
-                '''UPDATE game_state SET cosmetic_fragments = cosmetic_fragments + %s,
-                    wager_tokens = wager_tokens + %s,
-                    bounty_claimed_date = %s
+                '''SELECT completed, claimed FROM bounty_progress
+                   WHERE user_id = %s AND bounty_date = %s AND bounty_id = %s
+                   FOR UPDATE''',
+                (current_user.id, bounty_date, bounty_id),
+            )
+            row = cur.fetchone()
+            if not row or not row.get('completed'):
+                return jsonify({'error': 'Bounty not completed'}), 400
+            if row.get('claimed'):
+                return jsonify({'error': 'Already claimed'}), 400
+            cur.execute(
+                '''UPDATE bounty_progress
+                   SET claimed = TRUE, claimed_at = NOW()
+                   WHERE user_id = %s AND bounty_date = %s AND bounty_id = %s''',
+                (current_user.id, bounty_date, bounty_id),
+            )
+            cur.execute(
+                '''UPDATE game_state SET wager_tokens = wager_tokens + %s
                    WHERE user_id = %s''',
-                (rewards['cosmetic_fragments'], rewards['tokens'], bounty_date, current_user.id),
+                (rewards['tokens'], current_user.id),
             )
         conn.commit()
     return jsonify({'ok': True, 'rewards': rewards})
