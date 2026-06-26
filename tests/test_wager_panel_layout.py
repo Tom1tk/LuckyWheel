@@ -89,6 +89,26 @@ def logged_in_context(server_url):
         if not result['ok'] and result['error'] and 'taken' not in result['error']:
             b.close()
             pytest.fail(f'register failed: {result["error"]}')
+        # T108 follow-up: the wager panel only renders when the player
+        # owns wager_unlock. Grant it via SQL so the fixture user sees
+        # the panel (these tests check layout, not the unlock flow).
+        import psycopg2
+        dsn = os.environ.get('DATABASE_URL',
+                             'postgresql://wheelapp:a51f2d9685f4d6dca9d2f9d8d6e66374@localhost/wheeldb_staging')
+        conn = psycopg2.connect(dsn)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(
+                '''UPDATE game_state
+                   SET owned_items = ARRAY(
+                       SELECT DISTINCT unnest(
+                           owned_items || ARRAY['wager_unlock']
+                       )
+                   )
+                   WHERE user_id = (SELECT id FROM users WHERE username = %s)''',
+                (username,),
+            )
+        conn.close()
         page.reload()
         page.wait_for_selector('.season8-wager-panel', timeout=5000)
         yield context

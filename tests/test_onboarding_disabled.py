@@ -123,7 +123,12 @@ def server_url():
 def fresh_page(server_url):
     """Yield a fresh browser page logged in as a brand-new user with
     onboarding_step = 0 (the default). Each test gets its own user so
-    there's no shared state to leak between tests."""
+    there's no shared state to leak between tests.
+
+    T108 follow-up: grant wager_unlock so the .season8-wager-panel
+    renders (the panel is hidden when wager_unlock is not owned). These
+    tests check onboarding overlay visibility, not the unlock flow.
+    """
     username = f't114{uuid.uuid4().hex[:10]}'
     password = 'testpass123'
     with sync_playwright() as p:
@@ -136,6 +141,23 @@ def fresh_page(server_url):
         if not result['ok'] and result['error'] and 'taken' not in (result['error'] or ''):
             b.close()
             pytest.fail(f'register failed: {result["error"]}')
+        # Grant wager_unlock so the wager panel renders.
+        uid = _user_id_for(username)
+        if uid is not None:
+            conn = psycopg2.connect(_db_dsn())
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(
+                    '''UPDATE game_state
+                       SET owned_items = ARRAY(
+                           SELECT DISTINCT unnest(
+                               owned_items || ARRAY['wager_unlock']
+                           )
+                       )
+                       WHERE user_id = %s''',
+                    (uid,),
+                )
+            conn.close()
         page.reload()
         page.wait_for_load_state('domcontentloaded')
         page.wait_for_selector('.season8-wager-panel', timeout=10000)
