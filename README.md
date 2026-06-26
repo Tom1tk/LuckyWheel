@@ -22,6 +22,36 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - **Community Pot** — All players can contribute Fish Bucks to a global pot. When the target is reached, a **30-minute win rate boost** activates for all players. Each fill permanently stacks +0.5% onto the boost rate (capped at 75%), so every window is stronger than the last. Between fills the game returns to 50/50. After the window expires, the pot resets with a **25%-higher target** (×1.25). Target decays 20% every 12 hours if unfilled.
 - **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice (or three with the Extra Die upgrade) to add the sum (2–18) to your current win streak. Requires a win streak of 3+. Snake eyes halves your streak; a pair of sixes doubles it. With three dice: triple 1s ÷3, triple 6s ×3. Charges recharge every 10 minutes (max 1–4, upgradeable in the shop).
 
+### Wager System
+Every spin is a bet. Once unlocked, choose a stake from 1× to 10× before spinning — higher stakes amplify both wins and losses.
+- **Stake escrow** — before the spin resolves, a percentage of your current wins (2% × stake) is debited up front and held at risk. Win it back plus your payout; lose it and it's gone for that spin.
+- **Hot streak** — consecutive wins at the *same* stake add +5% to payout each, capped at +50% (streak 10). Changing stake resets the streak. The bonus portion banks separately rather than paying out immediately.
+- **Bank** — lock in your banked hot-streak winnings into your wins total at any time, resetting the streak. The risk/reward tension: keep pushing for a bigger multiplier, or bank and start fresh.
+- **Double Down** — after owning the upgrade, arm your next spin to use 2× your chosen stake (full effect at stake 1–4; clamped at the 10× stake ceiling for stake 5+, same as any other spin).
+- **Safety Net** — on a loss at 5×+ stake, recover 25% of the escrowed stake back into wins.
+- **Insurance** — arm it before a spin (consumes one of up to 3 charges from each purchase) to cap that spin's loss at your stake amount and get the escrowed stake back, if you lose.
+
+### Wheel Modes
+Switch the wheel's odds profile at will. **Steady** and **Volatile** are always available; one additional mode rotates weekly.
+
+| Mode | Win % | Loss % | Jackpot % | Jackpot ×| Notes |
+|------|-------|--------|-----------|----------|-------|
+| Steady (default) | 70% | 28% | 2% | 25× | Small wins, rare losses |
+| Volatile | 45% | 50% | 5% | 50× | High variance, double jackpot payout |
+| Inverted *(rotates)* | 60% | 35% | 5% | 25× | |
+| Gravity *(rotates)* | 55% | 40% | 5% | 25× | Outcomes drift toward the last result |
+| Mirror *(rotates)* | 65% | 30% | 5% | 25× | Two spins resolve; you take the better result |
+| Singularity | 75% | 10% | 15% | 50× | Unlocked server-wide once the Singularity Meter fills |
+
+The rotating slot cycles Inverted → Gravity → Mirror by ISO week number. This jackpot chance/multiplier applies to **every** player on every spin regardless of owning the Jackpot upgrade — Jackpot (below) adds a *separate*, additional proc chance on top of ordinary wins.
+
+### Prestige
+A flat, capped reset path for players who've maxed Win Power and Bonus Power. Requires the **Prestige Unlock** upgrade (1,000,000 wins) and at least 1,000,000 wins (reduced 10%/level by Prestige Efficiency, to a 500,000 floor) to activate.
+- Resets wins, losses, streak, and most functional upgrades; cosmetics, Aquarium progress, and your Prestige level itself are kept.
+- Each Prestige level grants a permanent **+2% flat bonus to win value**, up to level 20 (+40%).
+- **Prestige Legacy** lets you keep one extra owned functional upgrade per level on reset (max 3).
+- Returning players who played in earlier seasons start with a head-start Prestige level based on their historical all-time wins.
+
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
 - One account per device (enforced via a long-lived `device_id` cookie; multiple users on the same IP are fine)
@@ -59,6 +89,25 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - Season info shown in the UI; transitions announced via toast
 - The active leaderboard (bottom-left) displays the top 10 players, including their current and all-time best streaks
 - **Season 7 is open-ended** — no automatic reset. The "Season ends in" countdown shows **∞?** and seasons are advanced manually.
+- **🏆 Hall of Fame** — a separate legacy leaderboard (toolbar button) shows the top-5 snapshot from every past season, independent of the live top-10 board.
+
+### Daily Bounties
+Three objectives are selected per player each UTC day (deterministic — the same three all day, reset at midnight UTC), drawn from a pool including catching fish, landing a jackpot, reaching a win streak, banking wager winnings, and more. Completing bounties pays out in **Wager Tokens**, with a bonus **Cosmetic Fragment** for clearing all three in one day. Progress and claiming are in the bounty panel; rewards can only be claimed once per day.
+
+### Community Goals
+A weekly server-wide objective — one of five rotating goals (catch fish, land jackpots, prestige, wager wins, or discover unique species), selected by week number. Everyone's progress contributes toward one shared target, with a per-player contribution cap so a single player can't solo it. Completing the goal grants every contributor a week-long +5% win-rate buff plus Wager Tokens and a Cosmetic Fragment. Distinct from (and runs alongside) the Community Pot above.
+
+### Singularity Meter
+A second, much larger server-wide effort: all players can voluntarily contribute Fish Bucks toward a shared 100,000,000 target (each player capped at 25,000,000 per fill cycle). When the meter fills, the **Singularity** wheel mode (see Wheel Modes) unlocks for everyone for the rest of the season, and the meter resets to fill again.
+
+### Aquarium
+Every unique species you've caught through Cast & Reel is tracked permanently (the same list backing the Fish Encyclopaedia). With the Aquarium upgrade owned, each unique species caught adds +0.1% to your wheel win chance — up to +1.3% with the full 13-species catalogue — a gentle, collection-based bonus that rewards completionists without being mandatory.
+
+### Build Loadouts
+Save up to 3 named loadouts (equipped class + active wheel mode) and switch between them in one click — useful for quickly adapting to the weekly mode rotation without re-clicking through menus.
+
+### Chat
+A persistent chat channel (bottom-right panel, resizable) where players can talk, alongside automatic system announcements for jackpots, prestige level-ups, bounty completions, and Singularity Meter fills.
 
 ### Rising Fire Effect
 - A full-viewport canvas fire effect rises behind all game UI, scaling with win streak intensity
@@ -79,9 +128,10 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - Preference is saved per user in the database and synced across devices
 
 ### Anti-Cheat
-- All game logic runs server-side; clients cannot submit win/loss outcomes
-- Fish-click API capped at 10 clicks per request
-- **Per-user click budget** enforced in PostgreSQL: 75 raw clicks per 5-second rolling window, enforced atomically with `FOR UPDATE` across all workers (prevents per-worker rate-limit bypass)
+- All game logic runs server-side; clients cannot submit win/loss outcomes, fish catches, or spin results
+- Stake escrow, wager state, and Prestige all re-validate ownership/affordability server-side rather than trusting client-supplied amounts
+- Replay strings are HMAC-signed so a hand-crafted string can't impersonate a real win
+- **Wins are capped at 5,000,000** (`_MAX_WINS`) to keep numbers legible — Prestige is the intended path past the cap
 - Rate limiter keys on **user account** rather than IP (prevents shared-network collisions)
 
 ---
@@ -93,16 +143,17 @@ The shop is always visible as a two-column panel on the right side of the screen
 ### Currencies
 - **Wins**: Used for all functional upgrades and gameplay boosts.
 - **Losses**: Used for all cosmetic items (skins, trails, themes, backgrounds).
-- **Fish Bucks**: Used for Lure Mastery (infinite upgrade) and The Singularity. Can be converted to Wins via the Fish Exchange.
+- **Fish Bucks**: Earned through Cast & Reel fishing. Used for the Fish Exchange (convert to Wins) and the Singularity Meter.
+- **Wager Tokens** and **Cosmetic Fragments**: Earned from Daily Bounties and Community Goals. Currently accumulate as a balance with no spend yet — a future cosmetic-redemption sink is planned but not live.
 
 ### Tier Gating (Season 5)
 Functional upgrades are gated behind total win milestones. Locked items appear greyed out with the required win count shown.
 
 | Tier | Unlocks at | Example items |
 |------|------------|---------------|
-| Tier 1 | Always available | Speed upgrades, Guard, Click Frenzy I–IV, Win/Bonus/Click Power |
-| Tier 2 | 1,000 total wins | Regenerating Shield, Auto-Guard, Final Frenzy, Extra Dice Charge |
-| Tier 3 | 5,000 total wins | Fortune Charm, Lucky Seven, Win Echo, Jackpot, Resilience, Max Dice Charge, Overcharge, Extra Die |
+| Tier 1 | Always available | Guard, Win/Bonus Power, Wager Unlock, fishing gear |
+| Tier 2 | 1,000 total wins | Regenerating Shield, Guard Charge, Aquarium, Lure Specialization, Precise Angler, Dice Charge II |
+| Tier 3 | 5,000 total wins | Fortune Charm, Lucky Seven, Win Echo, Jackpot, Resilience, Class System, Prestige, Wager Double Down/Insurance, Max Dice Charge, Overcharge, Extra Die |
 
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
@@ -122,52 +173,39 @@ Functional upgrades are gated behind total win milestones. Locked items appear g
 | Coral | 10,000 | 🪸 |
 | Mermaid | 17,500 | 🧜 |
 | Crocodile | 30,000 | 🐊 |
+| Rocket | 50,000 | 🚀 |
+| Comet | 85,000 | ☄️ |
+| Saturn | 145,000 | 🪐 |
+| Alien | 250,000 | 👽 |
+| UFO | 425,000 | 🛸 |
 
 Each skin has custom idle/win/loss speech. Buy and equip to change the fish.
 
-### Spin Speed (Costs Wins)
-| Upgrade | Cost | Spin Duration |
-|---------|------|---------------|
-| Speed Boost | 100 | 4.5s → 3s |
-| Turbo Spin | 1,000 | 3s → 1.5s |
-| Hyper Spin | 10,000 | 1.5s → 1s |
-| Ultra Spin | 100,000 | 1s → 0.75s |
-| Max Spin | 1,000,000 | 0.75s → 0.5s |
-
-### Auto Speed (Costs Wins)
-| Upgrade | Cost | Auto-Spin Delay |
-|---------|------|-----------------|
-| Quick Auto | 200 | 1500ms → 1000ms |
-| Rapid Auto | 10,000 | 1000ms → 500ms |
-| Instant Auto | 1,000,000 | 500ms → 0ms |
-
 ### Win Power (Costs Wins)
-Multiplies each win's score contribution. Single item purchased repeatedly — no tier cap.
+Multiplies each win's score contribution. Caps at level 7 — there is no infinite tail; further win-value scaling beyond this comes from Prestige.
 
-| Level range | Cost per level | Multiplier |
-|-------------|----------------|-----------|
+| Level | Cost | Multiplier |
+|-------|------|-----------|
 | Lv 1–7 | 200 / 600 / 2,000 / 6,400 / 20,000 / 64,000 / 200,000 | ×2 → ×128 |
-| Lv 8+ | 400,000 × 1.18^(level−8) | +16 per level (×144, ×160, …) |
 
 The shop card shows current level and next multiplier: **Lv3 · ×8 → ×16**.
 
 ### Bonus Power (Costs Wins)
-Multiplies streak bonus payouts — for both win streaks **and** loss streaks. ⚠️ Higher levels also amplify loss streak penalties.
+Multiplies streak bonus payouts — for both win streaks **and** loss streaks. ⚠️ Higher levels also amplify loss streak penalties. Caps at level 6 — no infinite tail.
 
-| Level range | Cost per level | Multiplier |
-|-------------|----------------|-----------|
+| Level | Cost | Multiplier |
+|-------|------|-----------|
 | Lv 1–6 | 300 / 900 / 2,800 / 8,500 / 26,000 / 80,000 | ×2 → ×70 |
-| Lv 7–30 | 200,000 × 1.18^(level−7) | +8 per level (×78, ×86, … ×262) |
-| Lv 31+ | continues at same scaling | +5 per level (×267, ×272, …) |
 
-*Season 7: level 6 cap reduced from ×100 → ×70; post-tier scaling reduced from +10/level to +8/level (levels 7–30) then +5/level (levels 31+).*
+### Fishing Panel Size (Costs 1 Loss — accessibility)
+Resizes the Cast & Reel panel. Priced at 1 loss each as an accessibility option, not a progression item.
 
-### Fish Size (Costs Losses)
-| Tier | Cost | Fish Size |
+| Tier | Cost | Panel Size |
 |------|------|-----------|
-| Big Fish | 50 | 20rem |
-| Giant Fish | 200 | 28rem |
-| Colossal | 800 | 40rem |
+| Compact | 1 | 50% |
+| Big Panel | 1 | 130% |
+| Giant Panel | 1 | 160% |
+| Colossal | 1 | 200% |
 
 ### Fish Trail (Costs Losses)
 Visual trail effect on the fish. Trail and streak aura effects coexist independently.
@@ -179,25 +217,6 @@ Visual trail effect on the fish. Trail and streak aura effects coexist independe
 | Frost Trail | 7,000 | ❄️ Ice crystal aura |
 | Thunder Trail | 22,000 | ⚡ Electric sparks |
 | Galaxy Trail | 70,000 | 🌌 Cosmic swirl |
-
-### Click Power (Costs Wins)
-Each fish click counts as more clicks server-side. Also scales all Frenzy passive tick amounts. Single item purchased repeatedly — no tier cap.
-
-| Level range | Cost per level | Multiplier |
-|-------------|----------------|-----------|
-| Lv 1–5 | 75 / 250 / 600 / 1,400 / 3,000 | ×1.25 → ×2.25 |
-| Lv 6+ | 10,000 × 1.5^(level−6) | +0.25 per level (×2.5, ×2.75, …) |
-
-### Click Frenzy (Costs Wins)
-Passive income — server ticks fish clicks automatically. All Frenzy amounts are multiplied by your Click Power level.
-| Tier | Cost | Base clicks per 5s |
-|------|------|--------------------|
-| Frenzy I | 300 | +1 |
-| Frenzy II | 3,000 | +5 |
-| Frenzy III | 30,000 | +20 |
-| Frenzy IV | 300,000 | +50 |
-| Frenzy V | 3,000,000 | +100 |
-| Final Frenzy | 30,000,000 | +500 (requires Frenzy V; toggleable; disables manual clicking while active) |
 
 ### 🎣 Fishing Gear (Costs Wins)
 
@@ -236,19 +255,24 @@ Master Auto-Fisher requires completing the Fish Encyclopaedia.
 
 Master Angler requires completing the Fish Encyclopaedia. Precise Angler multipliers stack with Lure and Lucky Fish multipliers independently.
 
+**Fishing integration** — bridges fishing into the wider economy:
+
+| Item | Cost | Effect |
+|------|------|--------|
+| Fish-to-Wager | 5,000 | Each catch also awards Wager Tokens, scaled by species rarity (5 for Common up to 100 for Legendary) |
+| Catch of the Day | 3,000 | First catch each UTC day awards 5× Wager Tokens |
+| Aquarium | 15,000 | Each unique species you've ever caught adds +0.1% wheel win chance (see Aquarium above) |
+| Lure Specialization | 10,000 | Requires Fish-to-Wager. Choose a fish family for +50% value, -25% for others |
+
 ### Protection (Costs Wins)
 | Item | Cost | Behaviour |
 |------|------|-----------|
-| 🛡️ Guard | 500 | 50% chance to block any loss. Breaks on success, survives on failure. |
-| 🔁 Auto-Guard | 50,000 | Requires Guard. Toggleable. When enabled and Guard breaks, automatically re-buys Guard for 500 Wins before the next spin. Disables itself if you can't afford the 500 Wins cost. |
-| 🔄 Regenerating Shield | 1,500 | Blocks any loss when charged. Recharges after 5 wins. Never breaks. |
-
-- **Guard** — activates on any loss. A mini-wheel spins (50/50). If it lands on the win segment, the loss is fully blocked and the guard is consumed. If it fails, the guard survives and you take the loss as normal.
-- **Auto-Guard** — toggle on/off via the shop like Final Frenzy. When Guard breaks, the replacement is purchased silently before your next spin for a flat 500 Wins (unaffected by Click Power).
-- **Regenerating Shield** — blocks the next loss with 100% certainty while charged. After triggering, it recharges automatically after 5 consecutive wins.
+| 🛡️ Guard | 1,000 | Blocks the next loss. Single-use — consumed when it triggers, must be repurchased. |
+| 🔄 Regenerating Shield | 5,000 | Blocks the next loss when charged. Recharges automatically after 5 consecutive wins. Never permanently breaks. |
+| 💪 Resilience | 20,000 | While on a win streak, a loss has a 50%+ chance (higher with Moon class) to reduce your streak by 1 instead of resetting it, rather than blocking the loss outright. |
 
 ### Wheel Theme (Costs Losses)
-Changes the canvas colour palette of the wheel.
+Changes the canvas colour palette of the wheel. Two independent chains — own and switch between either freely.
 | Theme | Cost | Look |
 |-------|------|------|
 | Fire Theme | 250 | 🔥 Red/orange |
@@ -256,6 +280,11 @@ Changes the canvas colour palette of the wheel.
 | Neon Theme | 4,000 | 💜 Purple/neon |
 | Void Theme | 12,000 | 🌑 Deep void |
 | Gold Theme | 40,000 | ✨ Pure gold |
+| Tidal Theme | 250 | 🌊 Cool blue/teal, wave animation |
+| Ember Theme | 1,000 | 🔥 Warm orange, spark animation |
+| Frost Theme | 4,000 | ❄️ Ice-crystal palette, crack animation |
+| Aurora Theme | 12,000 | 🌌 Shifting greens/purples, northern lights |
+| Vintage Theme | 40,000 | 📼 Retro sepia tones |
 | Golden Wheel | 300 | ✨ Radiant glow ring (independent of theme) |
 
 ### Atmosphere (Costs Losses)
@@ -280,7 +309,8 @@ Ocean Casino is the **default background** for all players in Season 6 (animated
 | Season 3 | 1,000 | Purple & orange |
 | Season 4 | 1,000 | Deep violet |
 | Season 5 | 1,000 | Bioluminescent cyan & coral |
-| Season 6 🌙 | 1,000 | Night ocean — deep indigo & violet (current season default) |
+| Season 6 🌙 | 1,000 | Night ocean — deep indigo & violet |
+| Season 7 | 1,000 | Current season default |
 
 #### Confetti
 | Tier | Cost | Count |
@@ -299,20 +329,27 @@ Ocean Casino is the **default background** for all players in Season 6 (animated
 | 🎲 Extra Die | 1,000,000 | Roll 3 dice. Triple 6s ×3, Triple 1s ÷3 | Tier 3 (5k wins) |
 
 ### 🎲 Special Upgrades (Costs Wins)
-All Special Upgrades require Tier 3 (5,000 total wins) to unlock.
+All Special Upgrades require Tier 3 (5,000 total wins) to unlock. The infinite upgrade axes that used to extend these (Jackpot Resonance, Echo Amplification, Streak Armor, Proc Streak, Lure Mastery) have been retired in favour of flat rates plus Prestige for further scaling — see Prestige above.
 
 | Item | Cost | Effect |
 |------|------|--------|
-| 🍀 Fortune Charm | 1,000,000 | All streak bonuses are increased by 25% |
+| 🍀 Fortune Charm | 1,000,000 | 25%+ chance (higher with Moon class) that a win's streak bonus is amplified ×1.25 |
 | 7️⃣ Lucky Seven | 7,000,000 | Every 7th spin is guaranteed to win |
-| 🔊 Win Echo | 1,000,000 | 20% → 40% chance each win is doubled (upgradeable via Echo Amplification) |
-| 💪 Resilience | 10,000,000 | When on a win streak, losses reduce streak by 1 instead of resetting it (50% base chance) |
-| 🎰 Jackpot | 3,000,000 | 1% → 3% chance each win multiplies all gains by 25×. 5% chance for Jackpot Echo (upgradeable via Jackpot Resonance) |
-| 🛡️ Streak Armor | 500,000–2,750,000 | Infinite upgrade (10 levels). Requires Resilience. +1% to Resilience save chance per level (50% → 60% max) |
-| 🎣 Lure Mastery | 5,000–1,500,000+ Fish Bucks | Infinite upgrade (no cap). +10% to all fish catch value per level, stacking on top of Master Lure's 20× |
-| 🎰 Jackpot Resonance | 5,000,000–40,000,000+ Wins | Infinite upgrade (10 levels max). Requires Jackpot. +0.2% jackpot proc rate per level (1% → 3%) |
-| 🔊 Echo Amplification | 2,000,000–25,000,000+ Wins | Infinite upgrade (10 levels max). Requires Win Echo. +2% echo proc rate per level (20% → 40%) |
-| ⚡ Proc Streak | 3,000,000–50,000,000+ Wins | Infinite upgrade (15 levels max). Requires any proc upgrade. Multiplies proc payouts by (1 + streak × level × 0.005). Counter shown in sidebar. |
+| 🔊 Win Echo | 1,000,000 | Flat 20%+ chance (higher with Moon class) each ordinary win is doubled |
+| 🎰 Jackpot | 3,000,000 | Flat 1%+ chance (higher with Moon class) an ordinary win also triggers a 25× jackpot payout, independent of the wheel mode's own jackpot odds (see Wheel Modes). 5% chance of a Jackpot Echo carrying to the next win. |
+
+### Wager & Prestige Upgrades (Costs Wins)
+
+| Item | Cost | Requires | Effect |
+|------|------|----------|--------|
+| Wager Unlock | 500 | — | Unlocks the stake slider (1×–10×); without it, stake is locked at 1× |
+| Wager Hot Streak | 8,000 | Wager Unlock | Enables the hot-streak payout bonus |
+| Wager Safety Net | 2,000 | Wager Unlock | 25% escrow refund on a loss at 5×+ stake |
+| Wager Double Down | 25,000 | Wager Hot Streak | Enables the Double Down button |
+| Wager Insurance | 50,000 | Wager Unlock | Grants 3 Insurance charges per purchase |
+| Prestige Unlock | 1,000,000 | — | Enables the Prestige action |
+| Prestige Efficiency | 500,000/level | Prestige Unlock | -10% to the win threshold needed to Prestige, per level (max 5, floor 500,000) |
+| Prestige Legacy | 1,000,000/level | Prestige Unlock | Keep 1 extra owned functional upgrade per level on Prestige (max 3) |
 
 ### 🌌 Class System (Costs Wins — Tier 3)
 Each class costs **10,000,000 Wins**. All three can be owned simultaneously; only one can be equipped at a time. Equipping a new class replaces the previous one. Toggle equip by clicking an already-equipped class.
@@ -320,7 +357,7 @@ Each class costs **10,000,000 Wins**. All three can be owned simultaneously; onl
 | Class | Effect |
 |-------|--------|
 | 🌍 Earth | +25% to all fish income (manual reels and Auto-Fish) |
-| 🌙 Moon | +5% added to every proc rate (Jackpot, Win Echo, Fortune Charm) |
+| 🌙 Moon | +5% added to every proc rate (Jackpot, Win Echo, Fortune Charm, Resilience) |
 | ⭐ Star | +20% applied to all win multiplier payouts |
 
 ### 🔄 Fish Exchange
@@ -328,10 +365,7 @@ Converts Fish Bucks into Wins at a diminishing rate. Available in the shop's fun
 
 **Rate**: `1.0 / (1 + total_ever_exchanged / 50,000,000)` — starts at 1:1, halves at 50M lifetime exchanged, continues declining. The live rate is shown before each conversion.
 
-### 🌌 Legendary (Costs Fish Bucks)
-| Item | Cost | Effect |
-|------|------|--------|
-| The Singularity | 1,000,000,000 | Transcend reality. Every spin is a win. |
+> The old "Singularity" legendary item (1,000,000,000 Fish Bucks, every spin a win) has been retired — it was never reachable. The Singularity is now a server-wide community meter; see Singularity Meter above.
 
 ---
 
@@ -444,11 +478,20 @@ wheel-app/
 ├── app.py             # Flask app factory: config, extensions, blueprints, error handlers
 ├── auth.py            # Blueprint: /api/me, /api/register, /api/login, /api/logout
 ├── game.py            # Blueprint: /api/state, /api/spin, /api/buy, /api/equip,
-│                      #            /api/equip-cosmetic, /api/equip-class, /api/fish-click,
-│                      #            /api/click-frenzy, /api/fish-exchange,
+│                      #            /api/equip-cosmetic, /api/equip-class, /api/wager/*,
+│                      #            /api/wheel-mode(s), /api/prestige, /api/bounties*,
+│                      #            /api/community-goal, /api/singularity*, /api/loadout*,
+│                      #            /api/aquarium, /api/guard,
 │                      #            /api/stats, /api/leaderboard, /api/health
 ├── db.py              # psycopg2 ThreadedConnectionPool + db_connection() context manager
 ├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, INFINITE_UPGRADES, helper functions
+├── wagers.py          # Stake validation, hot-streak, escrow risk calculation
+├── wheel_modes.py     # Wheel mode definitions + weekly rotation
+├── prestige.py        # Prestige bonus/threshold calculation
+├── bounties.py        # Daily bounty selection, progress, rewards
+├── community_goals.py # Weekly community goal lifecycle
+├── replays.py         # Signed replay string encode/decode for big wins
+├── chat.py            # Blueprint: /api/chat, system message posting
 ├── security.py        # check_lockout(), record_attempt(), clear_attempts(), require_json()
 ├── extensions.py      # Flask-Limiter and Flask-Login instances
 ├── migrate.py         # SQL migration runner (apply / status / dry-run)
@@ -483,25 +526,45 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | Endpoint | Method | Rate Limit | Description |
 |----------|--------|------------|-------------|
 | `/api/health` | GET | — | DB connectivity check → `{"status":"ok"}` or 503 |
-| `/api/state` | GET | — | Full game state (including community pot) |
-| `/api/spin` | POST | 10/sec | Server determines outcome, updates DB |
+| `/api/state` | GET | — | Full game state (wager, prestige, bounties, community goal, etc.) |
+| `/api/spin` | POST | 10/sec | Server determines outcome, updates DB. Body: `{stake, tab_id}` |
 | `/api/buy` | POST | — | Purchase shop item |
 | `/api/equip` | POST | — | Equip a fish skin |
 | `/api/equip-cosmetic` | POST | — | Toggle a cosmetic item on/off |
+| `/api/equip-class` | POST | — | Equip or unequip a class item (`{"item_id": "class_earth"}`) |
 | `/api/community-pot/state` | GET | — | Current pot progress and target |
 | `/api/community-pot/contribute` | POST | 5/sec | Contribute Fish Bucks to the global pot |
-| `/api/fish-click` | POST | 5/sec | Legacy endpoint — no-op (returns current state) |
-| `/api/click-frenzy` | POST | 1/sec | Legacy endpoint — no-op (returns current state) |
 | `/api/cast` | POST | 5/sec | Start a fishing session — returns `{bite_at, expires_at}` |
 | `/api/reel` | POST | 5/sec | Attempt a reel — server validates timing, returns catch result |
 | `/api/auto-fish-tick` | POST | 1/5sec | One automated catch cycle (requires Auto-Fisher I+) |
 | `/api/settings` | POST | — | Persist user preferences (e.g. `low_spec_mode`) |
 | `/api/stats` | GET | — | Personal stats (including Season History and fastest catch %) |
 | `/api/leaderboard` | GET | — | Public — top 10 players |
-| `/api/equip-class` | POST | — | Equip or unequip a class item (`{"item_id": "class_earth"}`) |
 | `/api/fish-exchange` | POST | — | Convert Fish Bucks → Wins (`{"mode": "10pct"}` or `{"mode": "all"}`) |
+| `/api/wager/stake` | POST | — | Set preferred stake (1-10; clamped to 1 without Wager Unlock) |
+| `/api/wager/bank` | POST | 5/sec | Bank hot-streak winnings into wins, reset the streak |
+| `/api/wager/double-down` | POST | 5/sec | Arm the next spin at 2× stake |
+| `/api/wager/insurance` | POST | 5/sec | Arm Insurance for the next spin (consumes a charge) |
+| `/api/guard` | POST | 5/sec | Manually trigger a guard charge — currently has no effect (see note below) |
+| `/api/wheel-modes` | GET | — | Available modes for the current week + your active mode |
+| `/api/wheel-mode` | POST | — | Set active wheel mode (`{"mode": "volatile"}`) |
+| `/api/prestige` | GET / POST | 5/min | Get prestige status / perform a Prestige reset |
+| `/api/bounties` | GET | — | Today's 3 bounties with progress |
+| `/api/bounties/claim` | POST | 5/min | Claim rewards for completed bounties (once per day) |
+| `/api/community-goal` | GET | — | Active weekly goal, progress, your contribution |
+| `/api/singularity` | GET | — | Singularity Meter progress and fill count |
+| `/api/singularity/contribute` | POST | 5/sec | Contribute Fish Bucks to the Singularity Meter (`{"amount": int}`) |
+| `/api/aquarium` | GET | — | Your caught-species collection and current luck bonus |
+| `/api/loadout` | GET / POST | — | List / save a build loadout (slot 1-3, equipped class + wheel mode) |
+| `/api/loadout/apply` | POST | — | Apply a saved loadout |
+| `/api/chat` | GET / POST | 30/min, 1/sec | Read / post chat messages |
+| `/api/replay/share` | POST | — | Decode and validate a replay string (not currently posted to chat — see note below) |
 
-`/api/spin` response:
+> **Guard and Insurance, note:** `/api/wager/insurance` works as documented (caps the next loss at your stake, refunds the escrow). `/api/guard`, however, currently has no effect on spin outcomes — Guard and Regenerating Shield protection still come from the older passive mechanic (a plain "owned" check, not the `guard_charges` this endpoint spends). This is a known gap, not yet fixed — see `docs/SEASON_8_TICKETS.md`.
+>
+> **Replay sharing, note:** spins can generate a signed replay string for jackpots, big double-down wins, and max hot-streaks, returned in `/api/spin`'s response. `/api/replay/share` will decode and verify one, but nothing currently posts the result to chat — there's no in-game button for this yet.
+
+`/api/spin` response (abridged — see `_RESPONSE_KEYS` in `game.py` for the full set):
 ```json
 {
   "result": "win",
@@ -510,14 +573,17 @@ All game endpoints require authentication (session cookie). POST endpoints requi
   "losses_delta": 0,
   "streak": 4,
   "owned_items": ["regen_shield"],
-  "active_cosmetics": ["auto_guard"],
-  "shield_charges": 0,
+  "active_cosmetics": ["theme_tidal"],
+  "stake": 3,
+  "wager_streak": 1,
+  "wager_banked_wins": 0,
+  "active_wheel_mode": "steady",
   "regen_recharge_wins": 0,
   "shield_used": false,
   "shield_used_type": null,
-  "shield_broke": false,
   "guard_triggered": false,
   "guard_blocked": false,
+  "insurance_used": false,
   "bonus_earned": 4,
   "echo_triggered": false,
   "jackpot_hit": false,
@@ -529,7 +595,7 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 }
 ```
 
-`wins_delta` and `losses_delta` represent the change in currency from this spin. The client adds these to its local state to avoid race conditions.
+`wins_delta` and `losses_delta` represent the change in currency from this spin (net of any stake escrow). The client adds these to its local state to avoid race conditions.
 
 `/api/leaderboard` (public, no auth required):
 ```json
@@ -554,17 +620,22 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `Fish` | Left-side mascot — aura, mood, trail effects |
 | `FishingPanel` | Cast & Reel minigame — bobber, bite bar, shadow fish, Auto-Cast/Auto-Fish toggles |
 | `FishEncyclopedia` | Modal showing all 13 catchable species (silhouettes until discovered) |
-| `GuardWheel` | Mini canvas wheel overlay for guard activation (50/50 animation) |
+| `GuardWheel` | Mini canvas wheel overlay shown when Guard/Regen Shield triggers |
 | `StreakPanel` | Sidebar streak display (only shown at streak ≥ 2) |
 | `ShopPanel` | Two-column shop (cosmetics left, functional right); collapsible via a pinned `›`/`‹` toggle button |
 | `ShopItem` | Individual item card (buy / equip / active states; full desc on hover) |
 | `Scoreboard` | Win/loss counter below the wheel |
 | `StatsPanel` | Modal overlay showing personal stats (📊 button) |
 | `Confetti` | Win confetti overlay |
-| `Leaderboard` | Vertical panel (bottom-left) — top 10 players with wins, best streak, and live streak glow effect; refreshes every 5s |
+| `Leaderboard` | Vertical panel (bottom-left) — top 10 players, plus a 🏆 Hall of Fame modal for past-season snapshots |
 | `FireEffect` | Full-viewport canvas fire effect behind all UI — ember particles + cellular automaton inferno, scaled by win streak |
-| `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon / void / gold) |
-| `drawGuardWheel` | Canvas rendering for the guard mini-wheel (50% green / 50% red) |
+| `ChatPanel` | Resizable bottom-right chat panel — player messages + automatic system announcements |
+| Onboarding coach-marks | Non-blocking overlay guiding new players through their first spin, wager, catch, and bounty view |
+| Wager controls | Stake slider, hot-streak meter, Bank/Double Down/Insurance buttons in the shop's functional column |
+| Bounty/Community Goal panels | Progress bars + claim button for daily bounties and the active weekly goal |
+| Loadout panel | 3-slot save/equip UI for class + wheel mode combos |
+| `drawWheel` | Canvas rendering with theme support (default / fire / ice / neon / void / gold / tidal / ember / frost / aurora / vintage) |
+| `drawGuardWheel` | Canvas rendering for the guard mini-wheel |
 
 **Mobile layout** is handled entirely in CSS (`@media (max-width: 768px)`) and a small amount of React state (`isMobile`, `mobilePanel`) in `GameApp`. No separate mobile components — the same components are reused, conditionally positioned via CSS class toggles.
 

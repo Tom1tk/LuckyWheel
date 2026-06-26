@@ -2,6 +2,79 @@
 
 ---
 
+## High Stakes — 21 Jun 2026
+
+Season 7 continues — this is a mid-season content update, not a new season. The wins/losses you have right now carry forward unchanged. What's new: every spin is now a real bet, the wheel's odds are no longer fixed, daily and weekly challenges give you a reason to come back, and a handful of standing systems got fixed along the way.
+
+---
+
+### 🎲 Wager System
+
+The spin button now has a stake attached. Buy **Wager Unlock** (500 wins) to pick a stake from 1× to 10× before each spin — higher stakes amplify both sides.
+
+- **Real risk** — choosing a stake escrows a slice of your current wins (2% per stake level) before the spin resolves. Win, and you get it back plus your payout. Lose, and it's gone. This isn't cosmetic: a wagered loss can leave you with fewer wins than you started with, which a plain 1× spin can never do.
+- **Hot Streak** — win twice in a row at the *same* stake and each consecutive win adds +5% to your payout, up to +50% at a 10-spin streak. The bonus banks separately rather than paying out immediately — change your stake and the streak resets.
+- **Bank** — cash in your banked hot-streak bonus into wins whenever you want, resetting the streak. Keep pushing for a bigger number, or lock it in.
+- **Double Down** — arm your next spin at 2× your chosen stake. Full effect at stake 1–4; like any spin, the final stake is capped at 10×, so doubling stops adding anything once your base stake reaches 5.
+- **Safety Net** — on a loss at 5×+ stake, recover 25% of what you escrowed.
+- **Insurance** — arm it before a spin to cap that spin's loss at your stake size and get your escrow back if you lose. Comes with 3 charges per purchase.
+
+### 🎯 Wheel Modes
+
+The wheel's odds are no longer one fixed 50/50. Pick from:
+
+| Mode | Win % | Loss % | Jackpot % | Jackpot × |
+|------|-------|--------|-----------|-----------|
+| **Steady** (default) | 70% | 28% | 2% | 25× |
+| **Volatile** | 45% | 50% | 5% | 50× |
+| Inverted / Gravity / Mirror *(rotates weekly)* | varies | varies | 5% | 25× |
+
+Steady and Volatile are always available. A third mode rotates weekly — Inverted, then Gravity, then Mirror, repeating. Mirror resolves two spins and gives you the better result; Gravity drifts toward whatever just happened. Switch modes any time from the wheel-mode selector.
+
+### ⭐ Prestige
+
+For players who've capped out Win Power (×128) and Bonus Power (×70): **Prestige** is the new long-term progression path. Requires the Prestige Unlock upgrade and 1,000,000 wins. Resets your wins and most upgrades, but grants a permanent **+2% flat win-value bonus per level**, up to level 20 (+40%) — and that bonus, along with your cosmetics and Aquarium progress, is never taken away. Prestige Legacy lets you keep a few functional upgrades through the reset instead of losing everything.
+
+### 🎯 Daily Bounties & 🌐 Community Goals
+
+- **Daily Bounties** — three objectives chosen for you each day (the same three all day, every player gets a different set), covering things like landing a jackpot, catching fish, or hitting a win streak. Clear all three for a bonus Cosmetic Fragment. Rewards pay out in the new **Wager Tokens** currency.
+- **Community Goals** — one shared weekly objective for the whole server, with a per-player contribution cap so it can't be soloed. Hit the target and everyone who pitched in gets a week-long +5% win-rate buff. Runs alongside the existing Community Pot, not instead of it.
+
+### 🌀 The Singularity, Reworked
+
+The old Singularity item — 1,000,000,000 Fish Bucks for an "every spin is a win" upgrade — is gone. Nobody was ever going to reach it. In its place: the **Singularity Meter**, a server-wide effort everyone can chip in to with Fish Bucks (capped per player so it can't be rushed by one whale). Fill the shared 100,000,000 target and a new wheel mode — **Singularity** (75% win, 10% loss, 15% jackpot) — unlocks for everyone for the rest of the season. The meter then resets to fill again.
+
+### 🐟 Fishing Ties Into the Wheel
+
+Three new upgrades connect Cast & Reel to the wider economy:
+- **Fish-to-Wager** — every catch now also earns Wager Tokens, scaled by rarity.
+- **Catch of the Day** — your first catch each day is worth 5× the Wager Tokens.
+- **Aquarium** — every unique species you've ever caught adds +0.1% to your wheel win chance (up to +1.3% for the full set) — a small, permanent reward for completing the Encyclopaedia.
+
+### 🎨 New Themes, 🏆 Hall of Fame, ⚙️ Loadouts, 💬 Chat
+
+- Five new wheel themes: **Tidal, Ember, Frost, Aurora, Vintage** — each with its own subtle animation.
+- **Hall of Fame** — a new toolbar button shows the top-5 snapshot from every past season, separately from the live leaderboard.
+- **Build Loadouts** — save up to 3 class + wheel-mode combos and swap between them in one click.
+- **Chat** got a round of fixes: system announcements (jackpots, Prestige level-ups, bounty clears, Singularity fills) are now rate-limited per event so a fast streak of the same event can't flood the channel, and old system messages get trimmed the same way player messages always have.
+
+---
+
+### 🛠 Fixes
+
+A handful of standing issues were found and fixed in this update, none of which should have changed how the game *felt* to play correctly:
+
+- **Win Power and Bonus Power** were quietly doing nothing — both upgrades have been restored to their advertised multipliers.
+- **Wager Insurance** now actually caps your loss when armed (it previously consumed a charge for no effect).
+- **Double Down** no longer risks less than an equivalent plain spin at the same stake while paying out the same — both sides of the bet now scale the same way.
+- The **Aquarium** species count and the **Singularity Meter**'s per-player contribution now track correctly (both previously had tracking gaps).
+- **Daily Bounty** rewards can now only be claimed once per day, and the win-streak bounty checks the right streak.
+- **Community Goal**'s wager objective now only counts actual wagering, not any ordinary win.
+- Replay strings (generated for big wins, for future sharing) are now signed so they can't be forged.
+- Closed a loadout-saving issue that could, in rare cases, apply incorrect data on load — loadouts now only ever store your equipped class and wheel mode, as intended.
+
+---
+
 ## Season 7 — Endless — 1 May 2026
 
 Season 7 is built around one idea: **there is no single correct answer** to where you spend your next 100,000 wins. Last season the top players cracked a near-optimal Bonus Power to Win Power ratio, and everyone else copying that recipe meant the season played out as a single-strategy race. Season 7 breaks the meta by adding four new infinite upgrade axes, a parallel fish economy with its own infinite path, a class system that skews your value curve from the moment you equip it, and a meaningful rebalance to Bonus Power's scaling curve so the old recipe stops being dominant.

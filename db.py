@@ -25,6 +25,13 @@ def db_connection():
     On early return: connection is rolled back (no-op if nothing written), then returned.
     """
     conn = _pool.getconn()
+    # Roll back any leftover transaction state from the previous borrower
+    # before setting autocommit — otherwise psycopg2 raises
+    # "set_session cannot be used inside a transaction".
+    try:
+        conn.rollback()
+    except Exception:
+        pass
     conn.autocommit = False
     try:
         yield conn

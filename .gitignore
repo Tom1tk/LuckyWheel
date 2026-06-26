@@ -3,3 +3,8 @@ __pycache__/
 node_modules/
 gunicorn.ctl
 *.pyc
+gunicorn.log
+gunicorn.pid
+gunicorn-access.log
+gunicorn.log
+static/screenshots/
