@@ -28,8 +28,26 @@
 > 2026-06-23; the items below correct drift caused by later work
 > (T117–T121, T200–T207) and an unresolved pre-existing bug. Inline
 > changes have been made to the affected sections; this section
-> summarises them and lists the open operator decisions that must be
-> resolved **before** the §6.1 dry-run.
+> summarises them.
+
+> **Re-evaluation (2026-06-26):** for the 7.7 → 8 migration
+> specifically, **most of the S8 reset-vs-preserve decisions are moot**
+> because main's `wheeldb` does not have any S8 columns until
+> migrations 031–054 apply. Those migrations create the columns with
+> safe defaults (`0` / `FALSE` / `NULL`). At the moment the Fri 23:59
+> rollover fires, every `game_state` row has `insurance_tokens=0`,
+> `cosmetic_fragments=0`, `biggest_win_announced=0`, etc. — there is
+> no stockpile to lose. Those decisions only matter for **future
+> 8.1 → 8.2 sub-season rollovers**, which are explicitly out of scope
+> per §11a.
+>
+> The one exception is `cumulative_wins` — migration 049 backfills
+> `cumulative_wins = wins` on Thursday's promotion, so by rollover
+> night the 3 active players have a real (non-zero) lifetime tally.
+> The rollover UPDATE must NOT touch `cumulative_wins`. The staging
+> `seasons.py` already leaves it untouched (confirmed in §6.1
+> checklist), so no code change is required — this is just a
+> correctness note.
 
 ### Critical (would break the rollover if not fixed)
 
@@ -50,11 +68,21 @@
   columns.** Even after migration 052 adds the S8 columns, the INSERT
   would write NULLs/defaults into them. → §6.2 needs both the migration
   AND the seasons.py INSERT edit.
-- **Missing reset clauses** (against the live staging schema, 2026-06-26):
-  `wager_banked_losses`, `gravity_drift`, `wager_last_win_amount`,
-  `biggest_win_announced`. The plan §6.1 listed the first three; the
-  fourth is new (added by T90-era auto-spin chat post work, not in the
-  original audit). → Add all four to §6.1 checklist.
+
+### Defensive (would not break 7.7 → 8, but trap future sub-seasons)
+
+These are missing reset clauses in the `UPDATE game_state` block.
+**For 7.7 → 8 launch night they are no-ops** (the S8 columns are all
+at default `0` / `FALSE`/ `NULL` after the migrations apply). They
+would become real bugs in the first 8.1 → 8.2 sub-season if not fixed
+now. Cheap to add; included in the §6.1 Phase A fix list.
+
+- `wager_banked_losses = 0` (mirrors `wager_banked_wins = 0`)
+- `gravity_drift = 0` (clears wheel-mode bias carry-over)
+- `wager_last_win_amount = 0` (clears stale double-down escrow)
+- `biggest_win_announced = 0` (per-season jackpots-announced-once flag;
+  T90 added the column; without reset, jackpots couldn't be
+  re-announced next season)
 
 ### Plan factual errors corrected inline
 
@@ -81,25 +109,22 @@
   §6.3 step is now "create migration 052 in main's `migrations/`, then
   run `./deploy.sh`".
 
-### Open operator decisions (resolve before §6.1)
+### Preserve-vs-reset reference (informational only for 7.7 → 8)
 
-These are columns that exist in `game_state` whose reset policy the
-original plan did not pin down. **Recommendations** are listed; the
-operator must confirm.
+For future sub-season work. The current staging `seasons.py` already
+implements these policies — no operator decision required for the
+7.7 → 8 launch.
 
-| Column | Stage introduced | Reset? | Recommendation |
+| Column | Stage introduced | Current behaviour | Recommendation |
 |---|---|---|---|
-| `insurance_tokens` (renamed from `wager_tokens` by T119) | 032/054 | preserve | earned currency, not transient season state |
-| `cosmetic_fragments` | 046/T118 | preserve | cosmetic-crafting currency |
-| `cumulative_wins` | 049 (T106) | **DO NOT reset** | lifetime counter tier-gating auto-spin unlock |
-| `biggest_win_announced` | 043 (T90) | reset to 0 | per-season jackpots-announced-once flag |
-| `bounty_claimed_date` | 044 (T117) | preserve (daily-reset by date) | reset by UTC date flip, not by season |
-| `catch_of_the_day_date` | 042 | preserve (daily) | same |
-| `insurance_free_claimed_date` | 054 (T119) | preserve (daily) | same |
-| `insurance_unlock_grant_given` | 054 (T119) | preserve (lifetime) | one-time grant guard |
-
-If any of these decisions disagree with the recommendations, edit
-§6.1's checklist accordingly before running the dry-run.
+| `insurance_tokens` (renamed from `wager_tokens` by T119) | 032/054 | preserve (not in reset UPDATE) | preserve — earned currency |
+| `cosmetic_fragments` | 046 | preserve (not in reset UPDATE) | preserve — T118 currency |
+| `cumulative_wins` | 049 (T106) | preserve (not in reset UPDATE) | **DO NOT reset** — T106 lifetime |
+| `biggest_win_announced` | 043 (T90) | currently NOT reset — §6.1 adds the reset | reset to 0 |
+| `bounty_claimed_date` | 044 (T117) | preserve | preserve — daily date-stamp |
+| `catch_of_the_day_date` | 042 | preserve | preserve — daily date-stamp |
+| `insurance_free_claimed_date` | 054 (T119) | preserve | preserve — daily date-stamp |
+| `insurance_unlock_grant_given` | 054 (T119) | preserve | preserve — one-time grant |
 
 ---
 
