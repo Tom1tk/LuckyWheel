@@ -4455,7 +4455,7 @@ _ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
 
 ### T117: Bounty claim overhaul — fix broken `Claim` button, lower token amounts, reset at 23:59
 
-- **Status:** [ ] (planned 2026-06-26)
+- **Status:** [x] (2026-06-26) — bug fixed: server response now uses `bounty_id` key (was `id`), and frontend reads the correct key. Per-bounty rewards 1/2/3 tokens (was 100/250/500). Cosmetic fragment 3/3 bonus removed. Per-bounty `claimed` flag on `bounty_progress` (migration 053). 9/9 bounty tests pass; full suite 373 pass. Note: `bounty_claimed_date` column on game_state left in place (T43/T119 territory).
 - **Discovered:** 2026-06-26 (operator: "Bounty claiming doesn't work — click gives 'bounty_id required' error. Amounts should be way lower. Reset at 23:59.")
 - **Depends on:** none (independent hotfix)
 - **Files:**
@@ -4623,7 +4623,7 @@ None — all material decisions confirmed by operator.
 
 ### T118: Season 8 theme — backfill missing users on staging
 
-- **Status:** [ ] (planned 2026-06-26)
+- **Status:** [x] (2026-06-26) — `bin/backfill_season8_theme.py` created. Idempotent, refuses to run on non-staging DBs, supports `--dry-run`. 8/8 tests pass. 2 staging users updated (the rest were already covered by migration 050/051 + auth.py grant at registration).
 - **Discovered:** 2026-06-26 (operator: "Season 8 theme cosmetic in the shop needs to be marked as owned and equipped for all players")
 - **Depends on:** none
 - **Files:**
@@ -4971,7 +4971,7 @@ sources, all UI strings renamed.
 
 ### T120: Remove Hall of Fame — 🏆 button, modal, and `/api/legacy-boards` endpoint
 
-- **Status:** [ ] (planned 2026-06-26)
+- **Status:** [x] (2026-06-26) — 🏆 button removed from user-bar, `showLegacyBoards` modal block deleted, `handleShowLegacyBoards` + state removed, `/api/legacy-boards` endpoint deleted. `legacy_wins` data column preserved. README updated. 359 → 373 pass (no regressions).
 - **Discovered:** 2026-06-26 (operator: "What is the 'Hall of Fame' button at the top supposed
   to do? This seems like a misplaced duplication of the 'Past Winners' section of the
   leaderboard. Remove it.")
