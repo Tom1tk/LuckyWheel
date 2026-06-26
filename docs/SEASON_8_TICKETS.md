@@ -5422,3 +5422,972 @@ const handleConfirmPrestigeBuy = useCallback(async () => {
 None — operator confirmed all material decisions.
 
 ---
+
+---
+
+## Mobile UI Hardening — Season 8 panels on <=768px viewports
+
+> **Background (2026-06-26):** A Playwright mobile audit (iPhone 14,
+> 390x844) found that **every Season 8 panel added since T106 is
+> invisible on mobile**. The S8 panels were wrapped inside the
+> `{!isMobile && <div className="game-right-sidebar">...</div>}` block
+> at `static/app.jsx:4903` and so are entirely hidden on viewports
+> <=768px. Mobile players who own `prestige_unlock`, `wager_unlock`,
+> `aquarium`, `fish_to_wager`, or any bounty progress can't see or
+> interact with those features.
+>
+> The audit also found:
+> - Wager panel (T112) uses `position:absolute; right:100%` to hang off
+>   the LEFT of the wheel — on a 390px viewport this overflows the
+>   left edge and is clipped. Even when `wager_unlock` IS owned, the
+>   panel is unusable on mobile.
+> - Bottom-left-stack community goal + singularity
+>   (`{!isMobile && ...}` at app.jsx:5054) hidden on mobile.
+> - The mobile shop panel opens at `x=396` while viewport is 390
+>   (small positioning glitch).
+> - Wheel-mode selector + auto-spin checkbox aren't sized for mobile.
+>
+> **Mobile breakpoint:** `isMobile = window.innerWidth <= 768`
+>   (`app.jsx:3209`).
+> **Existing mobile framework:** bottom `.mobile-toolbar` with 5
+>   icon buttons (Shop, Leaderboard, Fish, Chat, Stats) and a
+>   slide-over `.mobile-fish-panel` (currently holds the legacy
+>   fish/fishing panels). `.mobile-backdrop` overlay catches taps
+>   to close.
+>
+> **Operator decision (2026-06-26):**
+> - Strategy: "New mobile-nav drawer with S8 sections" (a dedicated
+>   tabbed drawer surfaces Prestige, Free Tokens, Bounties, Aquarium,
+>   Loadout, Community Goal and Singularity on mobile — does not
+>   change the desktop layout).
+> - Wager panel: "Full-width below the wheel" (compact block between
+>   the wheel canvas and the Spin prompt).
+> - Priority: "Fix now" — before tonight's 23:59 BST rollover.
+>
+> **Parallel-execution note:** This batch is split into 4 tickets
+> across 3 phases so sub-agents can work in parallel on
+> non-conflicting file regions.
+>
+> Ticket   | Phase | Touches               | Depends on
+> ---------|-------|-----------------------|-----------
+> T200     | 1     | styles.css only       | none
+> T201     | 1     | tests/test_mobile_e2e.py (new) | none
+> T202     | 2     | app.jsx, styles.css   | T200 merged
+> T203     | 3     | app.jsx (small region), tests/test_mobile_e2e.py, styles.css (one new block at end) | T202 merged
+>
+> **Phase 1**: T200 + T201 in parallel (no shared files).
+> **Phase 2**: T202 alone (architectural refactor; single agent
+>   doing all the JSX moves so the diff is coherent).
+> **Phase 3**: T203 alone (post-T202 verification + responsive
+>   polish on the wheel-mode + auto-spin JSX block).
+>
+> Optional follow-up (Phase 4) T204 can be opened if T203 surfaces
+> bugs.
+
+### T200: Mobile CSS scaffolding — drawer + below-wheel wager styles (styles.css only)
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (mobile UI audit found S8 panels hidden on mobile)
+- **Phase:** 1 (parallel with T201; parallel-safe because this ticket only
+  touches `static/styles.css` and T201 only touches the new test file)
+- **Depends on:** none
+- **Go/No-Go:** No JSX changes. If during work you find a JSX change is
+  needed, STOP and report — that belongs in T202, not here.
+
+**Operator's vision:** "Mobile players need the S8 features (Prestige,
+Bounties, Aquarium, etc.) surfaced in a new tabbed drawer. Wager panel
+goes full-width below the wheel. The CSS scaffolding must exist BEFORE
+T202 wires the JSX, so the JSX refactor can plug class names into
+already-styled rules."
+
+**Goal:** Add all the new CSS classes the mobile drawer + below-wheel
+wager panel need. The JSX (T202) will reference these classes by
+name. T200 is a pure CSS addition — no JSX edits, no test edits, no
+build needed. The aim is that when T202 lands it can simply add
+className attributes and the visual result is already correct.
+
+**Acceptance criteria (all must pass):**
+
+1. `static/styles.css` contains the following new class blocks, each
+   with the listed declarations. All new rules live inside
+   `@media (max-width: 768px)` (or a new `@media (max-width: 768px)`
+   block placed at the END of the file so T202's later additions can
+   also append without churn).
+
+2. **`.mobile-drawer`** — the slide-over panel itself.
+   - `position: fixed`
+   - `right: 0`
+   - `top: 0`
+   - `bottom: 0` (anchored to the bottom of the viewport so it does
+     not get pushed by content above)
+   - `width: min(360px, 92vw)` (narrow phones get 92% of viewport,
+     phones >=360px get a 360px drawer)
+   - `transform: translateX(100%)` (off-screen by default; visible
+     when parent adds `.mobile-drawer-open`)
+   - `transition: transform 0.25s ease`
+   - `background: rgba(20, 20, 28, 0.96)`
+   - `z-index: 10000` (above `.mobile-backdrop` which is z-index 9999
+     per existing styles.css)
+   - `overflow-y: auto`
+   - `padding: 12px`
+   - `box-shadow: -4px 0 24px rgba(0,0,0,0.5)`
+
+3. **`.mobile-drawer.mobile-drawer-open`** — the visible modifier class
+   toggled by JSX state.
+   - `transform: translateX(0)`
+
+4. **`.mobile-drawer-tabs`** — the top-of-drawer tab bar.
+   - `display: flex`
+   - `flex-wrap: wrap`
+   - `gap: 4px`
+   - `border-bottom: 1px solid rgba(255,255,255,0.08)`
+   - `padding-bottom: 8px`
+   - `margin-bottom: 12px`
+
+5. **`.mobile-drawer-tab`** — a single tab button.
+   - `flex: 1 1 calc(33% - 4px)` (3 tabs per row)
+   - `padding: 8px 4px`
+   - `font-size: 0.7rem`
+   - `text-align: center`
+   - `background: rgba(255,255,255,0.04)`
+   - `color: rgba(255,255,255,0.7)`
+   - `border: 1px solid transparent`
+   - `border-radius: 6px`
+   - `cursor: pointer`
+   - `min-height: 32px` (Apple touch-target guideline)
+
+6. **`.mobile-drawer-tab.active`** — the active tab.
+   - `background: rgba(255,255,255,0.1)`
+   - `color: #fff`
+   - `border-color: currentColor`  (Tab will be themed by parent
+     emoji's color: 🏅 gold-ish, 📋 cyan-ish, 🐠 teal, 🌍 green, ⚙️
+     silver. The active color is filled in by inline `style` from
+     JSX if needed; this rule just gives a visible "current" state.)
+
+7. **`.mobile-drawer-section`** — wrapper around the active tab's
+   content.
+   - No properties required for layout; empty rule with a comment
+     `/* T200: drawer section wrapper. Content scrolls via the
+     parent .mobile-drawer overflow-y: auto */`.
+
+8. **`.mobile-toolbar-btn.nav-drawer`** (or new class
+    `.mobile-toolbar-btn-drawer`) — NO style changes needed; the
+    existing `.mobile-toolbar-btn` already handles layout. The new
+    📊-stats button is a 5th toolbar button; T202 will reuse the
+    existing class name. SKIP this rule.
+
+9. **`.mobile-below-wheel .season8-wager-panel`** — the below-wheel
+   wager panel container, scoped to `@media (max-width: 768px)`.
+   - `position: static` (override the absolute positioning from
+     the desktop rules at `.season8-wager-panel`)
+   - `width: 100%`
+   - `max-width: none`
+   - `right: auto`
+   - `top: auto`
+   - `transform: none`
+   - `margin: 0 0 8px 0` (small gap below the wheel)
+   - `padding: 8px`
+   - `background: rgba(255,255,255,0.04)`
+   - `border-radius: 8px`
+
+10. **`.mobile-below-wheel .wager-stake-control`** — the stake slider
+    row, mobile variant.
+    - `flex-wrap: wrap`
+    - `gap: 8px`
+
+11. **`.mobile-below-wheel .wager-slider`** — full-width range input.
+    - `width: 100%`
+    - `flex: 0 0 100%` (drop below the label instead of crammed to
+      fit on one row)
+
+12. **`.mobile-below-wheel .wager-action-btn`** — DD/Insurance
+    buttons on narrow viewports.
+    - `width: 100%`
+    - `padding: 12px 8px` (taller tap target)
+    - `font-size: 0.85rem`
+
+13. **`.mobile-below-wheel .wager-tokens-balance`** — token balance
+    row.
+    - `text-align: center`
+    - `margin-top: 4px`
+
+14. **`.mobile-below-wheel .wager-tooltip-trigger`** — the `?`
+    tooltip trigger, mobile variant.
+    - `flex: 0 0 auto`
+    - `margin-left: 4px`
+
+15. **`.mobile-backdrop.mobile-drawer-open`** — when the drawer is
+    open, the existing `.mobile-backdrop` should show. The existing
+    `.mobile-backdrop` rule already does display:block when its parent
+    context is set, so this is a NO-OP for now; just add a blank
+    comment line `/* T200: backdrop already styled; reusable for drawer */`.
+
+**Non-test verification:**
+
+After the CSS is added, build the bundle (no JSX changes expected,
+but the Babel command is a no-op if `app.jsx` mtime is unchanged):
+
+```bash
+cd /home/user/wheel-app-staging
+make build  # may be a no-op if app.jsx unchanged
+grep -c "mobile-drawer" static/styles.css  # >= 5 matches expected (the test rule + tail rules + the modifiers)
+```
+
+**Test additions:**
+
+A new file `tests/test_mobile_css.py` (pytest source-string assertions
+like the existing `tests/test_aquarium_panel.py` pattern — pure file
+content checks, no Playwright). 3 tests:
+
+1. `test_mobile_drawer_class_exists` — asserts `'.mobile-drawer'` in
+   styles.css content and `'@media (max-width: 768px)'` appears at
+   least twice (once for the existing mobile breakpoint block at
+   line ~2413, once for the new T200 block at the end).
+2. `test_mobile_wager_below_wheel_class_exists` — asserts
+   `'.mobile-below-wheel .season8-wager-panel'` in styles.css.
+3. `test_mobile_drawer_tab_class_exists` — asserts
+   `'.mobile-drawer-tab'` and `'.mobile-drawer-tab.active'` both in
+   styles.css.
+
+Run:
+```bash
+cd /home/user/wheel-app-staging
+timeout 60 python3 -m pytest tests/test_mobile_css.py -v
+timeout 240 python3 -m pytest tests/ 2>&1 | tail -5
+```
+
+Expected: 412 pass, 1 skip (409 already passing + 3 new tests).
+
+**Files to touch:**
+- `static/styles.css` (append new `@media (max-width: 768px)` block
+  with rules 2-15 above at the END of the file)
+
+**Files NOT to touch:**
+- `static/app.jsx`
+- `static/app.js` (no JSX changes; no build needed but harmless to
+  run `make build`)
+- `tests/test_mobile_e2e.py` (T201 owns this file)
+- Any game.py / models.py / etc. backend file
+
+**Parallel-safety analysis:**
+
+Other phase-1 ticket T201 only touches a new file under `tests/`. No
+overlapping file edits. Merges cleanly in either order.
+
+**Sub-agent report requirements:**
+
+When done, report:
+1. Exact line numbers where each new CSS class block was added.
+2. Output of `grep -c "mobile-drawer" static/styles.css`.
+3. Pytest full-suite count (expected: 412 passed, 1 skipped).
+4. Commit SHA of the single commit on the staging branch (commit
+   message should be `fix(mobile): T200 — add drawer + below-wheel
+   wager CSS scaffolding`).
+5. Push result for `git push origin staging`.
+
+**Open questions:** None — operator confirmed the drawer-vs-inline
+approach (drawer) and wager panel placement (below the wheel) on
+2026-06-26.
+
+### T201: Mobile E2E Playwright scaffold — baseline audit + post-fix assertions (tests/ only)
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (mobile UI audit; needed a reusable
+  test harness for desktop + mobile that won't ignore mobile
+ -only bugs again)
+- **Phase:** 1 (parallel with T200; parallel-safe because this
+  ticket only touches a new test file and T200 only touches
+  styles.css)
+- **Depends on:** none (the tests intentionally document the
+  CURRENT-BROKEN state; T203 in phase 3 will flip them from
+  xfail assertions to pass assertions once T202 lands)
+- **Go/No-Go:** No app.jsx / styles.css / game.py edits. If you
+  need to touch them to make a test pass, STOP and report — that
+  belongs in T202.
+
+**Operator's vision:** "We need a test harness that runs the app
+under Playwright mobile device descriptors (iPhone 14, Pixel 7,
+iPhone SE) so S8 panel regressions on mobile are caught before
+they ship."
+
+**Goal:** Create `tests/test_mobile_e2e.py` — a Playwright-based
+mobile E2E suite. It must:
+
+(a) Auto-login a freshly-prepared test user via the existing
+`/api/register` + SQL helpers used by `tests/test_wager_panel_layout.py`
+(`logged_in_context` fixture pattern; see
+`tests/test_wager_panel_layout.py` for the established pattern of
+"register a temp user, log in via Playwright in a context, then
+assert against DOM elements").
+(b) Render the app at three viewport widths: 390x844 (iPhone 14)
++iPhone 14 device descriptor, 412x915 (Pixel 7), 320x568 (iPhone
+SE / smallest common iPhone). All three test cases use the same
+logged-in context.
+(c) Walk through every S8 feature panel and assert visibility.
+   - BEFORE T202 lands, the assertions document the broken state
+     (xfail marks): S8 panels with `@pytest.mark.xfail(reason=
+     "T202 not yet merged: panels should be visible on mobile")`.
+   - T203 in phase 3 will remove the `xfail` markers and flip the
+     assertion direction (from "not visible today" to "visible now").
+(d) Include a Playwright check for the wager panel below the
+   wheel (T201 marks xfail, T203 unmarks once T202 lands).
+(e) Include a smoke test that creates a bounty, completes it, and
+   verifies the `Claim +1 token` button is reachable on mobile.
+   (T201 uses xfail; T203 unmarks.)
+
+**Acceptance criteria (all must pass):**
+
+1. New file `tests/test_mobile_e2e.py` exists. There is NO
+   `tests/conftest.py` in this repo — fixtures are local to each
+   test file. Copy the `logged_in_context` + `logged_in_page`
+   fixture pattern from `tests/test_wager_panel_layout.py:61-122`
+   into the new file (mirror the same `server_url`, browser
+   launch, register+login flow). Do NOT refactor
+   `tests/test_wager_panel_layout.py` itself.
+
+2. **Device matrix fixture (`@pytest.fixture(params=[...])`)** rendering
+   the homepage at 3 viewport sizes.
+
+3. **`test_main_wheel_visible_on_mobile`** — asserts `.wheel-wrapper`
+   is visible and the wheel canvas has `width >= 100` and
+   `height >= 100` at all 3 viewport sizes. This is the base
+   smoke test — it PASSES today. (No xfail marker.)
+
+4. **`test_mobile_toolbar_renders_5_buttons`** — asserts
+   `.mobile-toolbar` is rendered and has >=5 `.mobile-toolbar-btn`
+   children. PASSES today. (No xfail marker.)
+
+5. **`test_prestige_panel_hidden_on_mobile_today`** — for
+   `testing7` (owns `prestige_unlock`), asserts
+   `.season8-prestige-panel` is NOT in the DOM. Marked
+   `@pytest.mark.xfail(reason="T202 not yet merged — panels should be visible on mobile post-fix",
+   strict=False)`. T203 flips to assert it IS in the DOM.
+
+6. **`test_free_tokens_section_hidden_on_mobile_today`** — for
+   `testing7` (owns `prestige_unlock` and is eligible for the 3
+   free tokens), asserts `.free-tokens-section` is NOT visible.
+   Marked xfail with same reason.
+
+7. **`test_bounties_panel_hidden_on_mobile_today`** — asserts
+   `.season8-bounties-panel` is not visible on mobile. xfail.
+
+8. **`test_aquarium_panel_hidden_on_mobile_today`** — for a user
+   with `aquarium` item granted via SQL, asserts the panel is not
+   visible on mobile. xfail. (Use the same `logged_in_context`
+   pattern, grant the item AFTER login so the panel would render
+   on desktop.)
+
+9. **`test_loadout_panel_hidden_on_mobile_today`** — xfail.
+
+10. **`test_community_goal_hidden_on_mobile_today`** — asserts
+    `.season8-meta-panel` is not visible on mobile. xfail.
+
+11. **`test_wager_panel_overflow_on_mobile_today`** — registers
+    a fresh user, grants `wager_unlock` via SQL, asserts the
+    `.season8-wager-panel` has its right edge OFF the screen
+    (rect.x < 0) when rendered at 390x844. Marked xfail (this
+    test will FAIL today because the panel is positioned absolute
+    off the left edge; once T202 unfurls it below the wheel, it
+    will be on-screen so the assertion FLIPS direction. T203
+    rewrites this to assert the panel is on-screen and below the
+    wheel canvas).
+
+12. **`test_leaderboard_visible_on_mobile`** — asserts the
+    Leaderboard mobile-toolbar button opens `.leaderboard-panel`
+    with `display != none`. PASSES today (existing mobile flow).
+
+13. **`test_shop_panel_visible_on_mobile`** — asserts the Shop
+    mobile-toolbar button opens the shop panel. PASSES today.
+
+14. **`test_login_form_visible_on_mobile`** — at 390x844 BEFORE
+    login: asserts username + password inputs are visible.
+    PASSES today.
+
+**Implementation notes:**
+
+- The user `testing7` exists in the staging DB with password
+  `pw1234` and owns `prestige_unlock`. Use it for tests 5, 6, 7
+  (S8 panels that gate on `prestige_unlock` or no gate at all).
+- For tests 8, 11 (require `aquarium` or `wager_unlock`), use
+  the `logged_in_context` fixture pattern from
+  `tests/test_wager_panel_layout.py` to register a fresh test
+  user, then grant the item via SQL BEFORE page reload. T201's
+  test should arrange for this; T202's solution should let the
+  panel render.
+- For test 11 (wager overflow on mobile), the simplest check
+  is:
+  ```python
+  rect = page.evaluate("""() => {
+      const el = document.querySelector('.season8-wager-panel');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {x: r.x, right: r.right, w: r.width, vw: innerWidth};
+  }""")
+  assert rect is not None
+  assert rect['x'] < 0 or rect['right'] > rect['vw']
+  ```
+  Read xfail semantics — `xfail` means the assertion RUNS but
+  a failure is expected; if the assertion passes today then
+  the test is an `XPASS` (unexpected pass). Mark with
+  `strict=False` so XPASS doesn't fail the suite.
+
+- Reference: `tests/test_wager_panel_layout.py` already uses
+  Playwright at viewport 1280x800. The `logged_in_context`
+  fixture (or equivalent) used by those tests should be
+  adapted. If it doesn't exist, copy the registration + login
+  + SQL-grant pattern into `test_mobile_e2e.py` (do NOT modify
+  other test files).
+
+**Run:**
+```bash
+cd /home/user/wheel-app-staging
+timeout 180 python3 -m pytest tests/test_mobile_e2e.py -v
+timeout 240 python3 -m pytest tests/ 2>&1 | tail -5
+```
+
+Expected: 8-9 PASS (the smoke tests), 6-7 XFAIL (the regression-baseline
+tests), strict=False. Full suite: 419 pass, 1 skip, 6-7 xfail. The
+xfails are EXPECTED today — they describe the broken state. After
+T202 + T203 land, T203 will rewrite the assertions to pass and drop
+xfail markers.
+
+**Files to touch:**
+- `tests/test_mobile_e2e.py` (new file)
+
+**Files NOT to touch:**
+- `static/app.jsx`
+- `static/app.js`
+- `static/styles.css`
+- `game.py` / `models.py` / `bounties.py` / etc.
+- Any other test file (the tests should fail in isolation only via
+  xfail markers; do not weaken existing assertions)
+
+**Parallel-safety analysis:**
+
+T200 only touches `static/styles.css`. T201 only touches
+`tests/test_mobile_e2e.py`. No shared file. Merges cleanly in
+either order.
+
+**Sub-agent report requirements:**
+
+1. Full path of the new test file and its line count.
+2. List of test names + status (each PASS / XFAIL / XPASS).
+3. Full-suite pytest count (expected: 419 pass, 1 skip, 7 xfail).
+4. Commit SHA on staging (commit message:
+   `test(mobile): T201 — Playwright mobile E2E baseline (xfails for S8 panel regressions)`).
+5. Push result.
+
+**Open questions:** None.
+
+### T202: Mobile drawer architecture + relocate S8 panels + wager-below-wheel (single-agent JSX refactor)
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (mobile UI audit — biggest single
+  fix; the architectural core of the batch)
+- **Phase:** 2 (single agent — NOT parallel-safe with anything
+  else in this batch; this ticket does a coherent multi-region
+  JSX refactor and should have one author so the diff is clean)
+- **Depends on:** T200 merged to staging (uses the CSS classes
+  T200 added). Independent of T201, but T201's xfail markers
+  should flip to passing assertions here too — see step Z.
+- **Go/No-Go:** If the work feels bigger than a single coherent
+  commit, STOP and split. Do NOT "improve" unrelated code while
+  in here.
+
+**Operator's vision:** "Build a dedicated mobile-nav drawer that
+surfaces Prestige, Free Tokens, Bounties, Aquarium, Loadout,
+Community Goal, and Singularity on mobile. The desktop layout is
+unchanged. The wager panel becomes a compact full-width block
+below the wheel on mobile only. Mobile players get parity with
+desktop for all S8 features."
+
+**Goal:** One coherent commit that:
+
+A. Extracts each S8 panel JSX block (currently living inside the
+   `{!isMobile && <div className="game-right-sidebar">...</div>}`
+   block at `static/app.jsx:4903-5023`) into small inline React
+   function components defined inside `app.jsx` (e.g.
+   `function PrestigePanel(props) { ... }`). The desktop sidebar
+   then renders `<PrestigePanel ... />` (no visual change on
+   desktop). The new mobile drawer renders the same component
+   inside its active tab — same JSX, different parent.
+
+B. Adds a `mobileDrawerOpen` state + `mobileDrawerTab` state at
+   the top of the `Game` component (where the existing
+   `mobilePanel` state lives, around `app.jsx:3210`).
+
+C. Replaces the existing 5th mobile-toolbar button (the 📊 Stats
+   one at `app.jsx:5129`) with a new 📊 button that toggles the
+   new `.mobile-drawer`. (Keep the existing Stats button's
+   destination accessible by tapping the new drawer's "Stats" tab
+   — OR keep the existing Stats button as-is and add a 6th button
+   labelled, e.g., 🎒 (Loadout), with the drawer behind it. PICK
+   ONE approach and document the choice in the sub-agent report.
+   Default recommended: keep the existing 5 buttons and ADD a 6th
+   button 🎒 that opens the drawer; do not repurpose Stats.)
+
+D. Inside the drawer, render 5 tabs in this order:
+   1. 🏅 Prestige — contains the `PrestigePanel` component
+      (Prestige level badge + legacy wins badge).
+   2. 📋 Bounties — contains the `FreeTokensPanel` component
+      (the daily 3-free-tokens button) AND the `BountiesPanel`
+      component (the bounty cards + claim buttons).
+   3. 🐠 Aquarium — contains the `AquariumPanel` component
+      (species grid + token balance).
+   4. ⚙️ Loadout — contains the `LoadoutPanel` component
+      (3 save/equip slots).
+   5. 🌍 Community — contains the `CommunityGoalPanel` + the
+      `SingularityPanel` component (the existing
+      `.season8-meta-panel` content).
+
+E. Each tab content is wrapped in `<div className="mobile-drawer-section">`.
+   Only the active tab's content is rendered (`{mobileDrawerTab ===
+   'bounties' && <FreeTokensPanel /> <BountiesPanel />}`).
+
+F. For the desktop sidebar (`{!isMobile && ... game-right-sidebar
+   ...}` at app.jsx:4903-5023): KEEP the existing render. Just
+   replace each inline JSX block with `<PrestigePanel ... />`,
+   `<FreeTokensPanel ... />`, etc. — same visual result on
+   desktop. The point is to share the JSX between desktop and
+   mobile via components so future fixes are made once.
+
+G. For the bottom-left-stack (Community Goal + Singularity, at
+   `app.jsx:5052-5081`): same treatment. Extract into
+   `CommunityGoalPanel` + `SingularityPanel` components. Render
+   them inside the desktop `.bottom-left-stack` (unchanged
+   visually) AND inside the mobile drawer's Community tab.
+
+H. **Wager panel below the wheel on mobile:** in the existing
+   `wheel-and-wager` JSX at `app.jsx:4718-4816`, the `<div
+   className="season8-wager-panel">` is the first child of
+   `.wheel-and-wager`. On mobile (`isMobile` is true), render
+   this panel AFTER the `<div className="wheel-wrapper">`
+   instead, wrapped in `<div className="mobile-below-wheel">`
+   (which already exists at app.jsx:4862 for the streak + dice
+   panels). Use a conditional:
+   ```jsx
+   <div className="wheel-and-wager">
+     {!isMobile && ownedItems.includes('wager_unlock') && (
+       <div className="season8-wager-panel">
+         {/* existing JSX */}
+       </div>
+     )}
+     <div className="wheel-wrapper">...</div>
+     {isMobile && ownedItems.includes('wager_unlock') && (
+       <div className="mobile-below-wheel" style={{width: '100%'}}>
+         <div className="season8-wager-panel">
+           {/* same JSX, can be extracted as <WagerPanel .../> */}
+         </div>
+         <StreakPanel .../>
+         <DicePanel .../>
+       </div>
+     )}
+   </div>
+   ```
+   The `WagerPanel` component is a good extract — it's reused
+   for both desktop (left of wheel) and mobile (below wheel).
+   Pass props: `stakePct, stakeValue, doubleDownPending,
+   wagerStreak, wagerBankedWins, insuranceTokens, insuranceArmed,
+   ownedItems, onStakeChange, onBank, onDoubleDown,
+   onCancelDoubleDown, onInsurance, onCancelInsurance,
+   onTogglePayWithTokens, payWithTokens`.
+   All the existing handlers stay in the `Game` component; the
+   `WagerPanel` receives them as callbacks.
+
+I. Remove the existing `{isMobile && <div className="mobile-below-wheel">
+   <StreakPanel/> <DicePanel/></div>}` block at `app.jsx:4862-4879`
+   and merge those panels into the NEW `mobile-below-wheel` block
+   from step H. Order in the new mobile-below-wheel: 
+   `<WagerPanel/>`, then `<StreakPanel/>`, then `<DicePanel/>`.
+   (Wager panel directly against the wheel is most thumb-reachable
+   per operator decision.)
+
+J. **Preserve all existing handlers, state, and effects.** Do NOT
+   move `useState` calls or reorganize state. The component
+   function bodies are MOVED into separate inline function
+   definitions but their contents are unmodified — same JSX,
+   same callbacks. Just wrapped in `function Name(props) { return
+   (<jsx>);}`.
+
+K. **No CSS changes expected** — T200 already added all the
+   needed classes (`mobile-drawer`, `mobile-drawer-tabs`,
+   `mobile-drawer-tab`, `mobile-drawer-section`,
+   `mobile-below-wheel .season8-wager-panel`, etc.). If a CSS
+   tweak is genuinely needed (rare), append a SMALL block at the
+   end of `styles.css` with a `/* T202 follow-up */` comment — do
+   not edit existing CSS rules.
+
+**Acceptance criteria (all must pass):**
+
+1. **Visual diff on desktop at 1280x800: ZERO.** Open the app at
+   desktop viewport and confirm: Prestige panel still shows on
+   the right sidebar, Bounties panel shows, Aquarium shows,
+   Loadout shows, Community Goal + Singularity show in the
+   bottom-left. The only change should be that the JSX is
+   refactored into components — pixel-for-pixel identical on
+   desktop. Verify with Playwright screenshots (before/after) at
+   the top of each panel — they MUST byte-match (no style change).
+
+2. **Mobile at 390x844 (iPhone 14):** All S8 panels become
+   visible. Tap the new 6th mobile-toolbar button (🎒 or whatever
+   glyph chosen) → drawer slides in from the right. Tabs render.
+   Tap each tab in turn and verify the panel content renders.
+
+3. **Mobile wager panel** is now positioned directly below the
+   wheel, full-width, with the stake slider, DD/Insurance
+   buttons, and token balance visible. The Stake slider thumb and
+   the DD/Insurance buttons meet Apple's 44px tap target minimum.
+
+4. **All existing tests pass (no count drop).**
+   ```bash
+   cd /home/user/wheel-app-staging
+   make build
+   timeout 240 python3 -m pytest tests/ 2>&1 | tail -5
+   ```
+   Expected: 419 pass, 1 skip, 7 xfail (T201's xfail markers now
+   become XPASS for tests 5-11; T203 will flip them to passing
+   assertions)
+
+5. **T201's xfail tests become XPASS** by end of T202. Tests 5-11
+   should now unexpectedly pass (XPASS). With `strict=False`,
+   XPASS doesn't fail the suite; T203 in phase 3 will rewrite
+   them as plain passing assertions.
+
+6. **Existing desktop tests** (`test_wager_panel_layout.py`,
+   `test_aquarium_panel.py`, `test_onboarding_disabled.py`,
+   `test_prestige.py`, etc.) continue to PASS unchanged. If any
+   break, the JSX refactor changed behavior — debug and fix.
+
+7. **Manual Playwright checks at 320x568 (iPhone SE / smallest
+   viewport):**
+   - Drawer opens and fits on a 320px viewport (use
+     `width: min(360px, 92vw)` from T200 — should give 294px
+     wide drawer).
+   - Wager panel below wheel does not cause horizontal scroll
+     (no overflow-x on `body`).
+   - Spin button is reachable (not pushed off the bottom of the
+     viewport) by scrolling. Take a screenshot at `static/
+     screenshots/mobile/post_t202_iphone_se.png`.
+
+**Implementation steps (suggested sub-agent order):**
+
+1. Read `static/app.jsx:4903-5023` (desktop right-sidebar) and
+   `app.jsx:5052-5081` (bottom-left-stack) in full.
+2. Define 7 new inline function components ABOVE the `Game`
+   component (around line 4000 where other utility components
+   live; pick one location and group them):
+   `PrestigePanel`, `FreeTokensPanel`, `BountiesPanel`,
+   `AquariumPanel`, `LoadoutPanel`, `CommunityGoalPanel`,
+   `SingularityPanel`, `WagerPanel`. Each receives the props
+   needed to render its existing JSX.
+3. Replace the inline JSX in `{!isMobile && <div className=
+   "game-right-sidebar">...</div>}` with `<PrestigePanel
+   prestigeLevel={prestigeLevel} legacyWins={legacyWins}
+   ownedItems={ownedItems} />` etc.
+4. Same for `.bottom-left-stack` block.
+5. Extract `WagerPanel` and conditionally render it (left of
+   wheel on desktop, below wheel on mobile).
+6. Add `mobileDrawerOpen`, `mobileDrawerTab` state to the `Game`
+   component near `mobilePanel`.
+7. Add a 6th mobile-toolbar button that toggles
+   `mobileDrawerOpen`. Drawer JSX after the existing
+   `.mobile-fish-panel`:
+   ```jsx
+   {isMobile && mobileDrawerOpen && (
+     <div className="mobile-drawer mobile-drawer-open">
+       <div className="mobile-drawer-tabs">
+         <button onClick={() => setMobileDrawerTab('prestige')}
+                 className={`mobile-drawer-tab${mobileDrawerTab==='prestige'?' active':''}`}>🏅</button>
+         <button onClick={() => setMobileDrawerTab('bounties')}
+                 className={`mobile-drawer-tab${mobileDrawerTab==='bounties'?' active':''}`}>📋</button>
+         <button onClick={() => setMobileDrawerTab('aquarium')}
+                 className={`mobile-drawer-tab${mobileDrawerTab==='aquarium'?' active':''}`}>🐠</button>
+         <button onClick={() => setMobileDrawerTab('loadout')}
+                 className={`mobile-drawer-tab${mobileDrawerTab==='loadout'?' active':''}`}>⚙️</button>
+         <button onClick={() => setMobileDrawerTab('community')}
+                 className={`mobile-drawer-tab${mobileDrawerTab==='community'?' active':''}`}>🌍</button>
+       </div>
+       <div className="mobile-drawer-section">
+         {mobileDrawerTab === 'prestige' && <PrestigePanel ... />}
+         {mobileDrawerTab === 'bounties' && <><FreeTokensPanel .../><BountiesPanel .../></>}
+         {mobileDrawerTab === 'aquarium' && <AquariumPanel .../>}
+         {mobileDrawerTab === 'loadout' && <LoadoutPanel .../>}
+         {mobileDrawerTab === 'community' && <><CommunityGoalPanel .../><SingularityPanel .../></>}
+       </div>
+     </div>
+   )}
+   ```
+8. Add a close handler: tapping `.mobile-backdrop` should also
+   close the drawer if `mobileDrawerOpen` is true. The existing
+   backdrop click handler at app.jsx:5104 closes `mobilePanel`;
+   extend it to also set `mobileDrawerOpen` to false.
+9. Build: `make build`.
+10. Reload gunicorn: `kill -HUP $(pgrep -f gunicorn.conf.py | head -1)`.
+11. Run the full test suite.
+12. Take mobile screenshots: `static/screenshots/mobile/post_t202_*.png`
+    for at least 3 viewport sizes (iPhone 14, Pixel 7, iPhone SE).
+
+**Files to touch:**
+- `static/app.jsx` (primary; ~80% of the diff)
+- `static/styles.css` (only if a tweak is genuinely needed; append
+  at END with `/* T202 follow-up */` comment — should be rare)
+- `static/app.js` (rebuilt via `make build` — do NOT hand-edit)
+
+**Files NOT to touch:**
+- `game.py` / `models.py` / `bounties.py` / `prestige.py` /
+  `wagers.py` — T202 is frontend-only.
+- `tests/test_mobile_e2e.py` (T201 owns the file; T202 should NOT
+  edit it — T203 will)
+- Any existing test file unless the test breaks because the JSX is
+  now structured slightly differently. If a test breaks, INVESTIGATE
+  the break: most likely the test uses a DOM selector that still
+  matches, but if a className was inadvertently renamed, fix the
+  JSX to use the original className. Tests assert behavior — JSX
+  refactor should preserve behavior.
+
+**Parallel-safety analysis:**
+
+T202 in phase 2 is NOT expected to be parallel with anything
+else in the batch. Single-agent, single worktree
+(`/home/user/wt-T202`), single commit. T200 + T201 from phase
+1 must be MERGED to staging before T202 starts (T202 uses T200's
+CSS classes). Check before starting:
+```bash
+cd /home/user/wheel-app-staging
+git log -5 --oneline origin/staging
+# Should show T200 + T201 commits before T202 begins.
+grep -c "mobile-drawer" static/styles.css
+# Should be >= 6 (T200 added the drawer CSS classes)
+```
+
+**Sub-agent report requirements:**
+
+1. Commit SHA on staging (single commit expected:
+   `fix(mobile): T202 — drawer architecture + relocate S8 panels + below-wheel wager`).
+2. Confirmation that desktop at 1280x800 is pixel-unchanged (paste
+   Playwright screenshot path `static/screenshots/desktop_pre_t202.png`
+   and `desktop_post_t202.png` if you can take them, or just state
+   "no visual change on desktop verified").
+3. Mobile screenshots at 390x844, 412x915, 320x568 — paths under
+   `static/screenshots/mobile/post_t202_*`.
+4. The choice (6th toolbar button glyph vs. repurposing Stats) —
+   state which approach was taken.
+5. Full-suite pytest count (expected: 419 pass, 1 skip, 7 XPASS-with-
+   strict=False OR equivalent — paste exact output of `pytest tests/ -v
+   | tail -30`).
+6. `git worktree remove /home/user/wt-T202` was run after merge.
+7. Push result for `git push origin staging`.
+
+**Open questions:**
+- Q: Should the desktop `.season8-meta-panel` (bottom-left-stack)
+  continue to render or move entirely to the drawer? — A: Per
+  operator's vision, desktop layout is unchanged, so KEEP the
+  bottom-left-stack on desktop AND render the same components in
+  the drawer on mobile.
+- Q: Should each S8 panel be a separate file (e.g.
+  `static/components/PrestigePanel.jsx`)? — A: NO. The Makefile
+  build rule is `npx babel static/app.jsx -o static/app.js` — it
+  only compiles a single `app.jsx`. Splitting into more files
+  would require a bundler we don't have. Define inline function
+  components in `app.jsx` instead.
+
+### T203: Mobile E2E test flip + wheel-mode/auto-spin responsive polish
+
+- **Status:** [ ]
+- **Discovered:** 2026-06-26 (post-T202 verification + remaining
+  small responsive issues)
+- **Phase:** 3 (single agent; depends on T202 merged; can be on
+  the same worktree/branch as T202 if that worktree is preserved —
+  see "Same-worktree" guidance below)
+- **Depends on:** T202 merged to staging.
+- **Go/No-Go:** Single agent. Touches three non-overlapping
+  regions: tests/test_mobile_e2e.py (only T201 + T203 touch it),
+  `.season8-wheel-mode` JSX + CSS, `.autospin-row` JSX + CSS.
+  T203 should NOT touch the drawer JSX (T202's region) unless
+  fixing a bug surface in T201's tests.
+
+**Operator's vision:** "Once T202 is in, flip the T201 baseline
+tests from xfail to pass. Also: at 390px, the wheel-mode selector
+buttons (Mode + 3 mode buttons) are cramped — wrap them and make
+tap targets bigger. Auto-spin checkbox is too small to tap
+comfortably on a phone — bump its hit area."
+
+**Goal:** Two-part ticket:
+
+**Part A — Flip T201 tests from xfail to pass (tests only):**
+
+1. Open `tests/test_mobile_e2e.py` and find every test that has
+   `@pytest.mark.xfail(reason="T202 not yet merged...")`.
+2. Remove the `xfail` markers and FLIP the assertion direction.
+   Specifically:
+   - `test_prestige_panel_hidden_on_mobile_today`: rename to
+     `test_prestige_panel_visible_on_mobile_after_t202` and assert
+     the panel IS in the DOM (inside the drawer after opening it
+     via the new 🎒 button). Update test code:
+     ```python
+     # Open the drawer
+     page.locator('.mobile-toolbar-btn', has_text='🎒').click()
+     page.wait_for_timeout(500)
+     # Tap Prestige tab
+     page.locator('.mobile-drawer-tab', has_text='🏅').click()
+     page.wait_for_timeout(500)
+     assert page.locator('.season8-prestige-panel').count() >= 1
+     ```
+   - Same flip for `test_free_tokens_section_*`,
+     `test_bounties_panel_*`, `test_aquarium_panel_*`,
+     `test_loadout_panel_*`, `test_community_goal_*` — assert
+     visibility inside the drawer.
+   - `test_wager_panel_overflow_on_mobile_today`: rename and
+     FLIP to assert the panel is on-screen (rect.x >= 0 AND
+     rect.right <= viewport width) AND is positioned BELOW the
+     wheel canvas (rect.y > wheel canvas's rect.bottom).
+
+**Part B — Wheel-mode selector responsive polish:**
+
+At viewports <=768px the `.season8-wheel-mode` row (label + 3
+mode buttons in a horizontal flex row) is cramped at 390px and
+overflows at 320px. Fix:
+
+1. In `static/app.jsx:4843-4858` (`.season8-wheel-mode` JSX):
+   - Keep the JSX structure but ensure the buttons wrap on
+     narrow viewports. The `.wheel-mode-btns` flex parent should
+     `flex-wrap: wrap` on mobile.
+2. In `static/styles.css`: add to the END (end of file, inside
+   a new `@media (max-width: 768px)` block placed AFTER T200's
+   block):
+   ```css
+   .season8-wheel-mode .wheel-mode-btns {
+     flex-wrap: wrap;
+     gap: 4px;
+   }
+   .season8-wheel-mode .wheel-mode-btn {
+     min-height: 36px;  /* tap target */
+     padding: 6px 10px;
+     font-size: 0.75rem;
+     flex: 1 1 calc(50% - 4px);  /* 2 buttons per row */
+   }
+   .season8-wheel-mode .wheel-mode-label {
+     display: block;  /* on its own row at <=768px */
+     width: 100%;
+     text-align: center;
+     font-size: 0.7rem;
+   }
+   ```
+   (Place inside the new `@media (max-width: 768px)` block at the
+   end of styles.css — do not edit the existing mobile block at
+   line ~2413.)
+
+**Part C — Auto-spin checkbox tap target:**
+
+1. In `static/styles.css` (same new `@media (max-width: 768px)`
+   block at end of file as Part B):
+   ```css
+   .autospin-row {
+     padding: 12px 16px;  /* tap target padding */
+     min-height: 44px;
+   }
+   .autospin-row input[type=checkbox] {
+     width: 22px;
+     height: 22px;
+     margin-right: 8px;
+   }
+   .autospin-row .autospin-label {
+     font-size: 0.9rem;
+   }
+   ```
+2. No JSX changes to `.autospin-row` — it already renders correctly
+   on desktop; this just bumps tap targets on mobile.
+
+**Acceptance criteria (all must pass):**
+
+1. **T201 xfail tests flipped to PASS**:
+   ```bash
+   cd /home/user/wheel-app-staging
+   timeout 180 python3 -m pytest tests/test_mobile_e2e.py -v
+   ```
+   Expected: 14 pass (or 8 PASS if T201 had 8 smoke + 6 xfail —
+   exact count depends on T201's final test list. ALL tests must
+   PASS, no xfail markers). Suite total: 419 pass, 1 skip, 0 xfail.
+
+2. **Wheel-mode selector wraps at 390px**: Playwright check
+   `page.evaluate(() => document.querySelector('.wheel-mode-btns
+   ').offsetHeight)` returns a value >= 60px (two rows of buttons)
+   at viewport 390x844. On desktop (1280x800) the offsetHeight
+   stays unchanged (single row).
+
+3. **Auto-spin checkbox tap area >= 44px height**: at 390x844,
+   `page.evaluate(() => document.querySelector('.autospin-row').
+   getBoundingClientRect().height)` >= 44. (Grant
+   `auto_spin_unlock` via SQL to testing7 first if needed.)
+
+4. **Full suite**:
+   ```bash
+   timeout 240 python3 -m pytest tests/ 2>&1 | tail -5
+   ```
+   Expected: 419 pass, 1 skip, 0 xfail (T201's 7 xfail tests now
+   pass after assertions flipped; T201 baseline smoke tests still
+   pass).
+
+5. **Desktop regression-free**: existing desktop at 1280x800 — the
+   `.season8-wheel-mode` row renders as before (verify with
+   Playwright bounding box, desktop offsetHeight unchanged from
+   pre-T203 value; record the value in the report).
+
+**Same-worktree guidance:**
+
+If T202 was done on worktree `/home/user/wt-T202`, that worktree
+can be reused for T203 (same agent, no merge between phases). In
+that case, skip the merge-staging step below and just commit
+T203's diff to the branch directly. If T202 was already merged to
+staging and the worktree removed, T203 creates a fresh worktree
+`/home/user/wt-T203` from staging.
+
+**Files to touch:**
+- `tests/test_mobile_e2e.py` (flipping xfail → pass)
+- `static/styles.css` (append new `@media (max-width: 768px)` block
+  at END of file with wheel-mode + auto-spin rules)
+- `static/app.jsx` (only if the `.season8-wheel-mode` JSX needs a
+  tweak — see Part B step 1. Otherwise NONE)
+
+**Files NOT to touch:**
+- `static/app.js` (rebuilt via `make build`)
+- `game.py` / backend
+- T202's drawer JSX (only touch if T202 left a bug; in that case
+  fix the bug + report it in the sub-agent report)
+- Any other test file's assertions unless T203 reveals a broken
+  test that needs an obvious assertion fix (e.g., a
+  test_aquarium_panel.py selector that now needs `.mobile-drawer`
+  scoping)
+
+**Parallel-safety analysis:**
+
+T203 is the SINGLE ticket in phase 3. Phase 3 follows T202.
+No parallelism needed.
+
+**Sub-agent report requirements:**
+
+1. Commit SHA on staging (commit message:
+   `fix(mobile): T203 — flip e2e tests + wheel-mode/auto-spin responsive polish`).
+2. List of T201 tests flipped (before/after test names).
+3. Full-suite pytest count (expected: 419 pass, 1 skip, 0 xfail).
+4. Playwright bounding-box measurements:
+   - `.season8-wheel-mode` offsetHeight at 1280x800 (desktop) —
+     paste value (should equal pre-T203 value).
+   - `.season8-wheel-mode` offsetHeight at 390x844 (mobile) —
+     paste value (should be >= 60, indicating wrap to 2 rows).
+   - `.autospin-row` getBoundingClientRect().height at 390x844 —
+     paste value (should be >= 44).
+5. New `@media (max-width: 768px)` block line range in styles.css.
+6. Push result.
+
+**Open questions:**
+- Q: What glyph for the new mobile-toolbar drawer button? — A:
+  T202 decides; T203 inherits whatever T202 chose. If T202 chose
+  🎒 the e2e tests should reference that — UPDATE T201's test
+  assertion `page.locator('.mobile-toolbar-btn', has_text='🎒')`
+  to match the actual glyph chosen. Test files MUST match the
+  shipped JSX.
+- Q: What if T202 used the 5th button (Stats) for the drawer
+  rather than adding a 6th button? — A: Same as above — T201's
+  tests must reference the actual button location. T203 updates
+  the locator accordingly.
