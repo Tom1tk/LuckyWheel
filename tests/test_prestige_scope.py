@@ -122,11 +122,17 @@ _spec.loader.exec_module(_game)
 # ════════════════════════════════════════════════════════════════════════════
 # T85: prestige scope — wager_tokens persist
 # ════════════════════════════════════════════════════════════════════════════
-def _drive_prestige(gs, extra_gs_keys=None):
+def _drive_prestige(gs, extra_gs_keys=None, post_reset_overrides=None):
     """Drive /api/prestige with a fully-populated gs and return (conn, result).
 
     The returned ``conn.log`` contains every SQL the endpoint ran, so tests
     can assert the UPDATE's column list without talking to Postgres.
+
+    The endpoint reads game_state twice — once before the UPDATE (for
+    the locked read) and once after (to return the post-reset state).
+    ``post_reset_overrides`` lets tests provide a different value for
+    the second read, mimicking the post-UPDATE state. If unset, the
+    same ``full_gs`` is used for both reads (the pre-reset state).
     """
     full_gs = dict(gs)
     # Defaults for every column the endpoint may read.
@@ -141,7 +147,13 @@ def _drive_prestige(gs, extra_gs_keys=None):
     if extra_gs_keys:
         full_gs.update(extra_gs_keys)
 
-    conn = _FakeConn(fetchone_queue=[full_gs])
+    if post_reset_overrides:
+        post_reset_gs = dict(full_gs)
+        post_reset_gs.update(post_reset_overrides)
+    else:
+        post_reset_gs = full_gs
+
+    conn = _FakeConn(fetchone_queue=[full_gs, post_reset_gs])
 
     @contextmanager
     def cm():
@@ -247,7 +259,8 @@ def test_prestige_writes_filtered_owned_items():
         'wins': 1_000_000,
     }
     conn, _ = _drive_prestige(gs)
-    sql, params = conn.log[-1]  # the UPDATE
+    _, params = next((s, p) for s, p in conn.log
+                     if s.lstrip().upper().startswith('UPDATE'))
     # params layout: (new_level, new_prestige_count, new_legacy_wins,
     #                 new_wins, new_owned_items, ...defaults..., user_id)
     new_owned = params[4]
@@ -389,3 +402,44 @@ def test_prestige_resets_losses_to_zero():
     # order in PRESTIGE_RESET_COLUMNS — the simplest assertion is that the
     # losses reset value (0) is in the param tuple.
     assert 0 in params
+
+
+def test_prestige_response_includes_post_reset_state():
+    """T121 follow-up: the response includes a `state` object that mirrors
+    /api/state, so the client can refresh the shop's "owned" badges without
+    a hard refresh. The functional items (wager_unlock, winmult_1, etc.)
+    must be GONE from the returned owned_items — only prestige_unlock
+    remains (T121's atomic flow re-adds it after the filter).
+    """
+    gs = {
+        'owned_items': ['prestige_unlock', 'wager_unlock', 'winmult_1',
+                        'fish_to_wager', 'wager_insurance'],
+        'wins': 1_000_000,
+        'losses': 0,
+    }
+    # The endpoint reads game_state twice — once before the UPDATE (for
+    # the locked read) and once after (to return the post-reset state).
+    # The second read should reflect the post-UPDATE values; for the
+    # test that's the filtered owned_items + wins=0 + losses=0.
+    _, result = _drive_prestige(
+        gs,
+        post_reset_overrides={
+            'owned_items': ['prestige_unlock'],  # only the unlock survives
+            'wins': 0,
+            'losses': 0,
+        },
+    )
+    assert 'state' in result, (
+        f"response must include 'state' for client refresh, got keys: {list(result.keys())}"
+    )
+    state = result['state']
+    # Functional upgrades are stripped (T121 filter_kept_items(0) returns
+    # only the prestige_unlock that's re-added by the atomic flow).
+    assert 'wager_unlock' not in state['owned_items']
+    assert 'winmult_1' not in state['owned_items']
+    assert 'fish_to_wager' not in state['owned_items']
+    assert 'wager_insurance' not in state['owned_items']
+    assert 'prestige_unlock' in state['owned_items']
+    # wins/losses are 0 (the new state, not the pre-reset values).
+    assert state['wins'] == 0
+    assert state['losses'] == 0

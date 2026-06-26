@@ -216,7 +216,7 @@ def test_losses_zeroed_at_efficiency_level_5():
         'wins': 2_000_000,
         'losses': 999,
     }
-    conn = _FakeConn(fetchone_queue=[gs])
+    conn = _FakeConn(fetchone_queue=[gs, gs])
 
     @contextmanager
     def cm():
