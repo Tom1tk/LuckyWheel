@@ -1982,7 +1982,7 @@ was a final sanity check after the session's cumulative changes.
 ### T78: Mirror mode full mechanic — double escrow
 
 - **Spec ref:** S4.2 (mirror mode)
-- **Status:** [x] (2026-06-22) — mirror mode doubles escrow, takes better of two rolls, forfeit full 2× on double-loss, 6 tests
+- **Status:** [x] (2026-06-22) — mirror mode doubles escrow, takes better of two rolls, forfeit full 2× on double-loss, 6 tests. **[DEFERRED 2026-06-26]** The "two wheels" frontend visual was never built and will not ship for S8. Mirror removed from the weekly rotation for launch; replaced by T115 (simple win/loss% mode). Backend mechanic (wheel_modes.py / game.py) preserved for 8.X reuse.
 - **Parallel group:** P7-modes
 - **Depends on:** T11
 - **Files:**
@@ -3850,6 +3850,7 @@ existing `static/js/` shared-module + standalone-preview-HTML precedents.
 7. `static/casino-preview.html` renders the scene standalone (no auth) for
    iteration.
 8. All prior tests still pass; no production DB touched (staging only).
+9. The shop displays `page_season8` as "Owned" and "Equipped" for all players granted the theme via migration 051 (i.e. `owned_items` written directly by SQL, not via `/api/buy`). Verify on a test account by checking the shop tile shows the correct state badges.
 
 ### Open questions (for operator during iteration)
 
@@ -4062,6 +4063,58 @@ Means:
 - No follow-up tickets filed for missed-reset bugs in the first 24h
 
 
+### T110: Wager tokens — spending mechanic
+
+- **Status:** [ ] (planned — referenced by T112; earning is implemented, spending is not)
+- **Discovered:** 2026-06-26 (operator: "Are wager tokens implemented yet?")
+- **Files:**
+  - `game.py`
+  - `static/app.jsx`
+
+**Current state:** Earning is complete. `wager_tokens` column exists (migration 034). Tokens
+are awarded on fishing catches (reel endpoint), bounty claims, and community goal completion.
+The column survives prestige (T85). Token count is in `/api/state`.
+
+**What's missing:** There is no spending path. Players accumulate tokens with no way to spend
+them. Spec intent: tokens are spent in the wager panel to activate a modifier. Exact mechanic
+requires operator sign-off before implementation.
+
+#### Acceptance criteria
+
+1. At least one spending action exists in the wager panel (mechanic TBD by operator — see open question below).
+2. The wager panel displays the player's current token count at all times.
+3. Spending debits `wager_tokens` atomically (safe under concurrent spins).
+4. Tokens cannot go below 0.
+5. `pytest` passes.
+
+#### Open question
+
+What does a wager token buy? Operator to decide one of: (a) free one-spin insurance, (b) temporary stake percentage boost for N spins, (c) double-down top-up. T110 cannot be implemented until this is answered.
+
+---
+
+### T111: Prestige tooltip — clarify what "2%" affects
+
+- **Status:** [ ] (planned — referenced by T112)
+- **Discovered:** 2026-06-26 (operator: "Prestige tooltip still doesn't explain what the '2%' increase actually does or what value it increases")
+- **Files:**
+  - `static/app.jsx` (prestige panel tooltip text only)
+
+**Problem:** The tooltip shows "2%" with no explanation. Players do not know what increases or why it matters.
+
+**What 2% means (per spec + live code):** `prestige_efficiency = prestige_level * 2`. On a
+losing spin, `floor(wins × prestige_efficiency / 100)` wins are retained instead of lost.
+Each prestige level saves 2% of your wins from a loss; at level 5 (max), 10% of wins are
+protected on every loss.
+
+#### Acceptance criteria
+
+1. Prestige panel tooltip reads (or equivalent, operator to approve exact wording): "Each Prestige level saves 2% of your wins when you lose a spin. At level 5, 10% of your wins are protected from losses."
+2. Tooltip wording matches the actual formula in `game.py` (`prestige_efficiency`).
+3. No other text or layout changes.
+
+---
+
 ## T112: Vertical wager panel (left of wheel, anchored to center)
 
 - **Status:** [ ] (planned 2026-06-23)
@@ -4261,3 +4314,139 @@ New vertical order (top → bottom inside the panel, long axis vertical):
 - **Can run in parallel with T109 (Bonus Power desc), T111
   (Prestige scaling)** which do not touch the wager panel.
 
+
+---
+
+### T113: Aquarium panel — text colour + luck tooltip
+
+- **Status:** [ ] — pre-release blocker
+- **Discovered:** 2026-06-26 (operator: "Aquarium text is black, impossible to read")
+- **Files:**
+  - `static/styles.css`
+  - `static/app.jsx` (aquarium panel — add `(?)` tooltip)
+
+**Problem:** Aquarium panel text renders black on a dark background, making it unreadable.
+
+**What the aquarium tells the player:** Each unique species in `aquarium_species` adds
++0.1% to the player's base win chance. This luck bonus is the only visible benefit of
+collecting fish. Without a tooltip, players have no idea why the aquarium matters.
+
+#### Acceptance criteria
+
+1. All text in the aquarium panel is readable — white or light-grey, matching the
+   wager/fishing panel text colour convention.
+2. A `(?)` icon on the aquarium panel header shows a tooltip: "Each unique fish species
+   you catch adds +0.1% to your base win chance."
+3. No layout or structural changes beyond colour + tooltip.
+
+---
+
+### T114: Pre-release: disable onboarding modal
+
+- **Status:** [ ] — pre-release blocker
+- **Discovered:** 2026-06-26 (operator: "Can we disable the onboarding for now, it's
+  faulty and we don't have time to fix")
+- **Depends on:** none (independent frontend hotfix)
+- **Files:**
+  - `static/app.jsx`
+
+**Context:** The onboarding modal is broken in three distinct ways (T43: steps 2-4 never
+advance; overlay blocks all pointer events; no rewards granted). Fixing it properly is T43,
+which is out of scope for S8 launch tonight.
+
+**Fix:** Suppress the modal entirely by treating all players as `onboarding_step = 5`
+(done) in the frontend render condition. One-line change to the JSX gate on `showOnboarding`.
+
+#### Acceptance criteria
+
+1. The onboarding modal never appears, regardless of `onboarding_step` value in state.
+2. No backend or DB changes — `onboarding_step` preserved for when T43 ships.
+3. Other modals that share `onboarding-overlay` CSS class (prestige confirmation, legacy
+   boards) still render correctly.
+
+---
+
+### T115: "Long Shot" wheel mode — replaces Mirror in weekly rotation
+
+- **Status:** [ ] — pre-release (needed before weekly rotation hits Mirror slot)
+- **Discovered:** 2026-06-26 (operator: mirror doesn't work yet, replace with win/loss%-only
+  mode; defer two-wheels concept to 8.X — see T78)
+- **Depends on:** T11 (wheel modes foundation)
+- **Files:**
+  - `wheel_modes.py` (add `'long_shot'` entry; update `_ROTATING_MODES`)
+  - `static/app.jsx` (mode display name + description in wheel-mode indicator)
+  - any test asserting `get_rotating_mode()` returns `'mirror'` at slot 2
+
+**Context:** `_ROTATING_MODES = ['inverted', 'gravity', 'mirror']` — `week % 3 == 2`
+currently yields `'mirror'`. Mirror backend is complete (T78 [x]) but the frontend two-wheels
+UI was never built and is deferred to 8.X. Slot 2 is replaced with Long Shot — a pure
+probability shift, no new mechanics, no new columns, no new endpoints.
+
+**Spec (operator-confirmed 2026-06-26):**
+
+| Field | Value |
+|---|---|
+| `win_pct` | 20 |
+| `loss_pct` | 60 |
+| `jackpot_pct` | 20 |
+| `jackpot_multiplier` | 10 |
+| `description` | `'Most spins lose. Jackpots hit often but pay less.'` |
+
+Probabilities sum to 100. Jackpot multiplier is 10× (vs steady 25×, volatile 50×) —
+jackpots are ~10× more frequent than steady but pay ~2.5× less each.
+
+#### Implementation
+
+**`wheel_modes.py`** — two edits:
+
+```python
+    'long_shot': {
+        'win_pct': 20,
+        'loss_pct': 60,
+        'jackpot_pct': 20,
+        'description': 'Most spins lose. Jackpots hit often but pay less.',
+        'jackpot_multiplier': 10,
+    },
+```
+
+```python
+_ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
+```
+
+**`static/app.jsx`** — add `'long_shot': 'Long Shot'` to whichever `MODE_LABELS` /
+`WHEEL_MODE_NAMES` map (or inline conditional) formats the mode key for display.
+
+#### Acceptance criteria
+
+1. `WHEEL_MODES['long_shot']` exists with exactly the values in the table above.
+2. `get_rotating_mode()` returns `'long_shot'` when `week % 3 == 2`.
+3. Wheel-mode indicator displays `"Long Shot"` (not the raw key) with the description
+   `"Most spins lose. Jackpots hit often but pay less."`
+4. A spin in Long Shot mode resolves with the correct 20/60/20 probabilities — cover
+   with a `test_long_shot_probabilities` test alongside the existing mode tests.
+5. `pytest` clean (no regressions).
+
+---
+
+### T116: Wager panel arm buttons — truncation fix
+
+- **Status:** [ ] — pre-release blocker
+- **Discovered:** 2026-06-26 (operator: "'Arm Double Down' and 'Arm Insurance' buttons are
+  truncated — make them wrap, max 2 words")
+- **Files:**
+  - `static/app.jsx` (button label text)
+  - `static/styles.css` (allow wrap on arm buttons if `white-space: nowrap` is set)
+
+**Fix:** Two changes:
+1. Allow text wrap on the arm buttons (`white-space: normal` if currently overridden).
+2. Shorten labels to ≤2 words. Drop the "Arm" prefix — context is clear from the panel.
+   Labels become: **"Double Down"** and **"Insurance"**.
+   If the armed/disarmed toggle must be visible in the label, use **"Arm DD"** / **"Arm Ins."**
+   instead (operator to confirm preference).
+
+#### Acceptance criteria
+
+1. Both buttons display their full label without truncation at 1366×768 and 1920×1080.
+2. Labels are ≤2 words.
+3. Button height expands to fit wrapped text — panel does not clip or scroll.
+4. Armed/disarmed visual state (colour or icon change) is not regressed.
