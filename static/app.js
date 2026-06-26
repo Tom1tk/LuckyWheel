@@ -8075,7 +8075,7 @@ function GameApp(_ref28) {
     className: "season8-prestige-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "prestige-badge",
-    title: "+2% win multiplier per level (max +40% at level 20)"
+    title: "Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots."
   }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "% win mult)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
     className: "legacy-badge"
   }, "Legacy: ", fmt(legacyWins), " wins"), prestigeLevel < 20 && /*#__PURE__*/React.createElement("button", {

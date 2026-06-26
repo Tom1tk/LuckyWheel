@@ -4804,7 +4804,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {/* Season 8: Prestige panel */}
               {ownedItems.includes('prestige_unlock') && (
                 <div className="season8-prestige-panel">
-                  <div className="prestige-badge" title="+2% win multiplier per level (max +40% at level 20)">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
+                  <div className="prestige-badge" title="Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots.">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
                   {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
                   {prestigeLevel < 20 && (
                     <button
