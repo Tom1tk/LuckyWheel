@@ -5402,36 +5402,106 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   }
 }
 
-/* T202 follow-up: .mobile-below-wheel now hosts the wager panel +
-   streak + dice in vertical order (T200 had them as a row, but the
-   wager panel needs to be a full-width block on top, not a flex
-   sibling). Override the row layout to a column. */
+/* T202 follow-up: .mobile-below-wheel hosts the wager panel + streak +
+   dice in vertical order. T204: streak + dice now share a sub-row
+   (.mobile-streak-dice-row) so the dice roll button stays in view. */
 @media (max-width: 768px) {
   .mobile-below-wheel {
     flex-direction: column;
   }
-  .mobile-below-wheel .streak-panel {
-    border-right: none;
-    border-bottom: 1px solid rgba(var(--p-rgb), 0.12);
+
+  /* T204: compact wager panel — make the panel itself a flex
+     container so the DD/Insurance buttons wrap into rows. */
+  .mobile-below-wheel .season8-wager-panel {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
-  .mobile-below-wheel .dice-panel {
+  .mobile-below-wheel .wager-stake-control {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .mobile-below-wheel .wager-stake-control > label,
+  .mobile-below-wheel .wager-stake-control > .stake-label,
+  .mobile-below-wheel .wager-stake-control > .wager-stake-value {
+    flex: 0 0 auto;
+  }
+  .mobile-below-wheel .wager-slider {
+    flex: 1 1 100%;
+  }
+  /* T204: action buttons live inside .wager-action-row (added to JSX
+     so the row is a guaranteed flex container). */
+  .mobile-below-wheel .wager-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .mobile-below-wheel .wager-action-row > .wager-action-btn,
+  .mobile-below-wheel .wager-action-row > .wager-cancel-btn {
+    flex: 1 1 calc(50% - 2px);
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    min-height: 32px;
+    margin: 0;
+  }
+  .mobile-below-wheel .wager-hotstreak {
+    font-size: 0.7rem;
+  }
+  .mobile-below-wheel .wager-tokens-balance {
+    font-size: 0.7rem;
+    text-align: center;
+  }
+  .mobile-below-wheel .wager-pay-tokens-toggle {
+    font-size: 0.7rem;
+  }
+  /* Keep wager-bank-btn (when shown) on its own line */
+  .mobile-below-wheel .wager-bank-btn {
+    flex: 1 1 100%;
+  }
+
+  /* Streak + dice share a row */
+  .mobile-streak-dice-row {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+  }
+  .mobile-streak-dice-row .streak-panel {
+    flex: 0 0 auto;  /* streak at natural width */
+    border-right: 1px solid rgba(var(--p-rgb), 0.12);
+    align-self: stretch;
+    justify-content: center;
+    padding: 6px 6px;
+  }
+  .mobile-streak-dice-row .dice-panel {
+    flex: 1 1 auto;  /* dice takes remaining space */
     border-top: none;
     margin-top: 0;
+    padding: 4px 6px 4px 8px;
   }
+  .mobile-streak-dice-row .die { width: 32px; height: 32px; padding: 3px; border-radius: 5px; }
+  .mobile-streak-dice-row .pip { width: 5px; height: 5px; }
+  .mobile-streak-dice-row .dice-row { gap: 3px; }
+  .mobile-streak-dice-row .dice-panel-label { font-size: 9px; }
+  .mobile-streak-dice-row .dice-panel-desc { font-size: 0.5rem; }
+  .mobile-streak-dice-row .dice-roll-btn { font-size: 10px; padding: 4px 6px; width: 100%; box-sizing: border-box; }
+  .mobile-streak-dice-row .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
 }
 
 /* T203: responsive polish for wheel-mode selector + auto-spin on
    <=768px viewports. */
 @media (max-width: 768px) {
   .season8-wheel-mode .wheel-mode-btns {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;  /* T204: keep all mode buttons on one line */
     gap: 4px;
   }
   .season8-wheel-mode .wheel-mode-btn {
-    min-height: 36px;  /* tap target */
-    padding: 6px 10px;
-    font-size: 0.75rem;
-    flex: 1 1 calc(50% - 4px);  /* 2 buttons per row */
+    min-height: 32px;  /* tap target */
+    padding: 4px 6px;
+    font-size: 0.7rem;
+    flex: 1 1 0;
+    min-width: 0;
   }
   .season8-wheel-mode .wheel-mode-label {
     display: block;  /* on its own row at <=768px */
@@ -5451,5 +5521,43 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   }
   .autospin-row .autospin-label {
     font-size: 0.9rem;
+  }
+}
+
+/* T204: mobile drawer — tab-less long panel. Header with close button
+   at the top; S8 sub-menus stack underneath, scrollable. */
+@media (max-width: 768px) {
+  .mobile-drawer .mobile-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 0.85rem;
+    color: #fff;
+  }
+  .mobile-drawer .mobile-drawer-close {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.8);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0;
+  }
+  .mobile-drawer .mobile-drawer-close:hover {
+    background: rgba(255,255,255,0.08);
+  }
+  /* T204: the drawer's children (S8 panels) are stacked naturally;
+     no need for .mobile-drawer-section column flex. */
+  .mobile-drawer .mobile-drawer-section {
+    display: block;
+  }
+  .mobile-drawer .mobile-drawer-section > * {
+    margin-bottom: 8px;
   }
 }

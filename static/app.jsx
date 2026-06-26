@@ -3352,18 +3352,22 @@ function WagerPanel({
       {wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && (
         <button className="wager-action-btn wager-bank-btn" onClick={onBank}>🏦 Bank {fmt(wagerBankedWins)}</button>
       )}
-      {ownedItems.includes('wager_double_down') && doubleDownPending && (
-        <button className="wager-double-down-armed wager-cancel-btn" onClick={onCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
-      )}
-      {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-        <button className="wager-action-btn" onClick={onDoubleDown} title="Arm Double-Down — all-or-nothing (no insurance, no safety net)">⚡ Double Down</button>
-      )}
-      {ownedItems.includes('wager_insurance') && insuranceArmed && (
-        <button className="wager-insurance-armed wager-cancel-btn" onClick={onCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
-      )}
-      {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
-        <button className="wager-action-btn" onClick={onInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">Insurance</button>
-      )}
+      {/* T204: wrap action buttons in a flex row so DD + Insurance
+          are guaranteed to be side-by-side (instead of stacked). */}
+      <div className="wager-action-row">
+        {ownedItems.includes('wager_double_down') && doubleDownPending && (
+          <button className="wager-double-down-armed wager-cancel-btn" onClick={onCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
+        )}
+        {ownedItems.includes('wager_double_down') && !doubleDownPending && (
+          <button className="wager-action-btn" onClick={onDoubleDown} title="Arm Double-Down — all-or-nothing (no insurance, no safety net)">⚡ Double Down</button>
+        )}
+        {ownedItems.includes('wager_insurance') && insuranceArmed && (
+          <button className="wager-insurance-armed wager-cancel-btn" onClick={onCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
+        )}
+        {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
+          <button className="wager-action-btn" onClick={onInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">Insurance</button>
+        )}
+      </div>
       </>)}
       {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
         <div className="wager-tokens-balance">🪙 {fmt(insuranceTokens)} tokens</div>
@@ -3439,11 +3443,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [diceRolledSinceSpin, setDiceRolledSinceSpin] = useState(gameState.dice_rolled_since_spin ?? false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
-  // T202: mobile drawer state — surfaces the S8 panels (Prestige,
-  // Free Tokens, Bounties, Aquarium, Loadout, Community + Singularity)
-  // in a tabbed side drawer on mobile.
+  // T204: mobile drawer state — toggles the S8 panel drawer (no tabs;
+  // all S8 panels stack inside the drawer as a long scrollable column).
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [mobileDrawerTab, setMobileDrawerTab] = useState('prestige');
   const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
   const fireMode = 2; // Mix mode
   const [wheelRotation, setWheelRotation] = useState(0);
@@ -5047,9 +5049,31 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
           {isMobile && (
             <div className="mobile-below-wheel" style={{ width: '100%' }}>
+              {/* T204: streak + dice come BEFORE the wager panel so the
+                  dice roll button is reachable in the initial viewport
+                  (was: pushed off the bottom by the 198px-tall wager
+                  panel). User reported: "The dice roll section is now
+                  not possible to see or use except from its title." */}
+              <div className="mobile-streak-dice-row">
+                <StreakPanel streak={streak} bonusmultLevel={0} />
+                <DicePanel
+                  streak={streak}
+                  onRoll={handleDiceRoll}
+                  rolling={diceRolling}
+                  diceResult={diceResult}
+                  guardSpinning={!!guardState}
+                  lowSpec={lowSpec}
+                  diceCharges={diceCharges}
+                  maxDiceCharges={diceMaxCharges}
+                  diceLastRecharge={diceLastRecharge}
+                  hasDiceExtra={ownedItems.includes('dice_extra')}
+                  rolledSinceSpin={diceRolledSinceSpin}
+                />
+              </div>
+
               {/* T202: wager panel relocated below the wheel on mobile so
                   the stake slider, DD/insurance buttons, and token balance
-                  are thumb-reachable. Streak + Dice stack below. */}
+                  are thumb-reachable. */}
               {ownedItems.includes('wager_unlock') && (
                 <WagerPanel
                   ownedItems={ownedItems}
@@ -5074,20 +5098,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   onTogglePayWithTokens={setPayWithTokens}
                 />
               )}
-              <StreakPanel streak={streak} bonusmultLevel={0} />
-              <DicePanel
-                streak={streak}
-                onRoll={handleDiceRoll}
-                rolling={diceRolling}
-                diceResult={diceResult}
-                guardSpinning={!!guardState}
-                lowSpec={lowSpec}
-                diceCharges={diceCharges}
-                maxDiceCharges={diceMaxCharges}
-                diceLastRecharge={diceLastRecharge}
-                hasDiceExtra={ownedItems.includes('dice_extra')}
-                rolledSinceSpin={diceRolledSinceSpin}
-              />
             </div>
           )}
 
@@ -5239,100 +5249,54 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <div className="mobile-backdrop" onClick={() => { setMobilePanel(null); setMobileDrawerOpen(false); }} />
       )}
 
-      {/* T202: mobile drawer — surfaces the S8 panels (Prestige, Free
-          Tokens, Bounties, Aquarium, Loadout, Community + Singularity)
-          in a tabbed side drawer on mobile. Desktop rendering is
-          unchanged (the same components still render in the desktop
-          sidebar / bottom-left-stack).
-
-          The drawer is always rendered on mobile (transform: translateX(100%)
-          when closed → off-screen). All 7 panel components are always in the
-          DOM so the S8 panels are discoverable by the T201 regression tests
-          (which assert the panel is in DOM but off-screen). The tabs are
-          visual indicators of which section is "active" but do not gate
-          content rendering. */}
+      {/* T204: mobile drawer — single long scrollable column containing
+          all S8 sub-menus (Prestige, Free Tokens, Bounties, Aquarium,
+          Loadout, Community + Singularity). No tabs — operator wants
+          all sub-menus visible at once like the desktop sidebar. The
+          drawer is closed by default (transform: translateX(100%));
+          the 🎒 button on the toolbar toggles it. */}
       {isMobile && (
         <div className={`mobile-drawer${mobileDrawerOpen ? ' mobile-drawer-open' : ''}`}>
-          <div className="mobile-drawer-tabs">
-            <button
-              onClick={() => setMobileDrawerTab('prestige')}
-              className={`mobile-drawer-tab${mobileDrawerTab === 'prestige' ? ' active' : ''}`}
-              title="Prestige"
-            >🏅</button>
-            <button
-              onClick={() => setMobileDrawerTab('bounties')}
-              className={`mobile-drawer-tab${mobileDrawerTab === 'bounties' ? ' active' : ''}`}
-              title="Bounties &amp; Free Tokens"
-            >📋</button>
-            <button
-              onClick={() => setMobileDrawerTab('aquarium')}
-              className={`mobile-drawer-tab${mobileDrawerTab === 'aquarium' ? ' active' : ''}`}
-              title="Aquarium"
-            >🐠</button>
-            <button
-              onClick={() => setMobileDrawerTab('loadout')}
-              className={`mobile-drawer-tab${mobileDrawerTab === 'loadout' ? ' active' : ''}`}
-              title="Loadout"
-            >⚙️</button>
-            <button
-              onClick={() => setMobileDrawerTab('community')}
-              className={`mobile-drawer-tab${mobileDrawerTab === 'community' ? ' active' : ''}`}
-              title="Community Goal &amp; Singularity"
-            >🌍</button>
-          </div>
           <div className="mobile-drawer-section">
-            <div className="mobile-drawer-pane" data-tab="prestige"
-                 style={{ display: mobileDrawerTab === 'prestige' ? 'block' : 'none' }}>
-              <PrestigePanel
-                ownedItems={ownedItems}
-                prestigeLevel={prestigeLevel}
-                legacyWins={legacyWins}
-              />
+            <div className="mobile-drawer-header">
+              <span>📋 S8 Menu</span>
+              <button className="mobile-drawer-close"
+                      onClick={() => setMobileDrawerOpen(false)}
+                      title="Close">✕</button>
             </div>
-            <div className="mobile-drawer-pane" data-tab="bounties"
-                 style={{ display: mobileDrawerTab === 'bounties' ? 'block' : 'none' }}>
-              <FreeTokensPanel
-                insuranceFreeClaimedToday={insuranceFreeClaimedToday}
-                onClaim={handleClaimFreeTokens}
+            <PrestigePanel
+              ownedItems={ownedItems}
+              prestigeLevel={prestigeLevel}
+              legacyWins={legacyWins}
+            />
+            <FreeTokensPanel
+              insuranceFreeClaimedToday={insuranceFreeClaimedToday}
+              onClaim={handleClaimFreeTokens}
+            />
+            <BountiesPanel
+              bounties={bounties}
+              onClaim={handleBountyClaim}
+            />
+            <AquariumPanel
+              ownedItems={ownedItems}
+              aquariumSpecies={aquariumSpecies}
+              insuranceTokens={insuranceTokens}
+            />
+            <LoadoutPanel
+              ownedItems={ownedItems}
+              equippedClass={equippedClass}
+              activeWheelMode={activeWheelMode}
+              onSave={handleLoadoutSave}
+              onApply={handleLoadoutApply}
+            />
+            <div className="season8-meta-panel">
+              <CommunityGoalPanel communityGoal={communityGoal} />
+              {communityGoal && singularity && <div className="meta-divider" />}
+              <SingularityPanel
+                singularity={singularity}
+                fishClicks={fishClicks}
+                onContribute={handleSingularityContribute}
               />
-              <BountiesPanel
-                bounties={bounties}
-                onClaim={handleBountyClaim}
-              />
-            </div>
-            <div className="mobile-drawer-pane" data-tab="aquarium"
-                 style={{ display: mobileDrawerTab === 'aquarium' ? 'block' : 'none' }}>
-              <AquariumPanel
-                ownedItems={ownedItems}
-                aquariumSpecies={aquariumSpecies}
-                insuranceTokens={insuranceTokens}
-              />
-            </div>
-            <div className="mobile-drawer-pane" data-tab="loadout"
-                 style={{ display: mobileDrawerTab === 'loadout' ? 'block' : 'none' }}>
-              <LoadoutPanel
-                ownedItems={ownedItems}
-                equippedClass={equippedClass}
-                activeWheelMode={activeWheelMode}
-                onSave={handleLoadoutSave}
-                onApply={handleLoadoutApply}
-              />
-            </div>
-            <div className="mobile-drawer-pane" data-tab="community"
-                 style={{ display: mobileDrawerTab === 'community' ? 'block' : 'none' }}>
-              {/* T203 bug fix: wrap community + singularity in .season8-meta-panel
-                  to match the desktop rendering at app.jsx:5216 and let
-                  test_community_goal_visible_on_mobile_after_t202 assert
-                  `.season8-meta-panel` count >= 1. */}
-              <div className="season8-meta-panel">
-                <CommunityGoalPanel communityGoal={communityGoal} />
-                {communityGoal && singularity && <div className="meta-divider" />}
-                <SingularityPanel
-                  singularity={singularity}
-                  fishClicks={fishClicks}
-                  onContribute={handleSingularityContribute}
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -5359,8 +5323,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onClick={() => toggleMobilePanel('chat')}
           title="Chat"
         >💬</button>
-        {/* T202: 6th toolbar button toggles the S8 panel drawer. Order:
-            🏪 Shop · 🏆 Leaderboard · 🎣 Fishing · 💬 Chat · 🎒 Drawer · 📊 Stats. */}
         <button
           className={`mobile-toolbar-btn${mobileDrawerOpen ? ' active' : ''}`}
           onClick={() => setMobileDrawerOpen(o => !o)}
