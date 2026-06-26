@@ -6759,10 +6759,10 @@ function GameApp(_ref28) {
     _useState250 = _slicedToArray(_useState249, 2),
     showPrestigeConfirm = _useState250[0],
     setShowPrestigeConfirm = _useState250[1];
-  var _useState251 = useState((gameState.onboarding_step || 0) < 5),
+  var _useState251 = useState(false),
     _useState252 = _slicedToArray(_useState251, 2),
     showOnboarding = _useState252[0],
-    setShowOnboarding = _useState252[1];
+    setShowOnboarding = _useState252[1]; // T114: disabled for S8 launch
   var _useState253 = useState(false),
     _useState254 = _slicedToArray(_useState253, 2),
     showLegacyBoards = _useState254[0],
@@ -6808,7 +6808,7 @@ function GameApp(_ref28) {
     if (gameState.cumulative_wins != null) setCumulativeWins(gameState.cumulative_wins);
     if (gameState.onboarding_step != null) {
       setOnboardingStep(gameState.onboarding_step);
-      setShowOnboarding(gameState.onboarding_step < 5);
+      // T114: onboarding modal disabled for S8 launch; do not auto-show.
     }
     // T107: sync auto-spin state from server.
     if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active);
