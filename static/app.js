@@ -36,17 +36,17 @@ function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
 function _apiFetch() {
-  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(path) {
+  _apiFetch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee41(path) {
     var opts,
       method,
       headers,
       res,
       json,
-      _args40 = arguments;
-    return _regenerator().w(function (_context40) {
-      while (1) switch (_context40.n) {
+      _args41 = arguments;
+    return _regenerator().w(function (_context41) {
+      while (1) switch (_context41.n) {
         case 0:
-          opts = _args40.length > 1 && _args40[1] !== undefined ? _args40[1] : {};
+          opts = _args41.length > 1 && _args41[1] !== undefined ? _args41[1] : {};
           method = (opts.method || 'GET').toUpperCase();
           headers = {
             'Content-Type': 'application/json'
@@ -54,25 +54,25 @@ function _apiFetch() {
           if (_csrfToken && method !== 'GET' && method !== 'HEAD') {
             headers['X-CSRFToken'] = _csrfToken;
           }
-          _context40.n = 1;
+          _context41.n = 1;
           return fetch(path, _objectSpread({
             headers: headers
           }, opts));
         case 1:
-          res = _context40.v;
-          _context40.n = 2;
+          res = _context41.v;
+          _context41.n = 2;
           return res.json()["catch"](function () {
             return {};
           });
         case 2:
-          json = _context40.v;
-          return _context40.a(2, {
+          json = _context41.v;
+          return _context41.a(2, {
             ok: res.ok,
             status: res.status,
             data: json
           });
       }
-    }, _callee40);
+    }, _callee41);
   }));
   return _apiFetch.apply(this, arguments);
 }
@@ -5822,7 +5822,7 @@ function GameApp(_ref28) {
               if (gs.data.wager_streak != null) setWagerStreak(gs.data.wager_streak);
               if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
               if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
-              if (gs.data.wager_tokens != null) setWagerTokens(gs.data.wager_tokens);
+              if (gs.data.insurance_tokens != null) setInsuranceTokens(gs.data.insurance_tokens);
               if (gs.data.aquarium_species != null) setAquariumSpecies(gs.data.aquarium_species);
               if (gs.data.guard_charges != null) setGuardCharges(gs.data.guard_charges);
               if (gs.data.bounties != null) setBounties(gs.data.bounties);
@@ -6353,8 +6353,8 @@ function GameApp(_ref28) {
           wheelRotationRef.current = nextRot;
           setWheelRotation(nextRot);
           if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
-          if (data.wager_insurance_armed != null) setWagerInsuranceArmed(data.wager_insurance_armed);
-          if (data.wager_insurance_charges != null) setWagerInsuranceCharges(data.wager_insurance_charges);
+          if (data.insurance_armed != null) setInsuranceArmed(data.insurance_armed);
+          if (data.insurance_charges != null) setInsuranceCharges(data.insurance_charges);
           if (data.wager_last_win_amount != null) setWagerLastWinAmount(data.wager_last_win_amount);
           // T80: server's drift-adjusted probabilities + new gravity drift.
           if (data.wheel_probabilities != null) setWheelProbabilities(data.wheel_probabilities);
@@ -6367,9 +6367,10 @@ function GameApp(_ref28) {
             setWagerLastStake(data.stake);
           }
           if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
-          // T110: server echoes the post-spend token balance. Update
-          // immediately so the wager panel reflects the new total.
-          if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
+          // T110/T119: server echoes the post-spend token balance. Update
+          // immediately so the wager panel reflects the new total. T119
+          // renamed the response key from `wager_tokens` → `insurance_tokens`.
+          if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
           // T105: server doesn't echo stake_value; the post-spin update lives
           // in applySpinResult (below) which sees the new wins/losses.
           if (canvasRef.current) drawWheel(canvasRef.current, wheelThemeRef.current || 'default', activeWheelModeRef.current, data.wheel_probabilities || null);
@@ -6684,15 +6685,14 @@ function GameApp(_ref28) {
     _useState210 = _slicedToArray(_useState209, 2),
     wagerLastWinAmount = _useState210[0],
     setWagerLastWinAmount = _useState210[1];
-  var _useState211 = useState(gameState.wager_insurance_charges || 0),
+  var _useState211 = useState(gameState.insurance_charges || 0),
     _useState212 = _slicedToArray(_useState211, 2),
-    wagerInsuranceCharges = _useState212[0],
-    setWagerInsuranceCharges = _useState212[1];
-  var wagerInsuranceMaxCharges = gameState.wager_insurance_max_charges || 3;
-  var _useState213 = useState(gameState.wager_insurance_armed || false),
+    insuranceCharges = _useState212[0],
+    setInsuranceCharges = _useState212[1];
+  var _useState213 = useState(gameState.insurance_armed || false),
     _useState214 = _slicedToArray(_useState213, 2),
-    wagerInsuranceArmed = _useState214[0],
-    setWagerInsuranceArmed = _useState214[1];
+    insuranceArmed = _useState214[0],
+    setInsuranceArmed = _useState214[1];
   var _useState215 = useState(gameState.active_wheel_mode || 'steady'),
     _useState216 = _slicedToArray(_useState215, 2),
     activeWheelMode = _useState216[0],
@@ -6713,10 +6713,10 @@ function GameApp(_ref28) {
     _useState222 = _slicedToArray(_useState221, 2),
     gravityDrift = _useState222[0],
     setGravityDrift = _useState222[1];
-  var _useState223 = useState(gameState.wager_tokens || 0),
+  var _useState223 = useState(gameState.insurance_tokens || 0),
     _useState224 = _slicedToArray(_useState223, 2),
-    wagerTokens = _useState224[0],
-    setWagerTokens = _useState224[1];
+    insuranceTokens = _useState224[0],
+    setInsuranceTokens = _useState224[1];
   var _useState225 = useState(gameState.aquarium_species || []),
     _useState226 = _slicedToArray(_useState225, 2),
     aquariumSpecies = _useState226[0],
@@ -6769,14 +6769,23 @@ function GameApp(_ref28) {
     _useState246 = _slicedToArray(_useState245, 2),
     autoSpinBudget = _useState246[0],
     setAutoSpinBudget = _useState246[1];
+  // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
+  // server gates the 3-free-per-day claim. We surface it as a string
+  // (ISO date) and a derived boolean for the "claimed today" UI state.
+  var _useState247 = useState(gameState.insurance_free_claimed_date || null),
+    _useState248 = _slicedToArray(_useState247, 2),
+    insuranceFreeClaimedDate = _useState248[0],
+    setInsuranceFreeClaimedDate = _useState248[1];
+  var todayStr = new Date().toISOString().slice(0, 10);
+  var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
   // wager-stale pattern as stakeRef).
-  var _useState247 = useState(false),
-    _useState248 = _slicedToArray(_useState247, 2),
-    payWithTokens = _useState248[0],
-    setPayWithTokens = _useState248[1];
+  var _useState249 = useState(false),
+    _useState250 = _slicedToArray(_useState249, 2),
+    payWithTokens = _useState250[0],
+    setPayWithTokens = _useState250[1];
   var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
@@ -6802,18 +6811,18 @@ function GameApp(_ref28) {
   // T121: prestige now triggers from the shop buy of prestige_unlock, with
   // a patch-notes-style confirmation modal shown first. The side-panel
   // Prestige button is gone — the buy is intercepted and the modal opens.
-  var _useState249 = useState(false),
-    _useState250 = _slicedToArray(_useState249, 2),
-    showPrestigeBuyConfirm = _useState250[0],
-    setShowPrestigeBuyConfirm = _useState250[1];
-  var _useState251 = useState(1000000),
+  var _useState251 = useState(false),
     _useState252 = _slicedToArray(_useState251, 2),
-    prestigeBuyCost = _useState252[0],
-    setPrestigeBuyCost = _useState252[1];
-  var _useState253 = useState(false),
+    showPrestigeBuyConfirm = _useState252[0],
+    setShowPrestigeBuyConfirm = _useState252[1];
+  var _useState253 = useState(1000000),
     _useState254 = _slicedToArray(_useState253, 2),
-    showOnboarding = _useState254[0],
-    setShowOnboarding = _useState254[1]; // T114: disabled for S8 launch
+    prestigeBuyCost = _useState254[0],
+    setPrestigeBuyCost = _useState254[1];
+  var _useState255 = useState(false),
+    _useState256 = _slicedToArray(_useState255, 2),
+    showOnboarding = _useState256[0],
+    setShowOnboarding = _useState256[1]; // T114: disabled for S8 launch
 
   var refreshBountiesAndGoal = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
     var _yield$Promise$all, _yield$Promise$all2, bountyRes, goalRes;
@@ -6862,11 +6871,11 @@ function GameApp(_ref28) {
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
     if (gameState.wager_banked_wins != null) setWagerBankedWins(gameState.wager_banked_wins);
     if (gameState.wager_last_win_amount != null) setWagerLastWinAmount(gameState.wager_last_win_amount);
-    if (gameState.wager_insurance_charges != null) setWagerInsuranceCharges(gameState.wager_insurance_charges);
-    if (gameState.wager_insurance_armed != null) setWagerInsuranceArmed(gameState.wager_insurance_armed);
+    if (gameState.insurance_charges != null) setInsuranceCharges(gameState.insurance_charges);
+    if (gameState.insurance_armed != null) setInsuranceArmed(gameState.insurance_armed);
     if (gameState.active_wheel_mode != null) setActiveWheelMode(gameState.active_wheel_mode);
     if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
-    if (gameState.wager_tokens != null) setWagerTokens(gameState.wager_tokens);
+    if (gameState.insurance_tokens != null) setInsuranceTokens(gameState.insurance_tokens);
     if (gameState.aquarium_species != null) setAquariumSpecies(gameState.aquarium_species);
     if (gameState.cosmetic_fragments != null) setCosmeticFragments(gameState.cosmetic_fragments);
     if (gameState.guard_charges != null) setGuardCharges(gameState.guard_charges);
@@ -7029,9 +7038,10 @@ function GameApp(_ref28) {
         while (1) switch (_context25.n) {
           case 0:
             prev = activeWheelMode; // T99: capture the four wager-state values BEFORE the optimistic update
-            // so we can restore them if the server rejects the change.
+            // so we can restore them if the server rejects the change. T119
+            // renamed wagerInsuranceArmed → insuranceArmed.
             prevStreak = wagerStreak;
-            prevInsuranceArmed = wagerInsuranceArmed;
+            prevInsuranceArmed = insuranceArmed;
             prevDoubleDownPending = doubleDownPending;
             prevGravityDrift = gravityDrift;
             setActiveWheelMode(mode);
@@ -7066,7 +7076,7 @@ function GameApp(_ref28) {
               setWheelProbabilities(null);
               // T99: restore the four wager-state values to the pre-click values.
               setWagerStreak(prevStreak);
-              setWagerInsuranceArmed(prevInsuranceArmed);
+              setInsuranceArmed(prevInsuranceArmed);
               setDoubleDownPending(prevDoubleDownPending);
               setGravityDrift(prevGravityDrift);
               if (canvasRef.current) {
@@ -7074,13 +7084,15 @@ function GameApp(_ref28) {
               }
               showToast(data && data.error || 'Mode change failed');
             } else if (data) {
-              // T99: T76 resets wager_streak / wager_insurance_armed /
+              // T99/T119: T76 resets wager_streak / insurance_armed /
               // double_down_pending / gravity_drift on the server when the mode
               // actually changes. Mirror those into the React state so the wager
               // panel updates immediately (otherwise the "armed" indicators and
               // the hot-streak badge would linger until a full /api/state refresh).
+              // T119 renamed the response key wager_insurance_armed → insurance_armed
+              // and the setter setWagerInsuranceArmed → setInsuranceArmed.
               if (data.wager_streak != null) setWagerStreak(data.wager_streak);
-              if (data.wager_insurance_armed != null) setWagerInsuranceArmed(data.wager_insurance_armed);
+              if (data.insurance_armed != null) setInsuranceArmed(data.insurance_armed);
               if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
               if (data.gravity_drift != null) setGravityDrift(data.gravity_drift);
               if (data.wheel_probabilities) {
@@ -7097,7 +7109,7 @@ function GameApp(_ref28) {
     return function (_x11) {
       return _ref44.apply(this, arguments);
     };
-  }(), [showToast, activeWheelMode, wagerStreak, wagerInsuranceArmed, doubleDownPending, gravityDrift]);
+  }(), [showToast, activeWheelMode, wagerStreak, insuranceArmed, doubleDownPending, gravityDrift]);
 
   // T121: prestige no longer has its own button — buying prestige_unlock
   // from the shop opens the confirmation modal; confirm calls /api/prestige
@@ -7281,14 +7293,16 @@ function GameApp(_ref28) {
     }, _callee30);
   })), [showToast]);
 
-  // Season 8: handle insurance
+  // T119: arm insurance. The endpoint URL was renamed from
+  // /api/wager/insurance to /api/insurance/arm; the response now echoes
+  // the new insurance_tokens balance (was wager_insurance_charges).
   var handleInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31() {
     var _yield$apiGame21, ok, data;
     return _regenerator().w(function (_context31) {
       while (1) switch (_context31.n) {
         case 0:
           _context31.n = 1;
-          return apiGame('/api/wager/insurance', {
+          return apiGame('/api/insurance/arm', {
             method: 'POST',
             body: JSON.stringify({})
           });
@@ -7297,15 +7311,9 @@ function GameApp(_ref28) {
           ok = _yield$apiGame21.ok;
           data = _yield$apiGame21.data;
           if (ok) {
-            if (data.wager_insurance_charges != null) {
-              setWagerInsuranceCharges(data.wager_insurance_charges);
-            } else {
-              setWagerInsuranceCharges(function (prev) {
-                return Math.max(0, prev - 1);
-              });
-            }
-            setWagerInsuranceArmed(true);
-            showToast('🛡️ Insurance activated');
+            if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+            setInsuranceArmed(true);
+            showToast('🛡️ Insurance armed (1 token used)');
           } else {
             showToast(data.error || 'Insurance failed');
           }
@@ -7342,14 +7350,16 @@ function GameApp(_ref28) {
     }, _callee32);
   })), [showToast]);
 
-  // T108: cancel armed insurance (charge is NOT refunded by design)
+  // T108: cancel armed insurance (the 1 token consumed on arm is NOT
+  // refunded by design — T119 inherits T74's "charge is wasted on a win
+  // too" rule, applied to the new token economy).
   var handleCancelInsurance = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33() {
     var _yield$apiGame23, ok, data;
     return _regenerator().w(function (_context33) {
       while (1) switch (_context33.n) {
         case 0:
           _context33.n = 1;
-          return apiGame('/api/wager/insurance/cancel', {
+          return apiGame('/api/insurance/cancel', {
             method: 'POST',
             body: JSON.stringify({})
           });
@@ -7358,7 +7368,7 @@ function GameApp(_ref28) {
           ok = _yield$apiGame23.ok;
           data = _yield$apiGame23.data;
           if (ok) {
-            setWagerInsuranceArmed(false);
+            setInsuranceArmed(false);
             showToast('Insurance cancelled');
           } else {
             showToast(data.error || 'Cancel failed');
@@ -7369,14 +7379,16 @@ function GameApp(_ref28) {
     }, _callee33);
   })), [showToast]);
 
-  // T110: spend a wager token to buy one insurance charge
+  // T119: spend an insurance token to buy one insurance charge. URL
+  // renamed from /api/wager/insurance/buy to /api/insurance/buy; cap
+  // removed (1 token = 1 charge, no max).
   var handleBuyInsuranceWithTokens = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee34() {
     var _yield$apiGame24, ok, data, granted;
     return _regenerator().w(function (_context34) {
       while (1) switch (_context34.n) {
         case 0:
           _context34.n = 1;
-          return apiGame('/api/wager/insurance/buy', {
+          return apiGame('/api/insurance/buy', {
             method: 'POST',
             body: JSON.stringify({
               token_cost: 1
@@ -7387,8 +7399,8 @@ function GameApp(_ref28) {
           ok = _yield$apiGame24.ok;
           data = _yield$apiGame24.data;
           if (ok) {
-            if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
-            if (data.wager_insurance_charges != null) setWagerInsuranceCharges(data.wager_insurance_charges);
+            if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+            if (data.insurance_charges != null) setInsuranceCharges(data.insurance_charges);
             granted = data.granted || 0;
             showToast(granted > 0 ? "\uD83E\uDE99 Bought ".concat(granted, " insurance charge") : 'No charges granted');
           } else {
@@ -7400,14 +7412,41 @@ function GameApp(_ref28) {
     }, _callee34);
   })), [showToast]);
 
+  // T119: claim 3 free insurance tokens once per UTC day.
+  var handleClaimFreeTokens = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
+    var _yield$apiGame25, ok, data;
+    return _regenerator().w(function (_context35) {
+      while (1) switch (_context35.n) {
+        case 0:
+          _context35.n = 1;
+          return apiGame('/api/insurance/claim-free', {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        case 1:
+          _yield$apiGame25 = _context35.v;
+          ok = _yield$apiGame25.ok;
+          data = _yield$apiGame25.data;
+          if (ok) {
+            if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+            showToast('🪙 Claimed 3 free tokens');
+          } else {
+            showToast(data.error || 'Free token claim failed');
+          }
+        case 2:
+          return _context35.a(2);
+      }
+    }, _callee35);
+  })), [showToast]);
+
   // Season 8: handle loadout save
   var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
-    var _ref54 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(slot, loadout) {
-      var _yield$apiGame25, ok;
-      return _regenerator().w(function (_context35) {
-        while (1) switch (_context35.n) {
+    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(slot, loadout) {
+      var _yield$apiGame26, ok;
+      return _regenerator().w(function (_context36) {
+        while (1) switch (_context36.n) {
           case 0:
-            _context35.n = 1;
+            _context36.n = 1;
             return apiGame('/api/loadout', {
               method: 'POST',
               body: JSON.stringify({
@@ -7416,27 +7455,27 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame25 = _context35.v;
-            ok = _yield$apiGame25.ok;
+            _yield$apiGame26 = _context36.v;
+            ok = _yield$apiGame26.ok;
             if (ok) showToast("Loadout ".concat(slot, " saved"));else showToast('Save failed');
           case 2:
-            return _context35.a(2);
+            return _context36.a(2);
         }
-      }, _callee35);
+      }, _callee36);
     }));
     return function (_x14, _x15) {
-      return _ref54.apply(this, arguments);
+      return _ref55.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle loadout apply
   var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
-    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(slot) {
-      var _yield$apiGame26, ok, data;
-      return _regenerator().w(function (_context36) {
-        while (1) switch (_context36.n) {
+    var _ref56 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37(slot) {
+      var _yield$apiGame27, ok, data;
+      return _regenerator().w(function (_context37) {
+        while (1) switch (_context37.n) {
           case 0:
-            _context36.n = 1;
+            _context37.n = 1;
             return apiGame('/api/loadout/apply', {
               method: 'POST',
               body: JSON.stringify({
@@ -7444,9 +7483,9 @@ function GameApp(_ref28) {
               })
             });
           case 1:
-            _yield$apiGame26 = _context36.v;
-            ok = _yield$apiGame26.ok;
-            data = _yield$apiGame26.data;
+            _yield$apiGame27 = _context37.v;
+            ok = _yield$apiGame27.ok;
+            data = _yield$apiGame27.data;
             if (ok) {
               setEquippedClass(data.equipped_class);
               setActiveWheelMode(data.active_wheel_mode);
@@ -7455,12 +7494,12 @@ function GameApp(_ref28) {
               showToast(data.error || 'Apply failed');
             }
           case 2:
-            return _context36.a(2);
+            return _context37.a(2);
         }
-      }, _callee36);
+      }, _callee37);
     }));
     return function (_x16) {
-      return _ref55.apply(this, arguments);
+      return _ref56.apply(this, arguments);
     };
   }(), [showToast]);
 
@@ -7948,20 +7987,20 @@ function GameApp(_ref28) {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
-      var _yield$apiGame27, ok, data, w, l;
-      return _regenerator().w(function (_context37) {
-        while (1) switch (_context37.n) {
+    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
+      var _yield$apiGame28, ok, data, w, l;
+      return _regenerator().w(function (_context38) {
+        while (1) switch (_context38.n) {
           case 0:
-            _context37.n = 1;
+            _context38.n = 1;
             return apiGame('/api/wager/bank', {
               method: 'POST',
               body: '{}'
             });
           case 1:
-            _yield$apiGame27 = _context37.v;
-            ok = _yield$apiGame27.ok;
-            data = _yield$apiGame27.data;
+            _yield$apiGame28 = _context38.v;
+            ok = _yield$apiGame28.ok;
+            data = _yield$apiGame28.data;
             if (ok) {
               setWins(data.wins);
               if (data.losses != null) setLosses(data.losses);
@@ -7972,9 +8011,9 @@ function GameApp(_ref28) {
               if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
             } else showToast(data.error || 'Bank failed');
           case 2:
-            return _context37.a(2);
+            return _context38.a(2);
         }
-      }, _callee37);
+      }, _callee38);
     }))
   }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("button", {
     className: "wager-double-down-armed wager-cancel-btn",
@@ -7983,27 +8022,28 @@ function GameApp(_ref28) {
     className: "wager-action-btn",
     onClick: handleDoubleDown,
     title: "Arm Double-Down \u2014 all-or-nothing (no insurance, no safety net)"
-  }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && wagerInsuranceArmed && /*#__PURE__*/React.createElement("button", {
+  }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && insuranceArmed && /*#__PURE__*/React.createElement("button", {
     className: "wager-insurance-armed wager-cancel-btn",
     onClick: handleCancelInsurance
-  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
-    onClick: handleInsurance
-  }, "\uD83D\uDEE1\uFE0F Insurance (", wagerInsuranceCharges, ")"), ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && ownedItems.includes('fish_to_wager') && wagerTokens >= 1 && wagerInsuranceCharges < wagerInsuranceMaxCharges && /*#__PURE__*/React.createElement("button", {
+    onClick: handleInsurance,
+    title: "Arm insurance \u2014 consumes 1 token (not refunded if you cancel)"
+  }, "\uD83D\uDEE1\uFE0F Arm Insurance (", insuranceTokens, " tokens)"), ownedItems.includes('wager_insurance') && !insuranceArmed && ownedItems.includes('fish_to_wager') && insuranceTokens >= 1 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-buy-insurance-btn",
     onClick: handleBuyInsuranceWithTokens
-  }, "\uD83E\uDE99 Buy Insurance (1 token)")), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83E\uDE99 Buy 1 charge (1 token)")), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
     className: "wager-tokens-balance"
-  }, "\uD83E\uDE99 ", fmt(wagerTokens), " tokens"), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && stakePct >= 30 && !doubleDownPending && /*#__PURE__*/React.createElement("label", {
+  }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens"), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && stakePct >= 30 && !doubleDownPending && /*#__PURE__*/React.createElement("label", {
     className: "wager-pay-tokens-toggle",
-    "data-tooltip": "Pay the stake cost with wager tokens (1 token = 1 win). Partial spend: any remainder comes from wins."
+    "data-tooltip": "Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins."
   }, /*#__PURE__*/React.createElement("input", {
     type: "checkbox",
     checked: payWithTokens,
     onChange: function onChange(e) {
       return setPayWithTokens(e.target.checked);
     }
-  }), /*#__PURE__*/React.createElement("span", null, "Pay with tokens"))), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("span", null, "Pay with insurance tokens"))), /*#__PURE__*/React.createElement("div", {
     className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
     onClick: !spinning ? handleManualSpin : undefined,
     title: spinning ? undefined : 'Click to spin!'
@@ -8137,7 +8177,14 @@ function GameApp(_ref28) {
     title: "Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots."
   }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "% win mult)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
     className: "legacy-badge"
-  }, "Legacy: ", fmt(legacyWins), " wins")), bounties && bounties.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "Legacy: ", fmt(legacyWins), " wins")), /*#__PURE__*/React.createElement("div", {
+    className: "free-tokens-section"
+  }, insuranceFreeClaimedToday ? /*#__PURE__*/React.createElement("div", {
+    className: "free-tokens-claimed"
+  }, "\u2713 3 free tokens claimed today") : /*#__PURE__*/React.createElement("button", {
+    className: "free-tokens-claim-btn",
+    onClick: handleClaimFreeTokens
+  }, "\uD83E\uDE99 Claim 3 free tokens")), bounties && bounties.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "season8-bounties-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bounties-header"
@@ -8181,9 +8228,9 @@ function GameApp(_ref28) {
       className: "aquarium-species",
       title: s
     }, s);
-  })), ownedItems.includes('fish_to_wager') && wagerTokens > 0 && /*#__PURE__*/React.createElement("div", {
+  })), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
     className: "wager-tokens"
-  }, "\uD83E\uDE99 ", fmt(wagerTokens), " tokens")), ownedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens")), ownedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "season8-loadout-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "loadout-label"
@@ -8326,74 +8373,74 @@ function GameApp(_ref28) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState255 = useState(undefined),
-    _useState256 = _slicedToArray(_useState255, 2),
-    user = _useState256[0],
-    setUser = _useState256[1];
-  var _useState257 = useState(null),
+  var _useState257 = useState(undefined),
     _useState258 = _slicedToArray(_useState257, 2),
-    gameState = _useState258[0],
-    setGameState = _useState258[1];
-  var _useState259 = useState(''),
+    user = _useState258[0],
+    setUser = _useState258[1];
+  var _useState259 = useState(null),
     _useState260 = _slicedToArray(_useState259, 2),
-    sessionMsg = _useState260[0],
-    setSessionMsg = _useState260[1];
+    gameState = _useState260[0],
+    setGameState = _useState260[1];
+  var _useState261 = useState(''),
+    _useState262 = _slicedToArray(_useState261, 2),
+    sessionMsg = _useState262[0],
+    setSessionMsg = _useState262[1];
   useEffect(function () {
-    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
+    _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39() {
       var _yield$apiFetch2, ok, data, gs;
-      return _regenerator().w(function (_context38) {
-        while (1) switch (_context38.n) {
+      return _regenerator().w(function (_context39) {
+        while (1) switch (_context39.n) {
           case 0:
-            _context38.n = 1;
+            _context39.n = 1;
             return apiFetch('/api/me');
           case 1:
-            _yield$apiFetch2 = _context38.v;
+            _yield$apiFetch2 = _context39.v;
             ok = _yield$apiFetch2.ok;
             data = _yield$apiFetch2.data;
             storeCsrf(data);
             if (!(ok && data.username)) {
-              _context38.n = 3;
+              _context39.n = 3;
               break;
             }
-            _context38.n = 2;
+            _context39.n = 2;
             return apiFetch('/api/state');
           case 2:
-            gs = _context38.v;
+            gs = _context39.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(data.username);
             } else {
               setUser(null);
             }
-            _context38.n = 4;
+            _context39.n = 4;
             break;
           case 3:
             setUser(null);
           case 4:
-            return _context38.a(2);
+            return _context39.a(2);
         }
-      }, _callee38);
+      }, _callee39);
     }))();
   }, []);
   var handleAuth = /*#__PURE__*/function () {
-    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39(username) {
+    var _handleAuth = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(username) {
       var gs;
-      return _regenerator().w(function (_context39) {
-        while (1) switch (_context39.n) {
+      return _regenerator().w(function (_context40) {
+        while (1) switch (_context40.n) {
           case 0:
-            _context39.n = 1;
+            _context40.n = 1;
             return apiFetch('/api/state');
           case 1:
-            gs = _context39.v;
+            gs = _context40.v;
             if (gs.ok) {
               setGameState(gs.data);
               setUser(username);
               setSessionMsg('');
             }
           case 2:
-            return _context39.a(2);
+            return _context40.a(2);
         }
-      }, _callee39);
+      }, _callee40);
     }));
     function handleAuth(_x17) {
       return _handleAuth.apply(this, arguments);

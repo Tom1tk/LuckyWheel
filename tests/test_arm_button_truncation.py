@@ -39,9 +39,14 @@ def _free_port():
 
 
 def _grant_wager_items(username: str):
-    """Directly grant the wager items + insurance charges that the tests
-    need. Buying them via the API would cost 75,500 wins (T116 is a UI
-    fix, not a balance test), so we seed the row via SQL instead.
+    """Directly grant the wager items + insurance charges + insurance
+    tokens that the tests need. Buying them via the API would cost
+    75,500 wins (T116 is a UI fix, not a balance test), so we seed the
+    row via SQL instead. T119 renamed the column
+    wager_insurance_charges → insurance_charges and added the
+    insurance_tokens column; the arm button (T119: "Arm Insurance
+    (N tokens)") is gated on insurance_tokens >= 1, so we seed
+    tokens here as well.
     """
     conn = psycopg2.connect(DSN)
     conn.autocommit = True
@@ -60,7 +65,8 @@ def _grant_wager_items(username: str):
                         ]
                     )
                 ),
-                    wager_insurance_charges = 3
+                    insurance_charges = 3,
+                    insurance_tokens = 3
                 WHERE user_id = (SELECT id FROM users WHERE username = %s)
                 ''',
                 (username,),
@@ -72,6 +78,8 @@ def _grant_wager_items(username: str):
 def _reset_arm_state(username: str):
     """Reset DD / insurance armed flags + insurance charges so each
     function-scoped test starts from the same disarmed baseline.
+    T119 renamed the column wager_insurance_charges → insurance_charges
+    and wager_insurance_armed → insurance_armed.
     """
     conn = psycopg2.connect(DSN)
     conn.autocommit = True
@@ -81,8 +89,8 @@ def _reset_arm_state(username: str):
                 '''
                 UPDATE game_state
                 SET double_down_pending = FALSE,
-                    wager_insurance_armed = FALSE,
-                    wager_insurance_charges = 3
+                    insurance_armed = FALSE,
+                    insurance_charges = 3
                 WHERE user_id = (SELECT id FROM users WHERE username = %s)
                 ''',
                 (username,),
@@ -212,9 +220,13 @@ def _find_dd_arm_button(page):
 
 
 def _find_insurance_arm_button(page):
+    # T119: the arm button label changed from "🛡️ Insurance (N)" to
+    # "🛡️ Arm Insurance (N tokens)". The locator matches on "Arm
+    # Insurance" so it doesn't pick up the (now-hidden) buy button or
+    # the ARMED indicator.
     return page.locator(
         'button.wager-action-btn:not(.wager-bank-btn)'
-    ).filter(has_text='Insurance').first
+    ).filter(has_text='Arm Insurance').first
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -260,14 +272,10 @@ def test_double_down_label_fully_visible_at_1366x768(armed_user):
 
 
 def test_insurance_label_fully_visible_at_1366x768(armed_user):
-    """T116: at 1366x768 the Insurance arm button renders its full label.
-
-    '🛡️ Insurance (3)' is 14 characters and was always short enough to
-    fit on one line, but the panel CSS used overflow:hidden +
-    text-overflow:ellipsis on .wager-action-btn so any future long
-    label would still get truncated. After T116 the button wraps
-    cleanly. We assert the label is the expected short form, no
-    ellipsis, and the button is fully inside the panel.
+    """T116/T119: at 1366x768 the Insurance arm button renders its full
+    label. T119 renamed the label to "🛡️ Arm Insurance (N tokens)"
+    (was "🛡️ Insurance (N)") — the new label is longer and exercises
+    the wrap behaviour the T116 CSS introduced.
     """
     page = armed_user['page']
     page.set_viewport_size({'width': 1366, 'height': 768})
@@ -281,9 +289,9 @@ def test_insurance_label_fully_visible_at_1366x768(armed_user):
     panel_right = panel['x'] + panel['width']
 
     text = btn.evaluate('(el) => el.textContent.trim()')
-    assert text.startswith('🛡️ Insurance'), (
+    assert text.startswith('🛡️ Arm Insurance'), (
         f'Insurance arm button label is {text!r}; expected to start with '
-        '"🛡️ Insurance" (T116)'
+        '"🛡️ Arm Insurance" (T119)'
     )
     assert '…' not in text and '...' not in text, (
         f'Insurance arm button label still shows an ellipsis: {text!r}'

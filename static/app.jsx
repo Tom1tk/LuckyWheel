@@ -3349,7 +3349,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.wager_streak != null) setWagerStreak(gs.data.wager_streak);
           if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
           if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
-          if (gs.data.wager_tokens != null) setWagerTokens(gs.data.wager_tokens);
+          if (gs.data.insurance_tokens != null) setInsuranceTokens(gs.data.insurance_tokens);
           if (gs.data.aquarium_species != null) setAquariumSpecies(gs.data.aquarium_species);
           if (gs.data.guard_charges != null) setGuardCharges(gs.data.guard_charges);
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
@@ -3679,8 +3679,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setWheelRotation(nextRot);
 
       if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
-      if (data.wager_insurance_armed != null) setWagerInsuranceArmed(data.wager_insurance_armed);
-      if (data.wager_insurance_charges != null) setWagerInsuranceCharges(data.wager_insurance_charges);
+      if (data.insurance_armed != null) setInsuranceArmed(data.insurance_armed);
+      if (data.insurance_charges != null) setInsuranceCharges(data.insurance_charges);
       if (data.wager_last_win_amount != null) setWagerLastWinAmount(data.wager_last_win_amount);
       // T80: server's drift-adjusted probabilities + new gravity drift.
       if (data.wheel_probabilities != null) setWheelProbabilities(data.wheel_probabilities);
@@ -3693,9 +3693,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         setWagerLastStake(data.stake);
       }
       if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
-      // T110: server echoes the post-spend token balance. Update
-      // immediately so the wager panel reflects the new total.
-      if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
+      // T110/T119: server echoes the post-spend token balance. Update
+      // immediately so the wager panel reflects the new total. T119
+      // renamed the response key from `wager_tokens` → `insurance_tokens`.
+      if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
       // T105: server doesn't echo stake_value; the post-spin update lives
       // in applySpinResult (below) which sees the new wins/losses.
       if (canvasRef.current) drawWheel(
@@ -3875,9 +3876,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [doubleDownPending, setDoubleDownPending]   = useState(gameState.double_down_pending || false);
   const [wagerBankedWins, setWagerBankedWins]       = useState(gameState.wager_banked_wins || 0);
   const [wagerLastWinAmount, setWagerLastWinAmount] = useState(gameState.wager_last_win_amount || 0);
-  const [wagerInsuranceCharges, setWagerInsuranceCharges] = useState(gameState.wager_insurance_charges || 0);
-  const wagerInsuranceMaxCharges = gameState.wager_insurance_max_charges || 3;
-  const [wagerInsuranceArmed, setWagerInsuranceArmed]   = useState(gameState.wager_insurance_armed || false);
+  const [insuranceCharges, setInsuranceCharges] = useState(gameState.insurance_charges || 0);
+  const [insuranceArmed, setInsuranceArmed]   = useState(gameState.insurance_armed || false);
   const [activeWheelMode, setActiveWheelMode]       = useState(gameState.active_wheel_mode || 'steady');
   const [availableWheelModes, setAvailableWheelModes] = useState(gameState.available_wheel_modes || ['steady', 'volatile']);
   // T80: server-provided wheel probabilities (drift-adjusted for gravity,
@@ -3886,7 +3886,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T80: gravity drift echoed by the server; not consumed by the wheel
   // itself but kept in state for UI badges / debug.
   const [gravityDrift, setGravityDrift]             = useState(gameState.gravity_drift || 0);
-  const [wagerTokens, setWagerTokens]               = useState(gameState.wager_tokens || 0);
+  const [insuranceTokens, setInsuranceTokens]     = useState(gameState.insurance_tokens || 0);
   const [aquariumSpecies, setAquariumSpecies]       = useState(gameState.aquarium_species || []);
   const [cosmeticFragments, setCosmeticFragments]   = useState(gameState.cosmetic_fragments || 0);
   const [guardCharges, setGuardCharges]             = useState(gameState.guard_charges || 0);
@@ -3906,6 +3906,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
   const [autoSpinBudget, setAutoSpinBudget]         = useState(gameState.auto_spin_budget || 0);
+  // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
+  // server gates the 3-free-per-day claim. We surface it as a string
+  // (ISO date) and a derived boolean for the "claimed today" UI state.
+  const [insuranceFreeClaimedDate, setInsuranceFreeClaimedDate] = useState(gameState.insurance_free_claimed_date || null);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
@@ -3974,11 +3980,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
     if (gameState.wager_banked_wins != null) setWagerBankedWins(gameState.wager_banked_wins);
     if (gameState.wager_last_win_amount != null) setWagerLastWinAmount(gameState.wager_last_win_amount);
-    if (gameState.wager_insurance_charges != null) setWagerInsuranceCharges(gameState.wager_insurance_charges);
-    if (gameState.wager_insurance_armed != null) setWagerInsuranceArmed(gameState.wager_insurance_armed);
+    if (gameState.insurance_charges != null) setInsuranceCharges(gameState.insurance_charges);
+    if (gameState.insurance_armed != null) setInsuranceArmed(gameState.insurance_armed);
     if (gameState.active_wheel_mode != null) setActiveWheelMode(gameState.active_wheel_mode);
     if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
-    if (gameState.wager_tokens != null) setWagerTokens(gameState.wager_tokens);
+    if (gameState.insurance_tokens != null) setInsuranceTokens(gameState.insurance_tokens);
     if (gameState.aquarium_species != null) setAquariumSpecies(gameState.aquarium_species);
     if (gameState.cosmetic_fragments != null) setCosmeticFragments(gameState.cosmetic_fragments);
     if (gameState.guard_charges != null) setGuardCharges(gameState.guard_charges);
@@ -4085,9 +4091,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const handleWheelModeChange = useCallback(async (mode) => {
     const prev = activeWheelMode;
     // T99: capture the four wager-state values BEFORE the optimistic update
-    // so we can restore them if the server rejects the change.
+    // so we can restore them if the server rejects the change. T119
+    // renamed wagerInsuranceArmed → insuranceArmed.
     const prevStreak = wagerStreak;
-    const prevInsuranceArmed = wagerInsuranceArmed;
+    const prevInsuranceArmed = insuranceArmed;
     const prevDoubleDownPending = doubleDownPending;
     const prevGravityDrift = gravityDrift;
     setActiveWheelMode(mode);
@@ -4112,7 +4119,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setWheelProbabilities(null);
       // T99: restore the four wager-state values to the pre-click values.
       setWagerStreak(prevStreak);
-      setWagerInsuranceArmed(prevInsuranceArmed);
+      setInsuranceArmed(prevInsuranceArmed);
       setDoubleDownPending(prevDoubleDownPending);
       setGravityDrift(prevGravityDrift);
       if (canvasRef.current) {
@@ -4120,13 +4127,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }
       showToast((data && data.error) || 'Mode change failed');
     } else if (data) {
-      // T99: T76 resets wager_streak / wager_insurance_armed /
+      // T99/T119: T76 resets wager_streak / insurance_armed /
       // double_down_pending / gravity_drift on the server when the mode
       // actually changes. Mirror those into the React state so the wager
       // panel updates immediately (otherwise the "armed" indicators and
       // the hot-streak badge would linger until a full /api/state refresh).
+      // T119 renamed the response key wager_insurance_armed → insurance_armed
+      // and the setter setWagerInsuranceArmed → setInsuranceArmed.
       if (data.wager_streak != null) setWagerStreak(data.wager_streak);
-      if (data.wager_insurance_armed != null) setWagerInsuranceArmed(data.wager_insurance_armed);
+      if (data.insurance_armed != null) setInsuranceArmed(data.insurance_armed);
       if (data.double_down_pending != null) setDoubleDownPending(data.double_down_pending);
       if (data.gravity_drift != null) setGravityDrift(data.gravity_drift);
       if (data.wheel_probabilities) {
@@ -4135,7 +4144,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         setWheelProbabilities(data.wheel_probabilities);
       }
     }
-  }, [showToast, activeWheelMode, wagerStreak, wagerInsuranceArmed, doubleDownPending, gravityDrift]);
+  }, [showToast, activeWheelMode, wagerStreak, insuranceArmed, doubleDownPending, gravityDrift]);
 
   // T121: prestige no longer has its own button — buying prestige_unlock
   // from the shop opens the confirmation modal; confirm calls /api/prestige
@@ -4208,17 +4217,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
-  // Season 8: handle insurance
+  // T119: arm insurance. The endpoint URL was renamed from
+  // /api/wager/insurance to /api/insurance/arm; the response now echoes
+  // the new insurance_tokens balance (was wager_insurance_charges).
   const handleInsurance = useCallback(async () => {
-    const { ok, data } = await apiGame('/api/wager/insurance', { method: 'POST', body: JSON.stringify({}) });
+    const { ok, data } = await apiGame('/api/insurance/arm', { method: 'POST', body: JSON.stringify({}) });
     if (ok) {
-      if (data.wager_insurance_charges != null) {
-        setWagerInsuranceCharges(data.wager_insurance_charges);
-      } else {
-        setWagerInsuranceCharges(prev => Math.max(0, prev - 1));
-      }
-      setWagerInsuranceArmed(true);
-      showToast('🛡️ Insurance activated');
+      if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+      setInsuranceArmed(true);
+      showToast('🛡️ Insurance armed (1 token used)');
     } else {
       showToast(data.error || 'Insurance failed');
     }
@@ -4235,27 +4242,42 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
-  // T108: cancel armed insurance (charge is NOT refunded by design)
+  // T108: cancel armed insurance (the 1 token consumed on arm is NOT
+  // refunded by design — T119 inherits T74's "charge is wasted on a win
+  // too" rule, applied to the new token economy).
   const handleCancelInsurance = useCallback(async () => {
-    const { ok, data } = await apiGame('/api/wager/insurance/cancel', { method: 'POST', body: JSON.stringify({}) });
+    const { ok, data } = await apiGame('/api/insurance/cancel', { method: 'POST', body: JSON.stringify({}) });
     if (ok) {
-      setWagerInsuranceArmed(false);
+      setInsuranceArmed(false);
       showToast('Insurance cancelled');
     } else {
       showToast(data.error || 'Cancel failed');
     }
   }, [showToast]);
 
-  // T110: spend a wager token to buy one insurance charge
+  // T119: spend an insurance token to buy one insurance charge. URL
+  // renamed from /api/wager/insurance/buy to /api/insurance/buy; cap
+  // removed (1 token = 1 charge, no max).
   const handleBuyInsuranceWithTokens = useCallback(async () => {
-    const { ok, data } = await apiGame('/api/wager/insurance/buy', { method: 'POST', body: JSON.stringify({ token_cost: 1 }) });
+    const { ok, data } = await apiGame('/api/insurance/buy', { method: 'POST', body: JSON.stringify({ token_cost: 1 }) });
     if (ok) {
-      if (data.wager_tokens != null) setWagerTokens(data.wager_tokens);
-      if (data.wager_insurance_charges != null) setWagerInsuranceCharges(data.wager_insurance_charges);
+      if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+      if (data.insurance_charges != null) setInsuranceCharges(data.insurance_charges);
       const granted = data.granted || 0;
       showToast(granted > 0 ? `🪙 Bought ${granted} insurance charge` : 'No charges granted');
     } else {
       showToast(data.error || 'Buy insurance failed');
+    }
+  }, [showToast]);
+
+  // T119: claim 3 free insurance tokens once per UTC day.
+  const handleClaimFreeTokens = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/insurance/claim-free', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+      showToast('🪙 Claimed 3 free tokens');
+    } else {
+      showToast(data.error || 'Free token claim failed');
     }
   }, [showToast]);
 
@@ -4686,30 +4708,29 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {ownedItems.includes('wager_double_down') && !doubleDownPending && (
                 <button className="wager-action-btn" onClick={handleDoubleDown} title="Arm Double-Down — all-or-nothing (no insurance, no safety net)">⚡ Double Down</button>
               )}
-              {ownedItems.includes('wager_insurance') && wagerInsuranceArmed && (
+              {ownedItems.includes('wager_insurance') && insuranceArmed && (
                 <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
               )}
-              {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed && wagerInsuranceCharges > 0 && (
-                <button className="wager-action-btn" onClick={handleInsurance}>🛡️ Insurance ({wagerInsuranceCharges})</button>
+              {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
+                <button className="wager-action-btn" onClick={handleInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">🛡️ Arm Insurance ({insuranceTokens} tokens)</button>
               )}
-              {ownedItems.includes('wager_insurance') && !wagerInsuranceArmed
-                && ownedItems.includes('fish_to_wager') && wagerTokens >= 1
-                && wagerInsuranceCharges < wagerInsuranceMaxCharges && (
-                <button className="wager-action-btn wager-buy-insurance-btn" onClick={handleBuyInsuranceWithTokens}>🪙 Buy Insurance (1 token)</button>
+              {ownedItems.includes('wager_insurance') && !insuranceArmed
+                && ownedItems.includes('fish_to_wager') && insuranceTokens >= 1 && (
+                <button className="wager-action-btn wager-buy-insurance-btn" onClick={handleBuyInsuranceWithTokens}>🪙 Buy 1 charge (1 token)</button>
               )}
               </>)}
-              {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
-                <div className="wager-tokens-balance">🪙 {fmt(wagerTokens)} tokens</div>
+              {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
+                <div className="wager-tokens-balance">🪙 {fmt(insuranceTokens)} tokens</div>
               )}
-              {ownedItems.includes('fish_to_wager') && wagerTokens > 0
+              {ownedItems.includes('fish_to_wager') && insuranceTokens > 0
                 && stakePct >= 30 && !doubleDownPending && (
-                <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with wager tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
+                <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
                   <input
                     type="checkbox"
                     checked={payWithTokens}
                     onChange={e => setPayWithTokens(e.target.checked)}
                   />
-                  <span>Pay with tokens</span>
+                  <span>Pay with insurance tokens</span>
                 </label>
               )}
             </div>
@@ -4862,6 +4883,22 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 </div>
               )}
 
+              {/* T119: Free Tokens panel — sits ABOVE the bounties panel per
+                  the operator's UX. Single row: a "Claim 3 free tokens"
+                  button when the player hasn't claimed today, or a
+                  "Claimed today" indicator after the claim succeeds. The
+                  section is always present (the operator wants the player
+                  to see the daily ceiling, not have the panel disappear). */}
+              <div className="free-tokens-section">
+                {insuranceFreeClaimedToday ? (
+                  <div className="free-tokens-claimed">✓ 3 free tokens claimed today</div>
+                ) : (
+                  <button className="free-tokens-claim-btn" onClick={handleClaimFreeTokens}>
+                    🪙 Claim 3 free tokens
+                  </button>
+                )}
+              </div>
+
               {/* Season 8: Bounties panel */}
               {bounties && bounties.length > 0 && (
                 <div className="season8-bounties-panel">
@@ -4901,8 +4938,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                       <div key={s} className="aquarium-species" title={s}>{s}</div>
                     ))}
                   </div>
-                  {ownedItems.includes('fish_to_wager') && wagerTokens > 0 && (
-                    <div className="wager-tokens">🪙 {fmt(wagerTokens)} tokens</div>
+                  {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
+                    <div className="wager-tokens">🪙 {fmt(insuranceTokens)} tokens</div>
                   )}
                 </div>
               )}

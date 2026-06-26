@@ -393,11 +393,11 @@ def test_wager_bank_succeeds_when_no_double_down_pending():
 # ════════════════════════════════════════════════════════════════════════════
 def test_wheel_mode_change_resets_streak_insurance_double_down_drift():
     """T76 AC#1/#3: arming insurance in mode A and switching to mode B
-    zeroes wager_insurance_armed (and the other 3 resets)."""
+    zeroes insurance_armed (and the other 3 resets)."""
     gs = {
         'active_wheel_mode': 'steady',
         'wager_streak': 7,
-        'wager_insurance_armed': True,
+        'insurance_armed': True,
         'double_down_pending': True,
         'gravity_drift': 3,
     }
@@ -423,7 +423,7 @@ def test_wheel_mode_change_resets_streak_insurance_double_down_drift():
     # The response must include all 4 reset values.
     assert result['mode'] == 'volatile'
     assert result['wager_streak'] == 0
-    assert result['wager_insurance_armed'] is False
+    assert result['insurance_armed'] is False
     assert result['double_down_pending'] is False
     assert result['gravity_drift'] == 0
 
@@ -433,7 +433,7 @@ def test_wheel_mode_change_resets_streak_insurance_double_down_drift():
     assert len(updates) == 1, f"expected 1 UPDATE, got {len(updates)}: {updates}"
     sql = updates[0]
     assert 'wager_streak = 0' in sql
-    assert 'wager_insurance_armed = FALSE' in sql
+    assert 'insurance_armed = FALSE' in sql
     assert 'double_down_pending = FALSE' in sql
     assert 'gravity_drift = 0' in sql
 
@@ -443,7 +443,7 @@ def test_wheel_mode_no_op_does_not_reset():
     gs = {
         'active_wheel_mode': 'volatile',  # already on volatile
         'wager_streak': 7,
-        'wager_insurance_armed': True,
+        'insurance_armed': True,
         'double_down_pending': True,
         'gravity_drift': 3,
     }
@@ -462,7 +462,7 @@ def test_wheel_mode_no_op_does_not_reset():
 
     # No reset values in response.
     assert 'wager_streak' not in result
-    assert 'wager_insurance_armed' not in result
+    assert 'insurance_armed' not in result
     assert 'double_down_pending' not in result
     assert 'gravity_drift' not in result
 
@@ -471,7 +471,7 @@ def test_wheel_mode_no_op_does_not_reset():
                if sql.lstrip().upper().startswith('UPDATE')]
     assert len(updates) == 1
     assert 'wager_streak = 0' not in updates[0]
-    assert 'wager_insurance_armed' not in updates[0]
+    assert 'insurance_armed' not in updates[0]
 
 
 # ════════════════════════════════════════════════════════════════════════════

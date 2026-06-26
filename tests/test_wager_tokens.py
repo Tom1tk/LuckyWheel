@@ -183,14 +183,14 @@ def test_pay_with_tokens_full_coverage(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='steady'),
-        wager_tokens=500, pay_with_tokens=True,
+        insurance_tokens=500, pay_with_tokens=True,
     )
     assert events['tokens_spent'] == 300, (
         f"full-coverage spend = min(500 tokens, 300 stake) = 300, "
         f"got {events['tokens_spent']}"
     )
-    assert events['wager_tokens'] == 200, (
-        f"200 tokens should remain, got {events['wager_tokens']}"
+    assert events['insurance_tokens'] == 200, (
+        f"200 tokens should remain, got {events['insurance_tokens']}"
     )
     # wins = 1000 - 0 + 300 (refund) + 300 (payout) = 1600
     assert new_state['wins'] == 1600, (
@@ -207,14 +207,14 @@ def test_pay_with_tokens_partial_coverage(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='steady'),
-        wager_tokens=50, pay_with_tokens=True,
+        insurance_tokens=50, pay_with_tokens=True,
     )
     assert events['tokens_spent'] == 50, (
         f"partial spend should be min(50 tokens, 300 stake) = 50, "
         f"got {events['tokens_spent']}"
     )
-    assert events['wager_tokens'] == 0, (
-        f"token balance should be drained to 0, got {events['wager_tokens']}"
+    assert events['insurance_tokens'] == 0, (
+        f"token balance should be drained to 0, got {events['insurance_tokens']}"
     )
     # wins = 1000 - (300 - 50) + 300 (refund) + 300 (payout) = 1350
     assert new_state['wins'] == 1350, (
@@ -228,10 +228,10 @@ def test_pay_with_tokens_drains_balance(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='steady'),
-        wager_tokens=300, pay_with_tokens=True,
+        insurance_tokens=300, pay_with_tokens=True,
     )
     assert events['tokens_spent'] == 300
-    assert events['wager_tokens'] == 0
+    assert events['insurance_tokens'] == 0
     # wins = 1000 + 0 + 300 (refund) + 300 (payout) = 1600
     assert new_state['wins'] == 1600
 
@@ -242,13 +242,13 @@ def test_pay_with_tokens_false_does_not_touch_balance(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='steady'),
-        wager_tokens=500, pay_with_tokens=False,
+        insurance_tokens=500, pay_with_tokens=False,
     )
     assert events['tokens_spent'] == 0, (
         f"no spend when pay_with_tokens: false, got {events['tokens_spent']}"
     )
-    assert events['wager_tokens'] == 500, (
-        f"token balance unchanged, got {events['wager_tokens']}"
+    assert events['insurance_tokens'] == 500, (
+        f"token balance unchanged, got {events['insurance_tokens']}"
     )
 
 
@@ -262,13 +262,13 @@ def test_pay_with_tokens_below_threshold_no_spend(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=10, active_wheel_mode='steady'),
-        wager_tokens=1000, pay_with_tokens=True,
+        insurance_tokens=1000, pay_with_tokens=True,
     )
     assert events['tokens_spent'] == 0, (
         f"low stake must not spend tokens, got {events['tokens_spent']}"
     )
-    assert events['wager_tokens'] == 1000, (
-        f"token balance unchanged at low stake, got {events['wager_tokens']}"
+    assert events['insurance_tokens'] == 1000, (
+        f"token balance unchanged at low stake, got {events['insurance_tokens']}"
     )
 
 
@@ -279,14 +279,14 @@ def test_pay_with_tokens_dd_armed_no_spend(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='steady'),
-        wager_tokens=500, pay_with_tokens=True,
+        insurance_tokens=500, pay_with_tokens=True,
         double_down_active=True, wager_last_win_amount=100,
     )
     assert events['tokens_spent'] == 0, (
         f"DD armed must not spend tokens, got {events['tokens_spent']}"
     )
-    assert events['wager_tokens'] == 500, (
-        f"token balance unchanged when DD armed, got {events['wager_tokens']}"
+    assert events['insurance_tokens'] == 500, (
+        f"token balance unchanged when DD armed, got {events['insurance_tokens']}"
     )
 
 
@@ -296,7 +296,7 @@ def test_pay_with_tokens_zero_balance(monkeypatch):
     state = _base_state(wins=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='steady'),
-        wager_tokens=0, pay_with_tokens=True,
+        insurance_tokens=0, pay_with_tokens=True,
     )
     assert events['tokens_spent'] == 0, (
         f"zero balance means zero spend, got {events['tokens_spent']}"
@@ -313,14 +313,14 @@ def test_pay_with_tokens_inverted_mode(monkeypatch):
     state = _base_state(wins=1000, losses=1000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=30, active_wheel_mode='inverted'),
-        wager_tokens=200, pay_with_tokens=True,
+        insurance_tokens=200, pay_with_tokens=True,
     )
     # stake_losses = 30% of 1000 = 300. Token spend = min(200, 300) = 200.
     assert events['tokens_spent'] == 200, (
         f"inverted partial spend = 200, got {events['tokens_spent']}"
     )
-    assert events['wager_tokens'] == 0, (
-        f"inverted: token balance drained, got {events['wager_tokens']}"
+    assert events['insurance_tokens'] == 0, (
+        f"inverted: token balance drained, got {events['insurance_tokens']}"
     )
 
 
@@ -350,43 +350,48 @@ def test_spin_handler_validates_pay_with_tokens_no_dd():
 
 
 def test_spin_handler_validates_pay_with_tokens_no_balance():
-    """T110: /api/spin rejects pay_with_tokens when token balance is 0."""
+    """T110/T119: /api/spin rejects pay_with_tokens when token balance is 0.
+    T119 renamed the column/parameter wager_tokens → insurance_tokens."""
     src = _read(GAME_PY_PATH)
-    assert 'No wager tokens to spend' in src, (
-        "spin handler must reject pay_with_tokens when balance is 0"
+    assert 'No insurance tokens to spend' in src, (
+        "spin handler must reject pay_with_tokens when balance is 0 (T119 renamed error)"
     )
-    assert "gs.get('wager_tokens', 0)) <= 0" in src or "'wager_tokens'" in src, (
-        "spin handler must check the current token balance"
+    assert "gs.get('insurance_tokens', 0)) <= 0" in src, (
+        "spin handler must check the current insurance_tokens balance (T119 renamed)"
     )
 
 
 def test_spin_handler_passes_pay_with_tokens_to_resolve():
-    """T110: /api/spin forwards pay_with_tokens + wager_tokens to _resolve_spin."""
+    """T110/T119: /api/spin forwards pay_with_tokens + insurance_tokens to
+    _resolve_spin. T119 renamed the parameter."""
     src = _read(GAME_PY_PATH)
     assert 'pay_with_tokens=pay_with_tokens' in src, (
         "spin handler must forward the pay_with_tokens flag to _resolve_spin"
     )
-    assert "wager_tokens=int(gs.get('wager_tokens', 0))" in src, (
-        "spin handler must forward the current wager_tokens balance to _resolve_spin"
+    assert "insurance_tokens=int(gs.get('insurance_tokens', 0))" in src, (
+        "spin handler must forward the current insurance_tokens balance to _resolve_spin "
+        "(T119 renamed from wager_tokens)"
     )
 
 
-def test_spin_handler_decrements_wager_tokens_in_sql():
-    """T110: /api/spin UPDATE includes wager_tokens so the new balance persists."""
+def test_spin_handler_decrements_insurance_tokens_in_sql():
+    """T110/T119: /api/spin UPDATE includes insurance_tokens so the new
+    balance persists. T119 renamed the column."""
     src = _read(GAME_PY_PATH)
-    assert 'wager_tokens = %s' in src, (
-        "spin handler SQL UPDATE must set wager_tokens"
+    assert 'insurance_tokens = %s' in src, (
+        "spin handler SQL UPDATE must set insurance_tokens (T119 renamed)"
     )
-    assert "int(events.get('wager_tokens', 0))" in src, (
-        "spin handler must source the new wager_tokens from the events dict"
+    assert "int(events.get('insurance_tokens', 0))" in src, (
+        "spin handler must source the new insurance_tokens from the events dict"
     )
 
 
 def test_spin_response_includes_token_fields():
-    """T110: /api/spin response includes wager_tokens + tokens_spent."""
+    """T110/T119: /api/spin response includes insurance_tokens + tokens_spent.
+    T119 renamed the response key."""
     src = _read(GAME_PY_PATH)
-    assert "resp['wager_tokens']" in src, (
-        "spin response must include the new wager_tokens balance"
+    assert "resp['insurance_tokens']" in src, (
+        "spin response must include the new insurance_tokens balance (T119 renamed)"
     )
     assert "resp['tokens_spent']" in src, (
         "spin response must include the tokens_spent amount"
@@ -447,11 +452,12 @@ def test_frontend_spin_sends_pay_with_tokens():
 
 
 def test_frontend_spin_response_updates_wager_tokens():
-    """T110: the spin response handler updates wagerTokens from data.wager_tokens."""
+    """T110/T119: the spin response handler updates insuranceTokens from
+    data.insurance_tokens. T119 renamed the variable and response key."""
     jsx = _read(JSX_PATH)
-    assert "data.wager_tokens" in jsx and 'setWagerTokens(data.wager_tokens)' in jsx, (
-        "spin response handler must call setWagerTokens(data.wager_tokens) "
-        "so the UI updates without a /api/state poll"
+    assert "data.insurance_tokens" in jsx and 'setInsuranceTokens(data.insurance_tokens)' in jsx, (
+        "spin response handler must call setInsuranceTokens(data.insurance_tokens) "
+        "so the UI updates without a /api/state poll (T119 renamed from setWagerTokens)"
     )
 
 

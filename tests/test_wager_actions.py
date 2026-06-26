@@ -196,11 +196,11 @@ def test_dd_cancel_does_not_require_item_ownership():
 # T108: insurance cancel
 # ════════════════════════════════════════════════════════════════════════════
 def test_insurance_cancel_when_not_armed_returns_409():
-    """T108: POST /api/wager/insurance/cancel when not armed → 409."""
+    """T108: POST /api/insurance/cancel when not armed → 409."""
     gs = {
         'owned_items': ['wager_insurance'],
-        'wager_insurance_armed': False,
-        'wager_insurance_charges': 2,
+        'insurance_armed': False,
+        'insurance_charges': 2,
     }
     conn = _FakeConn(fetchone_queue=[gs])
 
@@ -219,12 +219,12 @@ def test_insurance_cancel_when_not_armed_returns_409():
 
 
 def test_insurance_cancel_when_armed_returns_200_and_disarms_without_refund():
-    """T108: POST /api/wager/insurance/cancel when armed → 200, UPDATE
-    sets wager_insurance_armed = FALSE, charge NOT refunded (by design)."""
+    """T108: POST /api/insurance/cancel when armed → 200, UPDATE
+    sets insurance_armed = FALSE, charge NOT refunded (by design)."""
     gs = {
         'owned_items': ['wager_insurance'],
-        'wager_insurance_armed': True,
-        'wager_insurance_charges': 1,  # already consumed on arm
+        'insurance_armed': True,
+        'insurance_charges': 1,  # already consumed on arm
     }
     conn = _FakeConn(fetchone_queue=[gs])
 
@@ -241,13 +241,10 @@ def test_insurance_cancel_when_armed_returns_200_and_disarms_without_refund():
     update = next((s for s, _ in conn.log if s.lstrip().upper().startswith('UPDATE')), None)
     assert update is not None
     # The UPDATE must only set armed = FALSE — must NOT touch charges.
-    assert 'wager_insurance_armed = FALSE' in update
-    assert 'wager_insurance_charges' not in update, (
-        "T108: insurance cancel must NOT refund the consumed charge (T74: charge "
-        "is wasted on a win too; the player takes the loss — that's the gamble)"
-    )
-    assert 'wager_insurance_last_recharge' not in update, (
-        "T108: insurance cancel must NOT touch the recharge timer"
+    assert 'insurance_armed = FALSE' in update
+    assert 'insurance_charges' not in update, (
+        "T108: insurance cancel must NOT refund the consumed charge (T119: the "
+        "1 token is wasted on a win too; the player takes the loss — that's the gamble)"
     )
 
 
@@ -255,8 +252,8 @@ def test_insurance_cancel_does_not_require_item_ownership():
     """T108: cancel is always allowed — no item ownership check."""
     gs = {
         'owned_items': [],
-        'wager_insurance_armed': True,
-        'wager_insurance_charges': 0,
+        'insurance_armed': True,
+        'insurance_charges': 0,
     }
     conn = _FakeConn(fetchone_queue=[gs])
 
@@ -276,10 +273,12 @@ def test_insurance_cancel_does_not_require_item_ownership():
 # T108: structural — endpoints are wired in game.py
 # ════════════════════════════════════════════════════════════════════════════
 def test_cancel_endpoints_registered_in_game_py():
-    """T108: both cancel routes must exist in game.py."""
+    """T108: both cancel routes must exist in game.py. T119: the
+    insurance cancel URL was renamed from /api/wager/insurance/cancel
+    to /api/insurance/cancel."""
     src = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py')).read()
     assert "/api/wager/double-down/cancel" in src
-    assert "/api/wager/insurance/cancel" in src
+    assert "/api/insurance/cancel" in src
     assert "def wager_double_down_cancel" in src
     assert "def wager_insurance_cancel" in src
 
