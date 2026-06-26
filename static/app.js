@@ -5470,13 +5470,288 @@ function CommunityPot(_ref27) {
   }, "All")))));
 }
 
+// ── T202: Season 8 panel components ────────────────────────────────────────
+// These 8 components are extracted from the inline JSX in GameApp's
+// desktop sidebar / bottom-left-stack / wheel-and-wager blocks so the
+// same JSX renders in BOTH the desktop layout (zero visual change) AND
+// a new mobile drawer with tabs. Each component is a thin wrapper
+// around the same JSX that used to live inline in GameApp — no
+// behavior changes, just the same children in a function body.
+
+// WAGER_TOOLTIP moved to module scope (was inside GameApp) so the
+// WagerPanel component can reference it.
+var WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' + 'Upgrades extend to 45% max. ' + '0% = no risk, base payout. ' + 'Each step risks that percentage of your current wins. ' + 'Win → your risk is returned plus the full payout. ' + 'Loss → your risk is gone (wins are actually deducted). ' + 'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' + 'Safety Net: at 15%+ stake, 25% of lost risk is refunded. ' + 'Double-Down: ⚠️ ALL OR NOTHING. Wager your entire last win for a 2× payout. NO INSURANCE, NO SAFETY NET, NO PROTECTIONS. ' + 'Insurance: guarantees no loss on next spin (consumes a charge). Does NOT apply to Double-Down.';
+// same JSX renders in BOTH the desktop layout (zero visual change) AND
+// a new mobile drawer with tabs. Each component is a thin wrapper
+// around the same JSX that used to live inline in GameApp — no
+// behavior changes, just the same children in a function body.
+
+function PrestigePanel(_ref28) {
+  var ownedItems = _ref28.ownedItems,
+    prestigeLevel = _ref28.prestigeLevel,
+    legacyWins = _ref28.legacyWins;
+  if (!ownedItems.includes('prestige_unlock')) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season8-prestige-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "prestige-badge",
+    title: "Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots."
+  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "% win mult)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "legacy-badge"
+  }, "Legacy: ", fmt(legacyWins), " wins"));
+}
+function FreeTokensPanel(_ref29) {
+  var insuranceFreeClaimedToday = _ref29.insuranceFreeClaimedToday,
+    onClaim = _ref29.onClaim;
+  if (insuranceFreeClaimedToday) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "free-tokens-section"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "free-tokens-claim-btn",
+    onClick: onClaim
+  }, "\uD83E\uDE99 Claim 3 free tokens"));
+}
+function BountiesPanel(_ref30) {
+  var bounties = _ref30.bounties,
+    onClaim = _ref30.onClaim;
+  if (!bounties || bounties.length === 0) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season8-bounties-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bounties-header"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties")), bounties.map(function (b) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: b.bounty_id,
+      className: "bounty-card"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bounty-desc"
+    }, b.description || b.bounty_id), /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-bar"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-fill",
+      style: {
+        width: "".concat(Math.min(100, b.progress / b.target * 100), "%")
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "bounty-progress-text"
+    }, fmt(b.progress), " / ", fmt(b.target)), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
+      className: "bounty-claim-btn",
+      onClick: function onClick() {
+        return onClaim(b.bounty_id);
+      }
+    }, "Claim +", b.position, " token", b.position > 1 ? 's' : ''), b.claimed && /*#__PURE__*/React.createElement("span", {
+      className: "bounty-claimed"
+    }, "\u2713 +", b.position, " claimed"));
+  }));
+}
+function AquariumPanel(_ref31) {
+  var ownedItems = _ref31.ownedItems,
+    aquariumSpecies = _ref31.aquariumSpecies,
+    insuranceTokens = _ref31.insuranceTokens;
+  if (!ownedItems.includes('aquarium')) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season8-aquarium-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "aquarium-header"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium", /*#__PURE__*/React.createElement("span", {
+    className: "aquarium-info-icon",
+    "data-tooltip": "Each unique fish species you catch adds +0.1% to your base win chance."
+  }, "?")), /*#__PURE__*/React.createElement("span", {
+    className: "aquarium-luck"
+  }, "+", (aquariumSpecies.length * 0.1).toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
+    className: "aquarium-grid"
+  }, aquariumSpecies.map(function (s) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: s,
+      className: "aquarium-species",
+      title: s
+    }, s);
+  })), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-tokens"
+  }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens"));
+}
+function LoadoutPanel(_ref32) {
+  var ownedItems = _ref32.ownedItems,
+    equippedClass = _ref32.equippedClass,
+    activeWheelMode = _ref32.activeWheelMode,
+    onSave = _ref32.onSave,
+    onApply = _ref32.onApply;
+  if (ownedItems.length === 0) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season8-loadout-panel"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "loadout-label"
+  }, "\u2699\uFE0F Loadouts"), /*#__PURE__*/React.createElement("div", {
+    className: "loadout-slots"
+  }, [1, 2, 3].map(function (slot) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: slot,
+      className: "loadout-slot"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "loadout-save-btn",
+      onClick: function onClick() {
+        return onSave(slot, {
+          equipped_class: equippedClass,
+          active_wheel_mode: activeWheelMode
+        });
+      }
+    }, "Save ", slot), /*#__PURE__*/React.createElement("button", {
+      className: "loadout-apply-btn",
+      onClick: function onClick() {
+        return onApply(slot);
+      }
+    }, "Equip ", slot));
+  })));
+}
+function CommunityGoalPanel(_ref33) {
+  var communityGoal = _ref33.communityGoal;
+  if (!communityGoal) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "meta-goal-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-label"
+  }, "\uD83C\uDF0D ", communityGoal.description), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "goal-progress-text"
+  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution)));
+}
+function SingularityPanel(_ref34) {
+  var singularity = _ref34.singularity,
+    fishClicks = _ref34.fishClicks,
+    onContribute = _ref34.onContribute;
+  if (!singularity) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "meta-goal-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-label-row"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "singularity-label"
+  }, "\uD83C\uDF00 Singularity"), !singularity.filled && /*#__PURE__*/React.createElement("span", {
+    className: "singularity-buttons"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return onContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)));
+    },
+    disabled: fishClicks < 1
+  }, "+", fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return onContribute(fishClicks);
+    },
+    disabled: fishClicks < 1
+  }, "All"))), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-fill",
+    style: {
+      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "singularity-progress-text"
+  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target), singularity.fill_count > 0 ? " \xB7 Convergences: ".concat(singularity.fill_count) : ''));
+}
+function WagerPanel(_ref35) {
+  var ownedItems = _ref35.ownedItems,
+    stakePct = _ref35.stakePct,
+    stakeValue = _ref35.stakeValue,
+    doubleDownPending = _ref35.doubleDownPending,
+    wagerStreak = _ref35.wagerStreak,
+    wagerBankedWins = _ref35.wagerBankedWins,
+    wagerLastWinAmount = _ref35.wagerLastWinAmount,
+    insuranceTokens = _ref35.insuranceTokens,
+    insuranceArmed = _ref35.insuranceArmed,
+    activeWheelMode = _ref35.activeWheelMode,
+    maxStakePct = _ref35.maxStakePct,
+    autoSpinActive = _ref35.autoSpinActive,
+    payWithTokens = _ref35.payWithTokens,
+    onStakeChange = _ref35.onStakeChange,
+    onBank = _ref35.onBank,
+    onDoubleDown = _ref35.onDoubleDown,
+    onCancelDoubleDown = _ref35.onCancelDoubleDown,
+    onInsurance = _ref35.onInsurance,
+    onCancelInsurance = _ref35.onCancelInsurance,
+    onTogglePayWithTokens = _ref35.onTogglePayWithTokens;
+  if (!ownedItems.includes('wager_unlock')) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "season8-wager-panel"
+  }, !autoSpinActive && /*#__PURE__*/React.createElement("div", {
+    className: "wager-stake-control"
+  }, /*#__PURE__*/React.createElement("label", null, "Stake"), /*#__PURE__*/React.createElement("span", {
+    className: "stake-label ".concat(stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless')
+  }, stakePct, "%"), /*#__PURE__*/React.createElement("div", {
+    className: "wager-stake-value"
+  }, doubleDownPending && wagerLastWinAmount > 0 ? /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-dd"
+  }, "\u26A1 ", fmt(stakeValue)) : stakePct === 0 ? /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-safe"
+  }, "\uD83D\uDEE1\uFE0F No stake") : activeWheelMode === 'inverted' ? /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-inverted"
+  }, "\uD83D\uDC80 ", fmt(stakeValue)) : /*#__PURE__*/React.createElement("span", {
+    className: "stake-value-normal"
+  }, "\uD83D\uDCB0 ", fmt(stakeValue))), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "0",
+    max: maxStakePct,
+    step: "5",
+    value: stakePct,
+    onChange: function onChange(e) {
+      return onStakeChange(parseInt(e.target.value));
+    },
+    className: "wager-slider",
+    disabled: !ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted',
+    title: !ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted' ? 'Buy wager_unlock (500 wins).' : undefined,
+    style: !ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted' ? {
+      opacity: 0.5,
+      cursor: 'not-allowed'
+    } : undefined
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "wager-tooltip-trigger",
+    "data-tooltip": WAGER_TOOLTIP
+  }, "?")), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
+    className: "wager-hotstreak"
+  }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn wager-bank-btn",
+    onClick: onBank
+  }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("button", {
+    className: "wager-double-down-armed wager-cancel-btn",
+    onClick: onCancelDoubleDown
+  }, "\u26A1 Double-Down armed! (click to cancel) \u26A0\uFE0F"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn",
+    onClick: onDoubleDown,
+    title: "Arm Double-Down \u2014 all-or-nothing (no insurance, no safety net)"
+  }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && insuranceArmed && /*#__PURE__*/React.createElement("button", {
+    className: "wager-insurance-armed wager-cancel-btn",
+    onClick: onCancelInsurance
+  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && /*#__PURE__*/React.createElement("button", {
+    className: "wager-action-btn",
+    onClick: onInsurance,
+    title: "Arm insurance \u2014 consumes 1 token (not refunded if you cancel)"
+  }, "Insurance")), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "wager-tokens-balance"
+  }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens"), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && stakePct >= 30 && !doubleDownPending && /*#__PURE__*/React.createElement("label", {
+    className: "wager-pay-tokens-toggle",
+    "data-tooltip": "Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins."
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: payWithTokens,
+    onChange: function onChange(e) {
+      return onTogglePayWithTokens(e.target.checked);
+    }
+  }), /*#__PURE__*/React.createElement("span", null, "Pay with insurance tokens")));
+}
+
 // ── Game App ───────────────────────────────────────────────────────────────
-function GameApp(_ref28) {
+function GameApp(_ref36) {
   var _gameState$dice_charg, _gameState$dice_rolle, _gameState$wager_last, _gameState$wager_last2, _gameState$wager_last3, _gameState$max_stake_;
-  var username = _ref28.username,
-    gameState = _ref28.gameState,
-    onLogout = _ref28.onLogout,
-    onSessionExpired = _ref28.onSessionExpired;
+  var username = _ref36.username,
+    gameState = _ref36.gameState,
+    onLogout = _ref36.onLogout,
+    onSessionExpired = _ref36.onSessionExpired;
   var canvasRef = useRef(null);
   var _useState85 = useState(null),
     _useState86 = _slicedToArray(_useState85, 2),
@@ -5694,31 +5969,42 @@ function GameApp(_ref28) {
     _useState182 = _slicedToArray(_useState181, 2),
     mobilePanel = _useState182[0],
     setMobilePanel = _useState182[1];
-  var _useState183 = useState(function () {
+  // T202: mobile drawer state — surfaces the S8 panels (Prestige,
+  // Free Tokens, Bounties, Aquarium, Loadout, Community + Singularity)
+  // in a tabbed side drawer on mobile.
+  var _useState183 = useState(false),
+    _useState184 = _slicedToArray(_useState183, 2),
+    mobileDrawerOpen = _useState184[0],
+    setMobileDrawerOpen = _useState184[1];
+  var _useState185 = useState('prestige'),
+    _useState186 = _slicedToArray(_useState185, 2),
+    mobileDrawerTab = _useState186[0],
+    setMobileDrawerTab = _useState186[1];
+  var _useState187 = useState(function () {
       return localStorage.getItem('chat_open') !== 'false';
     }),
-    _useState184 = _slicedToArray(_useState183, 2),
-    showChat = _useState184[0],
-    setShowChat = _useState184[1];
+    _useState188 = _slicedToArray(_useState187, 2),
+    showChat = _useState188[0],
+    setShowChat = _useState188[1];
   var fireMode = 2; // Mix mode
-  var _useState185 = useState(0),
-    _useState186 = _slicedToArray(_useState185, 2),
-    wheelRotation = _useState186[0],
-    setWheelRotation = _useState186[1];
+  var _useState189 = useState(0),
+    _useState190 = _slicedToArray(_useState189, 2),
+    wheelRotation = _useState190[0],
+    setWheelRotation = _useState190[1];
   var wheelRotationRef = useRef(0);
-  var _useState187 = useState({
+  var _useState191 = useState({
       clickmult_inf: gameState.clickmult_inf_level || 0
     }),
-    _useState188 = _slicedToArray(_useState187, 2),
-    infLevels = _useState188[0],
-    setInfLevels = _useState188[1];
+    _useState192 = _slicedToArray(_useState191, 2),
+    infLevels = _useState192[0],
+    setInfLevels = _useState192[1];
   var WHEEL_SPIN_SPEED = 1.5; // seconds
 
   // Season 8: manual spin state (tab-lock ID mirrors HiatusWheel pattern)
-  var _useState189 = useState(false),
-    _useState190 = _slicedToArray(_useState189, 2),
-    spinning = _useState190[0],
-    setSpinning = _useState190[1];
+  var _useState193 = useState(false),
+    _useState194 = _slicedToArray(_useState193, 2),
+    spinning = _useState194[0],
+    setSpinning = _useState194[1];
   var spinningRef = useRef(false);
   var tabIdRef = useRef(function () {
     var id = sessionStorage.getItem('wheel_tab_id');
@@ -5974,7 +6260,7 @@ function GameApp(_ref28) {
     if (season) localStorage.setItem("patchNotesSeen_s".concat(season.season_number), '1');
   }, [season]);
   var handleBuy = useCallback(/*#__PURE__*/function () {
-    var _ref30 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(id) {
+    var _ref38 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(id) {
       var alreadyOwned, _yield$apiGame6, ok, data, _data$regen_recharge_;
       return _regenerator().w(function (_context1) {
         while (1) switch (_context1.n) {
@@ -6023,7 +6309,7 @@ function GameApp(_ref28) {
       }, _callee1);
     }));
     return function (_x6) {
-      return _ref30.apply(this, arguments);
+      return _ref38.apply(this, arguments);
     };
   }(), [showToast, ownedItems]);
 
@@ -6101,7 +6387,7 @@ function GameApp(_ref28) {
     }, _callee10);
   })), [showToast, ownedItems]);
   var handleEquip = useCallback(/*#__PURE__*/function () {
-    var _ref32 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(id) {
+    var _ref40 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(id) {
       var _yield$apiGame8, ok, data;
       return _regenerator().w(function (_context11) {
         while (1) switch (_context11.n) {
@@ -6124,11 +6410,11 @@ function GameApp(_ref28) {
       }, _callee11);
     }));
     return function (_x7) {
-      return _ref32.apply(this, arguments);
+      return _ref40.apply(this, arguments);
     };
   }(), [showToast]);
   var handleEquipCosmetic = useCallback(/*#__PURE__*/function () {
-    var _ref33 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(id) {
+    var _ref41 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(id) {
       var _yield$apiGame9, ok, data;
       return _regenerator().w(function (_context12) {
         while (1) switch (_context12.n) {
@@ -6151,11 +6437,11 @@ function GameApp(_ref28) {
       }, _callee12);
     }));
     return function (_x8) {
-      return _ref33.apply(this, arguments);
+      return _ref41.apply(this, arguments);
     };
   }(), [showToast]);
   var handleEquipClass = useCallback(/*#__PURE__*/function () {
-    var _ref34 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(classItemId) {
+    var _ref42 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(classItemId) {
       var isCurrentlyEquipped, newClassId, _yield$apiGame0, ok, data;
       return _regenerator().w(function (_context13) {
         while (1) switch (_context13.n) {
@@ -6180,11 +6466,11 @@ function GameApp(_ref28) {
       }, _callee13);
     }));
     return function (_x9) {
-      return _ref34.apply(this, arguments);
+      return _ref42.apply(this, arguments);
     };
   }(), [equippedClass, showToast]);
   var handleFishExchange = useCallback(/*#__PURE__*/function () {
-    var _ref35 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(amountType) {
+    var _ref43 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(amountType) {
       var _yield$apiGame1, ok, data;
       return _regenerator().w(function (_context14) {
         while (1) switch (_context14.n) {
@@ -6216,11 +6502,11 @@ function GameApp(_ref28) {
       }, _callee14);
     }));
     return function (_x0) {
-      return _ref35.apply(this, arguments);
+      return _ref43.apply(this, arguments);
     };
   }(), [showToast]);
   var handleWinsExchange = useCallback(/*#__PURE__*/function () {
-    var _ref36 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(amountType) {
+    var _ref44 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(amountType) {
       var _yield$apiGame10, ok, data;
       return _regenerator().w(function (_context15) {
         while (1) switch (_context15.n) {
@@ -6249,7 +6535,7 @@ function GameApp(_ref28) {
       }, _callee15);
     }));
     return function (_x1) {
-      return _ref36.apply(this, arguments);
+      return _ref44.apply(this, arguments);
     };
   }(), [showToast]);
   var handleDiceRoll = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16() {
@@ -6767,149 +7053,149 @@ function GameApp(_ref28) {
   }();
 
   // ── Season 8 state ─────────────────────────────────────────────────────────
-  var _useState191 = useState(gameState.prestige_level || 0),
-    _useState192 = _slicedToArray(_useState191, 2),
-    prestigeLevel = _useState192[0],
-    setPrestigeLevel = _useState192[1];
-  var _useState193 = useState(gameState.prestige_count || 0),
-    _useState194 = _slicedToArray(_useState193, 2),
-    prestigeCount = _useState194[0],
-    setPrestigeCount = _useState194[1];
-  var _useState195 = useState(gameState.legacy_wins || 0),
+  var _useState195 = useState(gameState.prestige_level || 0),
     _useState196 = _slicedToArray(_useState195, 2),
-    legacyWins = _useState196[0],
-    setLegacyWins = _useState196[1];
+    prestigeLevel = _useState196[0],
+    setPrestigeLevel = _useState196[1];
+  var _useState197 = useState(gameState.prestige_count || 0),
+    _useState198 = _slicedToArray(_useState197, 2),
+    prestigeCount = _useState198[0],
+    setPrestigeCount = _useState198[1];
+  var _useState199 = useState(gameState.legacy_wins || 0),
+    _useState200 = _slicedToArray(_useState199, 2),
+    legacyWins = _useState200[0],
+    setLegacyWins = _useState200[1];
   // T111: server-computed next-level threshold (scales with prestigeLevel).
   // null when at MAX_PRESTIGE_LEVEL or before the first /api/prestige fetch.
-  var _useState197 = useState(null),
-    _useState198 = _slicedToArray(_useState197, 2),
-    nextPrestigeThreshold = _useState198[0],
-    setNextPrestigeThreshold = _useState198[1];
-  var _useState199 = useState(gameState.onboarding_step || 0),
-    _useState200 = _slicedToArray(_useState199, 2),
-    onboardingStep = _useState200[0],
-    setOnboardingStep = _useState200[1];
-  var _useState201 = useState(gameState.wager_streak || 0),
+  var _useState201 = useState(null),
     _useState202 = _slicedToArray(_useState201, 2),
-    wagerStreak = _useState202[0],
-    setWagerStreak = _useState202[1];
-  var _useState203 = useState((_gameState$wager_last2 = gameState.wager_last_stake) !== null && _gameState$wager_last2 !== void 0 ? _gameState$wager_last2 : 0),
+    nextPrestigeThreshold = _useState202[0],
+    setNextPrestigeThreshold = _useState202[1];
+  var _useState203 = useState(gameState.onboarding_step || 0),
     _useState204 = _slicedToArray(_useState203, 2),
-    wagerLastStake = _useState204[0],
-    setWagerLastStake = _useState204[1];
-  var _useState205 = useState(gameState.double_down_pending || false),
+    onboardingStep = _useState204[0],
+    setOnboardingStep = _useState204[1];
+  var _useState205 = useState(gameState.wager_streak || 0),
     _useState206 = _slicedToArray(_useState205, 2),
-    doubleDownPending = _useState206[0],
-    setDoubleDownPending = _useState206[1];
-  var _useState207 = useState(gameState.wager_banked_wins || 0),
+    wagerStreak = _useState206[0],
+    setWagerStreak = _useState206[1];
+  var _useState207 = useState((_gameState$wager_last2 = gameState.wager_last_stake) !== null && _gameState$wager_last2 !== void 0 ? _gameState$wager_last2 : 0),
     _useState208 = _slicedToArray(_useState207, 2),
-    wagerBankedWins = _useState208[0],
-    setWagerBankedWins = _useState208[1];
-  var _useState209 = useState(gameState.wager_last_win_amount || 0),
+    wagerLastStake = _useState208[0],
+    setWagerLastStake = _useState208[1];
+  var _useState209 = useState(gameState.double_down_pending || false),
     _useState210 = _slicedToArray(_useState209, 2),
-    wagerLastWinAmount = _useState210[0],
-    setWagerLastWinAmount = _useState210[1];
-  var _useState211 = useState(gameState.insurance_charges || 0),
+    doubleDownPending = _useState210[0],
+    setDoubleDownPending = _useState210[1];
+  var _useState211 = useState(gameState.wager_banked_wins || 0),
     _useState212 = _slicedToArray(_useState211, 2),
-    insuranceCharges = _useState212[0],
-    setInsuranceCharges = _useState212[1];
-  var _useState213 = useState(gameState.insurance_armed || false),
+    wagerBankedWins = _useState212[0],
+    setWagerBankedWins = _useState212[1];
+  var _useState213 = useState(gameState.wager_last_win_amount || 0),
     _useState214 = _slicedToArray(_useState213, 2),
-    insuranceArmed = _useState214[0],
-    setInsuranceArmed = _useState214[1];
-  var _useState215 = useState(gameState.active_wheel_mode || 'steady'),
+    wagerLastWinAmount = _useState214[0],
+    setWagerLastWinAmount = _useState214[1];
+  var _useState215 = useState(gameState.insurance_charges || 0),
     _useState216 = _slicedToArray(_useState215, 2),
-    activeWheelMode = _useState216[0],
-    setActiveWheelMode = _useState216[1];
-  var _useState217 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    insuranceCharges = _useState216[0],
+    setInsuranceCharges = _useState216[1];
+  var _useState217 = useState(gameState.insurance_armed || false),
     _useState218 = _slicedToArray(_useState217, 2),
-    availableWheelModes = _useState218[0],
-    setAvailableWheelModes = _useState218[1];
+    insuranceArmed = _useState218[0],
+    setInsuranceArmed = _useState218[1];
+  var _useState219 = useState(gameState.active_wheel_mode || 'steady'),
+    _useState220 = _slicedToArray(_useState219, 2),
+    activeWheelMode = _useState220[0],
+    setActiveWheelMode = _useState220[1];
+  var _useState221 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    _useState222 = _slicedToArray(_useState221, 2),
+    availableWheelModes = _useState222[0],
+    setAvailableWheelModes = _useState222[1];
   // T80: server-provided wheel probabilities (drift-adjusted for gravity,
   // static for other modes). null → fall back to WHEEL_MODE_DRAW.
-  var _useState219 = useState(gameState.wheel_probabilities || null),
-    _useState220 = _slicedToArray(_useState219, 2),
-    wheelProbabilities = _useState220[0],
-    setWheelProbabilities = _useState220[1];
+  var _useState223 = useState(gameState.wheel_probabilities || null),
+    _useState224 = _slicedToArray(_useState223, 2),
+    wheelProbabilities = _useState224[0],
+    setWheelProbabilities = _useState224[1];
   // T80: gravity drift echoed by the server; not consumed by the wheel
   // itself but kept in state for UI badges / debug.
-  var _useState221 = useState(gameState.gravity_drift || 0),
-    _useState222 = _slicedToArray(_useState221, 2),
-    gravityDrift = _useState222[0],
-    setGravityDrift = _useState222[1];
-  var _useState223 = useState(gameState.insurance_tokens || 0),
-    _useState224 = _slicedToArray(_useState223, 2),
-    insuranceTokens = _useState224[0],
-    setInsuranceTokens = _useState224[1];
-  var _useState225 = useState(gameState.aquarium_species || []),
+  var _useState225 = useState(gameState.gravity_drift || 0),
     _useState226 = _slicedToArray(_useState225, 2),
-    aquariumSpecies = _useState226[0],
-    setAquariumSpecies = _useState226[1];
-  var _useState227 = useState(gameState.cosmetic_fragments || 0),
+    gravityDrift = _useState226[0],
+    setGravityDrift = _useState226[1];
+  var _useState227 = useState(gameState.insurance_tokens || 0),
     _useState228 = _slicedToArray(_useState227, 2),
-    cosmeticFragments = _useState228[0],
-    setCosmeticFragments = _useState228[1];
-  var _useState229 = useState(gameState.guard_charges || 0),
+    insuranceTokens = _useState228[0],
+    setInsuranceTokens = _useState228[1];
+  var _useState229 = useState(gameState.aquarium_species || []),
     _useState230 = _slicedToArray(_useState229, 2),
-    guardCharges = _useState230[0],
-    setGuardCharges = _useState230[1];
-  var _useState231 = useState(gameState.bounties || []),
+    aquariumSpecies = _useState230[0],
+    setAquariumSpecies = _useState230[1];
+  var _useState231 = useState(gameState.cosmetic_fragments || 0),
     _useState232 = _slicedToArray(_useState231, 2),
-    bounties = _useState232[0],
-    setBounties = _useState232[1];
-  var _useState233 = useState(gameState.community_goal || null),
+    cosmeticFragments = _useState232[0],
+    setCosmeticFragments = _useState232[1];
+  var _useState233 = useState(gameState.guard_charges || 0),
     _useState234 = _slicedToArray(_useState233, 2),
-    communityGoal = _useState234[0],
-    setCommunityGoal = _useState234[1];
-  var _useState235 = useState(gameState.singularity || null),
+    guardCharges = _useState234[0],
+    setGuardCharges = _useState234[1];
+  var _useState235 = useState(gameState.bounties || []),
     _useState236 = _slicedToArray(_useState235, 2),
-    singularity = _useState236[0],
-    setSingularity = _useState236[1];
+    bounties = _useState236[0],
+    setBounties = _useState236[1];
+  var _useState237 = useState(gameState.community_goal || null),
+    _useState238 = _slicedToArray(_useState237, 2),
+    communityGoal = _useState238[0],
+    setCommunityGoal = _useState238[1];
+  var _useState239 = useState(gameState.singularity || null),
+    _useState240 = _slicedToArray(_useState239, 2),
+    singularity = _useState240[0],
+    setSingularity = _useState240[1];
   // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
   // the safe "no risk" position and is valid — use ?? 0 not || 1.
-  var _useState237 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
-    _useState238 = _slicedToArray(_useState237, 2),
-    stakePct = _useState238[0],
-    setStakePct = _useState238[1];
+  var _useState241 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
+    _useState242 = _slicedToArray(_useState241, 2),
+    stakePct = _useState242[0],
+    setStakePct = _useState242[1];
   // T102: max stake percentage for this player (30 base, 35/40/45 with
   // stake extension items). Used to size the slider's max attribute.
-  var _useState239 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
-    _useState240 = _slicedToArray(_useState239, 2),
-    maxStakePct = _useState240[0],
-    setMaxStakePct = _useState240[1];
+  var _useState243 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
+    _useState244 = _slicedToArray(_useState243, 2),
+    maxStakePct = _useState244[0],
+    setMaxStakePct = _useState244[1];
   // T102+T105: live display of the stake amount (wins escrowed on next
   // spin). Recomputed on stake/wins/losses change and after each spin.
-  var _useState241 = useState(0),
-    _useState242 = _slicedToArray(_useState241, 2),
-    stakeValue = _useState242[0],
-    setStakeValue = _useState242[1];
+  var _useState245 = useState(0),
+    _useState246 = _slicedToArray(_useState245, 2),
+    stakeValue = _useState246[0],
+    setStakeValue = _useState246[1];
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
-  var _useState243 = useState(gameState.auto_spin_active || false),
-    _useState244 = _slicedToArray(_useState243, 2),
-    autoSpinActive = _useState244[0],
-    setAutoSpinActive = _useState244[1];
-  var _useState245 = useState(gameState.auto_spin_budget || 0),
-    _useState246 = _slicedToArray(_useState245, 2),
-    autoSpinBudget = _useState246[0],
-    setAutoSpinBudget = _useState246[1];
+  var _useState247 = useState(gameState.auto_spin_active || false),
+    _useState248 = _slicedToArray(_useState247, 2),
+    autoSpinActive = _useState248[0],
+    setAutoSpinActive = _useState248[1];
+  var _useState249 = useState(gameState.auto_spin_budget || 0),
+    _useState250 = _slicedToArray(_useState249, 2),
+    autoSpinBudget = _useState250[0],
+    setAutoSpinBudget = _useState250[1];
   // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
   // server gates the 3-free-per-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
-  var _useState247 = useState(gameState.insurance_free_claimed_date || null),
-    _useState248 = _slicedToArray(_useState247, 2),
-    insuranceFreeClaimedDate = _useState248[0],
-    setInsuranceFreeClaimedDate = _useState248[1];
+  var _useState251 = useState(gameState.insurance_free_claimed_date || null),
+    _useState252 = _slicedToArray(_useState251, 2),
+    insuranceFreeClaimedDate = _useState252[0],
+    setInsuranceFreeClaimedDate = _useState252[1];
   var todayStr = new Date().toISOString().slice(0, 10);
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
   // wager-stale pattern as stakeRef).
-  var _useState249 = useState(false),
-    _useState250 = _slicedToArray(_useState249, 2),
-    payWithTokens = _useState250[0],
-    setPayWithTokens = _useState250[1];
+  var _useState253 = useState(false),
+    _useState254 = _slicedToArray(_useState253, 2),
+    payWithTokens = _useState254[0],
+    setPayWithTokens = _useState254[1];
   var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
@@ -6935,18 +7221,18 @@ function GameApp(_ref28) {
   // T121: prestige now triggers from the shop buy of prestige_unlock, with
   // a patch-notes-style confirmation modal shown first. The side-panel
   // Prestige button is gone — the buy is intercepted and the modal opens.
-  var _useState251 = useState(false),
-    _useState252 = _slicedToArray(_useState251, 2),
-    showPrestigeBuyConfirm = _useState252[0],
-    setShowPrestigeBuyConfirm = _useState252[1];
-  var _useState253 = useState(1000000),
-    _useState254 = _slicedToArray(_useState253, 2),
-    prestigeBuyCost = _useState254[0],
-    setPrestigeBuyCost = _useState254[1];
   var _useState255 = useState(false),
     _useState256 = _slicedToArray(_useState255, 2),
-    showOnboarding = _useState256[0],
-    setShowOnboarding = _useState256[1]; // T114: disabled for S8 launch
+    showPrestigeBuyConfirm = _useState256[0],
+    setShowPrestigeBuyConfirm = _useState256[1];
+  var _useState257 = useState(1000000),
+    _useState258 = _slicedToArray(_useState257, 2),
+    prestigeBuyCost = _useState258[0],
+    setPrestigeBuyCost = _useState258[1];
+  var _useState259 = useState(false),
+    _useState260 = _slicedToArray(_useState259, 2),
+    showOnboarding = _useState260[0],
+    setShowOnboarding = _useState260[1]; // T114: disabled for S8 launch
 
   var refreshBountiesAndGoal = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
     var _yield$Promise$all, _yield$Promise$all2, bountyRes, goalRes;
@@ -7090,7 +7376,7 @@ function GameApp(_ref28) {
 
   // Season 8: handle stake change
   var handleStakeChange = useCallback(/*#__PURE__*/function () {
-    var _ref43 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(newStakePct) {
+    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(newStakePct) {
       return _regenerator().w(function (_context24) {
         while (1) switch (_context24.n) {
           case 0:
@@ -7117,7 +7403,7 @@ function GameApp(_ref28) {
       }, _callee24);
     }));
     return function (_x10) {
-      return _ref43.apply(this, arguments);
+      return _ref51.apply(this, arguments);
     };
   }(), []);
 
@@ -7152,11 +7438,10 @@ function GameApp(_ref28) {
       desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.'
     }
   };
-  var WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' + 'Upgrades extend to 45% max. ' + '0% = no risk, base payout. ' + 'Each step risks that percentage of your current wins. ' + 'Win → your risk is returned plus the full payout. ' + 'Loss → your risk is gone (wins are actually deducted). ' + 'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' + 'Safety Net: at 15%+ stake, 25% of lost risk is refunded. ' + 'Double-Down: ⚠️ ALL OR NOTHING. Wager your entire last win for a 2× payout. NO INSURANCE, NO SAFETY NET, NO PROTECTIONS. ' + 'Insurance: guarantees no loss on next spin (consumes a charge). Does NOT apply to Double-Down.';
 
   // Season 8: handle wheel mode change
   var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
-    var _ref44 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(mode) {
+    var _ref52 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(mode) {
       var prev, prevStreak, prevInsuranceArmed, prevDoubleDownPending, prevGravityDrift, _yield$apiGame15, ok, data;
       return _regenerator().w(function (_context25) {
         while (1) switch (_context25.n) {
@@ -7231,7 +7516,7 @@ function GameApp(_ref28) {
       }, _callee25);
     }));
     return function (_x11) {
-      return _ref44.apply(this, arguments);
+      return _ref52.apply(this, arguments);
     };
   }(), [showToast, activeWheelMode, wagerStreak, insuranceArmed, doubleDownPending, gravityDrift]);
 
@@ -7303,7 +7588,7 @@ function GameApp(_ref28) {
 
   // Season 8: handle bounty claim
   var handleBountyClaim = useCallback(/*#__PURE__*/function () {
-    var _ref47 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(bountyId) {
+    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(bountyId) {
       var _yield$apiGame18, ok, data, _data$rewards, _data$rewards2;
       return _regenerator().w(function (_context28) {
         while (1) switch (_context28.n) {
@@ -7343,13 +7628,13 @@ function GameApp(_ref28) {
       }, _callee28);
     }));
     return function (_x12) {
-      return _ref47.apply(this, arguments);
+      return _ref55.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
   var handleSingularityContribute = useCallback(/*#__PURE__*/function () {
-    var _ref48 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(amount) {
+    var _ref56 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(amount) {
       var _yield$apiGame19, ok, data, _data$contributed, actual;
       return _regenerator().w(function (_context29) {
         while (1) switch (_context29.n) {
@@ -7386,7 +7671,7 @@ function GameApp(_ref28) {
       }, _callee29);
     }));
     return function (_x13) {
-      return _ref48.apply(this, arguments);
+      return _ref56.apply(this, arguments);
     };
   }(), [showToast]);
 
@@ -7538,7 +7823,7 @@ function GameApp(_ref28) {
 
   // Season 8: handle loadout save
   var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
-    var _ref54 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(slot, loadout) {
+    var _ref62 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(slot, loadout) {
       var _yield$apiGame25, ok;
       return _regenerator().w(function (_context35) {
         while (1) switch (_context35.n) {
@@ -7561,13 +7846,13 @@ function GameApp(_ref28) {
       }, _callee35);
     }));
     return function (_x14, _x15) {
-      return _ref54.apply(this, arguments);
+      return _ref62.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle loadout apply
   var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
-    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(slot) {
+    var _ref63 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(slot) {
       var _yield$apiGame26, ok, data;
       return _regenerator().w(function (_context36) {
         while (1) switch (_context36.n) {
@@ -7596,9 +7881,40 @@ function GameApp(_ref28) {
       }, _callee36);
     }));
     return function (_x16) {
-      return _ref55.apply(this, arguments);
+      return _ref63.apply(this, arguments);
     };
   }(), [showToast]);
+
+  // T202: bank wager hot-streak wins (was inline in the wager panel JSX;
+  // extracted so WagerPanel can be a function component).
+  var handleBankWager = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
+    var _yield$apiGame27, ok, data, w, l;
+    return _regenerator().w(function (_context37) {
+      while (1) switch (_context37.n) {
+        case 0:
+          _context37.n = 1;
+          return apiGame('/api/wager/bank', {
+            method: 'POST',
+            body: '{}'
+          });
+        case 1:
+          _yield$apiGame27 = _context37.v;
+          ok = _yield$apiGame27.ok;
+          data = _yield$apiGame27.data;
+          if (ok) {
+            setWins(data.wins);
+            if (data.losses != null) setLosses(data.losses);
+            setWagerBankedWins(0);
+            setWagerStreak(0);
+            refreshBountiesAndGoal();
+            w = data.banked_wins || 0, l = data.banked_losses || 0;
+            if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
+          } else showToast(data.error || 'Bank failed');
+        case 2:
+          return _context37.a(2);
+      }
+    }, _callee37);
+  })), [showToast]);
 
   // Season 8: keyboard shortcuts (T37)
   useEffect(function () {
@@ -8045,99 +8361,28 @@ function GameApp(_ref28) {
     className: "subtitle"
   }, "All or nothing")), /*#__PURE__*/React.createElement("div", {
     className: "wheel-and-wager"
-  }, ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-wager-panel"
-  }, !autoSpinActive && /*#__PURE__*/React.createElement("div", {
-    className: "wager-stake-control"
-  }, /*#__PURE__*/React.createElement("label", null, "Stake"), /*#__PURE__*/React.createElement("span", {
-    className: "stake-label ".concat(stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless')
-  }, stakePct, "%"), /*#__PURE__*/React.createElement("div", {
-    className: "wager-stake-value"
-  }, doubleDownPending && wagerLastWinAmount > 0 ? /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-dd"
-  }, "\u26A1 ", fmt(stakeValue)) : stakePct === 0 ? /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-safe"
-  }, "\uD83D\uDEE1\uFE0F No stake") : activeWheelMode === 'inverted' ? /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-inverted"
-  }, "\uD83D\uDC80 ", fmt(stakeValue)) : /*#__PURE__*/React.createElement("span", {
-    className: "stake-value-normal"
-  }, "\uD83D\uDCB0 ", fmt(stakeValue))), /*#__PURE__*/React.createElement("input", {
-    type: "range",
-    min: "0",
-    max: maxStakePct,
-    step: "5",
-    value: stakePct,
-    onChange: function onChange(e) {
-      return handleStakeChange(parseInt(e.target.value));
-    },
-    className: "wager-slider",
-    disabled: !ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted',
-    title: !ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted' ? 'Buy wager_unlock (500 wins).' : undefined,
-    style: !ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted' ? {
-      opacity: 0.5,
-      cursor: 'not-allowed'
-    } : undefined
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "wager-tooltip-trigger",
-    "data-tooltip": WAGER_TOOLTIP
-  }, "?")), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
-    className: "wager-hotstreak"
-  }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn wager-bank-btn",
-    onClick: /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
-      var _yield$apiGame27, ok, data, w, l;
-      return _regenerator().w(function (_context37) {
-        while (1) switch (_context37.n) {
-          case 0:
-            _context37.n = 1;
-            return apiGame('/api/wager/bank', {
-              method: 'POST',
-              body: '{}'
-            });
-          case 1:
-            _yield$apiGame27 = _context37.v;
-            ok = _yield$apiGame27.ok;
-            data = _yield$apiGame27.data;
-            if (ok) {
-              setWins(data.wins);
-              if (data.losses != null) setLosses(data.losses);
-              setWagerBankedWins(0);
-              setWagerStreak(0);
-              refreshBountiesAndGoal();
-              w = data.banked_wins || 0, l = data.banked_losses || 0;
-              if (w > 0 && l > 0) showToast("Banked ".concat(fmt(w), " wins + ").concat(fmt(l), " losses!"));else if (l > 0) showToast("Banked ".concat(fmt(l), " losses!"));else showToast("Banked ".concat(fmt(w), " wins!"));
-            } else showToast(data.error || 'Bank failed');
-          case 2:
-            return _context37.a(2);
-        }
-      }, _callee37);
-    }))
-  }, "\uD83C\uDFE6 Bank ", fmt(wagerBankedWins)), ownedItems.includes('wager_double_down') && doubleDownPending && /*#__PURE__*/React.createElement("button", {
-    className: "wager-double-down-armed wager-cancel-btn",
-    onClick: handleCancelDoubleDown
-  }, "\u26A1 Double-Down armed! (click to cancel) \u26A0\uFE0F"), ownedItems.includes('wager_double_down') && !doubleDownPending && /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn",
-    onClick: handleDoubleDown,
-    title: "Arm Double-Down \u2014 all-or-nothing (no insurance, no safety net)"
-  }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && insuranceArmed && /*#__PURE__*/React.createElement("button", {
-    className: "wager-insurance-armed wager-cancel-btn",
-    onClick: handleCancelInsurance
-  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && /*#__PURE__*/React.createElement("button", {
-    className: "wager-action-btn",
-    onClick: handleInsurance,
-    title: "Arm insurance \u2014 consumes 1 token (not refunded if you cancel)"
-  }, "Insurance")), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "wager-tokens-balance"
-  }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens"), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && stakePct >= 30 && !doubleDownPending && /*#__PURE__*/React.createElement("label", {
-    className: "wager-pay-tokens-toggle",
-    "data-tooltip": "Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins."
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: payWithTokens,
-    onChange: function onChange(e) {
-      return setPayWithTokens(e.target.checked);
-    }
-  }), /*#__PURE__*/React.createElement("span", null, "Pay with insurance tokens"))), /*#__PURE__*/React.createElement("div", {
+  }, !isMobile && ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
+    ownedItems: ownedItems,
+    stakePct: stakePct,
+    stakeValue: stakeValue,
+    doubleDownPending: doubleDownPending,
+    wagerStreak: wagerStreak,
+    wagerBankedWins: wagerBankedWins,
+    wagerLastWinAmount: wagerLastWinAmount,
+    insuranceTokens: insuranceTokens,
+    insuranceArmed: insuranceArmed,
+    activeWheelMode: activeWheelMode,
+    maxStakePct: maxStakePct,
+    autoSpinActive: autoSpinActive,
+    payWithTokens: payWithTokens,
+    onStakeChange: handleStakeChange,
+    onBank: handleBankWager,
+    onDoubleDown: handleDoubleDown,
+    onCancelDoubleDown: handleCancelDoubleDown,
+    onInsurance: handleInsurance,
+    onCancelInsurance: handleCancelInsurance,
+    onTogglePayWithTokens: setPayWithTokens
+  }), /*#__PURE__*/React.createElement("div", {
     className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
     onClick: !spinning ? handleManualSpin : undefined,
     title: spinning ? undefined : 'Click to spin!'
@@ -8193,8 +8438,32 @@ function GameApp(_ref28) {
     losses: losses,
     lastResult: result
   }), isMobile && /*#__PURE__*/React.createElement("div", {
-    className: "mobile-below-wheel"
-  }, /*#__PURE__*/React.createElement(StreakPanel, {
+    className: "mobile-below-wheel",
+    style: {
+      width: '100%'
+    }
+  }, ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
+    ownedItems: ownedItems,
+    stakePct: stakePct,
+    stakeValue: stakeValue,
+    doubleDownPending: doubleDownPending,
+    wagerStreak: wagerStreak,
+    wagerBankedWins: wagerBankedWins,
+    wagerLastWinAmount: wagerLastWinAmount,
+    insuranceTokens: insuranceTokens,
+    insuranceArmed: insuranceArmed,
+    activeWheelMode: activeWheelMode,
+    maxStakePct: maxStakePct,
+    autoSpinActive: autoSpinActive,
+    payWithTokens: payWithTokens,
+    onStakeChange: handleStakeChange,
+    onBank: handleBankWager,
+    onDoubleDown: handleDoubleDown,
+    onCancelDoubleDown: handleCancelDoubleDown,
+    onInsurance: handleInsurance,
+    onCancelInsurance: handleCancelInsurance,
+    onTogglePayWithTokens: setPayWithTokens
+  }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
   }), /*#__PURE__*/React.createElement(DicePanel, {
@@ -8264,89 +8533,27 @@ function GameApp(_ref28) {
     diceLastRecharge: diceLastRecharge,
     hasDiceExtra: ownedItems.includes('dice_extra'),
     rolledSinceSpin: diceRolledSinceSpin
-  }), ownedItems.includes('prestige_unlock') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-prestige-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "prestige-badge",
-    title: "Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots."
-  }, "Prestige Lv.", prestigeLevel, " (+", prestigeLevel * 2, "% win mult)"), legacyWins > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "legacy-badge"
-  }, "Legacy: ", fmt(legacyWins), " wins")), !insuranceFreeClaimedToday && /*#__PURE__*/React.createElement("div", {
-    className: "free-tokens-section"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "free-tokens-claim-btn",
-    onClick: handleClaimFreeTokens
-  }, "\uD83E\uDE99 Claim 3 free tokens")), bounties && bounties.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "season8-bounties-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bounties-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties")), bounties.map(function (b) {
-    return /*#__PURE__*/React.createElement("div", {
-      key: b.bounty_id,
-      className: "bounty-card"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "bounty-desc"
-    }, b.description || b.bounty_id), /*#__PURE__*/React.createElement("div", {
-      className: "bounty-progress-bar"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "bounty-progress-fill",
-      style: {
-        width: "".concat(Math.min(100, b.progress / b.target * 100), "%")
-      }
-    })), /*#__PURE__*/React.createElement("div", {
-      className: "bounty-progress-text"
-    }, fmt(b.progress), " / ", fmt(b.target)), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
-      className: "bounty-claim-btn",
-      onClick: function onClick() {
-        return handleBountyClaim(b.bounty_id);
-      }
-    }, "Claim +", b.position, " token", b.position > 1 ? 's' : ''), b.claimed && /*#__PURE__*/React.createElement("span", {
-      className: "bounty-claimed"
-    }, "\u2713 +", b.position, " claimed"));
-  })), ownedItems.includes('aquarium') && /*#__PURE__*/React.createElement("div", {
-    className: "season8-aquarium-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "aquarium-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium", /*#__PURE__*/React.createElement("span", {
-    className: "aquarium-info-icon",
-    "data-tooltip": "Each unique fish species you catch adds +0.1% to your base win chance."
-  }, "?")), /*#__PURE__*/React.createElement("span", {
-    className: "aquarium-luck"
-  }, "+", (aquariumSpecies.length * 0.1).toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
-    className: "aquarium-grid"
-  }, aquariumSpecies.map(function (s) {
-    return /*#__PURE__*/React.createElement("div", {
-      key: s,
-      className: "aquarium-species",
-      title: s
-    }, s);
-  })), ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "wager-tokens"
-  }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens")), ownedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "season8-loadout-panel"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "loadout-label"
-  }, "\u2699\uFE0F Loadouts"), /*#__PURE__*/React.createElement("div", {
-    className: "loadout-slots"
-  }, [1, 2, 3].map(function (slot) {
-    return /*#__PURE__*/React.createElement("div", {
-      key: slot,
-      className: "loadout-slot"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "loadout-save-btn",
-      onClick: function onClick() {
-        return handleLoadoutSave(slot, {
-          equipped_class: equippedClass,
-          active_wheel_mode: activeWheelMode
-        });
-      }
-    }, "Save ", slot), /*#__PURE__*/React.createElement("button", {
-      className: "loadout-apply-btn",
-      onClick: function onClick() {
-        return handleLoadoutApply(slot);
-      }
-    }, "Equip ", slot));
-  })))), /*#__PURE__*/React.createElement(ShopPanel, {
+  }), /*#__PURE__*/React.createElement(PrestigePanel, {
+    ownedItems: ownedItems,
+    prestigeLevel: prestigeLevel,
+    legacyWins: legacyWins
+  }), /*#__PURE__*/React.createElement(FreeTokensPanel, {
+    insuranceFreeClaimedToday: insuranceFreeClaimedToday,
+    onClaim: handleClaimFreeTokens
+  }), /*#__PURE__*/React.createElement(BountiesPanel, {
+    bounties: bounties,
+    onClaim: handleBountyClaim
+  }), /*#__PURE__*/React.createElement(AquariumPanel, {
+    ownedItems: ownedItems,
+    aquariumSpecies: aquariumSpecies,
+    insuranceTokens: insuranceTokens
+  }), /*#__PURE__*/React.createElement(LoadoutPanel, {
+    ownedItems: ownedItems,
+    equippedClass: equippedClass,
+    activeWheelMode: activeWheelMode,
+    onSave: handleLoadoutSave,
+    onApply: handleLoadoutApply
+  })), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
     losses: losses,
@@ -8372,49 +8579,15 @@ function GameApp(_ref28) {
     className: "bottom-left-stack"
   }, !isMobile && (communityGoal || singularity) && /*#__PURE__*/React.createElement("div", {
     className: "season8-meta-panel mini-panel"
-  }, communityGoal && /*#__PURE__*/React.createElement("div", {
-    className: "meta-goal-row"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "goal-label"
-  }, "\uD83C\uDF0D ", communityGoal.description), /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, communityGoal.current / communityGoal.target * 100), "%")
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "goal-progress-text"
-  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution))), communityGoal && singularity && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
+    communityGoal: communityGoal
+  }), communityGoal && singularity && /*#__PURE__*/React.createElement("div", {
     className: "meta-divider"
-  }), singularity && /*#__PURE__*/React.createElement("div", {
-    className: "meta-goal-row"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-label-row"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "singularity-label"
-  }, "\uD83C\uDF00 Singularity"), !singularity.filled && /*#__PURE__*/React.createElement("span", {
-    className: "singularity-buttons"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: function onClick() {
-      return handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)));
-    },
-    disabled: fishClicks < 1
-  }, "+", fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))), /*#__PURE__*/React.createElement("button", {
-    onClick: function onClick() {
-      return handleSingularityContribute(fishClicks);
-    },
-    disabled: fishClicks < 1
-  }, "All"))), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-bar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-fill",
-    style: {
-      width: "".concat(Math.min(100, singularity.total_contributed / singularity.target * 100), "%")
-    }
+  }), /*#__PURE__*/React.createElement(SingularityPanel, {
+    singularity: singularity,
+    fishClicks: fishClicks,
+    onContribute: handleSingularityContribute
   })), /*#__PURE__*/React.createElement("div", {
-    className: "singularity-progress-text"
-  }, fmt(singularity.total_contributed), " / ", fmt(singularity.target), singularity.fill_count > 0 ? " \xB7 Convergences: ".concat(singularity.fill_count) : ''))), /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"
@@ -8425,12 +8598,105 @@ function GameApp(_ref28) {
     extraClass: isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : '',
     seasonWinners: season && season.latest_winners,
     seasonNumber: season && season.season_number - 1
-  })), isMobile && mobilePanel && mobilePanel !== 'chat' && /*#__PURE__*/React.createElement("div", {
+  })), isMobile && (mobilePanel || mobileDrawerOpen) && mobilePanel !== 'chat' && /*#__PURE__*/React.createElement("div", {
     className: "mobile-backdrop",
     onClick: function onClick() {
-      return setMobilePanel(null);
+      setMobilePanel(null);
+      setMobileDrawerOpen(false);
     }
-  }), /*#__PURE__*/React.createElement("div", {
+  }), isMobile && /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer".concat(mobileDrawerOpen ? ' mobile-drawer-open' : '')
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-tabs"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setMobileDrawerTab('prestige');
+    },
+    className: "mobile-drawer-tab".concat(mobileDrawerTab === 'prestige' ? ' active' : ''),
+    title: "Prestige"
+  }, "\uD83C\uDFC5"), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setMobileDrawerTab('bounties');
+    },
+    className: "mobile-drawer-tab".concat(mobileDrawerTab === 'bounties' ? ' active' : ''),
+    title: "Bounties & Free Tokens"
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setMobileDrawerTab('aquarium');
+    },
+    className: "mobile-drawer-tab".concat(mobileDrawerTab === 'aquarium' ? ' active' : ''),
+    title: "Aquarium"
+  }, "\uD83D\uDC20"), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setMobileDrawerTab('loadout');
+    },
+    className: "mobile-drawer-tab".concat(mobileDrawerTab === 'loadout' ? ' active' : ''),
+    title: "Loadout"
+  }, "\u2699\uFE0F"), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setMobileDrawerTab('community');
+    },
+    className: "mobile-drawer-tab".concat(mobileDrawerTab === 'community' ? ' active' : ''),
+    title: "Community Goal & Singularity"
+  }, "\uD83C\uDF0D")), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-section"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-pane",
+    "data-tab": "prestige",
+    style: {
+      display: mobileDrawerTab === 'prestige' ? 'block' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(PrestigePanel, {
+    ownedItems: ownedItems,
+    prestigeLevel: prestigeLevel,
+    legacyWins: legacyWins
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-pane",
+    "data-tab": "bounties",
+    style: {
+      display: mobileDrawerTab === 'bounties' ? 'block' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(FreeTokensPanel, {
+    insuranceFreeClaimedToday: insuranceFreeClaimedToday,
+    onClaim: handleClaimFreeTokens
+  }), /*#__PURE__*/React.createElement(BountiesPanel, {
+    bounties: bounties,
+    onClaim: handleBountyClaim
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-pane",
+    "data-tab": "aquarium",
+    style: {
+      display: mobileDrawerTab === 'aquarium' ? 'block' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(AquariumPanel, {
+    ownedItems: ownedItems,
+    aquariumSpecies: aquariumSpecies,
+    insuranceTokens: insuranceTokens
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-pane",
+    "data-tab": "loadout",
+    style: {
+      display: mobileDrawerTab === 'loadout' ? 'block' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(LoadoutPanel, {
+    ownedItems: ownedItems,
+    equippedClass: equippedClass,
+    activeWheelMode: activeWheelMode,
+    onSave: handleLoadoutSave,
+    onApply: handleLoadoutApply
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-drawer-pane",
+    "data-tab": "community",
+    style: {
+      display: mobileDrawerTab === 'community' ? 'block' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
+    communityGoal: communityGoal
+  }), /*#__PURE__*/React.createElement(SingularityPanel, {
+    singularity: singularity,
+    fishClicks: fishClicks,
+    onContribute: handleSingularityContribute
+  })))), /*#__PURE__*/React.createElement("div", {
     className: "mobile-toolbar"
   }, /*#__PURE__*/React.createElement("button", {
     className: "mobile-toolbar-btn".concat(mobilePanel === 'shop' ? ' active' : ''),
@@ -8457,6 +8723,14 @@ function GameApp(_ref28) {
     },
     title: "Chat"
   }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("button", {
+    className: "mobile-toolbar-btn".concat(mobileDrawerOpen ? ' active' : ''),
+    onClick: function onClick() {
+      return setMobileDrawerOpen(function (o) {
+        return !o;
+      });
+    },
+    title: "Drawer"
+  }, "\uD83C\uDF92"), /*#__PURE__*/React.createElement("button", {
     className: "mobile-toolbar-btn",
     onClick: function onClick() {
       return setShowStats(true);
@@ -8467,18 +8741,18 @@ function GameApp(_ref28) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState257 = useState(undefined),
-    _useState258 = _slicedToArray(_useState257, 2),
-    user = _useState258[0],
-    setUser = _useState258[1];
-  var _useState259 = useState(null),
-    _useState260 = _slicedToArray(_useState259, 2),
-    gameState = _useState260[0],
-    setGameState = _useState260[1];
-  var _useState261 = useState(''),
+  var _useState261 = useState(undefined),
     _useState262 = _slicedToArray(_useState261, 2),
-    sessionMsg = _useState262[0],
-    setSessionMsg = _useState262[1];
+    user = _useState262[0],
+    setUser = _useState262[1];
+  var _useState263 = useState(null),
+    _useState264 = _slicedToArray(_useState263, 2),
+    gameState = _useState264[0],
+    setGameState = _useState264[1];
+  var _useState265 = useState(''),
+    _useState266 = _slicedToArray(_useState265, 2),
+    sessionMsg = _useState266[0],
+    setSessionMsg = _useState266[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
       var _yield$apiFetch2, ok, data, gs;

@@ -3152,6 +3152,237 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
   );
 }
 
+// ── T202: Season 8 panel components ────────────────────────────────────────
+// These 8 components are extracted from the inline JSX in GameApp's
+// desktop sidebar / bottom-left-stack / wheel-and-wager blocks so the
+// same JSX renders in BOTH the desktop layout (zero visual change) AND
+// a new mobile drawer with tabs. Each component is a thin wrapper
+// around the same JSX that used to live inline in GameApp — no
+// behavior changes, just the same children in a function body.
+
+// WAGER_TOOLTIP moved to module scope (was inside GameApp) so the
+// WagerPanel component can reference it.
+const WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' +
+  'Upgrades extend to 45% max. ' +
+  '0% = no risk, base payout. ' +
+  'Each step risks that percentage of your current wins. ' +
+  'Win → your risk is returned plus the full payout. ' +
+  'Loss → your risk is gone (wins are actually deducted). ' +
+  'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' +
+  'Safety Net: at 15%+ stake, 25% of lost risk is refunded. ' +
+  'Double-Down: ⚠️ ALL OR NOTHING. Wager your entire last win for a 2× payout. NO INSURANCE, NO SAFETY NET, NO PROTECTIONS. ' +
+  'Insurance: guarantees no loss on next spin (consumes a charge). Does NOT apply to Double-Down.';
+// same JSX renders in BOTH the desktop layout (zero visual change) AND
+// a new mobile drawer with tabs. Each component is a thin wrapper
+// around the same JSX that used to live inline in GameApp — no
+// behavior changes, just the same children in a function body.
+
+function PrestigePanel({ ownedItems, prestigeLevel, legacyWins }) {
+  if (!ownedItems.includes('prestige_unlock')) return null;
+  return (
+    <div className="season8-prestige-panel">
+      <div className="prestige-badge" title="Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots.">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
+      {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
+    </div>
+  );
+}
+
+function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
+  if (insuranceFreeClaimedToday) return null;
+  return (
+    <div className="free-tokens-section">
+      <button className="free-tokens-claim-btn" onClick={onClaim}>
+        🪙 Claim 3 free tokens
+      </button>
+    </div>
+  );
+}
+
+function BountiesPanel({ bounties, onClaim }) {
+  if (!bounties || bounties.length === 0) return null;
+  return (
+    <div className="season8-bounties-panel">
+      <div className="bounties-header">
+        <span>📋 Bounties</span>
+      </div>
+      {bounties.map(b => (
+        <div key={b.bounty_id} className="bounty-card">
+          <div className="bounty-desc">{b.description || b.bounty_id}</div>
+          <div className="bounty-progress-bar">
+            <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
+          </div>
+          <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
+          {b.completed && !b.claimed && (
+            <button className="bounty-claim-btn" onClick={() => onClaim(b.bounty_id)}>
+              Claim +{b.position} token{b.position > 1 ? 's' : ''}
+            </button>
+          )}
+          {b.claimed && <span className="bounty-claimed">✓ +{b.position} claimed</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AquariumPanel({ ownedItems, aquariumSpecies, insuranceTokens }) {
+  if (!ownedItems.includes('aquarium')) return null;
+  return (
+    <div className="season8-aquarium-panel">
+      <div className="aquarium-header">
+        <span>
+          🐠 Aquarium
+          <span className="aquarium-info-icon" data-tooltip="Each unique fish species you catch adds +0.1% to your base win chance.">?</span>
+        </span>
+        <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}%</span>
+      </div>
+      <div className="aquarium-grid">
+        {aquariumSpecies.map(s => (
+          <div key={s} className="aquarium-species" title={s}>{s}</div>
+        ))}
+      </div>
+      {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
+        <div className="wager-tokens">🪙 {fmt(insuranceTokens)} tokens</div>
+      )}
+    </div>
+  );
+}
+
+function LoadoutPanel({ ownedItems, equippedClass, activeWheelMode, onSave, onApply }) {
+  if (ownedItems.length === 0) return null;
+  return (
+    <div className="season8-loadout-panel">
+      <div className="loadout-label">⚙️ Loadouts</div>
+      <div className="loadout-slots">
+        {[1, 2, 3].map(slot => (
+          <div key={slot} className="loadout-slot">
+            <button className="loadout-save-btn" onClick={() => onSave(slot, { equipped_class: equippedClass, active_wheel_mode: activeWheelMode })}>Save {slot}</button>
+            <button className="loadout-apply-btn" onClick={() => onApply(slot)}>Equip {slot}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CommunityGoalPanel({ communityGoal }) {
+  if (!communityGoal) return null;
+  return (
+    <div className="meta-goal-row">
+      <div className="goal-label">🌍 {communityGoal.description}</div>
+      <div className="goal-progress-bar">
+        <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
+      </div>
+      <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
+    </div>
+  );
+}
+
+function SingularityPanel({ singularity, fishClicks, onContribute }) {
+  if (!singularity) return null;
+  return (
+    <div className="meta-goal-row">
+      <div className="singularity-label-row">
+        <span className="singularity-label">🌀 Singularity</span>
+        {!singularity.filled && (
+          <span className="singularity-buttons">
+            <button
+              onClick={() => onContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
+              disabled={fishClicks < 1}
+            >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
+            <button
+              onClick={() => onContribute(fishClicks)}
+              disabled={fishClicks < 1}
+            >All</button>
+          </span>
+        )}
+      </div>
+      <div className="singularity-progress-bar">
+        <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
+      </div>
+      <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}{singularity.fill_count > 0 ? ` · Convergences: ${singularity.fill_count}` : ''}</div>
+    </div>
+  );
+}
+
+function WagerPanel({
+  ownedItems, stakePct, stakeValue, doubleDownPending, wagerStreak,
+  wagerBankedWins, wagerLastWinAmount, insuranceTokens, insuranceArmed,
+  activeWheelMode, maxStakePct, autoSpinActive, payWithTokens,
+  onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
+  onInsurance, onCancelInsurance, onTogglePayWithTokens,
+}) {
+  if (!ownedItems.includes('wager_unlock')) return null;
+  return (
+    <div className="season8-wager-panel">
+      {!autoSpinActive && <div className="wager-stake-control">
+        <label>Stake</label>
+        <span className={`stake-label ${
+          stakePct === 0 ? 'stake-safe' :
+          stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
+        }`}>{stakePct}%</span>
+        <div className="wager-stake-value">
+          {doubleDownPending && wagerLastWinAmount > 0 ? (
+            <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
+          ) : stakePct === 0 ? (
+            <span className="stake-value-safe">🛡️ No stake</span>
+          ) : activeWheelMode === 'inverted' ? (
+            <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
+          ) : (
+            <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
+          )}
+        </div>
+        <input
+          type="range"
+          min="0"
+          max={maxStakePct}
+          step="5"
+          value={stakePct}
+          onChange={e => onStakeChange(parseInt(e.target.value))}
+          className="wager-slider"
+          disabled={!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted'}
+          title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
+          style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+        />
+        <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
+      </div>}
+      {!autoSpinActive && (<>
+      {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
+        <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
+      )}
+      {wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && (
+        <button className="wager-action-btn wager-bank-btn" onClick={onBank}>🏦 Bank {fmt(wagerBankedWins)}</button>
+      )}
+      {ownedItems.includes('wager_double_down') && doubleDownPending && (
+        <button className="wager-double-down-armed wager-cancel-btn" onClick={onCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
+      )}
+      {ownedItems.includes('wager_double_down') && !doubleDownPending && (
+        <button className="wager-action-btn" onClick={onDoubleDown} title="Arm Double-Down — all-or-nothing (no insurance, no safety net)">⚡ Double Down</button>
+      )}
+      {ownedItems.includes('wager_insurance') && insuranceArmed && (
+        <button className="wager-insurance-armed wager-cancel-btn" onClick={onCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
+      )}
+      {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
+        <button className="wager-action-btn" onClick={onInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">Insurance</button>
+      )}
+      </>)}
+      {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
+        <div className="wager-tokens-balance">🪙 {fmt(insuranceTokens)} tokens</div>
+      )}
+      {ownedItems.includes('fish_to_wager') && insuranceTokens > 0
+        && stakePct >= 30 && !doubleDownPending && (
+        <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
+          <input
+            type="checkbox"
+            checked={payWithTokens}
+            onChange={e => onTogglePayWithTokens(e.target.checked)}
+          />
+          <span>Pay with insurance tokens</span>
+        </label>
+      )}
+    </div>
+  );
+}
+
 // ── Game App ───────────────────────────────────────────────────────────────
 function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const canvasRef = useRef(null);
@@ -3208,6 +3439,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [diceRolledSinceSpin, setDiceRolledSinceSpin] = useState(gameState.dice_rolled_since_spin ?? false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [mobilePanel, setMobilePanel] = useState(null);
+  // T202: mobile drawer state — surfaces the S8 panels (Prestige,
+  // Free Tokens, Bounties, Aquarium, Loadout, Community + Singularity)
+  // in a tabbed side drawer on mobile.
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [mobileDrawerTab, setMobileDrawerTab] = useState('prestige');
   const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
   const fireMode = 2; // Mix mode
   const [wheelRotation, setWheelRotation] = useState(0);
@@ -4144,17 +4380,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
   };
 
-  const WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' +
-    'Upgrades extend to 45% max. ' +
-    '0% = no risk, base payout. ' +
-    'Each step risks that percentage of your current wins. ' +
-    'Win → your risk is returned plus the full payout. ' +
-    'Loss → your risk is gone (wins are actually deducted). ' +
-    'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' +
-    'Safety Net: at 15%+ stake, 25% of lost risk is refunded. ' +
-    'Double-Down: ⚠️ ALL OR NOTHING. Wager your entire last win for a 2× payout. NO INSURANCE, NO SAFETY NET, NO PROTECTIONS. ' +
-    'Insurance: guarantees no loss on next spin (consumes a charge). Does NOT apply to Double-Down.';
-
   // Season 8: handle wheel mode change
   const handleWheelModeChange = useCallback(async (mode) => {
     const prev = activeWheelMode;
@@ -4357,6 +4582,23 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     } else {
       showToast(data.error || 'Apply failed');
     }
+  }, [showToast]);
+
+  // T202: bank wager hot-streak wins (was inline in the wager panel JSX;
+  // extracted so WagerPanel can be a function component).
+  const handleBankWager = useCallback(async () => {
+    const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
+    if (ok) {
+      setWins(data.wins);
+      if (data.losses != null) setLosses(data.losses);
+      setWagerBankedWins(0);
+      setWagerStreak(0);
+      refreshBountiesAndGoal();
+      const w = data.banked_wins || 0, l = data.banked_losses || 0;
+      if (w > 0 && l > 0) showToast(`Banked ${fmt(w)} wins + ${fmt(l)} losses!`);
+      else if (l > 0)      showToast(`Banked ${fmt(l)} losses!`);
+      else                 showToast(`Banked ${fmt(w)} wins!`);
+    } else showToast(data.error || 'Bank failed');
   }, [showToast]);
 
   // Season 8: keyboard shortcuts (T37)
@@ -4716,87 +4958,31 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               with disabled controls, which looked like a bug after
               prestiging (functional upgrades get reset). */}
           <div className="wheel-and-wager">
-            {ownedItems.includes('wager_unlock') && (
-            <div className="season8-wager-panel">
-              {!autoSpinActive && <div className="wager-stake-control">
-                <label>Stake</label>
-                <span className={`stake-label ${
-                  stakePct === 0 ? 'stake-safe' :
-                  stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
-                }`}>{stakePct}%</span>
-                <div className="wager-stake-value">
-                  {doubleDownPending && wagerLastWinAmount > 0 ? (
-                    <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
-                  ) : stakePct === 0 ? (
-                    <span className="stake-value-safe">🛡️ No stake</span>
-                  ) : activeWheelMode === 'inverted' ? (
-                    <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
-                  ) : (
-                    <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
-                  )}
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max={maxStakePct}
-                  step="5"
-                  value={stakePct}
-                  onChange={e => handleStakeChange(parseInt(e.target.value))}
-                  className="wager-slider"
-                  disabled={!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted'}
-                  title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
-                  style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-                />
-                <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
-              </div>}
-              {!autoSpinActive && (<>
-              {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
-                <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
-              )}
-              {wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && (
-                <button className="wager-action-btn wager-bank-btn" onClick={async () => {
-                  const { ok, data } = await apiGame('/api/wager/bank', { method: 'POST', body: '{}' });
-                  if (ok) {
-                    setWins(data.wins);
-                    if (data.losses != null) setLosses(data.losses);
-                    setWagerBankedWins(0);
-                    setWagerStreak(0);
-                    refreshBountiesAndGoal();
-                    const w = data.banked_wins || 0, l = data.banked_losses || 0;
-                    if (w > 0 && l > 0) showToast(`Banked ${fmt(w)} wins + ${fmt(l)} losses!`);
-                    else if (l > 0)      showToast(`Banked ${fmt(l)} losses!`);
-                    else                 showToast(`Banked ${fmt(w)} wins!`);
-                  } else showToast(data.error || 'Bank failed');
-                }}>🏦 Bank {fmt(wagerBankedWins)}</button>
-              )}
-              {ownedItems.includes('wager_double_down') && doubleDownPending && (
-                <button className="wager-double-down-armed wager-cancel-btn" onClick={handleCancelDoubleDown}>⚡ Double-Down armed! (click to cancel) ⚠️</button>
-              )}
-              {ownedItems.includes('wager_double_down') && !doubleDownPending && (
-                <button className="wager-action-btn" onClick={handleDoubleDown} title="Arm Double-Down — all-or-nothing (no insurance, no safety net)">⚡ Double Down</button>
-              )}
-              {ownedItems.includes('wager_insurance') && insuranceArmed && (
-                <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
-              )}
-              {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
-                <button className="wager-action-btn" onClick={handleInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">Insurance</button>
-              )}
-              </>)}
-              {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
-                <div className="wager-tokens-balance">🪙 {fmt(insuranceTokens)} tokens</div>
-              )}
-              {ownedItems.includes('fish_to_wager') && insuranceTokens > 0
-                && stakePct >= 30 && !doubleDownPending && (
-                <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
-                  <input
-                    type="checkbox"
-                    checked={payWithTokens}
-                    onChange={e => setPayWithTokens(e.target.checked)}
-                  />
-                  <span>Pay with insurance tokens</span>
-                </label>
-              )}
-            </div>
+            {/* T202: wager panel is left-of-wheel on desktop; on mobile
+                it moves into .mobile-below-wheel (below the wheel). */}
+            {!isMobile && ownedItems.includes('wager_unlock') && (
+              <WagerPanel
+                ownedItems={ownedItems}
+                stakePct={stakePct}
+                stakeValue={stakeValue}
+                doubleDownPending={doubleDownPending}
+                wagerStreak={wagerStreak}
+                wagerBankedWins={wagerBankedWins}
+                wagerLastWinAmount={wagerLastWinAmount}
+                insuranceTokens={insuranceTokens}
+                insuranceArmed={insuranceArmed}
+                activeWheelMode={activeWheelMode}
+                maxStakePct={maxStakePct}
+                autoSpinActive={autoSpinActive}
+                payWithTokens={payWithTokens}
+                onStakeChange={handleStakeChange}
+                onBank={handleBankWager}
+                onDoubleDown={handleDoubleDown}
+                onCancelDoubleDown={handleCancelDoubleDown}
+                onInsurance={handleInsurance}
+                onCancelInsurance={handleCancelInsurance}
+                onTogglePayWithTokens={setPayWithTokens}
+              />
             )}
             <div
               className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
@@ -4860,7 +5046,34 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
 
           {isMobile && (
-            <div className="mobile-below-wheel">
+            <div className="mobile-below-wheel" style={{ width: '100%' }}>
+              {/* T202: wager panel relocated below the wheel on mobile so
+                  the stake slider, DD/insurance buttons, and token balance
+                  are thumb-reachable. Streak + Dice stack below. */}
+              {ownedItems.includes('wager_unlock') && (
+                <WagerPanel
+                  ownedItems={ownedItems}
+                  stakePct={stakePct}
+                  stakeValue={stakeValue}
+                  doubleDownPending={doubleDownPending}
+                  wagerStreak={wagerStreak}
+                  wagerBankedWins={wagerBankedWins}
+                  wagerLastWinAmount={wagerLastWinAmount}
+                  insuranceTokens={insuranceTokens}
+                  insuranceArmed={insuranceArmed}
+                  activeWheelMode={activeWheelMode}
+                  maxStakePct={maxStakePct}
+                  autoSpinActive={autoSpinActive}
+                  payWithTokens={payWithTokens}
+                  onStakeChange={handleStakeChange}
+                  onBank={handleBankWager}
+                  onDoubleDown={handleDoubleDown}
+                  onCancelDoubleDown={handleCancelDoubleDown}
+                  onInsurance={handleInsurance}
+                  onCancelInsurance={handleCancelInsurance}
+                  onTogglePayWithTokens={setPayWithTokens}
+                />
+              )}
               <StreakPanel streak={streak} bonusmultLevel={0} />
               <DicePanel
                 streak={streak}
@@ -4937,89 +5150,34 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 rolledSinceSpin={diceRolledSinceSpin}
               />
 
-              {/* Season 8: Prestige panel (T121: no button — prestige is
-                  triggered by buying prestige_unlock in the shop and
-                  confirming the modal. The badges stay as passive info.) */}
-              {ownedItems.includes('prestige_unlock') && (
-                <div className="season8-prestige-panel">
-                  <div className="prestige-badge" title="Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots.">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
-                  {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
-                </div>
-              )}
-
-              {/* T119: Free Tokens panel — sits ABOVE the bounties panel per
-                  the operator's UX. Single row: a "Claim 3 free tokens"
-                  button when the player hasn't claimed today, or a
-                  "Claimed today" indicator after the claim succeeds. The
-                  section is always present (the operator wants the player
-                  to see the daily ceiling, not have the panel disappear). */}
-              {!insuranceFreeClaimedToday && (
-                <div className="free-tokens-section">
-                  <button className="free-tokens-claim-btn" onClick={handleClaimFreeTokens}>
-                    🪙 Claim 3 free tokens
-                  </button>
-                </div>
-              )}
-
-              {/* Season 8: Bounties panel */}
-              {bounties && bounties.length > 0 && (
-                <div className="season8-bounties-panel">
-                  <div className="bounties-header">
-                    <span>📋 Bounties</span>
-                  </div>
-                  {bounties.map(b => (
-                    <div key={b.bounty_id} className="bounty-card">
-                      <div className="bounty-desc">{b.description || b.bounty_id}</div>
-                      <div className="bounty-progress-bar">
-                        <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
-                      </div>
-                      <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
-                      {b.completed && !b.claimed && (
-                        <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>
-                          Claim +{b.position} token{b.position > 1 ? 's' : ''}
-                        </button>
-                      )}
-                      {b.claimed && <span className="bounty-claimed">✓ +{b.position} claimed</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Season 8: Aquarium */}
-              {ownedItems.includes('aquarium') && (
-                <div className="season8-aquarium-panel">
-                  <div className="aquarium-header">
-                    <span>
-                      🐠 Aquarium
-                      <span className="aquarium-info-icon" data-tooltip="Each unique fish species you catch adds +0.1% to your base win chance.">?</span>
-                    </span>
-                    <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}%</span>
-                  </div>
-                  <div className="aquarium-grid">
-                    {aquariumSpecies.map(s => (
-                      <div key={s} className="aquarium-species" title={s}>{s}</div>
-                    ))}
-                  </div>
-                  {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
-                    <div className="wager-tokens">🪙 {fmt(insuranceTokens)} tokens</div>
-                  )}
-                </div>
-              )}
-
-              {/* Season 8: Loadout (shown once something is owned) */}
-              {ownedItems.length > 0 && (
-                <div className="season8-loadout-panel">
-                  <div className="loadout-label">⚙️ Loadouts</div>
-                  <div className="loadout-slots">
-                    {[1, 2, 3].map(slot => (
-                      <div key={slot} className="loadout-slot">
-                        <button className="loadout-save-btn" onClick={() => handleLoadoutSave(slot, { equipped_class: equippedClass, active_wheel_mode: activeWheelMode })}>Save {slot}</button>
-                        <button className="loadout-apply-btn" onClick={() => handleLoadoutApply(slot)}>Equip {slot}</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* T202: S8 panel components (extracted from inline JSX for
+                  reuse in the mobile drawer; desktop rendering is
+                  pixel-identical to pre-T202). */}
+              <PrestigePanel
+                ownedItems={ownedItems}
+                prestigeLevel={prestigeLevel}
+                legacyWins={legacyWins}
+              />
+              <FreeTokensPanel
+                insuranceFreeClaimedToday={insuranceFreeClaimedToday}
+                onClaim={handleClaimFreeTokens}
+              />
+              <BountiesPanel
+                bounties={bounties}
+                onClaim={handleBountyClaim}
+              />
+              <AquariumPanel
+                ownedItems={ownedItems}
+                aquariumSpecies={aquariumSpecies}
+                insuranceTokens={insuranceTokens}
+              />
+              <LoadoutPanel
+                ownedItems={ownedItems}
+                equippedClass={equippedClass}
+                activeWheelMode={activeWheelMode}
+                onSave={handleLoadoutSave}
+                onApply={handleLoadoutApply}
+              />
             </div>
           )}
 
@@ -5050,42 +5208,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <div className="bottom-left-stack">
-        {/* Season 8: Community goal + Singularity — merged into one slim panel (was two tall panels in the right sidebar, causing overflow scroll, then collided with the fishing panel on short viewports when first relocated here) */}
+        {/* T202: Community goal + Singularity — extracted into components
+            so the same JSX renders in the desktop bottom-left-stack (this
+            block, unchanged visually) AND in the mobile drawer's
+            Community tab. */}
         {!isMobile && (communityGoal || singularity) && (
           <div className="season8-meta-panel mini-panel">
-            {communityGoal && (
-              <div className="meta-goal-row">
-                <div className="goal-label">🌍 {communityGoal.description}</div>
-                <div className="goal-progress-bar">
-                  <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
-                </div>
-                <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
-              </div>
-            )}
+            <CommunityGoalPanel communityGoal={communityGoal} />
             {communityGoal && singularity && <div className="meta-divider" />}
-            {singularity && (
-              <div className="meta-goal-row">
-                <div className="singularity-label-row">
-                  <span className="singularity-label">🌀 Singularity</span>
-                  {!singularity.filled && (
-                    <span className="singularity-buttons">
-                      <button
-                        onClick={() => handleSingularityContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
-                        disabled={fishClicks < 1}
-                      >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
-                      <button
-                        onClick={() => handleSingularityContribute(fishClicks)}
-                        disabled={fishClicks < 1}
-                      >All</button>
-                    </span>
-                  )}
-                </div>
-                <div className="singularity-progress-bar">
-                  <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
-                </div>
-                <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}{singularity.fill_count > 0 ? ` · Convergences: ${singularity.fill_count}` : ''}</div>
-              </div>
-            )}
+            <SingularityPanel
+              singularity={singularity}
+              fishClicks={fishClicks}
+              onContribute={handleSingularityContribute}
+            />
           </div>
         )}
         <div className="fish-counter">
@@ -5100,8 +5235,100 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         />
       </div>
 
-      {isMobile && mobilePanel && mobilePanel !== 'chat' && (
-        <div className="mobile-backdrop" onClick={() => setMobilePanel(null)} />
+      {isMobile && (mobilePanel || mobileDrawerOpen) && mobilePanel !== 'chat' && (
+        <div className="mobile-backdrop" onClick={() => { setMobilePanel(null); setMobileDrawerOpen(false); }} />
+      )}
+
+      {/* T202: mobile drawer — surfaces the S8 panels (Prestige, Free
+          Tokens, Bounties, Aquarium, Loadout, Community + Singularity)
+          in a tabbed side drawer on mobile. Desktop rendering is
+          unchanged (the same components still render in the desktop
+          sidebar / bottom-left-stack).
+
+          The drawer is always rendered on mobile (transform: translateX(100%)
+          when closed → off-screen). All 7 panel components are always in the
+          DOM so the S8 panels are discoverable by the T201 regression tests
+          (which assert the panel is in DOM but off-screen). The tabs are
+          visual indicators of which section is "active" but do not gate
+          content rendering. */}
+      {isMobile && (
+        <div className={`mobile-drawer${mobileDrawerOpen ? ' mobile-drawer-open' : ''}`}>
+          <div className="mobile-drawer-tabs">
+            <button
+              onClick={() => setMobileDrawerTab('prestige')}
+              className={`mobile-drawer-tab${mobileDrawerTab === 'prestige' ? ' active' : ''}`}
+              title="Prestige"
+            >🏅</button>
+            <button
+              onClick={() => setMobileDrawerTab('bounties')}
+              className={`mobile-drawer-tab${mobileDrawerTab === 'bounties' ? ' active' : ''}`}
+              title="Bounties &amp; Free Tokens"
+            >📋</button>
+            <button
+              onClick={() => setMobileDrawerTab('aquarium')}
+              className={`mobile-drawer-tab${mobileDrawerTab === 'aquarium' ? ' active' : ''}`}
+              title="Aquarium"
+            >🐠</button>
+            <button
+              onClick={() => setMobileDrawerTab('loadout')}
+              className={`mobile-drawer-tab${mobileDrawerTab === 'loadout' ? ' active' : ''}`}
+              title="Loadout"
+            >⚙️</button>
+            <button
+              onClick={() => setMobileDrawerTab('community')}
+              className={`mobile-drawer-tab${mobileDrawerTab === 'community' ? ' active' : ''}`}
+              title="Community Goal &amp; Singularity"
+            >🌍</button>
+          </div>
+          <div className="mobile-drawer-section">
+            <div className="mobile-drawer-pane" data-tab="prestige"
+                 style={{ display: mobileDrawerTab === 'prestige' ? 'block' : 'none' }}>
+              <PrestigePanel
+                ownedItems={ownedItems}
+                prestigeLevel={prestigeLevel}
+                legacyWins={legacyWins}
+              />
+            </div>
+            <div className="mobile-drawer-pane" data-tab="bounties"
+                 style={{ display: mobileDrawerTab === 'bounties' ? 'block' : 'none' }}>
+              <FreeTokensPanel
+                insuranceFreeClaimedToday={insuranceFreeClaimedToday}
+                onClaim={handleClaimFreeTokens}
+              />
+              <BountiesPanel
+                bounties={bounties}
+                onClaim={handleBountyClaim}
+              />
+            </div>
+            <div className="mobile-drawer-pane" data-tab="aquarium"
+                 style={{ display: mobileDrawerTab === 'aquarium' ? 'block' : 'none' }}>
+              <AquariumPanel
+                ownedItems={ownedItems}
+                aquariumSpecies={aquariumSpecies}
+                insuranceTokens={insuranceTokens}
+              />
+            </div>
+            <div className="mobile-drawer-pane" data-tab="loadout"
+                 style={{ display: mobileDrawerTab === 'loadout' ? 'block' : 'none' }}>
+              <LoadoutPanel
+                ownedItems={ownedItems}
+                equippedClass={equippedClass}
+                activeWheelMode={activeWheelMode}
+                onSave={handleLoadoutSave}
+                onApply={handleLoadoutApply}
+              />
+            </div>
+            <div className="mobile-drawer-pane" data-tab="community"
+                 style={{ display: mobileDrawerTab === 'community' ? 'block' : 'none' }}>
+              <CommunityGoalPanel communityGoal={communityGoal} />
+              <SingularityPanel
+                singularity={singularity}
+                fishClicks={fishClicks}
+                onContribute={handleSingularityContribute}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="mobile-toolbar">
@@ -5125,6 +5352,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onClick={() => toggleMobilePanel('chat')}
           title="Chat"
         >💬</button>
+        {/* T202: 6th toolbar button toggles the S8 panel drawer. Order:
+            🏪 Shop · 🏆 Leaderboard · 🎣 Fishing · 💬 Chat · 🎒 Drawer · 📊 Stats. */}
+        <button
+          className={`mobile-toolbar-btn${mobileDrawerOpen ? ' active' : ''}`}
+          onClick={() => setMobileDrawerOpen(o => !o)}
+          title="Drawer"
+        >🎒</button>
         <button
           className="mobile-toolbar-btn"
           onClick={() => setShowStats(true)}
