@@ -128,7 +128,7 @@ def advance_season(conn):
 
     # Reset all game_state rows; auto-grant the new season's page theme.
     # Registered users start spinning from season start; others must join manually.
-    new_theme = f'page_season{next_number}'
+    new_theme = 'page_season8'  # Casino era — sub-seasons 8.1/8.2 share the S8 theme
     with conn.cursor() as cur:
         cur.execute(
             """UPDATE game_state SET
