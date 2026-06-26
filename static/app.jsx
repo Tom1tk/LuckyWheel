@@ -1772,22 +1772,32 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
           <span className="dice-recharge-timer">+1 in {fmtCountdownSecs(secsToNext)}</span>
         )}
       </div>
-      {hasDiceExtra ? (
-        <div className="dice-triangle">
-          <div className="dice-row dice-row-top">
-            <Die value={die3Val} rolling={rolling && !lowSpec} landed={landed} />
+      <div className="dice-action-row">
+        {hasDiceExtra ? (
+          <div className="dice-triangle">
+            <div className="dice-row dice-row-top">
+              <Die value={die3Val} rolling={rolling && !lowSpec} landed={landed} />
+            </div>
+            <div className="dice-row">
+              <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
+              <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
+            </div>
           </div>
+        ) : (
           <div className="dice-row">
             <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
             <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
           </div>
-        </div>
-      ) : (
-        <div className="dice-row">
-          <Die value={die1Val} rolling={rolling && !lowSpec} landed={landed} />
-          <Die value={die2Val} rolling={rolling && !lowSpec} landed={landed} />
-        </div>
-      )}
+        )}
+        <button
+          className={`dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`}
+          onClick={canRoll ? onRoll : undefined}
+          disabled={!canRoll}
+          title={canRoll ? 'Roll the dice!' : disabledReason}
+        >
+          {rolling ? 'Rolling…' : `Roll (${diceCharges}/${maxDiceCharges} charges)`}
+        </button>
+      </div>
       {showResult && diceResult && (
         <span className={`dice-result-text${diceResult.cursed ? ' dice-cursed' : ''}`}>
           {diceResult.cursed_triple
@@ -1800,14 +1810,6 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
           {diceResult.pending && rolledSinceSpin && <span className="dice-pending-note"> ⏳ next spin</span>}
         </span>
       )}
-      <button
-        className={`dice-roll-btn${canRoll ? '' : ' dice-roll-btn--disabled'}`}
-        onClick={canRoll ? onRoll : undefined}
-        disabled={!canRoll}
-        title={canRoll ? 'Roll the dice!' : disabledReason}
-      >
-        {rolling ? 'Rolling…' : `Roll (${diceCharges}/${maxDiceCharges} charges)`}
-      </button>
     </div>
   );
 }

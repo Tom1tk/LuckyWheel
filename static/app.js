@@ -2847,7 +2847,9 @@ function DicePanel(_ref15) {
     className: "dice-charges-row"
   }, chargesDots, secsToNext != null && diceCharges < maxDiceCharges && /*#__PURE__*/React.createElement("span", {
     className: "dice-recharge-timer"
-  }, "+1 in ", fmtCountdownSecs(secsToNext))), hasDiceExtra ? /*#__PURE__*/React.createElement("div", {
+  }, "+1 in ", fmtCountdownSecs(secsToNext))), /*#__PURE__*/React.createElement("div", {
+    className: "dice-action-row"
+  }, hasDiceExtra ? /*#__PURE__*/React.createElement("div", {
     className: "dice-triangle"
   }, /*#__PURE__*/React.createElement("div", {
     className: "dice-row dice-row-top"
@@ -2875,16 +2877,16 @@ function DicePanel(_ref15) {
     value: die2Val,
     rolling: rolling && !lowSpec,
     landed: landed
-  })), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
-    className: "dice-result-text".concat(diceResult.cursed ? ' dice-cursed' : '')
-  }, diceResult.cursed_triple ? "\uD83D\uDC80 TRIPLE CURSE! Streak \xF73" : diceResult.blessed_triple ? "\uD83C\uDF1F TRIPLE BLESSED! Streak \xD73!" : diceResult.cursed ? "\uD83D\uDC80 CURSED! Streak -".concat(diceResult.streak_before - diceResult.streak_after) : "+".concat(diceResult.streak_delta, " streak!"), diceResult.pending && rolledSinceSpin && /*#__PURE__*/React.createElement("span", {
-    className: "dice-pending-note"
-  }, " \u23F3 next spin")), /*#__PURE__*/React.createElement("button", {
+  })), /*#__PURE__*/React.createElement("button", {
     className: "dice-roll-btn".concat(canRoll ? '' : ' dice-roll-btn--disabled'),
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
     title: canRoll ? 'Roll the dice!' : disabledReason
-  }, rolling ? 'Rolling…' : "Roll (".concat(diceCharges, "/").concat(maxDiceCharges, " charges)")));
+  }, rolling ? 'Rolling…' : "Roll (".concat(diceCharges, "/").concat(maxDiceCharges, " charges)"))), showResult && diceResult && /*#__PURE__*/React.createElement("span", {
+    className: "dice-result-text".concat(diceResult.cursed ? ' dice-cursed' : '')
+  }, diceResult.cursed_triple ? "\uD83D\uDC80 TRIPLE CURSE! Streak \xF73" : diceResult.blessed_triple ? "\uD83C\uDF1F TRIPLE BLESSED! Streak \xD73!" : diceResult.cursed ? "\uD83D\uDC80 CURSED! Streak -".concat(diceResult.streak_before - diceResult.streak_after) : "+".concat(diceResult.streak_delta, " streak!"), diceResult.pending && rolledSinceSpin && /*#__PURE__*/React.createElement("span", {
+    className: "dice-pending-note"
+  }, " \u23F3 next spin")));
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────
