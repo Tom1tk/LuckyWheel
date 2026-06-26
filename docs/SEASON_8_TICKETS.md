@@ -6790,13 +6790,22 @@ in a follow-up commit. Document the choice in your report.
 
 ### T207: Dice roll button is blocked by the mobile toolbar
 
-- **Status:** [x] (2026-06-26) — merged as `af6e4d7` after audit; live
-  measurements (testing7, 390x844): dice btn bottom=787.2 ≤ toolbar top=788;
-  elementFromPoint returns the dice button (was a toolbar button).
-  Strengthened `test_dice_button_visible_in_initial_viewport` to assert
-  `bottom <= toolbar_top` and `elementFromPoint` is not a toolbar button.
+- **Status:** [x] (2026-06-26) — merged as `af6e4d7` (technical fix) +
+  `880ee3e` (visibility fix). Live measurements (testing7, 390x844):
+  dice + roll button now in a horizontal `.dice-action-row` flex layout
+  at y=734-766, with a 22px margin above the toolbar at y=788 (was
+  1px in `af6e4d7`).
 - **Discovered:** 2026-06-26 (operator: "Still not able to use the
   dice to roll")
+- **Operator follow-up (post-`af6e4d7`):** "I still cannot see the dice
+  on the main page or the roll button." The original fix unblocked
+  the click (1px above the toolbar) but visually the dice images were
+  tiny (20px) and the roll button was crammed against the toolbar edge.
+  The visibility fix in `880ee3e` restructured the panel to put the
+  dice and the roll button side-by-side in a flex row, with the dice
+  restored to 28px and the button at 32px tall, giving a 22px margin
+  above the toolbar. Strengthened the test to assert
+  `margin >= 12px` (not just 1px).
 - **Files:** `static/styles.css`
 - **Depends on:** none
 - **Go/No-Go:** Do NOT change the DicePanel JSX or the dice logic
