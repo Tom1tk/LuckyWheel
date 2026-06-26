@@ -4450,3 +4450,975 @@ _ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
 2. Labels are ≤2 words.
 3. Button height expands to fit wrapped text — panel does not clip or scroll.
 4. Armed/disarmed visual state (colour or icon change) is not regressed.
+
+---
+
+### T117: Bounty claim overhaul — fix broken `Claim` button, lower token amounts, reset at 23:59
+
+- **Status:** [ ] (planned 2026-06-26)
+- **Discovered:** 2026-06-26 (operator: "Bounty claiming doesn't work — click gives 'bounty_id required' error. Amounts should be way lower. Reset at 23:59.")
+- **Depends on:** none (independent hotfix)
+- **Files:**
+  - `static/app.jsx` (bounty claim handler + JSX — `bounty-card` and the per-bounty `Claim` button)
+  - `game.py` (claim endpoint reward table + reset-hour logic)
+  - `bounties.py` (reward curve + reset-time helper)
+  - `tests/test_bounties.py` (new file; covers all ACs)
+
+**Problem 1 — claim button is broken.** Frontend handler `handleBountyClaim(bountyId)` at
+`static/app.jsx:4150` posts `{bounty_id: bountyId}` to `/api/bounties/claim`. The endpoint
+(`game.py:3551`) reads `bounty_id` and returns 400 "bounty_id required" if missing. The bug
+is on the *frontend* side: `get_bounty_status()` in `bounties.py:152` returns each bounty as
+`{'id': b['id'], ...}` (key is **`id`**, not `bounty_id`). The map at `static/app.jsx:4846`
+iterates `bounties.map(b => ... b.bounty_id ...)` — so `b.bounty_id` is `undefined` for every
+bounty, the request body is `{}`, and the API rightly rejects. Confirmed via direct call to
+`/api/bounties` in staging; response payload shows `"id": "bounty_jackpot"`, not `bounty_id`.
+
+**Problem 2 — token amounts are way too high.** Current curve (`bounties.py:183-187`):
+1 completed = 100 tokens, 2 completed = 250, 3 completed = 500. Plus 1 cosmetic fragment
+for the 3/3. These are per-day totals (not per-bounty), so a player who completes all 3
+bounties once a day gets 500 tokens. Operator wants this dropped dramatically since the
+new insurance economy (T119) makes tokens the *only* way to refill insurance charges,
+and bounties are the *only* renewable source outside the new daily-claim flow.
+
+**Problem 3 — reset timing.** Bounty date is currently `now_utc.date()` (`game.py:1001`),
+so bounties reset at UTC 00:00 (= BST 01:00). Operator wants reset at UTC 23:59 so the
+end-of-day effect is more discoverable (player sees "reset in 5 minutes" at 23:54 BST).
+Operator confirmed UTC (not BST) via clarification. Note: the *bounty's progress* still
+ends at the same moment regardless of whether we call the boundary "00:00" or "23:59" —
+the substantive change is the test/UI language and the moment a new "day" begins.
+
+**Per-bounty vs per-claim semantics (clarified via question).** Operator wants
+**per-bounty**: each completed bounty has its own `Claim` button. Claiming bounty #1
+grants 1 token, bounty #2 grants 2, bounty #3 grants 3. Completing and claiming all
+three = 6 tokens/day. The API contract is "claim THIS bounty" (1:1), so the
+`bounty_id` field actually becomes meaningful. The `tokens` value is derived from the
+*bounty's position in the deterministic 3-bounty set* (returned by
+`get_daily_bounties`), not from the total-completion count.
+
+#### Acceptance criteria
+
+1. The `Claim` button on each completed bounty works end-to-end. No "bounty_id required"
+   error. The frontend reads `b.id` from the response and passes it to the handler as
+   `bounty_id`. `handleBountyClaim` is updated to use the correct key.
+2. Each bounty's `Claim` button grants the correct token amount per position:
+   - Bounty #1 in the deterministic set → 1 token
+   - Bounty #2 → 2 tokens
+   - Bounty #3 → 3 tokens
+   - Maximum per day from bounties: 6 tokens
+3. The cosmetic-fragment reward for completing all 3 is **removed** (no more 1-fragment
+   bonus at 3/3). Cosmetic fragments are now awarded only via other paths (TBD).
+4. Bounties reset at **UTC 23:59** (= BST 00:59 next day). Frontend shows a countdown
+   to the next reset ("Resets in 4h 32m"). The progress is wiped at the boundary
+   regardless of claim status — a player who didn't claim at 23:58 BST loses that
+   day's progress at 00:00 BST.
+5. The `/api/bounties` response payload is consistent: `bounty_id` is the key name on
+   every bounty (not `id`). Update `bounties.py:152-159` to use `bounty_id`. Update
+   `game.py:1086` (top-level bounties echo) if it re-keys. The frontend reads
+   `b.bounty_id` everywhere.
+6. New endpoint: keep `/api/bounties/claim` POST, but it now reads `bounty_id` and
+   awards the position-based amount. The `bounty_claimed_date` gate is replaced with
+   per-bounty `claimed_at` tracking (a column on `bounty_progress` or a separate
+   `bounty_claims` table — implementer to choose, but the gate must be per-bounty so
+   the player can claim 1, 2, 3 in any order without losing the others).
+7. The migration to add the per-bounty `claimed_at` (or new table) is shipped with the
+   ticket. Idempotent: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+8. The `Cosmetic Fragments` counter in the bounties panel header is removed (no
+   fragments awarded from bounties anymore).
+9. Backend: `bounty_claimed_date` column is dropped if no longer needed (verify
+   nothing else reads it — T43 onboarding gate may still need it; if so, leave it).
+10. Tests in `tests/test_bounties.py`:
+    - `test_claim_button_sends_bounty_id` — POST with `{bounty_id: "bounty_jackpot"}`
+      returns 200; without it returns 400 with a clear error.
+    - `test_per_bounty_token_amounts` — claim bounty #1, get 1 token; #2 get 2; #3
+      get 3; total = 6 across a full clean day.
+    - `test_claim_independence` — claiming #1 doesn't lock #2 or #3.
+    - `test_reset_at_2359_utc` — manually advance the bounty_date in DB to 23:59 UTC;
+      spin/buy/redeem and confirm a new day's bounties are returned.
+    - `test_no_cosmetic_fragments_awarded` — `response['rewards']` for a 3/3 claim
+      has `cosmetic_fragments: 0`.
+    - `test_payload_uses_bounty_id_key` — `/api/bounties` response payload contains
+      `bounty_id` for every entry (regex check).
+
+#### Implementation sketch
+
+**`bounties.py`:**
+```python
+# At line 152, rename 'id' → 'bounty_id' (matches game.py's claim handler):
+result.append({
+    'bounty_id': b['id'],           # was 'id'
+    'description': b['description'],
+    'target': b['target'],
+    'progress': row['progress'] if row else 0,
+    'completed': row['completed'] if row else False,
+    'reward_tokens': b['reward_tokens'],
+    'position': <1|2|3 from selected.index>,  # NEW: 1-indexed position
+    'claimed': row['claimed'] if row else False,  # NEW: per-bounty claim flag
+})
+
+# Add to BOUNTY_DEFS entries: per-position reward is now in the data, not the function.
+# Update get_claim_rewards to take a bounty_id arg and return that bounty's reward:
+def get_claim_rewards_for_bounty(conn, user_id, bounty_date, bounty_id):
+    """Return {'tokens': N, 'cosmetic_fragments': 0} for the given bounty.
+    Position in the deterministic 3-bounty set maps to 1/2/3 tokens."""
+    selected = get_daily_bounties(user_id, bounty_date)
+    for i, b in enumerate(selected):
+        if b['id'] == bounty_id:
+            return {'tokens': i + 1, 'cosmetic_fragments': 0}
+    return None
+```
+
+**`game.py:3551` — claim handler:**
+```python
+bounty_id = (request.json or {}).get('bounty_id')
+if not bounty_id:
+    return jsonify({'error': 'bounty_id required'}), 400
+# Replace 'bounty_claimed_date' check with per-bounty progress.claimed check.
+# On success, set bounty_progress.claimed = TRUE (new column) and award
+# get_claim_rewards_for_bounty(...).
+```
+
+**Migration `migrations/053_bounty_per_claim.sql`:**
+```sql
+ALTER TABLE bounty_progress
+  ADD COLUMN IF NOT EXISTS claimed      BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS claimed_at   TIMESTAMPTZ;
+-- Idempotent. The legacy `bounty_claimed_date` column on game_state is left in
+-- place (T43 onboarding gate still references it; remove in a follow-up).
+```
+
+**`static/app.jsx:4846-4856`:**
+```jsx
+{bounties.map(b => (
+  <div key={b.bounty_id} className="bounty-card">
+    <div className="bounty-desc">{b.description}</div>
+    <div className="bounty-progress-bar">
+      <div className="bounty-progress-fill" style={{...}} />
+    </div>
+    <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
+    {b.completed && !b.claimed && (
+      <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>
+        Claim +{b.position} token{b.position > 1 ? 's' : ''}
+      </button>
+    )}
+    {b.claimed && <span className="bounty-claimed">✓ +{b.position} claimed</span>}
+  </div>
+))}
+```
+
+**Reset helper** (`bounties.py`):
+```python
+def get_bounty_reset_seconds(now_utc):
+    """Seconds until the next UTC 23:59 boundary."""
+    boundary = now_utc.replace(hour=23, minute=59, second=0, microsecond=0)
+    if now_utc >= boundary:
+        boundary += dt.timedelta(days=1)
+    return int((boundary - now_utc).total_seconds())
+```
+
+#### Open question
+
+None — all material decisions confirmed by operator.
+
+---
+
+### T118: Season 8 theme — backfill missing users on staging
+
+- **Status:** [ ] (planned 2026-06-26)
+- **Discovered:** 2026-06-26 (operator: "Season 8 theme cosmetic in the shop needs to be marked as owned and equipped for all players")
+- **Depends on:** none
+- **Files:**
+  - `static/app.jsx` (the `/api/state` handler — add a self-heal on first load)
+  - (no migration — staging-only; main already has migrations 050/051)
+
+**Scope per operator clarification:** "This is a non-issue for staging as it's not real
+live users, all testing users. It just needs to be able to work for all users on main when
+we get to the reset. Make it work for testing7 on staging and it'll work for all users
+on main." Staging currently has 10/125 users missing the theme; main has migrations 050+051
+already applied and the registration flow (`auth.py:121-125`) grants `page_season8` to
+every new user. The backfill is only needed for staging.
+
+**What main will have at reset time:**
+- Migration 050 grants `page_season8` to all existing users (owned).
+- Migration 051 equips `page_season8` for all users (active).
+- `auth.py:121-125` grants + equips it to every new registration after main cut-over.
+- Net effect: every user on main will own and equip the S8 theme. No action needed.
+
+**What staging needs:**
+- A one-shot SQL to backfill the 10 missing users so testing7 and friends can validate
+  the full game loop on staging without 1-2 visual oddities.
+- The fix is **runtime**, not migration-based: we don't add a 052 migration because
+  the deployment pipeline would replay it on main and the column is already correct
+  there.
+
+#### Acceptance criteria
+
+1. All 125 staging users own `page_season8` in `owned_items` AND have it in
+   `active_cosmetics` after the fix is applied.
+2. The fix is a single SQL `UPDATE` (or a one-line Python script in
+   `bin/backfill_season8_theme.py` that the operator runs once on staging).
+3. New user registrations on staging continue to work as before (`auth.py:121-125`
+   unchanged).
+4. No production-impacting change: zero code change in `auth.py` or any migration.
+5. The shop renders `page_season8` as "✓ Equipped" for all users in staging post-fix.
+
+#### Implementation sketch
+
+**`bin/backfill_season8_theme.py`** (new file, not a migration):
+```python
+"""One-shot backfill: grant + equip page_season8 to all staging users missing it.
+Safe to re-run (idempotent). DO NOT run on main — migrations 050/051 already
+cover main."""
+import os, sys, psycopg2
+
+db_url = os.environ.get('DATABASE_URL', '').split()
+if 'wheeldb_staging' not in db_url[0]:
+    print('REFUSING to run: DATABASE_URL does not point to wheeldb_staging')
+    sys.exit(1)
+
+conn = psycopg2.connect(db_url[0])
+with conn.cursor() as cur:
+    cur.execute("""
+        UPDATE game_state SET
+            owned_items = array_append(owned_items, 'page_season8'),
+            active_cosmetics = array_append(
+                ARRAY(SELECT c FROM unnest(active_cosmetics) AS c
+                      WHERE c NOT LIKE 'page_season%'),
+                'page_season8'
+            )
+        WHERE NOT ('page_season8' = ANY(owned_items))
+           OR NOT ('page_season8' = ANY(active_cosmetics))
+    """)
+    print(f'Updated {cur.rowcount} users')
+conn.commit()
+```
+
+Operator runs once on staging. New users continue to be granted via `auth.py:121-125`.
+
+#### Open question
+
+None.
+
+---
+
+### T119: Insurance system overhaul — flatten earning to 3 sources, remove recharge, rename to `insurance_tokens`
+
+- **Status:** [ ] (planned 2026-06-26)
+- **Discovered:** 2026-06-26 (operator: "Where is the user supposed to get insurance tokens from? Make 3 free/day, 1/2/3 from bounties, 5 on initial purchase. Remove other sources.")
+- **Depends on:** T117 (bounty 1/2/3 token amounts) — T117 sets the per-bounty reward, T119
+  wires the new `insurance_tokens` column to that reward.
+- **Files:**
+  - `static/app.jsx` (all references to `wagerTokens` → `insuranceTokens`; new daily-claim
+    section above bounties panel; insurance buy UI cleanups)
+  - `game.py` (insurance claim endpoint; new `insurance_tokens` column migration; remove
+    all `wager_tokens` earning paths except the three sources; rename references)
+  - `wagers.py` (remove `_recharge_wager_insurance` and `WAGER_INSURANCE_RECHARGE_SECONDS`)
+  - `db.py`, `migrate.py` (column rename + drop)
+  - `models.py` (drop `FISH_TO_WAGER_RATES` and the fishing token award path)
+  - `static/styles.css` (`.wager-insurance-armed` readable colour; new
+    `.free-tokens-section` styling)
+  - `tests/test_insurance_tokens.py` (new file; replaces parts of
+    `test_wager_tokens.py` + `test_insurance_buy_with_tokens.py`)
+
+**Context (operator-confirmed 2026-06-26):** The current insurance system has a tangle of
+overlapping token sources that confuse players:
+
+| Source | Where | Status |
+|---|---|---|
+| Fishing catches (reel) | `game.py:2555-2594` (FISH_TO_WAGER_RATES) | **Remove** |
+| Insurance charges recharge 1/10min | `wagers.py:167-175` (WAGER_INSURANCE_RECHARGE_SECONDS) | **Remove** |
+| Onboarding step 3 grant (+100) | `game.py:3534` | **Remove** |
+| Bounty daily claim (100/250/500) | `bounties.py:183-187` | **Replace with T117's 1/2/3 per-bounty** |
+| Spending: insurance buy (1 token = 1 charge) | `game.py:3320-3360` | **Keep** |
+| Spending: stake cost at high-stake ≥ 30% | `game.py:436, 465` | **Keep** |
+| Initial purchase of `fish_to_wager` | never granted — must add **+5 once** | **Add** |
+
+Operator wants the system reduced to exactly three sources:
+
+1. **3 free tokens/day** from a claim button in a "Free Tokens" section above the bounties
+   panel. Once-per-day, resets at UTC 23:59 (same as bounties). Section disappears (or
+   collapses) once claimed.
+2. **1/2/3 tokens per bounty** as set by T117 (max 6/day from bounties).
+3. **5 tokens once** when the player first purchases the `fish_to_wager` upgrade (which
+   itself is renamed to keep clarity, see Implementation sketch).
+
+The column name also changes: `wager_tokens` → `insurance_tokens` throughout. The shop item
+`fish_to_wager` is renamed to `insurance_unlock` (still costs 5,000 wins; the
+"fish-to-tokens" semantic is dead).
+
+**Problems with the current insurance button (also part of this ticket):**
+1. The "🛡️ Insurance ARMED" indicator at `static/app.jsx:4659` has no explicit
+   `color:` rule — it inherits the casino theme's default text colour which the operator
+   reports as black-on-dark (unreadable). Compare `.wager-double-down-armed` at
+   `static/styles.css:4269` which has `color: #ffd700` (gold). The insurance armed
+   indicator needs the same treatment.
+2. The "🪙 Buy Insurance (1 token)" button at `static/app.jsx:4667` shows up
+   alongside the armed indicator, creating a confusing flow. The fix is to hide the buy
+   button whenever insurance is armed (one state at a time, not both).
+3. The frontend shows `wagerInsuranceCharges` (capped 3) and `wagerTokens` as two
+   separate concepts. After T119, charges are derived from "tokens spent on insurance"
+   — the player pays tokens for charges, and the max charges cap is removed (insurance
+   has no max-charge cap; you can have as many as you've bought with tokens). The
+   `/api/wager/insurance` endpoint should consume 1 token per arm (rather than decrement
+   a free-recharging charge counter).
+
+#### Acceptance criteria
+
+**Column & schema:**
+1. New column `insurance_tokens INT NOT NULL DEFAULT 0` on `game_state`. The old
+   `wager_tokens` column is dropped via `migrations/054_rename_wager_to_insurance_tokens.sql`:
+   ```sql
+   ALTER TABLE game_state RENAME COLUMN wager_tokens TO insurance_tokens;
+   ```
+   (renames in place; preserves data. Operator chose rename over add+copy for simplicity).
+2. `wager_insurance_charges` and `wager_insurance_armed` columns are also renamed to
+   `insurance_charges` and `insurance_armed` (consistency).
+3. `wager_insurance_last_recharge` is dropped (no more recharge).
+4. `WAGER_INSURANCE_RECHARGE_SECONDS` is removed from `models.py`. `_recharge_wager_insurance`
+   is removed from `wagers.py`. The `wager_insurance_max_charges` key in `/api/state` is
+   removed.
+5. `FISH_TO_WAGER_RATES` is removed from `models.py`. The `wager_tokens_awarded` block in
+   `game.py:2555-2594` (the reel fishing award) is removed entirely. The condition
+   `'fish_to_wager' in owned` is gone from `reel()`.
+6. The onboarding step 3 grant at `game.py:3530-3537` is removed (no more 100 tokens on
+   onboarding step 3).
+
+**Earning paths (only 3):**
+7. **Free daily claim:** new endpoint `POST /api/insurance/claim-free`. Awards 3 tokens
+   once per UTC day. Gate on a new column `insurance_free_claimed_date DATE` (or reuse
+   `bounty_claimed_date` — implementer to choose, but the gate must be daily).
+   Atomic check: only credit if today's date != the column. Frontend: a new section above
+   the bounties panel showing a "🪙 Claim 3 free tokens" button until clicked; once
+   clicked, shows "✓ Claimed today — 3 tokens" for the rest of the day. Section collapses
+   to a single line after claim (or disappears entirely — operator to pick).
+8. **Bounty rewards:** 1/2/3 per bounty (T117). The `get_claim_rewards_for_bounty` in
+   `bounties.py` returns `{'tokens': position, 'cosmetic_fragments': 0}`; the `game.py`
+   claim handler adds to `insurance_tokens` instead of `wager_tokens`.
+9. **Initial purchase:** when the player first buys `insurance_unlock` (the renamed
+   `fish_to_wager`), the buy endpoint grants `+5` to `insurance_tokens` exactly once. A
+   new boolean column `insurance_unlock_grant_given BOOLEAN DEFAULT FALSE` (or a check
+   for `5` in the column — implementer to pick) prevents double-grant. After the
+   initial grant, the item behaves as a normal purchased upgrade (no further token
+   generation).
+
+**Spending paths (unchanged, renamed):**
+10. **Insurance buy (1 token = 1 charge):** `POST /api/wager/insurance/buy` is renamed
+    to `POST /api/insurance/buy` and continues to work as before. The cap of
+    `WAGER_INSURANCE_MAX_CHARGES` (currently 3) is removed — players can have as many
+    charges as they've bought.
+11. **Stake cost at high-stake ≥ 30%:** the spend path in `_resolve_spin` (game.py:436, 465)
+    is updated to read `insurance_tokens` and decrement it. The `pay_with_tokens` flag
+    in the request body still works.
+12. **Activating insurance on a spin:** `POST /api/wager/insurance` (T74's original
+    "arm insurance" endpoint) is updated to consume 1 insurance_token per arm instead of
+    decrementing `wager_insurance_charges`. The "armed" state is preserved in
+    `insurance_armed` (renamed from `wager_insurance_armed`).
+
+**UI:**
+13. The wager panel shows the player's `insuranceTokens` balance with the label
+    "🪙 Insurance tokens" (no more "wager tokens").
+14. The free-tokens section is above the bounties panel, single-row height, themed to
+    match the bounties panel.
+15. The "🛡️ Insurance (N)" button label uses the current `insuranceCharges` count.
+    Clicking it arms insurance and consumes 1 token (toast: "🛡️ Insurance armed
+    (1 token used)"). The "🛡️ Insurance ARMED (click to cancel)" indicator is given
+    explicit `color: #44ddff` (cyan) and a subtle border, matching the
+    `.wager-double-down-armed` style. The cancel button refund rule from T108
+    (charge is NOT refunded) now reads: "the 1 token is NOT refunded".
+16. The "🪙 Buy Insurance (1 token)" button is hidden when `insuranceArmed` is true.
+17. The "Pay with tokens" toggle in the wager panel is renamed to "Pay with insurance
+    tokens" and the description is updated.
+
+**Tests:**
+18. New `tests/test_insurance_tokens.py` (~25 tests):
+    - `test_no_recharge_in_state` — `/api/state` no longer includes
+      `wager_insurance_max_charges` or `wager_insurance_last_recharge`.
+    - `test_fishing_does_not_award_tokens` — `reel()` for a user owning
+      `insurance_unlock` does not increase `insurance_tokens`.
+    - `test_free_claim_3_tokens` — first call to `/api/insurance/claim-free` returns
+      3 tokens, second call in same UTC day returns 409 "Already claimed today".
+    - `test_free_claim_resets_at_2359_utc` — manually advance
+      `insurance_free_claimed_date` to yesterday; claim succeeds.
+    - `test_initial_purchase_grants_5` — buying `insurance_unlock` increments
+      `insurance_tokens` by 5.
+    - `test_initial_purchase_no_double_grant` — buying a second `insurance_unlock` (e.g.
+      an admin grants via DB) does NOT increment tokens a second time.
+    - `test_arm_consumes_token` — `POST /api/insurance/arm` (renamed) with
+      `tokens >= 1` succeeds and decrements tokens by 1.
+    - `test_arm_no_tokens_returns_403` — same call with `tokens == 0` returns 403.
+    - `test_buy_charge_no_cap` — buying 10 charges in a row succeeds (no cap).
+    - `test_stake_spends_tokens` — `_resolve_spin` with `stake_pct >= 30` and
+      `pay_with_tokens=True` decrements `insurance_tokens`.
+    - `test_button_color_readable` — Playwright check that
+      `.wager-insurance-armed` has `color` not equal to the body background.
+    - `test_buy_button_hidden_when_armed` — when `insuranceArmed == true`, the
+      "Buy Insurance" button is not in the DOM.
+    - `test_column_renamed` — DB schema check: `insurance_tokens` exists,
+      `wager_tokens` does not.
+    - `test_onboarding_grant_removed` — registering a new user, manually setting
+      `onboarding_step = 3`, hitting any spin endpoint, does NOT increment tokens.
+
+#### Implementation sketch
+
+**Migration `migrations/054_rename_wager_to_insurance_tokens.sql`:**
+```sql
+-- T119: rename wager_tokens to insurance_tokens (operator chose rename over copy).
+-- Also rename insurance charge/arm columns and drop recharge timestamp.
+ALTER TABLE game_state RENAME COLUMN wager_tokens            TO insurance_tokens;
+ALTER TABLE game_state RENAME COLUMN wager_insurance_charges  TO insurance_charges;
+ALTER TABLE game_state RENAME COLUMN wager_insurance_armed    TO insurance_armed;
+ALTER TABLE game_state DROP  COLUMN wager_insurance_last_recharge;
+-- New: gate the daily free-claim.
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS insurance_free_claimed_date DATE;
+-- New: gate the initial-purchase 5-token grant.
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS insurance_unlock_grant_given BOOLEAN DEFAULT FALSE;
+-- Drop onboarding-related column? No — keep for T43.
+```
+
+**`game.py:3320` — insurance buy endpoint (renamed):**
+```python
+@game_bp.route('/api/insurance/buy', methods=['POST'])
+@login_required
+@csrf.exempt
+def insurance_buy_with_tokens():
+    # ... same as /api/wager/insurance/buy but reads/writes insurance_tokens
+    # and has no max-charges cap.
+```
+
+**`game.py` — new free-claim endpoint:**
+```python
+@game_bp.route('/api/insurance/claim-free', methods=['POST'])
+@login_required
+@csrf.exempt
+def insurance_claim_free():
+    err = require_json()
+    if err:
+        return err
+    FREE_PER_DAY = 3
+    today = dt.datetime.now(timezone.utc).date()
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if gs.get('insurance_free_claimed_date') == today:
+                return jsonify({'error': 'Already claimed today'}), 409
+            cur.execute(
+                '''UPDATE game_state
+                   SET insurance_tokens = insurance_tokens + %s,
+                       insurance_free_claimed_date = %s
+                   WHERE user_id = %s''',
+                (FREE_PER_DAY, today, current_user.id),
+            )
+    return jsonify({'ok': True, 'tokens_awarded': FREE_PER_DAY,
+                    'insurance_tokens': int(gs.get('insurance_tokens', 0)) + FREE_PER_DAY})
+```
+
+**`static/app.jsx:4658-4668` — insurance button block:**
+```jsx
+{ownedItems.includes('insurance_unlock') && insuranceArmed && (
+  <button className="wager-insurance-armed wager-cancel-btn" onClick={handleCancelInsurance}>
+    🛡️ Insurance ARMED (click to cancel)
+  </button>
+)}
+{ownedItems.includes('insurance_unlock') && !insuranceArmed && insuranceTokens >= 1 && (
+  <button className="wager-action-btn" onClick={handleInsurance}>
+    🛡️ Arm Insurance ({insuranceTokens} tokens)
+  </button>
+)}
+{!insuranceArmed && ownedItems.includes('insurance_unlock')
+  && insuranceTokens >= 1 && insuranceCharges < 99 && (
+  <button className="wager-action-btn wager-buy-insurance-btn"
+          onClick={handleBuyInsuranceWithTokens}>
+    🪙 Buy 1 charge (1 token)
+  </button>
+)}
+```
+
+**`static/styles.css:4269` — add explicit colour:**
+```css
+.wager-insurance-armed {
+  font-size: 0.8rem;
+  color: #44ddff;            /* NEW: cyan, readable on casino dark bg */
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #44ddff; /* NEW: matching border */
+  border-radius: 4px;
+  animation: pulse-glow 1.2s ease-in-out infinite alternate;
+  white-space: normal;
+  line-height: 1.2;
+}
+```
+
+**Free-tokens section in JSX (above bounties panel):**
+```jsx
+<div className="free-tokens-section">
+  {insuranceFreeClaimedToday ? (
+    <div className="free-tokens-claimed">✓ 3 free tokens claimed today</div>
+  ) : (
+    <button className="free-tokens-claim-btn"
+            onClick={handleClaimFreeTokens}>
+      🪙 Claim 3 free tokens
+    </button>
+  )}
+</div>
+```
+
+#### Open question
+
+None — operator confirmed: 3 free/day, 1/2/3 per bounty, 5 on initial purchase, no other
+sources, all UI strings renamed.
+
+---
+
+### T120: Remove Hall of Fame — 🏆 button, modal, and `/api/legacy-boards` endpoint
+
+- **Status:** [ ] (planned 2026-06-26)
+- **Discovered:** 2026-06-26 (operator: "What is the 'Hall of Fame' button at the top supposed
+  to do? This seems like a misplaced duplication of the 'Past Winners' section of the
+  leaderboard. Remove it.")
+- **Depends on:** none
+- **Files:**
+  - `static/app.jsx` (delete the 🏆 button + the `showLegacyBoards` modal block + the
+    `handleShowLegacyBoards` handler + the `legacyBoards` state)
+  - `game.py` (delete the `/api/legacy-boards` endpoint at line 3781-3794)
+  - `tests/test_legacy_boards.py` (delete or convert to a smoke test that the endpoint
+    no longer exists)
+
+**Context:** The 🏆 button in the user-bar (`static/app.jsx:4484`) opens a modal titled
+"🏆 Hall of Fame — Legacy Wins" which is a top-50 leaderboard of all-time `legacy_wins`
+across all seasons. The "Past Winners" tab in the regular leaderboard panel
+(`static/app.jsx:2129-2146`) shows season winners for the *current season*. These are
+different views, but the operator considers the Hall of Fame redundant — the
+`legacy_wins` data is still tracked (it's preserved on prestige and visible in the
+prestige panel as a "Legacy: N wins" badge), but a global all-time leaderboard isn't
+needed for S8 launch.
+
+**Operator decision (2026-06-26):** Remove the 🏆 button, the modal, AND the API endpoint.
+The `legacy_wins` data itself is preserved — only the leaderboard view goes away. If we
+want a "Legacy" panel later in 8.X, we can re-add it with different framing.
+
+#### Acceptance criteria
+
+1. The 🏆 button is removed from the user-bar. The user-bar now has: 👤 name, 📊 Stats,
+   📖 Fish Encyclopaedia, ⚡ Low-Spec, 🖱️ Parallax (if wormhole), 💬 Chat (desktop),
+   📋 Patch Notes, Logout.
+2. The `showLegacyBoards` state and `handleShowLegacyBoards` handler are removed from
+   `app.jsx`. The modal JSX block (lines 4397-4421) is deleted.
+3. The `/api/legacy-boards` endpoint in `game.py` is deleted.
+4. The `legacy_boards` import in `tests/test_legacy_boards.py` is removed; the file
+   either:
+   - (a) is deleted entirely (operator to choose), OR
+   - (b) becomes a 2-line smoke test that `GET /api/legacy-boards` returns 404.
+5. No other code references `legacyBoards`, `setShowLegacyBoards`, or
+   `handleShowLegacyBoards`. The operator can verify with `grep -n "legacy" static/app.jsx`
+   to ensure no orphan references remain (the data column `legacy_wins` should still
+   appear in DB queries — that's fine).
+6. `pytest` passes (no regression on the other 360 tests).
+7. Playwright check: the user-bar in staging shows 8 buttons (was 9) on a 1920×1080
+   viewport.
+
+#### Implementation sketch
+
+**`static/app.jsx` changes:**
+```diff
+@@ line 4484 @@
+-        <button className="stats-btn" title="Hall of Fame — Legacy Wins" onClick={handleShowLegacyBoards}>🏆</button>
+         <button className="logout-btn" onClick={handleLogout}>Logout</button>
+
+@@ lines 3897-3898 @@
+-  const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
+-  const [legacyBoards, setLegacyBoards]             = useState([]);
+
+@@ lines 4257-4261 @@
+-  const handleShowLegacyBoards = useCallback(async () => {
+-    setShowLegacyBoards(true);
+-    const { ok, data } = await apiGame('/api/legacy-boards');
+-    if (ok) setLegacyBoards(data.boards || []);
+-  }, []);
+
+@@ lines 4397-4421 @@
+-  {/* Legacy boards modal (T36) */}
+-  {showLegacyBoards && (
+-    <div className="onboarding-overlay" onClick={() => setShowLegacyBoards(false)}>
+-      ...full modal block...
+-    </div>
+-  )}
+```
+
+**`game.py:3781-3794`:** delete the endpoint. No other code calls it (verify with
+`grep -rn "legacy-boards" .` before deletion).
+
+**`tests/test_legacy_boards.py`:** delete the file. The endpoint didn't have a test in
+`tests/` before, but if the operator added one in earlier seasons it should be removed.
+
+#### Open question
+
+None.
+
+---
+
+### T121: Prestige rework — drop efficiency/legacy, move trigger to shop with confirmation modal
+
+- **Status:** [ ] (planned 2026-06-26)
+- **Discovered:** 2026-06-26 (operator: "Remove prestige_efficiency + prestige_legacy. No
+  side-panel button. Buying prestige in the shop shows a confirmation modal first.")
+- **Depends on:** none (independent of T117/T118/T119)
+- **Files:**
+  - `models.py` (mark `prestige_efficiency` and `prestige_legacy` as deprecated —
+    removed from the buyable item list)
+  - `static/app.jsx` (remove side-panel Prestige button + `showPrestigeConfirm` modal;
+    wire shop buy for `prestige_unlock` to show confirmation modal first)
+  - `static/styles.css` (new `.prestige-confirm-modal` class for the patch-notes-style
+    modal; can reuse `.onboarding-modal` for now and add a dedicated variant later)
+  - `game.py` (modify `/api/prestige` to be atomic — adding the item AND performing the
+    reset in a single call; reject purchases of deprecated items)
+  - `prestige.py` (drop `compute_wins_kept` efficiency-based calc; `get_legacy_keep_count`
+    returns 0; `PRESTIGE_RESET_COLUMNS` retains `wins` reset to 0 — no carry-over)
+  - `tests/test_prestige.py` (new file; ~15 tests replacing `test_prestige_scaling.py`)
+
+**Operator's vision (2026-06-26):** "Prestige needs a brief re-work. I don't like the
+idea of the additional prestige upgrades such as efficiency and legacy, can these be
+removed for now. I also don't want a button for prestige in the side panel, it should
+simply happen when the player buys it in the shop. Before triggering the prestige,
+clicking buy in the shop should popup a message in the middle of the screen (similar
+method to patch notes, copy from that section of code implementation) that warns them
+that prestige will reset all upgrades and apply a permanent stacking increase (basically
+explain how it works, act's as a confirmation) with a 'confirm prestige' button and a
+'cancel' button. Cancel should simply close the popup, confirm should begin the
+prestige sequence."
+
+**Sub-tasks:**
+
+A. **Remove `prestige_efficiency` and `prestige_legacy` from the shop.**
+   - In `models.py:233-235`, keep `prestige_unlock` but mark `prestige_efficiency` and
+     `prestige_legacy` as `RETIRED` (e.g. by moving them to a `RETIRED_ITEMS` constant
+     that's no longer referenced from the buyable list).
+   - In the `static/app.jsx:2465-2466` shop definition, delete those two entries.
+   - The `/api/buy` endpoint should return 403 if the player tries to buy a `RETIRED`
+     item. (Per operator: "removed from shop and buy api disabled in case someone tries
+     to buy it maliciously.") Operator confirmed no real players own these — but the
+     defense-in-depth is still in place.
+   - For any player who somehow has them in `owned_items` (staging legacy data, future
+     edge cases), they remain in the owned list but the prestige code no longer
+     references them. `get_legacy_keep_count` returns 0 always. `compute_wins_kept`
+     always returns 0 (no efficiency carry-over).
+
+B. **Remove the side-panel Prestige button.**
+   - In `static/app.jsx:4824-4837`, delete the `season8-prestige-panel` div, the
+     Prestige button, and the `showPrestigeConfirm` modal block at line 4383-4395.
+   - Remove the `setShowPrestigeConfirm` and `showPrestigeConfirm` state.
+   - The legacy-wins badge can stay in the prestige panel (it's a passive display).
+
+C. **Wire the shop buy to show a confirmation modal first.**
+   - In `static/app.jsx`, the `ShopItem` component's `onBuy` handler for `prestige_unlock`
+     needs special handling. Easiest implementation: in the shop's `onBuy` prop
+     (`handleBuyItem`), check if the item id is `prestige_unlock`; if so, set a new
+     state `showPrestigeBuyConfirm` to true and store the item's display cost in another
+     state. The buy is NOT performed until the modal confirms.
+   - The modal is built from the same primitives as `PatchNotesPanel`
+     (`static/app.jsx:2942-2964`): a `.stats-overlay` div with a centred card, close
+     button, body content. The body contains:
+     - Title: "⚠️ Prestige Reset"
+     - Body: warning text + the player-facing explanation
+     - Buttons: "Confirm Prestige" (primary, calls `/api/prestige`) and "Cancel"
+       (secondary, closes the modal)
+   - On confirm, the modal closes, `/api/prestige` is called, and the response updates
+     the same local state that `handlePrestige` did (setWins(0), setPrestigeLevel(...),
+     etc.). The player sees their wins go to 0 and their prestige level go up by 1.
+
+D. **Make `/api/prestige` atomic: it both buys the unlock and performs the reset.**
+   - The current flow: `/api/buy prestige_unlock` adds the item (1M wins deducted), then
+     a separate `/api/prestige` POST does the reset. There's a race window: a player
+     could buy the unlock, the buy succeeds, but the prestige call fails — leaving the
+     player with 0 wins and the unlock but no prestige applied. T121 collapses this to
+     one atomic call.
+   - New behaviour: `POST /api/prestige` accepts no body. It:
+     1. Loads the player state FOR UPDATE.
+     2. If `prestige_unlock` is NOT in `owned_items` and wins >= 1,000,000, deduct
+        1,000,000 wins and add the item.
+     3. If `prestige_unlock` is in `owned_items` and wins >= `get_prestige_threshold`,
+        just perform the prestige reset.
+     4. If wins < threshold, return 403 with the current wins + threshold.
+     5. Perform the reset (set `prestige_level = current + 1`, etc.).
+   - One transaction, no race. The shop buy and the prestige are the same call.
+   - Backwards-compat: existing callers of `/api/prestige` (none in JSX after T121 since
+     the side-panel button is gone) continue to work — they just pay the 1M if they
+     didn't own the unlock yet.
+
+E. **Remove `compute_wins_kept` efficiency-based carry-over.**
+   - The current `compute_wins_kept` returns `int(wins * 0.1 * efficiency_level)`. With
+     efficiency retired, this is always 0. Replace with a simple
+     `def compute_wins_kept(wins, owned_items): return 0`. The prestige reset
+     (`game.py:3439`) then sets `wins = 0` cleanly.
+   - Update `PRESTIGE_RESET_COLUMNS` to confirm `wins` is in the reset list (it already
+     is — `prestige.py:23`).
+
+F. **Drop `get_legacy_keep_count` influence.**
+   - `get_legacy_keep_count` currently returns `_count_owned(owned_items, 'prestige_legacy')`.
+     With legacy retired, this is always 0. Replace the body with `return 0`. The
+     `filter_kept_items` call at `game.py:3440` will then keep only cosmetic items
+     (wager items are also dropped per the existing `WAGER_ITEM_IDS` logic — that's
+     already correct).
+   - The `prestige.py:138-143` helper can stay in place but always return 0, OR be
+     deleted entirely. The implementer should delete it to keep the surface area clean.
+
+#### Acceptance criteria
+
+1. `prestige_efficiency` and `prestige_legacy` do not appear in the shop JSX
+   (`grep -n "prestige_efficiency\|prestige_legacy" static/app.jsx` returns no shop
+   definitions).
+2. The `/api/buy` endpoint returns 403 `{'error': 'Item retired'}` for these two
+   item IDs. Direct API test: `POST /api/buy` with `{'item_id': 'prestige_efficiency'}`
+   returns 403.
+3. The side-panel Prestige button and its confirmation modal are deleted. The
+   `season8-prestige-panel` JSX block no longer renders a `<button>Prestige</button>`.
+4. The `legacy_wins` display badge (line 4828) remains visible if the player has
+   `legacy_wins > 0`.
+5. The shop's `prestige_unlock` item, when clicked, opens a centred modal (the
+   `showPrestigeBuyConfirm` state). The modal has the title "⚠️ Prestige Reset" and
+   a body that explains:
+   - **What happens:** Your wins, losses, streak, and all non-cosmetic upgrades will
+     be reset. Your **prestige level** will increase by 1, granting a permanent
+     +2% to your win payout. Cosmetic items, your aquarium, and your legacy wins
+     are preserved.
+   - **Why it matters:** Each prestige level makes every future win worth more.
+     Higher levels cost more wins to achieve (the threshold scales by 1.05× per
+     level), so the bonus compounds. The maximum is level 20 (+40% wins).
+   - **Cancellation:** No penalty. Click "Cancel" and nothing changes.
+6. The modal's "Confirm Prestige" button calls `POST /api/prestige` with `{}` body.
+   On success, the local state updates (wins → 0, prestige level → +1, legacy wins
+   → previous wins + previous legacy wins). A toast appears: ` Prestiged to Level
+   {N}!`.
+7. The modal's "Cancel" button just closes the modal. No API call. No state change.
+8. `POST /api/prestige` is atomic: if the player doesn't own `prestige_unlock` and
+   wins >= 1M, the call deducts 1M wins, adds the item, and performs the reset in
+   one transaction. If wins < 1M, returns 403 with the current wins and the threshold.
+9. The legacy_keep and efficiency carry-over are dead code: `compute_wins_kept`
+   returns 0 unconditionally, and the new `wins` after prestige is 0. Test asserts
+   that a player with 1.5M wins and 0 owned efficiency/legacy items prestiged with
+   the new flow ends with wins == 0 and legacy_wins == 1,500,000.
+10. Tests in `tests/test_prestige.py` (~15 tests):
+    - `test_efficiency_not_in_shop` — `grep` test on static/app.jsx for the literal
+      strings.
+    - `test_legacy_not_in_shop` — same for `prestige_legacy`.
+    - `test_buy_efficiency_returns_403` — direct API test.
+    - `test_buy_legacy_returns_403` — same.
+    - `test_prestige_endpoint_atomic` — fresh user with 1.5M wins, no owned items,
+      POST /api/prestige → wins=0, prestige_level=1, legacy_wins=1,500,000,
+      prestige_unlock in owned_items.
+    - `test_prestige_endpoint_insufficient_wins` — fresh user with 999,999 wins,
+      POST /api/prestige → 403 with `current_wins: 999999, threshold: 1000000`.
+    - `test_prestige_endpoint_already_owned` — user owns `prestige_unlock` and
+      has 1.1M wins, POST /api/prestige → wins=0, prestige_level=1, no extra 1M
+      deduction (the second-buy is free).
+    - `test_prestige_resets_columns` — full `PRESTIGE_RESET_COLUMNS` list is
+      checked to be 0/false/empty after prestige.
+    - `test_prestige_preserves_cosmetics` — `active_cosmetics`, `aquarium_species`,
+      `cosmetic_fragments` are unchanged.
+    - `test_prestige_threshold_scales` — after reaching level 1, the next
+      threshold is `round(1_000_000 * 1.05) == 1,050,000`.
+    - `test_no_legacy_carryover` — owning 3 prestige_legacy items does not change
+      the items kept (the filter returns only cosmetics).
+    - `test_no_efficiency_carryover` — owning 3 prestige_efficiency items does
+      not change the post-prestige wins (always 0).
+    - `test_modal_renders_in_shop` — Playwright check that clicking the
+      `prestige_unlock` item in the shop opens a modal with title "⚠️ Prestige
+      Reset" and both buttons.
+    - `test_modal_cancel_no_api_call` — Playwright check that clicking Cancel
+      does NOT trigger a network call to `/api/prestige`.
+    - `test_modal_confirm_triggers_prestige` — Playwright check that clicking
+      Confirm fires `POST /api/prestige` (network spy).
+    - `test_side_panel_button_removed` — Playwright check that `.prestige-btn`
+      is not in the DOM.
+
+#### Implementation sketch
+
+**`models.py:233-235`** — split into active vs retired:
+```python
+PRESTIGE_ITEMS = {
+    'prestige_unlock': {'cost': 1_000_000, 'requires': None},
+}
+RETIRED_ITEMS = {
+    'prestige_efficiency': {'cost': 500_000,   'requires': 'prestige_unlock',
+                            'retired_in': 'T121'},
+    'prestige_legacy':     {'cost': 1_000_000, 'requires': 'prestige_unlock',
+                            'retired_in': 'T121'},
+}
+# Update the `models.ITEM_DEFS` dict (or whatever feeds the shop) to read from
+# PRESTIGE_ITEMS for prestige and not include RETIRED_ITEMS.
+```
+
+**`/api/buy` guard:**
+```python
+if item_id in RETIRED_ITEMS:
+    return jsonify({'error': 'Item retired'}), 403
+```
+
+**`prestige.py:138-143`** — `get_legacy_keep_count` always returns 0:
+```python
+def get_legacy_keep_count(owned_items):
+    """Retired in T121: no functional upgrades are kept on prestige. Players
+    must re-buy their items after each prestige."""
+    return 0
+```
+
+**`prestige.py:146-154`** — `compute_wins_kept` always returns 0:
+```python
+def compute_wins_kept(wins, owned_items):
+    """Retired in T121: prestige_efficiency no longer exists. Wins are
+    fully reset to 0 on prestige; the legacy_wins column carries the
+    prior total forward."""
+    return 0
+```
+
+**`game.py:3406-3490`** — atomic prestige endpoint:
+```python
+@game_bp.route('/api/prestige', methods=['POST'])
+@login_required
+@csrf.exempt
+def prestige_reset():
+    """Atomic prestige: deduct 1M wins (if not yet owned), add the unlock,
+    and reset state. All in one transaction."""
+    err = require_json()
+    if err:
+        return err
+    PRESTIGE_COST = 1_000_000
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            already_owned = 'prestige_unlock' in gs['owned_items']
+            current_wins = int(gs['wins'])
+            current_level = gs.get('prestige_level', 0)
+            if current_level >= MAX_PRESTIGE_LEVEL:
+                return jsonify({'error': 'Already at max prestige'}), 403
+            if already_owned:
+                threshold = get_prestige_threshold(gs['owned_items'], current_level)
+                if current_wins < threshold:
+                    return jsonify({'error': f'Need {threshold} wins to prestige',
+                                    'current_wins': current_wins, 'threshold': threshold}), 403
+                cost = 0
+            else:
+                if current_wins < PRESTIGE_COST:
+                    return jsonify({'error': f'Need {PRESTIGE_COST} wins to prestige',
+                                    'current_wins': current_wins, 'threshold': PRESTIGE_COST}), 403
+                cost = PRESTIGE_COST
+            new_wins = 0
+            new_level = current_level + 1
+            new_prestige_count = gs.get('prestige_count', 0) + 1
+            new_legacy_wins = int(gs.get('legacy_wins', 0)) + current_wins
+            kept_items = filter_kept_items(gs['owned_items'], 0)  # 0 functional kept
+            if not already_owned:
+                kept_items = list(kept_items) + ['prestige_unlock']
+            # ... same UPDATE pattern as before, with cost applied to wins
+            cur.execute('''UPDATE game_state SET
+                              wins = wins - %s,
+                              prestige_level = %s,
+                              prestige_count = %s,
+                              legacy_wins = %s,
+                              owned_items = %s,
+                              ... (all PRESTIGE_RESET_COLUMNS) ... = defaults
+                           WHERE user_id = %s''',
+                        (cost, new_level, new_prestige_count, new_legacy_wins,
+                         kept_items, current_user.id))
+        # ... post system message + bounty increment + community goal
+    return jsonify({'prestige_level': new_level, ...})
+```
+
+**`static/app.jsx:4824-4837`** — delete the side-panel Prestige button block.
+
+**`static/app.jsx:4383-4395`** — delete the old `showPrestigeConfirm` modal block.
+
+**New state + modal in `static/app.jsx`:**
+```jsx
+const [showPrestigeBuyConfirm, setShowPrestigeBuyConfirm] = useState(false);
+const [prestigeBuyCost, setPrestigeBuyCost]               = useState(1_000_000);
+
+const handleShopBuy = useCallback(async (item) => {
+  if (item.id === 'prestige_unlock') {
+    setPrestigeBuyCost(wins >= 1_000_000 && !ownedItems.includes('prestige_unlock')
+                       ? 1_000_000 : 0);
+    setShowPrestigeBuyConfirm(true);
+    return;
+  }
+  // ... existing buy logic for other items
+}, [wins, ownedItems]);
+
+const handleConfirmPrestigeBuy = useCallback(async () => {
+  setShowPrestigeBuyConfirm(false);
+  const { ok, data } = await apiGame('/api/prestige', { method: 'POST', body: '{}' });
+  if (ok) {
+    setPrestigeLevel(data.prestige_level);
+    setPrestigeCount(data.prestige_count);
+    setLegacyWins(data.legacy_wins);
+    setWins(0);
+    setLosses(0);
+    setStreak(0);
+    setSpinCount(0);
+    setWagerStreak(0);
+    setWagerLastStake(0);
+    showToast(` Prestiged to Level ${data.prestige_level}!`);
+    refreshBountiesAndGoal();
+    refreshPrestigeInfo();
+  } else {
+    showToast(data.error || 'Prestige failed');
+  }
+}, [showToast]);
+```
+
+**New modal JSX (placed where the old `showPrestigeConfirm` modal was):**
+```jsx
+{showPrestigeBuyConfirm && (
+  <div className="stats-overlay" onClick={() => setShowPrestigeBuyConfirm(false)}>
+    <div className="patch-notes-card prestige-confirm-card"
+         onClick={e => e.stopPropagation()}
+         style={{ maxWidth: '460px' }}>
+      <div className="stats-title">⚠️ Prestige Reset</div>
+      <button className="stats-close-btn"
+              onClick={() => setShowPrestigeBuyConfirm(false)}>✕</button>
+      <div className="patch-notes-body" style={{ padding: '8px 0' }}>
+        <p style={{ color: '#ccc', lineHeight: 1.6, fontSize: '0.82rem' }}>
+          Prestige will <strong style={{ color: '#ff8866' }}>reset your wins, losses,
+          streak, and all non-cosmetic upgrades</strong> to zero. In return, your
+          <strong style={{ color: 'var(--p)' }}> prestige level goes up by 1</strong>,
+          granting a permanent <strong style={{ color: 'var(--p)' }}>+2% to your
+          win payout</strong>.
+        </p>
+        <p style={{ color: '#aaa', lineHeight: 1.6, fontSize: '0.78rem' }}>
+          Each level compounds: level 5 = 1.10× wins, level 20 = 1.40× wins (max).
+          Higher levels cost more wins to achieve (threshold scales by 1.05× per
+          level). Your <strong style={{ color: '#44ddff' }}>cosmetics, aquarium
+          species, and legacy wins are preserved</strong>.
+        </p>
+        {prestigeBuyCost > 0 && (
+          <p style={{ color: '#ffd700', fontSize: '0.75rem' }}>
+            Cost: {fmt(prestigeBuyCost)} wins (first prestige only).
+          </p>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center',
+                    marginTop: '16px' }}>
+        <button className="prestige-confirm-btn"
+                onClick={handleConfirmPrestigeBuy}
+                style={{ background: 'linear-gradient(135deg, #ff8866, #ff4444)',
+                         color: '#fff', padding: '10px 24px', border: 'none',
+                         borderRadius: '5px', cursor: 'pointer', fontFamily: 'inherit',
+                         fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
+          Confirm Prestige
+        </button>
+        <button onClick={() => setShowPrestigeBuyConfirm(false)}
+                style={{ background: 'rgba(255,255,255,0.1)', color: '#ccc',
+                         padding: '10px 24px', border: '1px solid #555',
+                         borderRadius: '5px', cursor: 'pointer', fontFamily: 'inherit',
+                         fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+#### Open question
+
+None — operator confirmed all material decisions.
+
+---
