@@ -2460,6 +2460,17 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Power II', cost: 900,   desc: '4× streak bonuses', requires: 'bonusmult_1' },
     { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
+  { label: '⚡ Season 8: Wager System', items: [
+    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake slider (0% safe, 5%-30% at risk)', tier: 1 },
+    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
+    { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
+    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Arm 2x stake for next spin', tier: 3, requires: 'wager_hot_streak' },
+    { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Caps next loss at stake amount', tier: 3, requires: 'wager_unlock' },
+    { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
+    { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
+    { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
+    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
+  ]},
   { label: '🏅 Season 8: Prestige', items: [
     // T121: prestige_efficiency and prestige_legacy retired. The unlock
     // now triggers the atomic /api/prestige flow after a confirmation modal.
@@ -4695,8 +4706,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
           {/* T112: wager panel + wheel are siblings in a flex row so the
               panel sits immediately to the left of the wheel, vertically
-              centered. The row collapses to a vertical stack at <1366px. */}
+              centered. The row collapses to a vertical stack at <1366px.
+              T108: the wager panel only renders when the player owns
+              wager_unlock — without it, the player can still spin the
+              wheel at 0% stake (the always-on base spin) but the stake
+              slider, DD/insurance/insurance arm buttons, and token
+              controls are all hidden. This was previously always shown
+              with disabled controls, which looked like a bug after
+              prestiging (functional upgrades get reset). */}
           <div className="wheel-and-wager">
+            {ownedItems.includes('wager_unlock') && (
             <div className="season8-wager-panel">
               {!autoSpinActive && <div className="wager-stake-control">
                 <label>Stake</label>
@@ -4777,6 +4796,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 </label>
               )}
             </div>
+            )}
             <div
               className={`wheel-wrapper ${activeCosmetics.includes('golden_wheel') ? 'golden' : ''}`}
               onClick={!spinning ? handleManualSpin : undefined}
