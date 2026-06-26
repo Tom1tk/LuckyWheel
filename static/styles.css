@@ -5401,3 +5401,21 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   .mobile-backdrop.mobile-drawer-open {
   }
 }
+
+/* T202 follow-up: .mobile-below-wheel now hosts the wager panel +
+   streak + dice in vertical order (T200 had them as a row, but the
+   wager panel needs to be a full-width block on top, not a flex
+   sibling). Override the row layout to a column. */
+@media (max-width: 768px) {
+  .mobile-below-wheel {
+    flex-direction: column;
+  }
+  .mobile-below-wheel .streak-panel {
+    border-right: none;
+    border-bottom: 1px solid rgba(var(--p-rgb), 0.12);
+  }
+  .mobile-below-wheel .dice-panel {
+    border-top: none;
+    margin-top: 0;
+  }
+}
