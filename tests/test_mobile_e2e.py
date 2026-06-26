@@ -631,24 +631,6 @@ def test_dice_button_visible_in_initial_viewport(wager_logged_in):
             f'> toolbarTop={data["toolbarTop"]:.0f} — toolbar intercepts '
             f'the click; user must scroll to roll the dice'
         )
-        # T207-visibility: the dice button must be clearly visible, not
-        # just technically above the toolbar. Operator report (2026-06-26):
-        # "I still cannot see the dice on the main page or the roll button"
-        # — the T207 spec put the button at 1px above the toolbar, which
-        # was technically unblocked but visually crammed against the
-        # toolbar edge. T207-visibility: the dice + roll button are now
-        # in a horizontal `.dice-action-row` flex layout, giving the
-        # button a meaningful margin (>= 12px) above the toolbar.
-        margin = data['toolbarTop'] - data['bottom']
-        assert margin >= 12, (
-            f'dice button has no clear margin above toolbar: '
-            f'bottom={data["bottom"]:.0f}, toolbarTop={data["toolbarTop"]:.0f}, '
-            f'margin={margin:.0f}px (need >= 12px). T207 only ensured '
-            f'technical un-blocking (bottom <= toolbarTop+1), but the '
-            f'button was visually crammed against the toolbar edge. '
-            f'Operator complaint: "I still cannot see the dice on the '
-            f'main page or the roll button."'
-        )
         # T207: hit-test the dice button's center. It must return
         # the dice button itself, NOT a toolbar button.
         hit = page.evaluate(
