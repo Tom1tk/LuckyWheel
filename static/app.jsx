@@ -4804,7 +4804,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 <div className="season8-bounties-panel">
                   <div className="bounties-header">
                     <span>📋 Bounties</span>
-                    {cosmeticFragments > 0 && <span className="fragment-count">💎 {cosmeticFragments}</span>}
                   </div>
                   {bounties.map(b => (
                     <div key={b.bounty_id} className="bounty-card">
@@ -4814,8 +4813,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                       </div>
                       <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
                       {b.completed && !b.claimed && (
-                        <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>Claim</button>
+                        <button className="bounty-claim-btn" onClick={() => handleBountyClaim(b.bounty_id)}>
+                          Claim +{b.position} token{b.position > 1 ? 's' : ''}
+                        </button>
                       )}
+                      {b.claimed && <span className="bounty-claimed">✓ +{b.position} claimed</span>}
                     </div>
                   ))}
                 </div>
