@@ -1049,6 +1049,10 @@ def get_state():
             # Season 8 additions
             'prestige_level':       gs.get('prestige_level', 0),
             'prestige_count':       gs.get('prestige_count', 0),
+            'next_prestige_threshold': (
+                get_prestige_threshold(gs.get('owned_items', []), gs.get('prestige_level', 0))
+                if gs.get('prestige_level', 0) < MAX_PRESTIGE_LEVEL else None
+            ),
             'legacy_wins':          int(gs.get('legacy_wins', 0)),
             'onboarding_step':      gs.get('onboarding_step', 0),
             'auto_spin_budget':     gs.get('auto_spin_budget', 0),
