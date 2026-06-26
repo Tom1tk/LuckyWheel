@@ -4702,7 +4702,7 @@ None.
 
 ### T119: Insurance system overhaul — flatten earning to 3 sources, remove recharge, rename to `insurance_tokens`
 
-- **Status:** [ ] (planned 2026-06-26)
+- **Status:** [x] (2026-06-26) — columns renamed `wager_tokens → insurance_tokens`, `wager_insurance_charges → insurance_charges`, `wager_insurance_armed → insurance_armed` (migration 054, idempotent). Dropped `wager_insurance_last_recharge`. Added `insurance_free_claimed_date` + `insurance_unlock_grant_given`. New endpoints: `POST /api/insurance/claim-free` (3 tokens/day, 409 on same-day), renamed `POST /api/insurance/arm` (consumes 1 token per arm, no cap), renamed `POST /api/insurance/buy` and `POST /api/insurance/cancel`. Removed earning paths: fish-to-tokens tier awards in `reel()`, 1/10min recharge, onboarding step 3 100-token grant. Added 5-token grant on first `fish_to_wager` purchase. Removed `WAGER_INSURANCE_RECHARGE_SECONDS`, `WAGER_INSURANCE_MAX_CHARGES`, `FISH_TO_WAGER_RATES` from `models.py`. New `free-tokens-section` UI above bounties panel. Armed insurance button gets explicit cyan color. 25 new tests; full suite 405 pass, 1 skip.
 - **Discovered:** 2026-06-26 (operator: "Where is the user supposed to get insurance tokens from? Make 3 free/day, 1/2/3 from bounties, 5 on initial purchase. Remove other sources.")
 - **Depends on:** T117 (bounty 1/2/3 token amounts) — T117 sets the per-bounty reward, T119
   wires the new `insurance_tokens` column to that reward.
