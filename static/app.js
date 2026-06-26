@@ -8690,13 +8690,17 @@ function GameApp(_ref36) {
     style: {
       display: mobileDrawerTab === 'community' ? 'block' : 'none'
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "season8-meta-panel"
   }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
     communityGoal: communityGoal
+  }), communityGoal && singularity && /*#__PURE__*/React.createElement("div", {
+    className: "meta-divider"
   }), /*#__PURE__*/React.createElement(SingularityPanel, {
     singularity: singularity,
     fishClicks: fishClicks,
     onContribute: handleSingularityContribute
-  })))), /*#__PURE__*/React.createElement("div", {
+  }))))), /*#__PURE__*/React.createElement("div", {
     className: "mobile-toolbar"
   }, /*#__PURE__*/React.createElement("button", {
     className: "mobile-toolbar-btn".concat(mobilePanel === 'shop' ? ' active' : ''),
