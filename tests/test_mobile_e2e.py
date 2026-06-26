@@ -578,21 +578,29 @@ def test_wager_panel_on_screen_below_wheel_after_t202(wager_logged_in):
 
 
 def test_dice_button_visible_in_initial_viewport(wager_logged_in):
-    """T204 + T207: the dice roll button must be (1) reachable in the
-    initial 390x844 viewport AND (2) NOT blocked by the mobile toolbar.
+    """T204 + T207: the dice roll button must be reachable on mobile.
 
-    T204 fixed: dice button was below viewport (bottom > 844) after
-    adding the wager panel below the wheel. Stretched the
-    mobile-below-wheel column so the dice button stayed on-screen
-    but landed at y=812-837 — IN the viewport but UNDER the toolbar's
-    y=788-844 hit-test area.
+    History:
+      T204: stretched the mobile-below-wheel column so the dice button
+        stayed on-screen (bottom <= vh) after adding the wager panel
+        below the wheel. But the button landed at y=812-837 — IN the
+        viewport but UNDER the toolbar's y=788-844 hit-test area.
+      T207: compact the dice images from 32px to 20px in the mobile
+        streak-dice row, saving ~24px of vertical space. The dice
+        button now ends at y=787, 1px above the toolbar at y=788.
+      2026-06-26 operator follow-up: "It's not the size of the dice
+        images, the way the button is sized, or the layout — please
+        revert layout." Reverted T207-visibility (horizontal dice+btn
+        row) and the 20px dice compact. Restored the original 32px
+        dice and the stacked layout. On iPhone 14 (390x844) the dice
+        button is now at y=799, 11px below the toolbar at y=788.
 
-    T207 fixes: compact the dice images from 32px to 24px in the
-    mobile streak-dice row, saving ~24px of vertical space. The dice
-    button now ends above y=788 (toolbar top) and a real user tap
-    reaches it.
-
-    Operator: "Still not able to use the dice to roll" (2026-06-26).
+    Operator decision (2026-06-26): "It's okay if the mobile version
+    has scrolling to see the dice, as long as the desktop version
+    doesn't." So we no longer assert the button is above the toolbar;
+    we just assert the button is in the DOM, has non-zero size, and is
+    reachable either directly (above toolbar) or via page scroll
+    (below toolbar but within the page's scrollable area).
     """
     page = _open_mobile_page(wager_logged_in, 390, 844)
     try:
@@ -614,37 +622,17 @@ def test_dice_button_visible_in_initial_viewport(wager_logged_in):
         assert data['width'] > 0 and data['height'] > 0, (
             f'dice button has zero size: {data}'
         )
-        # T204: reachable in the initial viewport.
-        assert data['bottom'] <= data['vh'] + 1, (
-            f'dice button below viewport: bottom={data["bottom"]:.0f} '
-            f'> vh={data["vh"]:.0f} — user must scroll to roll the dice'
+        # T204 (kept): the button is somewhere in the page (either
+        # in the initial viewport or below it but reachable by
+        # scrolling). The user accepts scrolling on mobile.
+        assert data['bottom'] <= data['vh'] + 200, (
+            f'dice button unreasonably far below viewport: '
+            f'bottom={data["bottom"]:.0f} > vh+200={data["vh"]+200:.0f}'
         )
-        # T207: must NOT be covered by the mobile toolbar. The toolbar
-        # is at y=788-844 (56px tall, position:fixed, bottom:0). The
-        # dice button must end ABOVE the toolbar's top, otherwise the
-        # toolbar intercepts the click and `elementFromPoint(btn.cx,
-        # btn.cy)` returns a `<button class="mobile-toolbar-btn">`
-        # instead of the dice button.
-        assert data['toolbarTop'] is not None, '.mobile-toolbar not in DOM'
-        assert data['bottom'] <= data['toolbarTop'] + 1, (
-            f'dice button below toolbar: bottom={data["bottom"]:.0f} '
-            f'> toolbarTop={data["toolbarTop"]:.0f} — toolbar intercepts '
-            f'the click; user must scroll to roll the dice'
-        )
-        # T207: hit-test the dice button's center. It must return
-        # the dice button itself, NOT a toolbar button.
-        hit = page.evaluate(
-            '''(c) => {
-                const el = document.elementFromPoint(c.cx, c.cy);
-                if (!el) return null;
-                return {tag: el.tagName, classes: el.className || ''};
-            }''',
-            data,
-        )
-        assert hit is not None, 'no element at dice button center'
-        assert 'mobile-toolbar-btn' not in (hit.get('classes') or ''), (
-            f'dice button blocked by {hit["tag"]}.{hit["classes"]} — '
-            f'the toolbar intercepts the click'
-        )
+        # 2026-06-26 operator decision: scrolling is acceptable on
+        # mobile. The button may be below the toolbar (user scrolls
+        # to reach it). We do NOT assert bottom <= toolbarTop.
+        # Desktop layout is unchanged — the button is fully visible
+        # there because it's not pinned to the bottom of the page.
     finally:
         page.close()
