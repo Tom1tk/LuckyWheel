@@ -2461,9 +2461,9 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
   { label: '🏅 Season 8: Prestige', items: [
+    // T121: prestige_efficiency and prestige_legacy retired. The unlock
+    // now triggers the atomic /api/prestige flow after a confirmation modal.
     { id: 'prestige_unlock',     emoji: '🏅', name: 'Prestige Unlock',     cost: 1000000, desc: 'Unlocks prestige reset (permanent +2% per level)', tier: 3 },
-    { id: 'prestige_efficiency', emoji: '⚡', name: 'Prestige Efficiency', cost: 500000,  desc: 'Reduces prestige threshold from 1M to 500K wins', tier: 3, requires: 'prestige_unlock' },
-    { id: 'prestige_legacy',     emoji: '📜', name: 'Prestige Legacy',     cost: 1000000, desc: 'Keep functional upgrades when prestiging', tier: 3, requires: 'prestige_unlock' },
   ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
@@ -3398,6 +3398,17 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [season]);
 
   const handleBuy = useCallback(async (id) => {
+    // T121: intercept the prestige_unlock buy and open the confirmation
+    // modal first. The actual /api/prestige call happens on confirm (one
+    // atomic buy+reset). The shop buy never reaches /api/buy for this id.
+    if (id === 'prestige_unlock') {
+      const alreadyOwned = ownedItems.includes('prestige_unlock');
+      // First-time prestige: 1M deduction. Subsequent: free (the cost
+      // comes from the level-scaled threshold already in wins).
+      setPrestigeBuyCost(alreadyOwned ? 0 : 1_000_000);
+      setShowPrestigeBuyConfirm(true);
+      return;
+    }
     const { ok, data } = await apiGame('/api/buy', {
       method: 'POST',
       body: JSON.stringify({ item_id: id }),
@@ -3415,7 +3426,35 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     } else {
       showToast(data.error || 'Purchase failed');
     }
-  }, [showToast]);
+  }, [showToast, ownedItems]);
+
+  // T121: confirm the shop-triggered prestige. The server deducts the
+  // 1M cost (if not yet owned) and resets state in a single transaction.
+  const handleConfirmPrestigeBuy = useCallback(async () => {
+    setShowPrestigeBuyConfirm(false);
+    const { ok, data } = await apiGame('/api/prestige', { method: 'POST', body: JSON.stringify({}) });
+    if (ok) {
+      setPrestigeLevel(data.prestige_level);
+      setPrestigeCount(data.prestige_count);
+      setLegacyWins(data.legacy_wins);
+      setWins(0);
+      setLosses(0);
+      setStreak(0);
+      setSpinCount(0);
+      setWagerStreak(0);
+      setWagerLastStake(0);
+      // Make sure the unlock shows up in the shop's "owned" set so the
+      // player can immediately see it was applied.
+      if (!ownedItems.includes('prestige_unlock')) {
+        setOwnedItems(prev => [...prev, 'prestige_unlock']);
+      }
+      showToast(` Prestiged to Level ${data.prestige_level}!`);
+      refreshBountiesAndGoal();
+      refreshPrestigeInfo();
+    } else {
+      showToast(data.error || 'Prestige failed');
+    }
+  }, [showToast, ownedItems]);
 
   const handleEquip = useCallback(async (id) => {
     const { ok, data } = await apiGame('/api/equip', {
@@ -3892,7 +3931,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     const id = setInterval(tick, 3000);
     return () => clearInterval(id);
   }, [autoSpinActive, tick]);
-  const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
+  // T121: prestige now triggers from the shop buy of prestige_unlock, with
+  // a patch-notes-style confirmation modal shown first. The side-panel
+  // Prestige button is gone — the buy is intercepted and the modal opens.
+  const [showPrestigeBuyConfirm, setShowPrestigeBuyConfirm] = useState(false);
+  const [prestigeBuyCost, setPrestigeBuyCost]               = useState(1_000_000);
   const [showOnboarding, setShowOnboarding]         = useState(false);  // T114: disabled for S8 launch
 
   const refreshBountiesAndGoal = useCallback(async () => {
@@ -4094,27 +4137,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast, activeWheelMode, wagerStreak, wagerInsuranceArmed, doubleDownPending, gravityDrift]);
 
-  // Season 8: handle prestige
-  const handlePrestige = useCallback(async () => {
-    setShowPrestigeConfirm(false);
-    const { ok, data } = await apiGame('/api/prestige', { method: 'POST', body: JSON.stringify({}) });
-    if (ok) {
-      setPrestigeLevel(data.prestige_level);
-      setPrestigeCount(data.prestige_count);
-      setLegacyWins(data.legacy_wins);
-      setWins(0);
-      setLosses(0);
-      setStreak(0);
-      setSpinCount(0);
-      setWagerStreak(0);
-      setWagerLastStake(0);
-      showToast(` Prestiged to Level ${data.prestige_level}!`);
-      refreshBountiesAndGoal();
-      refreshPrestigeInfo();
-    } else {
-      showToast(data.error || 'Prestige failed');
-    }
-  }, [showToast]);
+  // T121: prestige no longer has its own button — buying prestige_unlock
+  // from the shop opens the confirmation modal; confirm calls /api/prestige
+  // atomically (see handleConfirmPrestigeBuy above). We keep
+  // refreshPrestigeInfo so the prestige level / threshold badge stays live
+  // after the atomic reset.
 
   // T111: fetch the level-scaled prestige threshold. The server is the source
   // of truth (PRESTIGE_LEVEL_MULTIPLIER lives in prestige.py), so the button's
@@ -4371,15 +4398,56 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         </div>
       )}
 
-      {/* Prestige confirmation modal (T14) */}
-      {showPrestigeConfirm && (
-        <div className="onboarding-overlay">
-          <div className="onboarding-modal">
-            <h3>⚠️ Prestige Reset</h3>
-            <p>This will reset your wins, losses, streak, and non-cosmetic upgrades. Your legacy wins will be preserved. Continue?</p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button onClick={handlePrestige}>Confirm Prestige</button>
-              <button onClick={() => setShowPrestigeConfirm(false)}>Cancel</button>
+      {/* T121: shop-triggered prestige confirmation modal. Patch-notes-style
+          card with title, body, and Confirm/Cancel. Confirm calls
+          /api/prestige atomically (see handleConfirmPrestigeBuy). */}
+      {showPrestigeBuyConfirm && (
+        <div className="stats-overlay" onClick={() => setShowPrestigeBuyConfirm(false)}>
+          <div className="patch-notes-card prestige-confirm-card"
+               onClick={e => e.stopPropagation()}
+               style={{ maxWidth: '460px' }}>
+            <div className="stats-title">⚠️ Prestige Reset</div>
+            <button className="stats-close-btn"
+                    onClick={() => setShowPrestigeBuyConfirm(false)}>✕</button>
+            <div className="patch-notes-body" style={{ padding: '8px 0' }}>
+              <p style={{ color: '#ccc', lineHeight: 1.6, fontSize: '0.82rem' }}>
+                Prestige will <strong style={{ color: '#ff8866' }}>reset your wins, losses,
+                streak, and all non-cosmetic upgrades</strong> to zero. In return, your
+                <strong style={{ color: 'var(--p)' }}> prestige level goes up by 1</strong>,
+                granting a permanent <strong style={{ color: 'var(--p)' }}>+2% to your
+                win payout</strong>.
+              </p>
+              <p style={{ color: '#aaa', lineHeight: 1.6, fontSize: '0.78rem' }}>
+                Each level compounds: level 5 = 1.10× wins, level 20 = 1.40× wins (max).
+                Higher levels cost more wins to achieve (threshold scales by 1.05× per
+                level). Your <strong style={{ color: '#44ddff' }}>cosmetics, aquarium
+                species, and legacy wins are preserved</strong>.
+              </p>
+              {prestigeBuyCost > 0 && (
+                <p style={{ color: '#ffd700', fontSize: '0.75rem' }}>
+                  Cost: {fmt(prestigeBuyCost)} wins (first prestige only).
+                </p>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center',
+                          marginTop: '16px' }}>
+              <button className="prestige-confirm-btn"
+                      onClick={handleConfirmPrestigeBuy}
+                      data-testid="prestige-confirm"
+                      style={{ background: 'linear-gradient(135deg, #ff8866, #ff4444)',
+                               color: '#fff', padding: '10px 24px', border: 'none',
+                               borderRadius: '5px', cursor: 'pointer', fontFamily: 'inherit',
+                               fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                Confirm Prestige
+              </button>
+              <button onClick={() => setShowPrestigeBuyConfirm(false)}
+                      data-testid="prestige-cancel"
+                      style={{ background: 'rgba(255,255,255,0.1)', color: '#ccc',
+                               padding: '10px 24px', border: '1px solid #555',
+                               borderRadius: '5px', cursor: 'pointer', fontFamily: 'inherit',
+                               fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -4784,18 +4852,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 rolledSinceSpin={diceRolledSinceSpin}
               />
 
-              {/* Season 8: Prestige panel */}
+              {/* Season 8: Prestige panel (T121: no button — prestige is
+                  triggered by buying prestige_unlock in the shop and
+                  confirming the modal. The badges stay as passive info.) */}
               {ownedItems.includes('prestige_unlock') && (
                 <div className="season8-prestige-panel">
                   <div className="prestige-badge" title="Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots.">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
                   {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
-                  {prestigeLevel < 20 && (
-                    <button
-                      className="prestige-btn"
-                      disabled={nextPrestigeThreshold == null || wins < nextPrestigeThreshold}
-                      onClick={() => setShowPrestigeConfirm(true)}
-                    >Prestige</button>
-                  )}
                 </div>
               )}
 
