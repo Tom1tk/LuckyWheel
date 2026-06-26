@@ -5055,8 +5055,9 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
 .aquarium-info-icon[data-tooltip]:hover::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
   background: #0d0d1a;
   color: #eee;
   border: 1px solid #44aacc;
@@ -5065,7 +5066,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   font-size: 0.65rem;
   line-height: 1.5;
   white-space: normal;
-  max-width: 240px;
+  max-width: 220px;
   width: max-content;
   pointer-events: none;
   z-index: 999;
