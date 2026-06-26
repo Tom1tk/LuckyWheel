@@ -2481,7 +2481,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .mobile-below-wheel .dice-row { gap: 5px; }
   .mobile-below-wheel .dice-panel-label { font-size: 9px; }
   .mobile-below-wheel .dice-panel-desc { font-size: 0.5rem; }
-  .mobile-below-wheel .dice-roll-btn { font-size: 10px; padding: 5px 6px; width: 100%; box-sizing: border-box; }
+  .mobile-below-wheel .dice-roll-btn { font-size: 10px; padding: 5px 6px; box-sizing: border-box; }
   .mobile-below-wheel .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
   .bulbs { gap: 8px; }
   .bulb  { width: 10px; height: 10px; }
@@ -5500,12 +5500,12 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
     margin-top: 0;
     padding: 4px 6px 4px 8px;
   }
-  .mobile-streak-dice-row .die { width: 32px; height: 32px; padding: 3px; border-radius: 5px; }
-  .mobile-streak-dice-row .pip { width: 5px; height: 5px; }
+  .mobile-streak-dice-row .die { width: 36px; height: 36px; padding: 3px; border-radius: 5px; }
+  .mobile-streak-dice-row .pip { width: 6px; height: 6px; }
   .mobile-streak-dice-row .dice-row { gap: 3px; }
   .mobile-streak-dice-row .dice-panel-label { font-size: 9px; }
   .mobile-streak-dice-row .dice-panel-desc { font-size: 0.5rem; }
-  .mobile-streak-dice-row .dice-roll-btn { font-size: 10px; padding: 4px 6px; width: 100%; box-sizing: border-box; }
+  .mobile-streak-dice-row .dice-roll-btn { font-size: 10px; padding: 4px 6px; box-sizing: border-box; }
   .mobile-streak-dice-row .dice-recharge-timer { font-size: 9px; margin-left: 2px; }
 }
 
@@ -5518,8 +5518,8 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
     margin: 0 auto;  /* T206: center the row inside .season8-wheel-mode */
   }
   .season8-wheel-mode .wheel-mode-btn {
-    min-height: 32px;  /* tap target */
-    padding: 4px 6px;
+    min-height: 26px;  /* was 32px — slimmer on mobile */
+    padding: 2px 6px;
     font-size: 0.7rem;
     flex: 1 1 0;
     min-width: 0;
@@ -5528,7 +5528,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
     display: block;  /* on its own row at <=768px */
     width: 100%;
     text-align: center;
-    font-size: 0.7rem;
+    font-size: 0.65rem;  /* was 0.7rem — slightly smaller */
   }
 
   .autospin-row {
