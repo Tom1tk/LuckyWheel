@@ -185,29 +185,51 @@ def test_aquarium_species_text_is_light(logged_in_page):
     )
 
 
-def test_aquarium_info_icon_exists_with_title(logged_in_page):
-    """T113: the (?) icon exists in the aquarium header and has a title attribute."""
+def test_aquarium_info_icon_exists_with_tooltip(logged_in_page):
+    """T113: the (?) icon exists and uses data-tooltip (custom CSS hover popup,
+    matching the wager panel's (?) icon)."""
     page = logged_in_page
     icon = page.locator('.aquarium-info-icon')
     assert icon.count() == 1, f'expected one .aquarium-info-icon, got {icon.count()}'
-    title = icon.get_attribute('title')
-    assert title, '.aquarium-info-icon has no title attribute'
-    assert title.strip() != '', '.aquarium-info-icon title is empty'
+    data_tooltip = icon.get_attribute('data-tooltip')
+    assert data_tooltip, '.aquarium-info-icon has no data-tooltip attribute'
+    assert data_tooltip.strip() != '', '.aquarium-info-icon data-tooltip is empty'
     # The (?) text should be rendered.
     text = (icon.text_content() or '').strip()
     assert '?' in text, f'.aquarium-info-icon should display a "?", got {text!r}'
 
 
 def test_aquarium_info_tooltip_mentions_luck_bonus(logged_in_page):
-    """T113: the tooltip text must mention the +0.1% luck bonus or 'win chance'."""
+    """T113: the data-tooltip text must mention the +0.1% luck bonus."""
     page = logged_in_page
-    title = page.locator('.aquarium-info-icon').get_attribute('title') or ''
-    t = title.lower()
-    assert '+0.1%' in title or '0.1%' in t, (
-        f'tooltip must mention "+0.1%" — got {title!r}'
+    tip = page.locator('.aquarium-info-icon').get_attribute('data-tooltip') or ''
+    t = tip.lower()
+    assert '+0.1%' in tip or '0.1%' in t, (
+        f'tooltip must mention "+0.1%" — got {tip!r}'
     )
     assert 'win chance' in t or 'luck' in t or 'base' in t, (
-        f'tooltip must mention "win chance", "luck", or "base" — got {title!r}'
+        f'tooltip must mention "win chance", "luck", or "base" — got {tip!r}'
+    )
+
+
+def test_aquarium_info_icon_hover_popup_styled(logged_in_page):
+    """T113: the (?) icon uses a custom CSS ::after hover popup (matching the
+    wager panel's (?) icon), not the unreliable native title= attribute. The
+    CSS declares: cursor:help, position:relative, and a [data-tooltip]:hover::after
+    rule that pulls content from the data-tooltip attribute."""
+    page = logged_in_page
+    icon = page.locator('.aquarium-info-icon')
+    # The icon has data-tooltip set (the JSX, not the CSS).
+    tip_text = icon.get_attribute('data-tooltip') or ''
+    assert tip_text, 'data-tooltip must be set for the ::after popup to show'
+    # The CSS sets cursor:help and position:relative so the ::after popup
+    # can anchor. (Hover-Playwright is unreliable when overlays intercept
+    # pointer events, so we verify the CSS contract instead.)
+    cursor = icon.evaluate('el => getComputedStyle(el).cursor')
+    assert cursor == 'help', f'expected cursor:help, got {cursor!r}'
+    position = icon.evaluate('el => getComputedStyle(el).position')
+    assert position == 'relative', (
+        f'expected position:relative for ::after to anchor, got {position!r}'
     )
 
 
