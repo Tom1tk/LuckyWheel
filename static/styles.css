@@ -5495,6 +5495,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   .season8-wheel-mode .wheel-mode-btns {
     flex-wrap: nowrap;  /* T204: keep all mode buttons on one line */
     gap: 4px;
+    margin: 0 auto;  /* T206: center the row inside .season8-wheel-mode */
   }
   .season8-wheel-mode .wheel-mode-btn {
     min-height: 32px;  /* tap target */
