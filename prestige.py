@@ -49,9 +49,8 @@ PRESTIGE_RESET_COLUMNS = (
     'double_down_pending',
     'wager_banked_wins',
     'wager_banked_losses',
-    'wager_insurance_charges',
-    'wager_insurance_armed',
-    'wager_insurance_last_recharge',
+    'insurance_charges',
+    'insurance_armed',
     'wager_last_win_amount',
     # Protection rework state (Season 8).
     'guard_charges',

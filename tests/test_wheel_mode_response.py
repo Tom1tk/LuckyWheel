@@ -30,9 +30,10 @@ def _read_game_py():
 
 
 def test_wheel_mode_response_includes_reset_fields():
-    """T76 + T99 AC#1: the /api/wheel-mode response must include
-    wager_streak, wager_insurance_armed, double_down_pending, gravity_drift
-    when the mode actually changes (so the frontend can sync)."""
+    """T76 + T99 + T119 AC#1: the /api/wheel-mode response must include
+    wager_streak, insurance_armed, double_down_pending, gravity_drift
+    when the mode actually changes (so the frontend can sync).
+    T119 renamed wager_insurance_armed → insurance_armed."""
     src = _read_game_py()
     # The four reset fields should be set in the response dict inside the
     # `if mode != current_mode` branch.
@@ -40,9 +41,9 @@ def test_wheel_mode_response_includes_reset_fields():
         "T76/T99: wheel-mode response must include 'wager_streak = 0' "
         "on a real mode change"
     )
-    assert "response['wager_insurance_armed'] = False" in src, (
-        "T76/T99: wheel-mode response must include 'wager_insurance_armed = False' "
-        "on a real mode change"
+    assert "response['insurance_armed'] = False" in src, (
+        "T76/T99/T119: wheel-mode response must include 'insurance_armed = False' "
+        "on a real mode change (T119 renamed from wager_insurance_armed)"
     )
     assert "response['double_down_pending'] = False" in src, (
         "T76/T99: wheel-mode response must include 'double_down_pending = False' "
@@ -55,11 +56,13 @@ def test_wheel_mode_response_includes_reset_fields():
 
 
 def test_handleWheelModeChange_reads_all_four_reset_fields():
-    """T99 AC#6: handleWheelModeChange must read the four reset fields from
-    the /api/wheel-mode response and update the corresponding React state.
-    Before the fix, the success branch only updated wheel_probabilities and
-    gravity_drift, so the panel would show stale 'armed' indicators /
-    hot-streak badge after a mode switch."""
+    """T99 + T119: handleWheelModeChange must read the four reset fields
+    from the /api/wheel-mode response and update the corresponding React
+    state. Before the fix, the success branch only updated
+    wheel_probabilities and gravity_drift, so the panel would show stale
+    'armed' indicators / hot-streak badge after a mode switch. T119
+    renamed wager_insurance_armed → insurance_armed and
+    setWagerInsuranceArmed → setInsuranceArmed."""
     src = _read_jsx()
     # All four setter calls must be present in the handler.
     # We accept any spelling of the call as long as it appears in the file.
@@ -67,8 +70,8 @@ def test_handleWheelModeChange_reads_all_four_reset_fields():
         "T99: handleWheelModeChange must call setWagerStreak(data.wager_streak) "
         "in its success branch"
     )
-    assert "setWagerInsuranceArmed(data.wager_insurance_armed)" in src, (
-        "T99: handleWheelModeChange must call setWagerInsuranceArmed(data.wager_insurance_armed) "
+    assert "setInsuranceArmed(data.insurance_armed)" in src, (
+        "T99/T119: handleWheelModeChange must call setInsuranceArmed(data.insurance_armed) "
         "in its success branch"
     )
     assert "setDoubleDownPending(data.double_down_pending)" in src, (
@@ -82,9 +85,9 @@ def test_handleWheelModeChange_reads_all_four_reset_fields():
 
 
 def test_handleWheelModeChange_restores_wager_state_on_failure():
-    """T99 AC#5: if the /api/wheel-mode call fails, the wager panel must
+    """T99 + T119: if the /api/wheel-mode call fails, the wager panel must
     roll back to its pre-click state — the four captured values must be
-    restored in the !ok branch."""
+    restored in the !ok branch. T119 renamed the insurance variable."""
     src = _read_jsx()
     # The capture pattern (BEFORE the optimistic update) — all four prev*
     # variables.
@@ -92,8 +95,9 @@ def test_handleWheelModeChange_restores_wager_state_on_failure():
         "T99: handleWheelModeChange must capture prevStreak = wagerStreak "
         "before the optimistic update"
     )
-    assert 'const prevInsuranceArmed = wagerInsuranceArmed' in src, (
-        "T99: handleWheelModeChange must capture prevInsuranceArmed before the optimistic update"
+    assert 'const prevInsuranceArmed = insuranceArmed' in src, (
+        "T99/T119: handleWheelModeChange must capture prevInsuranceArmed "
+        "(renamed from prevWagerInsuranceArmed in T119) before the optimistic update"
     )
     assert 'const prevDoubleDownPending = doubleDownPending' in src, (
         "T99: handleWheelModeChange must capture prevDoubleDownPending before the optimistic update"
@@ -107,9 +111,9 @@ def test_handleWheelModeChange_restores_wager_state_on_failure():
         "T99: on failure, handleWheelModeChange must restore "
         "setWagerStreak(prevStreak)"
     )
-    assert 'setWagerInsuranceArmed(prevInsuranceArmed)' in src, (
-        "T99: on failure, handleWheelModeChange must restore "
-        "setWagerInsuranceArmed(prevInsuranceArmed)"
+    assert 'setInsuranceArmed(prevInsuranceArmed)' in src, (
+        "T99/T119: on failure, handleWheelModeChange must restore "
+        "setInsuranceArmed(prevInsuranceArmed) (renamed from setWagerInsuranceArmed)"
     )
     assert 'setDoubleDownPending(prevDoubleDownPending)' in src, (
         "T99: on failure, handleWheelModeChange must restore "

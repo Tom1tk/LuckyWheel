@@ -4278,6 +4278,24 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   white-space: normal;  /* T116: long cancel label wraps, no truncation */
   line-height: 1.2;
 }
+/* T119: insurance armed indicator. The original element had no
+   explicit color rule and was inheriting black-on-dark, which the
+   operator reported as unreadable. This is the T74-era class name
+   (we kept the same class for the button to avoid a CSS churn) — the
+   new color matches the cyan/insurance theme (closer to
+   .wager-action-btn's existing colour palette). */
+.wager-insurance-armed {
+  font-size: 0.8rem;
+  color: #44ddff;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #44ddff;
+  border-radius: 4px;
+  animation: pulse-glow 1.2s ease-in-out infinite alternate;
+  white-space: normal;  /* T116: long cancel label wraps, no truncation */
+  line-height: 1.2;
+}
 /* T108: cancel affordance for armed indicators (strip default <button> chrome) */
 .wager-cancel-btn {
   background: transparent;
@@ -4868,6 +4886,41 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   transition: opacity 0.15s;
 }
 .bounty-claim-btn:hover { opacity: 0.82; }
+
+/* T119: free-tokens section — sits above the bounties panel. A single
+   row, themed to match the bounty panel. The claim button uses a
+   golden palette so the free daily token source is visually distinct
+   from the per-bounty (claim +N tokens) buttons below. */
+.free-tokens-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.free-tokens-claim-btn {
+  background: linear-gradient(135deg, #ffb84d, #ff8800);
+  border: none;
+  color: #1a1a1a;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: inherit;
+  font-weight: 700;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.free-tokens-claim-btn:hover { opacity: 0.85; }
+.free-tokens-claim-btn:active { transform: scale(0.97); }
+.free-tokens-claimed {
+  font-size: 0.6rem;
+  color: #999;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  font-style: italic;
+}
 
 /* ── Season 8: community goal + singularity, merged into one slim panel in .bottom-left-stack ─────────────── */
 /* Two separate bordered panels used to sit here and collided with the vertically-centered
