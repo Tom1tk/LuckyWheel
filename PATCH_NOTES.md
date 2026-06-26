@@ -2,6 +2,85 @@
 
 ---
 
+## Season 8 — Casino — 27 Jun 2026
+
+Season 8 ("Casino") launches a flat-percentage wager model, retires most of the S7-era prestige complexity, refreshes the shop layout, and ships a reworked mobile experience. Wins and losses reset at the season boundary; `cumulative_wins` (lifetime) and cosmetics (fish skins, themes, Aquarium progress, page themes) carry forward.
+
+### 🎰 Casino Theme
+
+The page background is now an animated casino floor (Canvas + CSS). All existing players are granted the **`page_season8`** page theme automatically; switch back to any prior season's page theme in the shop if you prefer the old look.
+
+### 🎲 Wager System — Flat-Percentage Stake
+
+The 1×–10× stake multiplier is gone. Wager is now a **flat percentage of your current wins**, selectable in 5% steps from 0% to 45% (0% = safe, no escrow):
+
+- **Stake escrow** — when you choose N%, N% of your current wins is debited up front and held at risk. Win the spin: you get it back plus your payout. Lose the spin: it's gone. Choose 0% and you're back to a plain unrisked spin.
+- **Stake-extension upgrades** — three shop items raise the cap by +5% each: **Stake Extension I** (5,000 wins, 50%), **II** (15,000 wins, 55%), **III** (40,000 wins, 60%).
+- **Stake value display** — the wager panel now shows the **actual stake value** (the number of wins being escrowed) next to the slider, not just the percentage — so you can see exactly what's at risk before you spin.
+
+### 🔥 Double-Down — True All-or-Nothing
+
+Double-Down is no longer a 2× stake bump. Arming DD before a spin puts your **entire last win amount** on the line:
+
+- Win: you double the escrowed winnings.
+- Lose: you lose the full escrowed pot, with **no insurance, no safety net, no resilience** — the only outcome that counts is the wheel's.
+- The DD button now clearly warns of the all-or-nothing rule. Insurance cannot be armed on a Double-Down spin.
+
+### 🛡️ Insurance — Reworked Earning, Simpler Spending
+
+The "Wager Tokens" currency is renamed to **Insurance Tokens**, and the old 1-charge-per-10-minutes recharge is **gone**. Insurance charges now come from **three sources only**:
+
+- **3 free tokens per UTC day** (claim button in the Insurance panel, resets at 00:00 UTC).
+- **1 / 2 / 3 tokens** for clearing the 1st / 2nd / 3rd daily bounty — the bounty's Claim button illuminates once it's completed.
+- **5 tokens** granted once, automatically, on your first Insurance purchase (the `wager_insurance` shop item).
+
+Spending is unchanged in spirit: arm Insurance before a spin to cap the loss at your stake and refund the escrow. Tokens are a balance, not charges-with-recharge.
+
+### 🎯 Daily Bounties — Per-Bounty Claims
+
+Each bounty has its own **Claim** button now (the old "claim all 3 in one batch" UI is gone). Bounty rewards are 1 token for the 1st-tier bounty, 2 for the 2nd, 3 for the 3rd — total 6 tokens per day across all three. Bounties reset at UTC midnight with the same deterministic-per-player selection as before.
+
+### ⭐ Prestige — Reworked
+
+Prestige moves out of the hidden stat-panel flow and into the **shop**, with a confirmation modal before you commit. The two prestige sub-upgrades — **Prestige Efficiency** (lower threshold) and **Prestige Legacy** (keep an extra item per level) — are **retired**.
+
+- The trigger: buy `prestige_unlock` from the shop. A modal shows the cost in wins, what you'll keep (cosmetics, Aquarium, Prestige level), and what you'll lose (wins, losses, streak, most shop items).
+- The bonus: each Prestige level is a flat **+2% to your win payouts on winning spins**, up to level 20 (+40%). Losses are unaffected; jackpots use their own multiplier.
+- Threshold: 1,000,000 cumulative wins to enter, scaling ×1.05 per level (so level 2 costs ~1.05M, level 3 ~1.1M, etc.). `cumulative_wins` is a **lifetime** counter — it never resets, even on Prestige.
+
+### 🎡 Wheel Modes — Long Shot Replaces Mirror
+
+Mirror has retired from the weekly rotation. **Long Shot** takes its slot — long odds for a jackpot-heavy payout profile, with most spins losing. The rotation is now Inverted → Gravity → Long Shot, repeating weekly. Steady and Volatile remain always-available.
+
+### 🏆 Leaderboard & Hall of Fame
+
+- The leaderboard (bottom-left) now ranks by **Prestige level (desc), then wins (desc)** instead of the retired Win Power / Bonus Power. A Lv3 player with 100 wins ranks above a Lv0 player with 1,000,000. Players with zero wins but at least one Prestige level are now listed (previously filtered out).
+- The **Hall of Fame** modal (🏆 toolbar button) and the `/api/legacy-boards` endpoint are **removed**. Past-season winners are still visible from the leaderboard's own history view; Hall of Fame was redundant.
+
+### 🔁 Auto-Spin Is Now a Shop Upgrade
+
+Auto-spin is no longer free by default. Buy the **Auto-Spin Unlock** (5,000 cumulative wins, Tier 3-gated) to enable it. Once unlocked, the same tick-driven auto-spinUI as before applies (budget, manual-spin guard).
+
+### 📱 Mobile — Drawer Rework
+
+A big pass on the mobile (≤ 768px) experience:
+
+- **Tab-less drawer** — the slide-in drawer now stacks **all** S8 panels in one scrollable column (Wager, Bounties, Free Tokens, Prestige, Singularity, Community Goal, Aquarium, Loadouts), instead of cycling through tab buttons. The 6 toolbar buttons (Shop, Leaderboard, Fish, Bounties, Stats, Backpack) remain.
+- **Page scrolls on mobile only** — the desktop holds the wheel fixed in place, but on mobile the page scrolls so the dice, roll button, and wager panel are all reachable even with Safari's address bar eating vertical space. The "Casino Wheel" title is offset just below the top bar.
+- **Dice and roll button** — bigger dice pip rendering, slimmer mode buttons, content-sized roll button (no longer full-width).
+
+### 🎓 Onboarding (Off by Default)
+
+The new-player coach-mark overlay (4 steps: first spin, first wager, first catch, first bounty view) is **disabled by default** this season. The backend still tracks `onboarding_step`, so it can be re-enabled in a later sub-season without losing state.
+
+### 🛠️ Behind the Scenes
+
+- The season rollover is now driven by a cron at the `ends_at` instant, posting an admin-secret-authenticated request to `/api/admin/advance-season`. This is the first season launch to ship via the new mechanism; the historical "we forgot to reset a column" breakages are mitigated by the §6.1 dry-run + the §6.2 `user_season_history` S8-column snapshot (every S8 player-state field is now preserved in the permanent season history, not just S7-era fields).
+- `wins` (NUMERIC) snapshots fully — no more lossy casts in season history.
+- `user_season_history` row inserted at rollover now captures 26 S8 columns (wager streaks, insurance tokens, prestige level, cumulative_wins, gravity_drift, biggest_win_announced, etc.) — previously only the 18 S7-era columns were snapshotted.
+
+---
+
 ## High Stakes — 21 Jun 2026
 
 Season 7 continues — this is a mid-season content update, not a new season. The wins/losses you have right now carry forward unchanged. What's new: every spin is now a real bet, the wheel's odds are no longer fixed, daily and weekly challenges give you a reason to come back, and a handful of standing systems got fixed along the way.

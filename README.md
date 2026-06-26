@@ -23,13 +23,13 @@ All game state is stored server-side in PostgreSQL — progress persists across 
 - **Dice Roll** — A charge-based high-risk mechanic between the wheel and shop. Roll two dice (or three with the Extra Die upgrade) to add the sum (2–18) to your current win streak. Requires a win streak of 3+. Snake eyes halves your streak; a pair of sixes doubles it. With three dice: triple 1s ÷3, triple 6s ×3. Charges recharge every 10 minutes (max 1–4, upgradeable in the shop).
 
 ### Wager System
-Every spin is a bet. Once unlocked, choose a stake from 1× to 10× before spinning — higher stakes amplify both wins and losses.
-- **Stake escrow** — before the spin resolves, a percentage of your current wins (2% × stake) is debited up front and held at risk. Win it back plus your payout; lose it and it's gone for that spin.
+Every spin is a bet. Once unlocked, choose a **flat percentage stake** from 0% to 45% in 5% steps before spinning — higher stakes amplify both wins and losses. Stake-extension upgrades raise the cap to 60%.
+- **Stake escrow** — before the spin resolves, the chosen percentage of your current wins is debited up front and held at risk. Win it back plus your payout; lose it and it's gone for that spin. 0% = unrisked.
 - **Hot streak** — consecutive wins at the *same* stake add +5% to payout each, capped at +50% (streak 10). Changing stake resets the streak. The bonus portion banks separately rather than paying out immediately.
 - **Bank** — lock in your banked hot-streak winnings into your wins total at any time, resetting the streak. The risk/reward tension: keep pushing for a bigger multiplier, or bank and start fresh.
-- **Double Down** — after owning the upgrade, arm your next spin to use 2× your chosen stake (full effect at stake 1–4; clamped at the 10× stake ceiling for stake 5+, same as any other spin).
-- **Safety Net** — on a loss at 5×+ stake, recover 25% of the escrowed stake back into wins.
-- **Insurance** — arm it before a spin (consumes one of up to 3 charges from each purchase) to cap that spin's loss at your stake amount and get the escrowed stake back, if you lose.
+- **Double Down** — arm your next spin to put your **entire last win amount** on the line. Win and you double the escrowed winnings; lose and you lose the full pot. **All-or-nothing** — no insurance, safety net, or resilience works on a DD spin.
+- **Safety Net** — on a loss at 5%+ stake, recover 25% of the escrowed stake back into wins.
+- **Insurance** — arm it before a spin (consumes one Insurance Token) to cap that spin's loss at your stake amount and refund the escrowed stake if you lose. Tokens are earned from 3 sources (3 free per UTC day, 1–3 per daily bounty cleared, 5 once on first purchase of `wager_insurance`).
 
 ### Wheel Modes
 Switch the wheel's odds profile at will. **Steady** and **Volatile** are always available; one additional mode rotates weekly.
@@ -40,17 +40,16 @@ Switch the wheel's odds profile at will. **Steady** and **Volatile** are always 
 | Volatile | 45% | 50% | 5% | 50× | High variance, double jackpot payout |
 | Inverted *(rotates)* | 60% | 35% | 5% | 25× | |
 | Gravity *(rotates)* | 55% | 40% | 5% | 25× | Outcomes drift toward the last result |
-| Mirror *(rotates)* | 65% | 30% | 5% | 25× | Two spins resolve; you take the better result |
+| Long Shot *(rotates)* | 35% | 60% | 5% | 75× | Long odds, jackpot-heavy payouts |
 | Singularity | 75% | 10% | 15% | 50× | Unlocked server-wide once the Singularity Meter fills |
 
-The rotating slot cycles Inverted → Gravity → Mirror by ISO week number. This jackpot chance/multiplier applies to **every** player on every spin regardless of owning the Jackpot upgrade — Jackpot (below) adds a *separate*, additional proc chance on top of ordinary wins.
+The rotating slot cycles Inverted → Gravity → Long Shot by ISO week number. This jackpot chance/multiplier applies to **every** player on every spin regardless of owning the Jackpot upgrade — Jackpot (below) adds a *separate*, additional proc chance on top of ordinary wins.
 
 ### Prestige
-A flat, capped reset path for players who've maxed Win Power and Bonus Power. Requires the **Prestige Unlock** upgrade (1,000,000 wins) and at least 1,000,000 wins (reduced 10%/level by Prestige Efficiency, to a 500,000 floor) to activate.
-- Resets wins, losses, streak, and most functional upgrades; cosmetics, Aquarium progress, and your Prestige level itself are kept.
-- Each Prestige level grants a permanent **+2% flat bonus to win value**, up to level 20 (+40%).
-- **Prestige Legacy** lets you keep one extra owned functional upgrade per level on reset (max 3).
-- Returning players who played in earlier seasons start with a head-start Prestige level based on their historical all-time wins.
+A flat, capped reset path for players who've maxed Win Power and Bonus Power. Trigger from the shop: buy **Prestige Unlock** (1,000,000 cumulative wins) and a confirmation modal shows what you'll keep (cosmetics, Aquarium, Prestige level itself, `cumulative_wins`) vs. lose (wins, losses, streak, most owned shop items).
+- **Threshold** = 1,000,000 cumulative wins, scaling ×1.05 per level (level 2 ≈ 1.05M, level 3 ≈ 1.1M, etc.). `cumulative_wins` is a **lifetime** counter — never resets, even on Prestige.
+- **Bonus** = each Prestige level adds a flat **+2% to your win payouts** on winning spins (jackpots unaffected), up to level 20 (+40%).
+- The retired sub-upgrades (Prestige Efficiency for lower threshold, Prestige Legacy for keeping extra items) are gone — keep your cosmetics and Prestige level only.
 
 ### Authentication
 - Register with a username (3–32 alphanumeric) and password (6+ chars)
@@ -79,23 +78,23 @@ A flat, capped reset path for players who've maxed Win Power and Bonus Power. Re
 - All timing is server-authoritative — the bite window and catch validation cannot be spoofed client-side.
 
 ### Auto-Spin
-- Checkbox to enable automatic spinning on a configurable delay
+- Shop upgrade (**Auto-Spin Unlock**, 5,000 cumulative wins, Tier 3-gated) — not free by default in Season 8
+- Once unlocked: checkbox to enable automatic spinning on a configurable delay
 - While active, manual spinning is locked out to prevent stacking
 - The wheel can begin spinning while the previous result banner is still fading out
 
 ### Seasons
-- Seasons track per-user win/loss history and freeze a top-5 leaderboard snapshot at end-of-season
+- Seasons track per-user win/loss history and freeze a top-3 leaderboard snapshot at end-of-season
 - **Season History** — users can view their final wins and finishing positions for all past seasons in the stats popup
 - Season info shown in the UI; transitions announced via toast
-- The active leaderboard (bottom-left) displays the top 10 players, including their current and all-time best streaks
-- **Season 7 is open-ended** — no automatic reset. The "Season ends in" countdown shows **∞?** and seasons are advanced manually.
-- **🏆 Hall of Fame** — a separate legacy leaderboard (toolbar button) shows the top-5 snapshot from every past season, independent of the live top-10 board.
+- The active leaderboard (bottom-left) displays the top 10 players, ranking by **Prestige level (desc), then wins (desc)** — a Lv3 player with 100 wins ranks above a Lv0 player with 1,000,000. Players with zero wins but at least one Prestige level are listed.
+- The **Hall of Fame** modal and the `/api/legacy-boards` endpoint are **removed** in Season 8 — past-season winners are still visible from the leaderboard's own history view.
 
 ### Daily Bounties
-Three objectives are selected per player each UTC day (deterministic — the same three all day, reset at midnight UTC), drawn from a pool including catching fish, landing a jackpot, reaching a win streak, banking wager winnings, and more. Completing bounties pays out in **Wager Tokens**, with a bonus **Cosmetic Fragment** for clearing all three in one day. Progress and claiming are in the bounty panel; rewards can only be claimed once per day.
+Three objectives are selected per player each UTC day (deterministic — the same three all day, reset at midnight UTC), drawn from a pool including catching fish, landing a jackpot, reaching a win streak, banking wager winnings, and more. Each completed bounty has its own **Claim** button — the 1st-tier bounty pays 1 Insurance Token, the 2nd 2 tokens, the 3rd 3 tokens (max 6 tokens/day across all three). Progress is in the bounty panel; claiming only resets at UTC midnight.
 
 ### Community Goals
-A weekly server-wide objective — one of five rotating goals (catch fish, land jackpots, prestige, wager wins, or discover unique species), selected by week number. Everyone's progress contributes toward one shared target, with a per-player contribution cap so a single player can't solo it. Completing the goal grants every contributor a week-long +5% win-rate buff plus Wager Tokens and a Cosmetic Fragment. Distinct from (and runs alongside) the Community Pot above.
+A weekly server-wide objective — one of five rotating goals (catch fish, land jackpots, prestige, wager wins, or discover unique species), selected by week number. Everyone's progress contributes toward one shared target, with a per-player contribution cap so a single player can't solo it. Completing the goal grants every contributor a week-long +5% win-rate buff plus Insurance Tokens and a Cosmetic Fragment. Distinct from (and runs alongside) the Community Pot above.
 
 ### Singularity Meter
 A second, much larger server-wide effort: all players can voluntarily contribute Fish Bucks toward a shared 100,000,000 target (each player capped at 25,000,000 per fill cycle). When the meter fills, the **Singularity** wheel mode (see Wheel Modes) unlocks for everyone for the rest of the season, and the meter resets to fill again.
@@ -118,8 +117,9 @@ A persistent chat channel (bottom-right panel, resizable) where players can talk
 
 ### Mobile Support
 - Fully playable on phones and tablets (≤ 768 px breakpoint); desktop layout is completely unchanged
-- **Bottom toolbar** — five icon buttons toggle panels: Shop 🏪, Leaderboard 🏆, Fish+Community Pot 🐟, Season Winners 🏅, Stats 📊
-- **Slide-in drawers** — the shop/sidebar panel slides in from the right; leaderboard, season winners, and fish panels open as overlays
+- **Bottom toolbar** — six icon buttons: Shop 🏪, Leaderboard 🏆, Fish+Community Pot 🐟, Bounties 🎯, Stats 📊, Backpack 🎒
+- **Tab-less drawer** — the slide-in drawer stacks **all** S8 panels (Wager, Bounties, Free Tokens, Prestige, Singularity, Community Goal, Aquarium, Loadouts) in one scrollable column — no tab cycling
+- **Page scrolls on mobile only** — desktop holds the wheel fixed; on mobile the page scrolls so the dice, roll button, and wager panel are all reachable even with Safari's address bar eating vertical space
 - **Tap-to-dismiss backdrop** — tapping outside any open panel closes it
 - **Community Pot** moved into the fish panel on mobile to avoid crowding the top bar
 
@@ -144,7 +144,7 @@ The shop is always visible as a two-column panel on the right side of the screen
 - **Wins**: Used for all functional upgrades and gameplay boosts.
 - **Losses**: Used for all cosmetic items (skins, trails, themes, backgrounds).
 - **Fish Bucks**: Earned through Cast & Reel fishing. Used for the Fish Exchange (convert to Wins) and the Singularity Meter.
-- **Wager Tokens** and **Cosmetic Fragments**: Earned from Daily Bounties and Community Goals. Currently accumulate as a balance with no spend yet — a future cosmetic-redemption sink is planned but not live.
+- **Insurance Tokens** (renamed from Wager Tokens in Season 8) and **Cosmetic Fragments**: earned via Daily Bounties and Community Goals. Insurance Tokens are spent arming Insurance on risky spins; Cosmetic Fragments currently accumulate (a future cosmetic-redemption sink is planned but not yet live).
 
 ### Tier Gating (Season 5)
 Functional upgrades are gated behind total win milestones. Locked items appear greyed out with the required win count shown.
@@ -259,8 +259,8 @@ Master Angler requires completing the Fish Encyclopaedia. Precise Angler multipl
 
 | Item | Cost | Effect |
 |------|------|--------|
-| Fish-to-Wager | 5,000 | Each catch also awards Wager Tokens, scaled by species rarity (5 for Common up to 100 for Legendary) |
-| Catch of the Day | 3,000 | First catch each UTC day awards 5× Wager Tokens |
+| Fish-to-Wager | 5,000 | Each catch also awards Insurance Tokens, scaled by species rarity (5 for Common up to 100 for Legendary) |
+| Catch of the Day | 3,000 | First catch each UTC day awards 5× Insurance Tokens |
 | Aquarium | 15,000 | Each unique species you've ever caught adds +0.1% wheel win chance (see Aquarium above) |
 | Lure Specialization | 10,000 | Requires Fish-to-Wager. Choose a fish family for +50% value, -25% for others |
 
@@ -310,7 +310,8 @@ Ocean Casino is the **default background** for all players in Season 6 (animated
 | Season 4 | 1,000 | Deep violet |
 | Season 5 | 1,000 | Bioluminescent cyan & coral |
 | Season 6 🌙 | 1,000 | Night ocean — deep indigo & violet |
-| Season 7 | 1,000 | Current season default |
+| Season 7 | 1,000 | Sepia-tinted |
+| Season 8 🎰 | 1,000 | Casino floor — current season default (auto-granted to all players) |
 
 #### Confetti
 | Tier | Cost | Count |
@@ -342,14 +343,16 @@ All Special Upgrades require Tier 3 (5,000 total wins) to unlock. The infinite u
 
 | Item | Cost | Requires | Effect |
 |------|------|----------|--------|
-| Wager Unlock | 500 | — | Unlocks the stake slider (1×–10×); without it, stake is locked at 1× |
+| Wager Unlock | 500 | — | Unlocks the stake slider (0%–45% in 5% steps); without it, stake is locked at 0% |
 | Wager Hot Streak | 8,000 | Wager Unlock | Enables the hot-streak payout bonus |
-| Wager Safety Net | 2,000 | Wager Unlock | 25% escrow refund on a loss at 5×+ stake |
-| Wager Double Down | 25,000 | Wager Hot Streak | Enables the Double Down button |
-| Wager Insurance | 50,000 | Wager Unlock | Grants 3 Insurance charges per purchase |
-| Prestige Unlock | 1,000,000 | — | Enables the Prestige action |
-| Prestige Efficiency | 500,000/level | Prestige Unlock | -10% to the win threshold needed to Prestige, per level (max 5, floor 500,000) |
-| Prestige Legacy | 1,000,000/level | Prestige Unlock | Keep 1 extra owned functional upgrade per level on Prestige (max 3) |
+| Wager Safety Net | 2,000 | Wager Unlock | 25% escrow refund on a loss at 5%+ stake |
+| Wager Double Down | 25,000 | Wager Hot Streak | Enables the all-or-nothing Double Down button |
+| Wager Insurance | 50,000 | Wager Unlock | Grants 3 Insurance charges per purchase + a one-time 5 Insurance Tokens bonus on first buy |
+| Wager Stake Extension I | 5,000 | Wager Unlock | Stake cap raised 45% → 50% |
+| Wager Stake Extension II | 15,000 | Stake Extension I | Stake cap raised 50% → 55% |
+| Wager Stake Extension III | 40,000 | Stake Extension II | Stake cap raised 55% → 60% |
+| Auto-Spin Unlock | 5,000 (cumulative wins) | — | Unlocks auto-spin (no longer free by default in S8) |
+| Prestige Unlock | 1,000,000 (cumulative wins) | — | Triggers the Prestige confirmation modal (Prestige Efficiency + Prestige Legacy retired in S8) |
 
 ### 🌌 Class System (Costs Wins — Tier 3)
 Each class costs **10,000,000 Wins**. All three can be owned simultaneously; only one can be equipped at a time. Equipping a new class replaces the previous one. Toggle equip by clicking an already-equipped class.
@@ -627,7 +630,7 @@ The frontend is a pre-compiled React app. Edit `static/app.jsx` and run the Babe
 | `Scoreboard` | Win/loss counter below the wheel |
 | `StatsPanel` | Modal overlay showing personal stats (📊 button) |
 | `Confetti` | Win confetti overlay |
-| `Leaderboard` | Vertical panel (bottom-left) — top 10 players, plus a 🏆 Hall of Fame modal for past-season snapshots |
+| `Leaderboard` | Vertical panel (bottom-left) — top 10 players ranked by Prestige level (desc) then wins (desc) |
 | `FireEffect` | Full-viewport canvas fire effect behind all UI — ember particles + cellular automaton inferno, scaled by win streak |
 | `ChatPanel` | Resizable bottom-right chat panel — player messages + automatic system announcements |
 | Onboarding coach-marks | Non-blocking overlay guiding new players through their first spin, wager, catch, and bounty view |
