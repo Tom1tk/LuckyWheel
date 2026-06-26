@@ -230,9 +230,11 @@ SHOP_ITEMS = {
     'wager_stake_extend_2': {'cost': 15_000,   'requires': 'wager_stake_extend_1'},
     'wager_stake_extend_3': {'cost': 40_000,   'requires': 'wager_stake_extend_2'},
     # ── Season 8: Prestige system (spec S5) ───────────────────────────────────
+    # T121: only prestige_unlock is buyable from the shop. prestige_efficiency
+    # and prestige_legacy have been retired — they're no longer in SHOP_ITEMS
+    # (so /api/buy rejects them with 403 via the RETIRED_ITEMS guard) and
+    # the prestige flow no longer reads their effect.
     'prestige_unlock':     {'cost': 1_000_000, 'requires': None},
-    'prestige_efficiency': {'cost': 500_000,   'requires': 'prestige_unlock'},
-    'prestige_legacy':     {'cost': 1_000_000, 'requires': 'prestige_unlock'},
     # ── Season 8: Fishing integration (spec S6) ───────────────────────────────
     'fish_to_wager':       {'cost': 5_000,   'requires': None},
     'catch_of_the_day':    {'cost': 3_000,   'requires': None},
@@ -254,6 +256,27 @@ SHOP_ITEMS = {
     'auto_spin_unlock': {'cost': 5_000,    'requires': None},
 }
 
+# T121: active prestige items (buyable). Kept separate from SHOP_ITEMS so the
+# prestige atomic-flow doesn't need to walk the full shop dict — only one item
+# is buyable here and it's the unlock for the prestige loop itself.
+PRESTIGE_ITEMS = {
+    'prestige_unlock': {'cost': 1_000_000, 'requires': None},
+}
+
+# T121: items that USED to be buyable from the prestige section of the shop
+# (S5-era `prestige_efficiency` and `prestige_legacy`). Operator removed them
+# because they added an unnecessary meta-progression. Kept here as a tombstone
+# so /api/buy can reject malicious calls with a clear 403 instead of an
+# ambiguous 400 "Unknown item" — defence-in-depth. Players who somehow already
+# own these from staging legacy data see no effect: get_legacy_keep_count
+# returns 0 and compute_wins_kept returns 0 unconditionally.
+RETIRED_ITEMS = {
+    'prestige_efficiency': {'cost': 500_000,   'requires': 'prestige_unlock',
+                            'retired_in': 'T121'},
+    'prestige_legacy':     {'cost': 1_000_000, 'requires': 'prestige_unlock',
+                            'retired_in': 'T121'},
+}
+
 # T106: upgrade tier gating — items not listed here are Tier 1 (always available)
 # Thresholds are based on cumulative_wins (lifetime value of wins gained, T106).
 # Updated from the old win_count (count of winning spins) which was too slow
@@ -269,7 +292,7 @@ UPGRADE_TIER_3 = {
     'dice_charge_3', 'dice_charge_4', 'dice_extra',
     'class_earth', 'class_moon', 'class_star',
     'wager_double_down', 'wager_insurance',
-    'prestige_unlock', 'prestige_efficiency', 'prestige_legacy',
+    'prestige_unlock',
 }
 
 def item_tier(item_id: str) -> int:
@@ -306,7 +329,7 @@ _FUNCTIONAL_SHOP_ITEMS = {
     'wager_unlock', 'wager_safety_net', 'wager_hot_streak', 'wager_double_down', 'wager_insurance',
     'wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3',
     'auto_spin_unlock',
-    'prestige_unlock', 'prestige_efficiency', 'prestige_legacy',
+    'prestige_unlock',
     'fish_to_wager', 'catch_of_the_day', 'aquarium', 'lure_specialization',
 }
 

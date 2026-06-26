@@ -259,9 +259,11 @@ def test_prestige_writes_filtered_owned_items():
 
 
 def test_prestige_writes_filtered_owned_items_with_legacy_keep():
-    """T85: with keep_count=1, the first non-wager functional is retained."""
+    """T85 (T121 update): get_legacy_keep_count always returns 0, so the
+    only functional that survives the reset is the prestige_unlock we just
+    re-added (in the new atomic flow)."""
     gs = {
-        # Player owns prestige_legacy once → keep_count=1.
+        # Player owns prestige_legacy once. T121 ignores it → keep_count=0.
         'owned_items': ['prestige_unlock', 'prestige_legacy',
                         'fish_tropical', 'wager_unlock', 'winmult_1'],
         'wins': 1_000_000,
@@ -272,10 +274,18 @@ def test_prestige_writes_filtered_owned_items_with_legacy_keep():
     new_owned = params[4]
     assert 'fish_tropical' in new_owned
     assert 'wager_unlock' not in new_owned
-    # First non-wager functional (prestige_unlock) is kept.
-    assert 'prestige_unlock' in new_owned
-    # The second functional (winmult_1) is dropped (keep_count=1).
+    # T121: even though prestige_legacy is in the source owned_items, the
+    # get_legacy_keep_count helper always returns 0, so the helper doesn't
+    # keep any functionals. prestige_unlock is re-added by the atomic flow
+    # because the player didn't own it... wait, they DID own it (it's in
+    # the source list). The atomic flow only re-adds when !already_owned,
+    # so here prestige_unlock comes through filter_kept_items → no, it's
+    # a functional and keep_count=0 → dropped.
+    # The result: only the cosmetic fish_tropical survives.
+    assert 'prestige_legacy' not in new_owned
     assert 'winmult_1' not in new_owned
+    # And the player no longer has prestige_unlock — they'd need to re-buy.
+    assert 'prestige_unlock' not in new_owned
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -309,41 +319,39 @@ def test_can_prestige_uses_fixed_threshold():
 
 
 def test_compute_wins_kept_zero_at_level_0():
-    """T86 AC#1: at level 0, new_wins = 0."""
+    """T86 AC#1 / T121: at level 0, new_wins = 0 (always, even before T121)."""
     from prestige import compute_wins_kept
     assert compute_wins_kept(2_000_000, ['prestige_unlock']) == 0
     assert compute_wins_kept(5_000_000, []) == 0
 
 
 def test_compute_wins_kept_half_at_level_5():
-    """T86 AC#1 + AC#4: 2,000,000 wins at level 5 → 1,000,000 kept."""
+    """T86 AC#1 / T121: prestige_efficiency was retired — even at level 5,
+    wins_kept is 0. The level no longer has any effect."""
     from prestige import compute_wins_kept
     owned = ['prestige_unlock'] + ['prestige_efficiency'] * 5
-    assert compute_wins_kept(2_000_000, owned) == 1_000_000
+    assert compute_wins_kept(2_000_000, owned) == 0
 
 
 def test_compute_wins_kept_uses_floor():
-    """T86 AC#1: result is `int(...)` (floor for positive numbers)."""
+    """T86 AC#1 / T121: result is always 0 (the floor behaviour is moot)."""
     from prestige import compute_wins_kept
-    # 1.5M wins * 0.1 * 1 = 150_000
-    assert compute_wins_kept(1_500_000, ['prestige_efficiency']) == 150_000
-    # 7 wins * 0.1 * 1 = 0.7 → 0 (floor)
+    assert compute_wins_kept(1_500_000, ['prestige_efficiency']) == 0
     assert compute_wins_kept(7, ['prestige_efficiency']) == 0
-    # 9 wins * 0.1 * 1 = 0.9 → 0
     assert compute_wins_kept(9, ['prestige_efficiency']) == 0
-    # 10 wins * 0.1 * 1 = 1.0 → 1
-    assert compute_wins_kept(10, ['prestige_efficiency']) == 1
+    assert compute_wins_kept(10, ['prestige_efficiency']) == 0
 
 
 def test_prestige_wins_kept_field_in_response():
-    """T86 AC#4: response includes wins_kept so the client can see retention."""
+    """T86 AC#4 / T121: response includes wins_kept; the value is now 0
+    (T121 retired prestige_efficiency)."""
     gs = {
         'owned_items': ['prestige_unlock'] + ['prestige_efficiency'] * 5,
         'wins': 2_000_000,
     }
     _, result = _drive_prestige(gs)
-    assert result['wins_kept'] == 1_000_000, (
-        f"expected wins_kept=1_000_000 at level 5, got {result['wins_kept']}"
+    assert result['wins_kept'] == 0, (
+        f"expected wins_kept=0 (T121 retired efficiency), got {result['wins_kept']}"
     )
 
 

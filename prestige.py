@@ -5,13 +5,19 @@ bonus capped at level 20. Each prestige level gives +2% base win value.
 
 Starting prestige at Season 8 rollover is derived from the player's
 all-time wins across Seasons 1–7 (stored in ``user_season_history``).
+
+T121 (2026-06-26): operator removed ``prestige_efficiency`` and
+``prestige_legacy`` from the shop. Wins are no longer retained on prestige
+(``compute_wins_kept`` returns 0) and no functional upgrades are carried
+over (``get_legacy_keep_count`` returns 0). Players must re-buy their items
+after each prestige.
 """
 
 # Maximum prestige level (hard cap).
 MAX_PRESTIGE_LEVEL = 20
 
-# The win threshold is a fixed 1,000,000 — prestige_efficiency no longer
-# shortens it (spec S5.3 hardening). T86 changed this from the v1 scaling.
+# The win threshold is a fixed 1,000,000. T86 removed efficiency's ability
+# to shorten it; T121 removed efficiency from the shop entirely.
 PRESTIGE_WIN_THRESHOLD = 1_000_000
 
 PRESTIGE_LEVEL_MULTIPLIER = 1.05
@@ -108,8 +114,7 @@ def can_prestige(wins, owned_items, prestige_level):
     """Check whether the player can perform the prestige action.
 
     Requires ``prestige_unlock`` owned, wins >= the level-scaled threshold,
-    and prestige_level < MAX_PRESTIGE_LEVEL. ``prestige_efficiency`` no
-    longer shortens the threshold (T86). T111 makes the threshold scale
+    and prestige_level < MAX_PRESTIGE_LEVEL. T111 makes the threshold scale
     with the player's current prestige level.
     """
     if 'prestige_unlock' not in owned_items:
@@ -136,22 +141,18 @@ def get_prestige_threshold(owned_items, prestige_level=0):
 
 
 def get_legacy_keep_count(owned_items):
-    """How many functional upgrades the player can keep on prestige.
-
-    Spec: 1 functional upgrade kept per level of ``prestige_legacy`` owned.
+    """T121: retired. No functional upgrades are kept on prestige —
+    players must re-buy their items after each prestige.
     """
-    return _count_owned(owned_items, 'prestige_legacy')
+    return 0
 
 
 def compute_wins_kept(wins, owned_items):
-    """T86: how many wins a player keeps on prestige, given their efficiency
-    level. At level 0: 0. At level 5: floor(wins * 0.5).
-
-    The threshold to prestige is fixed at 1,000,000 — this helper only
-    governs how much of the player's accumulated wins survive the reset.
+    """T121: retired. ``prestige_efficiency`` no longer exists, so wins
+    are fully reset to 0 on prestige. The ``legacy_wins`` column carries
+    the prior total forward (see game.py:prestige_reset).
     """
-    efficiency_level = _count_owned(owned_items, 'prestige_efficiency')
-    return int(wins * 0.1 * efficiency_level)
+    return 0
 
 
 # Item IDs that are wager-related and must be removed on prestige even if
@@ -198,19 +199,19 @@ def _is_cosmetic_item(item_id):
     """True if the item is a cosmetic (fish skin, theme, trail, etc.).
 
     Uses the ITEM_CURRENCY table from ``models`` to keep the cosmetics set
-    in lock-step with the rest of the codebase. Falling back to ``True``
-    for unknown items is intentional — unknown IDs are never purchased so
-    they shouldn't survive a reset, but treating them as cosmetic is the
-    safer default (a stray cosmetic dropped is invisible; a stray functional
+    in lock-step with the rest of the codebase. T121 retired items
+    (prestige_efficiency, prestige_legacy) are explicitly treated as
+    functional so they don't accidentally survive a prestige reset if a
+    staging player already owns them. Falling back to ``True`` for unknown
+    items is intentional — unknown IDs are never purchased so they
+    shouldn't survive a reset, but treating them as cosmetic is the safer
+    default (a stray cosmetic dropped is invisible; a stray functional
     upgrade kept could be exploited for cheap power).
     """
     try:
-        from models import ITEM_CURRENCY
+        from models import ITEM_CURRENCY, RETIRED_ITEMS
     except Exception:
         return True
+    if item_id in RETIRED_ITEMS:
+        return False
     return ITEM_CURRENCY.get(item_id, 'losses') == 'losses'
-
-
-def _count_owned(owned_items, item_id):
-    """Count occurrences of item_id in owned_items (for level-based items)."""
-    return sum(1 for item in owned_items if item == item_id)
