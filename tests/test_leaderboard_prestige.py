@@ -101,3 +101,24 @@ def test_css_has_prestige_column_styling():
     assert '.lb-wp' not in css and '.lb-bp' not in css, (
         "styles.css must not include the retired .lb-wp / .lb-bp"
     )
+
+
+def test_leaderboard_includes_prestiged_zero_win_users():
+    """The WHERE clause must include users with 0 wins but
+    prestige_level > 0 (otherwise T121-prestiged players
+    would be invisible on the leaderboard).
+
+    Similarly, the ORDER BY must rank by prestige_level first
+    (then wins) so a Lv3 / 0-win user is ranked above a Lv0 / 1-win
+    user."""
+    block = _leaderboard_select_block()
+    assert 'prestige_level > 0' in block, (
+        "WHERE must include 'prestige_level > 0' so prestiged users "
+        "with 0 wins appear on the leaderboard"
+    )
+    assert 'ORDER BY gs.prestige_level DESC' in block, (
+        "ORDER BY must rank by prestige_level DESC (primary)"
+    )
+    assert 'wins > 0' in block, (
+        "WHERE must still include wins > 0 (non-prestiged players)"
+    )

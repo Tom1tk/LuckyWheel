@@ -3025,8 +3025,8 @@ def leaderboard():
                               gs.prestige_level, gs.last_spin_at
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
-                       WHERE gs.wins > 0
-                       ORDER BY gs.wins DESC
+                       WHERE gs.wins > 0 OR gs.prestige_level > 0
+                       ORDER BY gs.prestige_level DESC, gs.wins DESC
                        LIMIT 10'''
                 )
                 rows = cur.fetchall()
