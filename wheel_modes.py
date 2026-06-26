@@ -5,7 +5,7 @@ The mode probabilities replace the old ``secrets.choice(['win', 'lose'])``
 50/50 outcome in ``_resolve_spin()``.
 
 Steady and volatile are always available. One rotating mode (inverted,
-gravity, or mirror) is available each week based on ISO week number.
+gravity, or long_shot) is available each week based on ISO week number.
 """
 
 from datetime import datetime, timezone
@@ -49,6 +49,13 @@ WHEEL_MODES = {
         'description': 'Two spins resolve simultaneously; player takes the better result.',
         'jackpot_multiplier': 25,
     },
+    'long_shot': {
+        'win_pct': 20,
+        'loss_pct': 60,
+        'jackpot_pct': 20,
+        'description': 'Most spins lose. Jackpots hit often but pay less.',
+        'jackpot_multiplier': 10,
+    },
     'singularity': {
         'win_pct': 75,
         'loss_pct': 10,
@@ -59,7 +66,7 @@ WHEEL_MODES = {
 }
 
 # Modes that rotate weekly (index by week_number % 3)
-_ROTATING_MODES = ['inverted', 'gravity', 'mirror']
+_ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
 
 
 # T77: gravity mode drift bounds. After a win/jackpot, drift += 10 (capped
