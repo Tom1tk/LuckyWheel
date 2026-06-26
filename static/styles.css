@@ -5035,6 +5035,7 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
 
 .aquarium-info-icon {
   display: inline-block;
+  position: relative;
   margin-left: 6px;
   width: 14px;
   height: 14px;
@@ -5046,6 +5047,30 @@ body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow
   border: 1px solid rgba(68,170,204,0.4);
   border-radius: 50%;
   cursor: help;
+}
+.aquarium-info-icon:hover {
+  border-color: #44aacc;
+  color: #88ddff;
+}
+.aquarium-info-icon[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: #0d0d1a;
+  color: #eee;
+  border: 1px solid #44aacc;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  white-space: normal;
+  max-width: 240px;
+  width: max-content;
+  pointer-events: none;
+  z-index: 999;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .wager-tokens {
