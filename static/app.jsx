@@ -2357,7 +2357,7 @@ function ChatPanel({ extraClass = '', onClose }) {
           </div>
         )}
         {messages.map(m => {
-          const isSystem = m.message_type && m.message_type !== 'user';
+          const isSystem = m.message_type === 'system';
           if (isSystem) {
             return (
               <div key={m.id} className="chat-msg chat-msg-system">
