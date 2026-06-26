@@ -3892,7 +3892,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return () => clearInterval(id);
   }, [autoSpinActive, tick]);
   const [showPrestigeConfirm, setShowPrestigeConfirm] = useState(false);
-  const [showOnboarding, setShowOnboarding]         = useState((gameState.onboarding_step || 0) < 5);
+  const [showOnboarding, setShowOnboarding]         = useState(false);  // T114: disabled for S8 launch
   const [showLegacyBoards, setShowLegacyBoards]     = useState(false);
   const [legacyBoards, setLegacyBoards]             = useState([]);
 
@@ -3922,7 +3922,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.cumulative_wins != null) setCumulativeWins(gameState.cumulative_wins);
     if (gameState.onboarding_step != null) {
       setOnboardingStep(gameState.onboarding_step);
-      setShowOnboarding(gameState.onboarding_step < 5);
+      // T114: onboarding modal disabled for S8 launch; do not auto-show.
     }
     // T107: sync auto-spin state from server.
     if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active);
