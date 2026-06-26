@@ -8115,7 +8115,10 @@ function GameApp(_ref28) {
     className: "season8-aquarium-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "aquarium-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium"), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC20 Aquarium", /*#__PURE__*/React.createElement("span", {
+    className: "aquarium-info-icon",
+    title: "Each unique fish species you catch adds +0.1% to your base win chance."
+  }, "?")), /*#__PURE__*/React.createElement("span", {
     className: "aquarium-luck"
   }, "+", (aquariumSpecies.length * 0.1).toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
     className: "aquarium-grid"
