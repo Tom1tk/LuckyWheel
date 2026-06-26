@@ -481,7 +481,7 @@ wheel-app/
 │                      #            /api/equip-cosmetic, /api/equip-class, /api/wager/*,
 │                      #            /api/wheel-mode(s), /api/prestige, /api/bounties*,
 │                      #            /api/community-goal, /api/singularity*, /api/loadout*,
-│                      #            /api/aquarium, /api/guard, /api/legacy-boards,
+│                      #            /api/aquarium, /api/guard,
 │                      #            /api/stats, /api/leaderboard, /api/health
 ├── db.py              # psycopg2 ThreadedConnectionPool + db_connection() context manager
 ├── models.py          # User class, FISH_SKINS, SHOP_ITEMS, INFINITE_UPGRADES, helper functions
@@ -540,7 +540,6 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/settings` | POST | — | Persist user preferences (e.g. `low_spec_mode`) |
 | `/api/stats` | GET | — | Personal stats (including Season History and fastest catch %) |
 | `/api/leaderboard` | GET | — | Public — top 10 players |
-| `/api/legacy-boards` | GET | — | Public — top-5 snapshot from every past season |
 | `/api/fish-exchange` | POST | — | Convert Fish Bucks → Wins (`{"mode": "10pct"}` or `{"mode": "all"}`) |
 | `/api/wager/stake` | POST | — | Set preferred stake (1-10; clamped to 1 without Wager Unlock) |
 | `/api/wager/bank` | POST | 5/sec | Bank hot-streak winnings into wins, reset the streak |
