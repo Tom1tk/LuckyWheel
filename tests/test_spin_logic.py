@@ -242,13 +242,17 @@ def test_loss_without_insurance_is_not_capped(monkeypatch):
     assert new_state['wins'] == 750             # escrow forfeited, not refunded
 
 
-# ── Wins cap ──────────────────────────────────────────────────────────────────
+# ── No wins cap (T219: 5M cap removed — JS handles Number.MAX_SAFE_INTEGER fine) ──
 
-def test_wins_capped_at_max():
+def test_wins_uncapped_above_five_million():
+    """The 5M cap was removed — large wins pass through unchanged. Modern JS
+    is safe up to Number.MAX_SAFE_INTEGER (~9 quadrillion), so capping for
+    Infinity display is no longer needed."""
     huge = 5_000_001
     state = _base_state(wins=huge)
     new_state, _ = _resolve_spin(**state, **_base_ctx(pot_active=True, pot_win_pct=1.0))
-    assert new_state['wins'] <= 5_000_000
+    # Pot is active, outcome is forced to 'win' (pot_active path), so wins increase.
+    assert new_state['wins'] >= huge, f"wins should not be capped; got {new_state['wins']}, expected >= {huge}"
 
 
 # ── Loss streak ──────────────────────────────────────────────────────────────

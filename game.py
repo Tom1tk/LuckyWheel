@@ -208,10 +208,6 @@ def _bonusmult_level(owned: list) -> int:
     return 0
 
 
-# Cap wins to prevent JS Infinity display (Number.MAX_VALUE ~1.8e308)
-_MAX_WINS = 5_000_000  # Season 8 economy ceiling (was round(9.99e99))
-
-
 def _build_spin_context(gs: dict) -> dict:
     """Compute immutable per-request spin context from game state. Shared by spin() and tick()."""
     equipped_class = gs['equipped_class']
@@ -757,7 +753,6 @@ def _resolve_spin(
             gravity_drift = clamp_gravity_drift(gravity_drift - 10)
 
     new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
-    wins = min(wins, _MAX_WINS)
 
     # T77: compute the wheel_probabilities for the response from the NEW
     # (post-spin) gravity_drift, so the wheel redraws with the new arc

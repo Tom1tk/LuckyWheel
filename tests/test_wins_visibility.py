@@ -187,18 +187,20 @@ def test_jsx_renders_spin_result_detail_when_bonus_earned_positive():
 
 def test_jsx_breakdown_gated_on_bonus_earned_positive():
     """The breakdown must only render when bonusEarned > 0 (plain wins
-    stay uncluttered)."""
+    stay uncluttered). Jackpots also get the breakdown — they're wins
+    with a multiplier on top."""
     src = _read(APP_JSX)
     # The detail div is preceded by an opening expression `{... && (...` —
-    # we look for the literal guard `result === 'win' && bonusEarned > 0`
-    # on the line(s) immediately before the spin-result-detail div.
+    # we look for the literal guard `result === 'win' || result === 'jackpot'`
+    # followed by `&& bonusEarned > 0` on the same gating line.
     guard = re.search(
-        r"\{\s*result\s*===\s*'win'\s*&&\s*bonusEarned\s*>\s*0\s*&&\s*\(",
+        r"\{\s*\(\s*result\s*===\s*'win'\s*\|\|\s*result\s*===\s*'jackpot'\s*\)\s*&&\s*bonusEarned\s*>\s*0\s*&&\s*\(",
         src,
     )
     assert guard, (
         "the spin-result-detail div must be gated on "
-        "`result === 'win' && bonusEarned > 0` (plain wins stay quiet)"
+        "`(result === 'win' || result === 'jackpot') && bonusEarned > 0` "
+        "(plain wins stay quiet; jackpots qualify for the breakdown)"
     )
     # And the detail div must follow within a few lines
     assert "spin-result-detail" in src[guard.end():guard.end() + 200], (

@@ -3126,7 +3126,7 @@ function HiatusWheel() {
           rotationRef.current = next;
           setRotation(next);
           setTimeout(function () {
-            if (data.result === 'win') setWins(function (w) {
+            if (data.result === 'win' || data.result === 'jackpot') setWins(function (w) {
               return w + 1;
             });else setLosses(function (l) {
               return l + 1;
@@ -6737,7 +6737,7 @@ function GameApp(_ref36) {
     setShowResultSync(true);
     var cosm = activeCosmeticsRef.current;
     if (!lowSpecRef.current) {
-      if (data.result === 'win' || data.guard_triggered && data.guard_blocked) {
+      if (data.result === 'win' || data.result === 'jackpot' || data.guard_triggered && data.guard_blocked) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
         setConfetti(true);
@@ -6747,7 +6747,7 @@ function GameApp(_ref36) {
         return setConfetti(false);
       }, 3500);
     }
-    var mood = data.result === 'win' || data.guard_triggered && data.guard_blocked ? 'happy' : 'sad';
+    var mood = data.result === 'win' || data.result === 'jackpot' || data.guard_triggered && data.guard_blocked ? 'happy' : 'sad';
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(function () {
@@ -8391,11 +8391,11 @@ function GameApp(_ref36) {
     }
   })), showResult && /*#__PURE__*/React.createElement("div", {
     className: "result-banner ".concat(showResult && !hideResult ? 'show' : '', " ").concat(hideResult ? 'hide' : '')
-  }, result === 'win' || result === 'lose' && shieldFeedback ? /*#__PURE__*/React.createElement("div", {
-    className: "result-text ".concat(result === 'win' ? 'win' : 'win')
-  }, result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️') : /*#__PURE__*/React.createElement("div", {
+  }, result === 'win' || result === 'jackpot' || result === 'lose' && shieldFeedback ? /*#__PURE__*/React.createElement("div", {
+    className: "result-text ".concat(result === 'lose' ? 'win' : 'win')
+  }, result === 'jackpot' ? '🎰 JACKPOT! 🎰' : result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️') : /*#__PURE__*/React.createElement("div", {
     className: "result-text lose"
-  }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), result === 'win' && winsDelta > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), (result === 'win' || result === 'jackpot') && winsDelta > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line spin-result-total"
   }, "+", fmt(winsDelta), " wins"), result === 'lose' && lossesDelta > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line lose-bonus"
@@ -8413,7 +8413,7 @@ function GameApp(_ref36) {
     className: "bonus-line"
   }, "\uD83D\uDD25 Streak Bonus +", fmt(bonusEarned), "!"), bonusEarned < 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line lose-bonus"
-  }, "\uD83D\uDC80 Loss Streak +", fmt(Math.abs(bonusEarned)), " extra losses!"), result === 'win' && bonusEarned > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDC80 Loss Streak +", fmt(Math.abs(bonusEarned)), " extra losses!"), (result === 'win' || result === 'jackpot') && bonusEarned > 0 && /*#__PURE__*/React.createElement("div", {
     className: "spin-result-detail"
   }, "Base: ", fmt(effectiveWinMult), " \xB7 \uD83D\uDD25 Streak: ", fmt(streak), " (+", fmt(bonusEarned), ")"), shieldFeedback && function () {
     var names = {
