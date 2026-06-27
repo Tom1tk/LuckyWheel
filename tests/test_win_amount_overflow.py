@@ -39,7 +39,14 @@ def _read(path):
 
 def test_migration_067_exists():
     """T225: migration 067 must exist so the column widening is
-    reproducible on a fresh DB and re-runnable on the live one."""
+    reproducible on a fresh DB and re-runnable on the live one.
+
+    Note: T226 (migration 068) further widens these to NUMERIC for
+    unlimited precision. The T225 INT→BIGINT step is a necessary
+    intermediate that lets the JSON round-trip work even when values
+    are between 2.1e9 and 9.2e18; the T226 NUMERIC step handles
+    the 1e18+ case (matching the pre-existing `wins` and
+    `legacy_wins` columns)."""
     assert os.path.exists(MIG_PATH), (
         f"migration 067 missing at {MIG_PATH} — T225 widening not "
         f"preserved for fresh-DB initialisation"
@@ -51,49 +58,86 @@ def test_migration_067_exists():
         )
 
 
-def test_migration_067_uses_bigint_not_numeric():
-    """T225: the widening must be to BIGINT, not NUMERIC.
-
-    BIGINT is the right choice because:
-    - All Python code (game.py, models.py) treats these as int.
-    - BIGINT serialises as a JSON number up to Number.MAX_SAFE_INTEGER
-      (~9 × 10^15) which is more than any plausible payout.
-    - NUMERIC serialises as a JSON string, which would break the
-      existing client math (e.g. `data.wager_last_win_amount.toFixed()`).
-    """
-    src = _read(MIG_PATH)
-    assert re.search(r'wager_last_win_amount\s+TYPE\s+BIGINT', src), (
-        "wager_last_win_amount must be widened to BIGINT (not "
-        "NUMERIC, which would break JSON client math)"
+def test_migration_068_exists():
+    """T226: migration 068 must exist so the BIGINT→NUMERIC widening
+    is reproducible on a fresh DB and re-runnable on the live one."""
+    mig_068 = 'migrations/068_widen_to_numeric.sql'
+    assert os.path.exists(mig_068), (
+        f"migration 068 missing at {mig_068} — T226 widening to "
+        f"NUMERIC not preserved for fresh-DB initialisation. "
+        f"Without NUMERIC, values above 9.2e18 would overflow "
+        f"BIGINT (the T225 cap)."
     )
-    assert re.search(r'biggest_win_announced\s+TYPE\s+BIGINT', src), (
-        "biggest_win_announced must be widened to BIGINT"
-    )
-
-
-def test_migration_067_is_idempotent():
-    """T225: the migration must be safe to re-run (no 'column
-    already bigint' error, no data loss). The defensive USING
-    clause means PG just rewrites the same values, but re-running
-    should at minimum not throw."""
-    # Cheap test: the USING clause is present (PG will accept the
-    # cast even on a no-op rewrite).
-    src = _read(MIG_PATH)
+    src = _read(mig_068)
     for col in WIN_AMOUNT_INT_COLUMNS:
-        # USING clause must explicitly cast to BIGINT.
-        assert f'{col}::BIGINT' in src, (
-            f"{col} must have an explicit ::BIGINT USING clause "
-            f"so the migration is safe to re-run on a column that "
-            f"is already BIGINT (PG will accept the no-op cast)"
+        assert col in src, (
+            f"migration 068 must widen {col} to NUMERIC"
         )
 
 
-def test_db_columns_are_bigint():
-    """T225 (live check): the four win-amount columns must currently
-    be bigint in the live DB. If this fails on a fresh install,
-    migration 067 was not applied. If it fails on the live DB
-    after a rollback, the previous migration set didn't take."""
-    # Skip if DATABASE_URL isn't set (e.g. CI without DB access).
+def test_migration_067_uses_bigint():
+    """T225: the first widening step is BIGINT (not NUMERIC). BIGINT
+    is the intermediate choice because:
+    - All Python code (game.py, models.py) treats these as int.
+    - BIGINT serialises as a JSON number up to Number.MAX_SAFE_INTEGER
+      (~9 × 10^15) which is more than any plausible payout at the
+      time T225 was written.
+    - T226 then widens further to NUMERIC for 1e18+ support.
+    """
+    src = _read(MIG_PATH)
+    assert re.search(r'wager_last_win_amount\s+TYPE\s+BIGINT', src), (
+        "wager_last_win_amount must be widened to BIGINT in T225"
+    )
+    assert re.search(r'biggest_win_announced\s+TYPE\s+BIGINT', src), (
+        "biggest_win_announced must be widened to BIGINT in T225"
+    )
+
+
+def test_migration_068_uses_numeric():
+    """T226: the final widening step is NUMERIC (not BIGINT).
+
+    NUMERIC is the right choice for T226 because:
+    - Previous seasons have legitimately hit values exceeding 1e50
+      (per operator). BIGINT caps at ~9.2e18, so NUMERIC is the
+      only Postgres type that holds it.
+    - The two existing win-amount columns (wins, legacy_wins) are
+      already NUMERIC, so this aligns the schema.
+    - Tradeoff: psycopg2 returns NUMERIC as Python Decimal. The
+      `int(Decimal(x))` casts in game.py handle this correctly
+      (truncates fractional, ours are always integer-valued).
+    """
+    mig_068 = 'migrations/068_widen_to_numeric.sql'
+    src = _read(mig_068)
+    assert re.search(r'cumulative_wins\s+TYPE\s+NUMERIC', src), (
+        "cumulative_wins must be widened to NUMERIC in T226 "
+        "(BIGINT caps at 9.2e18, not enough for 1e50+ seasons)"
+    )
+    assert re.search(r'biggest_win_announced\s+TYPE\s+NUMERIC', src), (
+        "biggest_win_announced must be widened to NUMERIC in T226"
+    )
+    assert re.search(r'wager_last_win_amount\s+TYPE\s+NUMERIC', src), (
+        "wager_last_win_amount must be widened to NUMERIC in T226"
+    )
+
+
+def test_migration_068_is_idempotent():
+    """T226: the BIGINT→NUMERIC migration must be safe to re-run
+    (no 'column already numeric' error, no data loss)."""
+    mig_068 = 'migrations/068_widen_to_numeric.sql'
+    src = _read(mig_068)
+    for col in WIN_AMOUNT_INT_COLUMNS:
+        # USING clause must explicitly cast to NUMERIC.
+        assert f'{col}::NUMERIC' in src, (
+            f"{col} must have an explicit ::NUMERIC USING clause "
+            f"so the migration is safe to re-run on a column that "
+            f"is already NUMERIC (PG will accept the no-op cast)"
+        )
+
+
+def test_db_columns_are_numeric():
+    """T226 (live check): the win-amount columns must currently be
+    numeric in the live DB. If this fails on a fresh install, T225
+    and T226 migrations were not applied in order."""
     env = open('.env').read() if os.path.exists('.env') else ''
     if 'DATABASE_URL=' not in env:
         return  # no DB, can't check — but the other tests still pin the migration
@@ -109,9 +153,9 @@ def test_db_columns_are_bigint():
     """, (WIN_AMOUNT_INT_COLUMNS,))
     types = dict(cur.fetchall())
     for col in WIN_AMOUNT_INT_COLUMNS:
-        assert types.get(col) == 'bigint', (
+        assert types.get(col) == 'numeric', (
             f"{col} is typed as {types.get(col)} in the live DB, "
-            f"but T225 requires bigint. Re-apply migration 067."
+            f"but T226 requires numeric. Re-apply migrations 067 + 068."
         )
     conn.close()
 

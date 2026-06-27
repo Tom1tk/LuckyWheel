@@ -2136,7 +2136,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 }
 .lb-rank-h   { width: 18px; flex-shrink: 0; }
 .lb-name-h   { flex: 1; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-transform: uppercase; }
-.lb-wins-h   { width: 28px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+.lb-wins-h   { width: 64px; font-size: 0.5rem; color: #555; letter-spacing: 0.5px; text-align: right; flex-shrink: 0; }
 .lb-best-h   { width: 34px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
 .lb-streak-h { font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 
@@ -2170,12 +2170,20 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-name.is-you { color: var(--p); }
 
 .lb-wins {
-  width: 28px;
-  font-size: 0.65rem;
+  /* T227: widened from 28px to fit scientific notation ("1.23e+50"
+     is 8 chars at 0.6rem ≈ 65-75px). flex-shrink:0 + text-align:right
+     keep the number right-aligned and let .lb-name absorb the slack
+     via its flex:1. */
+  min-width: 64px;
+  width: 64px;
+  font-size: 0.6rem;
   color: var(--p);
   flex-shrink: 0;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-align: right;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .lb-best {
