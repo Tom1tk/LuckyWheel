@@ -50,7 +50,7 @@ S8_HISTORY_COLUMNS = [
     'wager_banked_losses',
     'insurance_charges', 'insurance_armed', 'wager_last_win_amount',
     'insurance_tokens', 'double_down_pending', 'active_wheel_mode',
-    'auto_spin_budget', 'guard_charges', 'guard_last_regen_spin',
+    'guard_charges', 'guard_last_regen_spin',
     'resilience_last_use_spin', 'legacy_wins', 'prestige_level',
     'prestige_count', 'cumulative_wins', 'gravity_drift',
     'biggest_win_announced', 'cosmetic_fragments', 'bounty_claimed_date',
