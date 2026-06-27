@@ -9036,7 +9036,7 @@ disagrees with.
 ### T232: Add `tests/conftest.py` with shared fixtures
 
 - **Advisor ref:** §3 (conventions), findings TESTS-02 / DX-03
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `6a83f5f` + follow-up `4aa0c9b`) — `tests/conftest.py` exposes `db_url` (env → .env, no hardcoded credential), `server_url`, `playwright_instance`, `browser`; 9 test files had their duplicate fixture definitions removed (net -498 lines, +144 in conftest). Follow-up: `test_arm_button_truncation.py`'s module-level `DSN` constant (hardcoded staging) was threaded through to use the conftest's `db_url` fixture, fixing 6 setup errors.
 - **Parallel group:** A-foundation
 - **Depends on:** T231
 - **Files:**
@@ -9142,7 +9142,7 @@ disagrees with.
 ### T236: Close CSRF-exempt inconsistency on session-auth endpoints
 
 - **Advisor ref:** finding SECURITY-01
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `e49a608`) — removed 17 `@csrf.exempt` decorators from session-authenticated routes; kept the single exemption on `/api/admin/advance-season` (header-secret via `hmac.compare_digest`); new `tests/test_csrf_enforcement.py` (5 test groups) asserts the file-level invariant, the per-route gate, the JSX `X-CSRFToken` header, and the live DB-gated CSRF behaviour. `grep -c "csrf.exempt" game.py` → 1.
 - **Parallel group:** B-secfix
 - **Depends on:** none
 - **Files:**
