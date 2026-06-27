@@ -15,57 +15,10 @@ tests handle both cases: when the badge is visible we assert on its
 bundle (which inlines the React-rendered title string) so we still catch
 regressions in the source.
 """
-import os
-import socket
-import subprocess
-import sys
-import time
 import uuid
 
 import pytest
 from playwright.sync_api import sync_playwright
-
-
-def _free_port():
-    s = socket.socket()
-    s.bind(('127.0.0.1', 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
-@pytest.fixture(scope='module')
-def server_url():
-    port = _free_port()
-    env = os.environ.copy()
-    env['PORT'] = str(port)
-    env.setdefault('WHEEL_SECRET_KEY', 't111-test-secret-key-for-playwright-only')
-    env.setdefault('DATABASE_URL',
-                   'postgresql://wheelapp:a51f2d9685f4d6dca9d2f9d8d6e66374@localhost/wheeldb_staging')
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    proc = subprocess.Popen(
-        [sys.executable, 'server.py'],
-        cwd=repo_root, env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    base = f'http://127.0.0.1:{port}'
-    deadline = time.time() + 20
-    while time.time() < deadline:
-        try:
-            import urllib.request
-            urllib.request.urlopen(base + '/', timeout=1).read()
-            break
-        except Exception:
-            time.sleep(0.25)
-    else:
-        proc.terminate()
-        pytest.fail('Flask server did not start within 20s')
-    yield base
-    proc.terminate()
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
 
 
 @pytest.fixture(scope='module')
