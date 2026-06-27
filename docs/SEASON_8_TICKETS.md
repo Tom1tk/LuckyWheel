@@ -7121,17 +7121,27 @@ spam problem):
 | 5. Hot-streak milestone | `hot_streak` | **Dedup** | Fires on every re-entry to the wager-streak threshold |
 | 6. Community-goal milestone | `goal_milestone_25`, `goal_milestone_50`, `goal_milestone_75` | **Dedup** | Already gated to once-per-milestone-per-goal but still accumulates |
 
-**Note on jackpots:** The current `_maybe_post_big_win` (game.py:138)
-posts a `big_win` event for BOTH regular wins and jackpots above the
-threshold (the threshold-based trigger fires on any `result in ('win',
-'jackpot')` with `wins_delta >= BIG_WIN_THRESHOLD`). There is no
-separate `jackpot` event_kind in the current schema. The dedup logic
-treats all `big_win` events the same — whether from a regular win or
-a jackpot — and the user gets exactly one `big_win` message visible
-in chat at a time. If a future ticket wants to split "regular big
-win" vs "jackpot" into separate event_kinds (so players can see them
-both in chat without dedup), that's a separate concern; T209 keeps the
-current single-event-kind behaviour.
+**Note on jackpots:** The operator refined the design 2026-06-27
+~01:10: "we can just remove the jackpot message altogether, and
+simply mention in the big win message if it is a jackpot (and don't
+mention jackpot if it isn't, leave as normal)." The implementation:
+
+- `_maybe_post_big_win` (game.py:138) keeps posting a single
+  `event_kind='big_win'` message for any win or jackpot above the
+  threshold (no separate jackpot event_kind).
+- The big_win **message template** (`chat_triggers.py:28-29`) gains
+  a `was_jackpot: bool` parameter. When `True`, the message is
+  formatted as `🎰 {user} hit a {wins} jackpot in {mode} mode!`
+  (jackpot-specific). When `False`, it stays as the existing
+  `💰 {user} won {wins} wins in {mode} mode!`.
+- `_maybe_post_big_win` passes `events.get('result') == 'jackpot'`
+  to determine `was_jackpot`.
+- Dedup still applies (single `big_win` event_kind per user; the
+  most recent one wins, whether it was a regular big win or a
+  jackpot).
+
+There is no separate "jackpot" chat message anymore — jackpots
+just re-style the big-win message.
 
 **Goal:** When a dedup-eligible message is posted for a user, find that
 user's previous message of the same `event_kind` and DELETE it before
@@ -7273,6 +7283,9 @@ The user did NOT ask for this. Skipping. If they later want a
 
 - `chat.py` (add `DEDUP_EVENT_KINDS` constant and
   `post_dedup_system_message` function)
+- `chat_triggers.py` (update `big_win_msg` to accept a
+  `was_jackpot: bool` parameter; render jackpot-specific text when
+  True)
 - `game.py` (update `_maybe_post_big_win` and the hot-streak
   milestone posts to use the new function)
 - `community_goals.py` (update the goal-milestone posts to use the
@@ -8707,3 +8720,265 @@ T216 + T217 supersede the previous T216 budget-counter proposal
 and discarded"). Each ticket is independent and can be picked up
 by a sub-agent. The branch naming convention is `t###-<short-slug>`
 per the SEASON_8_TICKETS.md hard-constraints convention.*
+
+### T218: Prestige panel "Legacy" shows S7.7 carryover (~297B), should show S8-specific legacy wins only
+
+- **Status:** [ ] (2026-06-27) — reported by operator during T212 review
+- **Discovered:** 2026-06-27 ~01:10 (operator: "the presige panel has
+  'legacy' and several billion, is this supposed to be legacy wins?
+  i didn't reach anywhere near that amount, have you kept this
+  values over from season 7.7? this is only supposed to be season
+  8 legaacy wins, I only had around 4 billion.")
+- **Files:** `seasons.py`, `migrations/059_*.sql` (new), `tests/test_legacy_wins_separation.py` (new)
+- **Depends on:** none (related to T212 in spirit — both are about
+  retroactively correcting the 7.7→Casino rollover decisions)
+
+**Operator's vision (verbatim 2026-06-27):** "the presige panel has
+'legacy' and several billion, is this supposed to be legacy wins?
+i didn't reach anywhere near that amount, have you kept this
+values over from season 7.7? this is only supposed to be season
+8 legaacy wins, I only had around 4 billion."
+
+**Investigation (what the panel actually shows):**
+
+The prestige panel at `static/app.jsx:3185`:
+```jsx
+{legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
+```
+
+The displayed value is the `game_state.legacy_wins` column. For
+tom7 (operator) at the time of the report:
+
+| Column | Value | Source |
+|---|---|---|
+| `wins` (current S8) | 99 | post-prestige S8 play |
+| `cumulative_wins` (lifetime) | 297,840,831,838 | S7.7 (297B) + S8 (840K) |
+| `legacy_wins` (prestige-tracking) | **297,840,637,039** | S7.7 carryover + S8 prestige |
+| `prestige_level` | 1 | S8 prestige |
+| `prestige_count` | 1 | S8 prestige |
+
+The 297,840,637,039 figure = 297,836,900,436 (S7.7 carryover) +
+3,736,603 (S8 amount added at the S8 prestige). The panel
+correctly shows 297.8B, which is **the S7.7 carryover PLUS the
+S8-specific amount**.
+
+**Operator's question:** "this is only supposed to be season 8
+legacy wins, I only had around 4 billion."
+
+The operator's interpretation:
+- The badge labelled "Legacy" is being read as **"S8 legacy wins"**
+  (the prestige panel is an S8 panel — it's part of the S8 UI).
+- The S8-specific amount is much smaller than 297B.
+- The S7.7 carryover of 297B is the leftover from the
+  7.7→Casino rollover, NOT S8-specific legacy.
+
+**Note on the "4 billion" figure:** the operator said "around
+4 billion" but the actual S8-specific amount at the time of
+their prestige was 3,736,603 (3.7M, not 4B). The operator may be
+misremembering the exact number, OR they may be referring to a
+different time point. **The ticket author should confirm with
+the operator what the actual S8 amount was before the
+retroactive fix runs**, so the operator can verify the result
+after.
+
+**Why is the S7.7 carryover there?**
+
+Looking at the rollover code in `seasons.py:154-155`:
+```python
+-- Season 8: preserve legacy_wins (accumulate), reset prestige per-season
+legacy_wins = legacy_wins + wins,
+```
+
+The comment says "preserve legacy_wins (accumulate)" — the design
+intent was to ACCUMULATE wins into legacy_wins at the season
+boundary. So the S7.7 wins (297B) were added to the player's
+legacy_wins (was 0 before the rollover, since the column was
+new in S8). This was a deliberate design choice at the S7.7→S8
+rollover.
+
+**But the operator is now telling us that choice was wrong.** The
+"Legacy" badge in the S8 prestige panel is conceptually a
+season-specific display, not an all-time carryover. The S7.7
+amount should not show there.
+
+**Goal:** Make the prestige panel's "Legacy" badge show the
+S8-specific amount only. Remove the S7.7 carryover from
+`game_state.legacy_wins` for all S8 players. Apply retroactively.
+
+**Diagnosis (what to edit):**
+
+**A. Stop the carryover at future rollovers (`seasons.py:155`):**
+
+Change the rollover SQL from:
+```python
+-- Season 8: preserve legacy_wins (accumulate), reset prestige per-season
+legacy_wins = legacy_wins + wins,
+```
+
+To:
+```python
+-- T218: do NOT carry over prior-season wins into S{N}'s legacy_wins.
+-- legacy_wins is now a per-season prestige counter, reset to 0 at
+-- the season boundary. cumulative_wins is the all-time lifetime
+-- value, used for tier-2/3 unlock gating (T106).
+legacy_wins = 0,
+```
+
+This affects future rollovers only (8.1, 8.2, 9, ...). The
+S7.7→S8 rollover is already done; the fix for that is the
+retroactive migration (B below).
+
+**B. Migration 059 — retroactive removal of S7.7 carryover (`migrations/059_legacy_wins_remove_s77_carryover.sql`):**
+
+The S7.7 carryover = the value of `game_state.wins` at the moment
+of the S7.7→S8 rollover (2026-06-26 23:44:14 BST). For each
+user, the S7.7 carryover amount is:
+
+```sql
+-- Migration 059: T218 retroactive — remove the S7.7→S8 carryover
+-- from game_state.legacy_wins. The S7.7 wins were added to
+-- legacy_wins by the S7.7→S8 rollover (seasons.py:155). This
+-- migration subtracts that carryover so legacy_wins only reflects
+-- S8-specific prestige amounts.
+--
+-- The carryover for each user = their wins at the time of the
+-- S7.7→S8 rollover. We get this from user_season_history for
+-- season_number=8 (the snapshot taken at the rollover).
+UPDATE game_state gs
+SET legacy_wins = GREATEST(
+    legacy_wins - COALESCE(
+        (SELECT ush.final_wins
+         FROM user_season_history ush
+         WHERE ush.user_id = gs.user_id
+           AND ush.season_number = 8),
+        0
+    ),
+    0
+);
+```
+
+This subtracts the S7.7 wins (the `final_wins` in the
+`user_season_history` snapshot for season 8) from each player's
+current `legacy_wins`. The result is the S8-specific amount only.
+
+For tom7:
+- Before: `legacy_wins = 297,840,637,039`
+- S7.7 wins = 297,836,900,436 (from ush.season_number=8)
+- After: `legacy_wins = 297,840,637,039 - 297,836,900,436 = 3,736,603`
+
+The panel will then show `Legacy: 3,736,603 wins` — the S8-specific
+amount only.
+
+**C. Optional: also separate the prestige panel concept:**
+
+If the operator wants the panel to make the season scope explicit,
+the badge could read:
+```jsx
+<div className="legacy-badge">Legacy (S8): {fmt(legacyWins)} wins</div>
+```
+
+This is purely cosmetic; the S7.7 carryover fix (B) is the
+functional change. Implementer can include this or skip it; the
+ticket is satisfied without it.
+
+**Acceptance criteria:**
+
+1. **Live behaviour (forward-looking):** Future rollovers
+   (8.1, 8.2, 9, ...) do NOT carry over the prior season's wins
+   into the new season's `legacy_wins`. The new season starts with
+   `legacy_wins = 0` for every player.
+
+2. **Retroactive fix:** Migration 059 is applied. The operator's
+   prestige panel now shows the S8-specific amount only (e.g.,
+   `Legacy: 3,736,603 wins` for tom7, NOT 297,840,637,039).
+
+3. **S7.7 wins are still preserved in `user_season_history`:**
+   Migration 059 does NOT touch `user_season_history`. The S7.7
+   amount is still queryable from the S8 row there.
+
+4. **S7.7 wins are still in `cumulative_wins`:** The lifetime
+   value (`cumulative_wins`) is unchanged. Only `legacy_wins` is
+   reduced.
+
+5. **Prestige logic still works:** Future S8 prestiges correctly
+   add the player's S8 wins to `legacy_wins` (game.py:3461:
+   `new_legacy_wins = legacy_wins + current_wins`). The next
+   prestige will produce a sensible number.
+
+6. **Sanity check:** `cumulative_wins - legacy_wins` (after fix)
+   should equal the S7.7 wins + any S8 wins that haven't been
+   prestiged yet. For tom7: 297,840,831,838 - 3,736,603 =
+   297,837,095,235 (this is S7.7 wins 297,836,900,436 + S8
+   current 99 + S8 wager-related 194,700). The math balances.
+
+7. All existing tests pass; new tests in
+   `tests/test_legacy_wins_separation.py` cover the rollover
+   change and the migration.
+
+**Files to touch:**
+
+- `seasons.py:155` (change `legacy_wins = legacy_wins + wins,` to
+  `legacy_wins = 0,`)
+- `migrations/059_legacy_wins_remove_s77_carryover.sql` (NEW)
+- `tests/test_legacy_wins_separation.py` (new file)
+- `static/app.jsx` (optional: rename the badge to make the S8
+  scope explicit — `Legacy (S8):`)
+
+**Files NOT to touch:**
+
+- `prestige.py` (the prestige function and `get_starting_prestige`
+  use `legacy_wins` correctly; they just need the correct value)
+- `game.py:/api/prestige` (the prestige endpoint adds S8 wins to
+  `legacy_wins` correctly; no change needed)
+- `cumulative_wins` (the lifetime value is correct; T218 is
+  about `legacy_wins` specifically)
+- `user_season_history` (the S7.7 wins snapshot is preserved as
+  the historical record)
+
+**Test additions (REQUIRED):**
+
+New file `tests/test_legacy_wins_separation.py`:
+
+- `test_s77_carryover_subtracted` — pre-migration: `legacy_wins`
+  = 297B; S7.7 wins from ush = 297B. Post-migration:
+  `legacy_wins = 3.7M` (the S8-specific amount).
+- `test_legacy_wins_never_negative` — for users with no S7.7
+  history (new S8 players), migration 059 should leave
+  `legacy_wins` at 0 (the GREATEST(..., 0) clamp).
+- `test_future_rollover_does_not_carryover` — direct test of
+  the new `seasons.py:155` behaviour: call `advance_season` on
+  a player with high `wins` and verify the new season starts
+  with `legacy_wins = 0` (not `legacy_wins + wins`).
+- `test_panel_shows_s8_amount_after_migration` — end-to-end:
+  load page after migration, assert `.legacy-badge` text
+  contains the S8 amount and not the 297B figure.
+- `test_cumulative_wins_unchanged` — `cumulative_wins` should
+  be the same before and after migration (only `legacy_wins`
+  is reduced).
+- `test_user_season_history_preserved` — ush.season_number=8
+  row is unchanged after migration 059.
+
+**Hard constraints:**
+
+- ONE commit on a new branch `t218-legacy-wins-s8-only`.
+- Do NOT push, do NOT merge.
+- Migration 059 is a one-way UPDATE. Take a backup of `wheeldb`
+  before running on production:
+  `pg_dump wheeldb > /home/user/backups/wheeldb_pre_t218_$(date
+  +%Y%m%d_%H%M%S).sql.gz` (or equivalent).
+- Do NOT modify the S7.7 row in `user_season_history` (it's
+  the historical record).
+- Confirm with the operator the actual S8-specific amount at
+  prestige time (3.7M for tom7, per the current DB state) before
+  applying the migration — if the operator's "around 4 billion"
+  is meant literally, the actual prestige amount was different
+  and the migration should be adjusted.
+- After commit, report: migration SHA, diff stat, pytest tail,
+  and the prestige panel display for the operator before/after
+  the migration.
+
+**Related ticket:** T212 is the related fix for the season display
+("Season Casino" → "Season 8" / "7.7 winners"). T218 is the
+companion for the legacy_wins value: both are retroactively
+correcting the 7.7→Casino rollover decisions the operator now
+disagrees with.
