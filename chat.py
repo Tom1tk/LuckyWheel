@@ -228,6 +228,19 @@ SYSTEM_MESSAGE_THROTTLE_SECS = 30
 _system_message_last_posted: dict = {}
 
 
+# T209: event_kinds whose auto-posted system messages get per-user dedup
+# (the user's previous message of the same kind is deleted before the new
+# one is inserted). First-spin and prestige are intentionally NOT in this
+# set — they're historical records the operator wants preserved.
+DEDUP_EVENT_KINDS = frozenset({
+    'big_win',           # covers regular big wins and jackpots (same event_kind)
+    'hot_streak',        # wager-streak milestone
+    'goal_milestone_25',
+    'goal_milestone_50',
+    'goal_milestone_75',
+})
+
+
 def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None):
     """Insert a system message into chat (user_id=NULL, username='SYSTEM').
 
@@ -258,6 +271,71 @@ def post_system_message(conn, message: str, message_type: str = 'system', event_
         # Trim to MAX_CHAT_MESSAGES most recent (system messages share the table with
         # player chat; post_chat() already does this for its own inserts,
         # but a quiet stretch of system-only activity skipped this entirely).
+        cur.execute(
+            f'''DELETE FROM chat_messages
+               WHERE id NOT IN (
+                   SELECT id FROM chat_messages ORDER BY id DESC LIMIT {MAX_CHAT_MESSAGES}
+               )'''
+        )
+
+
+def post_dedup_system_message(conn, message, user_id, event_kind, *, message_type='system'):
+    """Insert a per-user system message with dedup of the user's previous one.
+
+    T209: auto-posted system messages (big_win, hot_streak,
+    goal_milestone_*) accumulate over time and crowd the chat. For these
+    event_kinds (the DEDUP_EVENT_KINDS set) we look up the user's most
+    recent chat message with the same event_kind + message_type, delete
+    it, then insert the new one — so the user always sees at most one
+    message of each dedup-eligible event_kind.
+
+    For event_kinds NOT in DEDUP_EVENT_KINDS (e.g. first_spin, prestige),
+    this falls through to post_system_message unchanged. That way future
+    system messages that should be preserved can opt in by simply not
+    being in the dedup set.
+
+    The 30s per-event_kind throttle from post_system_message is bypassed
+    for dedup-eligible kinds (the per-user dedup itself caps the rate);
+    non-dedup kinds still get the throttle. Must be called within an
+    existing db_connection() context — caller manages commit/rollback.
+    """
+    if not message:
+        return
+    if event_kind not in DEDUP_EVENT_KINDS:
+        return post_system_message(
+            conn, message, message_type=message_type, event_kind=event_kind,
+        )
+
+    message = message[:MAX_MSG_LEN]
+    with conn.cursor() as cur:
+        # Find the user's most recent chat message with the same event_kind
+        # and message_type. message_type='system' matches auto-posted system
+        # messages; user messages (message_type='user') are never affected
+        # because they have event_kind=NULL and don't match event_kind IN (...) here.
+        cur.execute(
+            '''SELECT id FROM chat_messages
+               WHERE user_id = %s
+                 AND event_kind = %s
+                 AND message_type = %s
+               ORDER BY id DESC
+               LIMIT 1''',
+            (user_id, event_kind, message_type),
+        )
+        row = cur.fetchone()
+        if row is not None:
+            # Row can be a tuple (default cursor) or a dict (RealDictCursor).
+            prev_id = row[0] if isinstance(row, tuple) else row['id']
+            cur.execute(
+                'DELETE FROM chat_messages WHERE id = %s',
+                (prev_id,),
+            )
+        cur.execute(
+            '''INSERT INTO chat_messages
+                  (user_id, username, message, message_type, event_kind)
+               VALUES (%s, 'SYSTEM', %s, %s, %s)''',
+            (user_id, message, message_type, event_kind),
+        )
+        # Trim to MAX_CHAT_MESSAGES most recent (same trim post_system_message does).
         cur.execute(
             f'''DELETE FROM chat_messages
                WHERE id NOT IN (

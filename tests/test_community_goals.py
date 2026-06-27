@@ -51,6 +51,7 @@ class _FakeCursor:
         self.log = []
         self._contributed = 0
         self._fetchone_queue = []
+        self._last_was_dedup_select = False
 
     def __enter__(self):
         return self
@@ -66,8 +67,17 @@ class _FakeCursor:
         if 'UPDATE community_goal_contributions' in sql and 'contributed = contributed' in sql:
             # Mirror the row update so the next SELECT FOR UPDATE reports it.
             self._contributed += params[0]
+        # T209: dedup SELECT in post_dedup_system_message — the next
+        # fetchone() returns None (no prior message exists in this fake).
+        self._last_was_dedup_select = (
+            'SELECT id FROM chat_messages' in sql
+            and 'ORDER BY id DESC' in sql
+        )
 
     def fetchone(self):
+        if self._last_was_dedup_select:
+            self._last_was_dedup_select = False
+            return None
         if self._fetchone_queue:
             return self._fetchone_queue.pop(0)
         # Default: report the tracked contributed value (the lock-visible state).
@@ -267,7 +277,18 @@ def _milestone_chat_messages(log):
     out = []
     for sql, params in log:
         if 'INSERT INTO chat_messages' in sql and params:
-            msg = params[0]
+            # T209: post_dedup_system_message passes (user_id, message,
+            # message_type, event_kind) — message is at index 1. Earlier
+            # callers used post_system_message which passed (message, message_type)
+            # — message at index 0. Find the position heuristically: the
+            # message starts with 'Community goal at '.
+            msg = None
+            for p in params:
+                if isinstance(p, str) and p.startswith('Community goal at '):
+                    msg = p
+                    break
+            if msg is None:
+                continue
             for pct in (25, 50, 75):
                 if chat_triggers.goal_milestone_msg(pct, 0, 1).split(':')[0] in msg:
                     out.append((pct, msg))

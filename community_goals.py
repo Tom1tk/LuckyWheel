@@ -162,8 +162,8 @@ def increment_goal(conn, goal_id, user_id, amount):
                             (goal_id,),
                         )
                         msg = chat_triggers.goal_milestone_msg(pct, new_current, new_target)
-                        chat.post_system_message(
-                            conn, msg, 'system',
+                        chat.post_dedup_system_message(
+                            conn, msg, user_id,
                             event_kind=f'goal_milestone_{pct}',
                         )
 
