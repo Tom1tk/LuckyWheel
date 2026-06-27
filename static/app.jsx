@@ -2489,7 +2489,7 @@ const SHOP_SECTIONS = [
     { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
     { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
-    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
+    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Spins automatically at 0% stake — stake slider hides while active', tier: 1 },
   ]},
   { label: '🏅 Season 8: Prestige', items: [
     // T121: prestige_efficiency and prestige_legacy retired. The unlock
@@ -2546,7 +2546,7 @@ const SHOP_SECTIONS = [
     { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
     { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
-    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
+    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Spins automatically at 0% stake — stake slider hides while active', tier: 1 },
   ]},
   { label: '🎣 Season 8: Fishing', items: [
     { id: 'fish_to_wager',      emoji: '🪙', name: 'Fish-to-Wager',      cost: 5000,   desc: 'Convert caught fish to wager tokens', tier: 1 },
@@ -4073,14 +4073,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T107: auto-spin start/stop handlers. The auto-spin server endpoint
   // runs at 0% stake (no escrow) and prevents DD/insurance; the UI hides
   // the stake slider while active.
+  //
+  // T216: no budget is sent in the start body (the per-activation 100-spin
+  // budget was removed). Auto-spin now runs continuously until the user
+  // explicitly stops it, or the server's heartbeat auto-stop fires (60s of
+  // no /api/tick).
   const handleStartAutoSpin = useCallback(async () => {
     const { ok, data } = await apiGame('/api/auto-spin/start', {
       method: 'POST',
-      body: JSON.stringify({ budget: 100 }),
+      body: '{}',
     });
     if (!ok) { showToast(data?.error || 'Auto-spin start failed'); return; }
     setAutoSpinActive(true);
-    setAutoSpinBudget(data.budget || 100);
   }, [showToast]);
 
   const handleStopAutoSpin = useCallback(async () => {
@@ -4090,7 +4094,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     });
     if (!ok) { showToast(data?.error || 'Auto-spin stop failed'); return; }
     setAutoSpinActive(false);
-    setAutoSpinBudget(0);
   }, [showToast]);
 
   const tick = useCallback(async () => {
@@ -4107,7 +4110,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }
       if (data.auto_spin_active === true) {
         setAutoSpinActive(true);
-        if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
       }
 
       if (data.happy_hour != null) setHappyHour(data.happy_hour);
@@ -4243,8 +4245,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [stakeValue, setStakeValue]                 = useState(0);
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
+  // T216: the per-activation 100-spin budget was removed; auto-spin is
+  // simply on/off. The server tracks `auto_spin_since` and auto-stops
+  // after 60s of no /api/tick.
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
-  const [autoSpinBudget, setAutoSpinBudget]         = useState(gameState.auto_spin_budget || 0);
   // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
   // server gates the 3-free-per-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
@@ -4312,8 +4316,23 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       // T114: onboarding modal disabled for S8 launch; do not auto-show.
     }
     // T107: sync auto-spin state from server.
-    if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active);
-    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
+    // T216: if the server reports auto-spin is active, that means a
+    // previous tab/session left it running. We do NOT resume ticking
+    // on this page load — instead we ask the server to stop, show a
+    // toast so the player understands why their wins look weird, and
+    // clear the local state. They can re-check the box to start a
+    // fresh session.
+    if (gameState.auto_spin_active != null) {
+      if (gameState.auto_spin_active === true) {
+        apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' })
+          .then(() => showToast(
+            'Auto-spin was running on the server — stopped. Click the checkbox to start a new session.'
+          ));
+        setAutoSpinActive(false);
+      } else {
+        setAutoSpinActive(false);
+      }
+    }
     if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
     if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
@@ -5060,9 +5079,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {/* T107: auto-spin as upgrade. Visible only when player owns the
               `auto_spin_unlock` shop item. Checkbox style mirrors the
               pre-S8 auto-spin toggle (`.autospin-row` from Season 5/6/7).
-              Server-side budget of 100 spins; cleared on uncheck. While
-              active, the stake slider below is hidden (auto-spin always
-              uses 0% stake). */}
+              T216: runs continuously (no per-activation budget); cleared
+              on uncheck. While active, the stake slider below is hidden
+              (auto-spin always uses 0% stake). */}
           {ownedItems.includes('auto_spin_unlock') && (
             <label className="autospin-row" style={{ justifyContent: 'center', marginTop: '0.4rem' }}>
               <input

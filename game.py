@@ -115,7 +115,7 @@ _GAME_STATE_SQL = '''
            dice_charges, dice_last_recharge, jackpot_echo_next, dice_rolled_since_spin,
            pending_dice, auto_spin_since, last_spin_at, active_tab_id, tab_last_seen,
            auto_fish_enabled, auto_fish_last_tick,
-           prestige_level, prestige_count, legacy_wins, onboarding_step, auto_spin_budget,
+           prestige_level, prestige_count, legacy_wins, onboarding_step,
            wager_streak, wager_last_stake, double_down_pending, wager_banked_wins,
            insurance_charges, insurance_armed, active_wheel_mode,
            insurance_tokens, aquarium_species, cosmetic_fragments,
@@ -969,7 +969,7 @@ def get_state():
                               fishing_lucky_next, caught_species,
                               auto_spin_since, season_registered,
                               prestige_level, prestige_count, legacy_wins,
-                              onboarding_step, auto_spin_budget,
+                              onboarding_step,
                               wager_streak, wager_last_stake, double_down_pending,
                               wager_banked_wins,
                               insurance_charges, insurance_armed,
@@ -1067,8 +1067,10 @@ def get_state():
             ),
             'legacy_wins':          int(gs.get('legacy_wins', 0)),
             'onboarding_step':      gs.get('onboarding_step', 0),
-            'auto_spin_budget':     gs.get('auto_spin_budget', 0),
-            'auto_spin_active':     gs.get('auto_spin_since') is not None and int(gs.get('auto_spin_budget', 0)) > 0,
+            # T216: auto-spin is active iff auto_spin_since is set. The
+            # 100-spin budget was removed (see migration 057). Heartbeat
+            # auto-stop (60s of no /api/tick) is enforced in /api/tick.
+            'auto_spin_active':     gs.get('auto_spin_since') is not None,
             'cumulative_wins':      int(gs.get('cumulative_wins', 0)),
             'wager_streak':         gs.get('wager_streak', 0),
             'wager_last_stake':     gs.get('wager_last_stake', 0),
@@ -1192,9 +1194,10 @@ def spin():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 gs = _load_game_state(cur, current_user.id, for_update=True)
 
-            # Block manual spins when server-side auto-spin is currently running (budget > 0 + auto_spin_since set).
-            # Season 8: auto-spin is opt-in (budget only > 0 when user explicitly started it).
-            if gs['auto_spin_since'] is not None and int(gs.get('auto_spin_budget', 0)) > 0:
+            # Block manual spins when server-side auto-spin is currently running.
+            # T216: the `auto_spin_since` timestamp is the only signal — the
+            # per-activation budget column was dropped (see migration 057).
+            if gs.get('auto_spin_since') is not None:
                 return jsonify({'error': 'Auto-spin is active. Stop it first to spin manually.'}), 403
 
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -1581,22 +1584,39 @@ def tick():
                 )
                 pot_row = cur.fetchone()
 
-            # Season 8: only process auto-spin when the player has started it (budget > 0).
-            # If budget is 0, return immediately — manual spins go through /api/spin directly.
-            budget = int(gs.get('auto_spin_budget', 0))
-            if budget == 0:
-                return jsonify({'spins': [], 'auto_spin_active': False, 'elapsed_ms': 0})
-
-            # First auto-spin tick of the session — start the clock now
-            if gs['auto_spin_since'] is None:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        'UPDATE game_state SET auto_spin_since = %s, last_spin_at = %s WHERE user_id = %s',
-                        (now_utc, now_utc, current_user.id),
+            # T216: heartbeat auto-stop. If 60s pass without a /api/tick from
+            # this session, the player is presumably tab-closed or the network
+            # dropped. Auto-stop the server-side auto-spin and return
+            # immediately so the next tick from a fresh tab / reload sees a
+            # clean state. 60s = 20 missed ticks at 3s/tick — gives time for
+            # slow networks but catches abandoned tabs within ~1 minute.
+            # See SEASON_8_TICKETS.md T216 for context.
+            if gs.get('auto_spin_since') is not None and gs.get('last_spin_at') is not None:
+                last_tick = _aware(gs['last_spin_at'])
+                stale_seconds = (now_utc - last_tick).total_seconds()
+                if stale_seconds > 60:
+                    log.warning(
+                        'AUTO_SPIN_STALE  user_id=%s  stale=%ds  auto-stopping',
+                        current_user.id, int(stale_seconds),
                     )
-                conn.commit()
-                return jsonify({'started': True, 'auto_spin_since': now_utc.isoformat(),
-                                'auto_spin_active': True, 'auto_spin_budget': budget})
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            'UPDATE game_state SET auto_spin_since = NULL WHERE user_id = %s',
+                            (current_user.id,),
+                        )
+                    conn.commit()
+                    return jsonify({
+                        'spins': [],
+                        'auto_spin_active': False,
+                        'auto_spin_stopped': 'stale',
+                        'elapsed_ms': 0,
+                    })
+
+            # T216: only process auto-spin when the player has started it.
+            # The per-activation budget column was dropped (see migration 057).
+            # Manual spins go through /api/spin directly.
+            if gs.get('auto_spin_since') is None:
+                return jsonify({'spins': [], 'auto_spin_active': False, 'elapsed_ms': 0})
 
             auto_spin_since = gs['auto_spin_since']
             auto_spin_since = _aware(auto_spin_since)
@@ -1607,14 +1627,13 @@ def tick():
             cursor = max(auto_spin_since, last_spin)
 
             elapsed = (now_utc - cursor).total_seconds()
+            # T216: only the MAX_SPINS_PER_TICK catch-up cap remains; the
+            # 100-spin budget cap was dropped with migration 057.
             spins_due = min(int(elapsed // AUTO_SPIN_INTERVAL_SECONDS), MAX_SPINS_PER_TICK)
-
-            # Cap by remaining budget (Season 8: max 100 spins per activation)
-            spins_due = min(spins_due, budget)
 
             if spins_due == 0:
                 return jsonify({'spins': [], 'auto_spin_active': True,
-                                'auto_spin_budget': budget, 'elapsed_ms': int(elapsed * 1000)})
+                                'elapsed_ms': int(elapsed * 1000)})
 
             is_catch_up = spins_due > CATCH_UP_THRESHOLD
 
@@ -1764,8 +1783,6 @@ def tick():
                            gravity_drift = %s,
                            wager_banked_losses = %s,
                        dice_rolled_since_spin = FALSE, pending_dice = NULL,
-                       auto_spin_budget = GREATEST(auto_spin_budget - %s, 0),
-                       auto_spin_since = CASE WHEN auto_spin_budget - %s <= 0 THEN NULL ELSE auto_spin_since END,
                        last_spin_at = %s
                       WHERE user_id = %s''',
                     (current_wins, current_losses, streak, best_streak,
@@ -1778,7 +1795,6 @@ def tick():
                      new_biggest_win_announced,
                      current_gravity_drift,
                      current_wager_banked_losses,
-                     spins_due, spins_due,
                      new_last_spin,
                      current_user.id),
                 )
@@ -1833,7 +1849,6 @@ def tick():
 
             conn.commit()
 
-        budget_remaining = max(budget - spins_due, 0) if budget > 0 else 0
         final_state = {
             'wins':                  int(current_wins),
             'losses':                current_losses,
@@ -1848,8 +1863,10 @@ def tick():
             'jackpot_echo_next':     jackpot_echo_next,
             'dice_rolled_since_spin': False,
             'proc_streak':           current_proc_streak,
-            'auto_spin_budget':      budget_remaining,
-            'auto_spin_active':      budget_remaining > 0,
+            # T216: `auto_spin_budget` removed (migration 057). Auto-spin
+            # is binary on/off now; reporting `auto_spin_active: true` here
+            # signals the client that the session is still running.
+            'auto_spin_active':      True,
             # T106: cumulative_wins after all processed spins (catch-up summary).
             'cumulative_wins':       new_cumulative_wins,
         }
@@ -3914,40 +3931,39 @@ def guard_endpoint():
 @login_required
 @csrf.exempt
 def auto_spin_start():
-    """Start server-side auto-spin with an optional budget.
+    """Start server-side auto-spin.
 
     T107: gated on the `auto_spin_unlock` shop item. The auto-spin UI is
     hidden in the wager panel for players who haven't bought the upgrade.
+
+    T216: the per-activation 100-spin budget was removed (see migration
+    057). Auto-spin now runs continuously until the user explicitly stops
+    it OR the heartbeat auto-stop in /api/tick fires (60s of no /api/tick
+    from this session). The `budget` request body field is ignored for
+    backward compatibility.
     """
     err = require_json()
     if err:
         return err
-    budget = (request.json or {}).get('budget', 0)
-    try:
-        budget = int(budget)
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid budget'}), 400
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
             if 'auto_spin_unlock' not in (gs.get('owned_items') or []):
                 return jsonify({'error': 'Buy auto_spin_unlock from the shop (5,000 wins)'}), 403
-            # Treat as active only when BOTH auto_spin_since is set AND the
-            # budget is positive. A stale auto_spin_since (left over from a
-            # prior session / test) with budget=0 is limbo state — let the
-            # player (or test) restart cleanly. Matches the `auto_spin_active`
-            # gate in /api/state's state response.
-            if gs.get('auto_spin_since') is not None and int(gs.get('auto_spin_budget', 0)) > 0:
+            # T216: `auto_spin_since` is the sole signal. A stale timestamp
+            # left over from a prior session / tab-closed-but-not-stopped
+            # event still counts as 'active' — the heartbeat auto-stop will
+            # clear it on the next /api/tick if it's actually stale.
+            if gs.get('auto_spin_since') is not None:
                 return jsonify({'error': 'Auto-spin already active'}), 409
-            # Wipe any stale auto_spin_since so the new activation starts fresh.
             cur.execute(
                 '''UPDATE game_state
-                   SET auto_spin_since = NOW(), auto_spin_budget = %s
+                   SET auto_spin_since = NOW()
                    WHERE user_id = %s''',
-                (budget, current_user.id),
+                (current_user.id,),
             )
         conn.commit()
-    return jsonify({'ok': True, 'budget': budget})
+    return jsonify({'ok': True})
 
 
 @game_bp.route('/api/auto-spin/stop', methods=['POST'])
@@ -3960,8 +3976,10 @@ def auto_spin_stop():
         return err
     with db_connection() as conn:
         with conn.cursor() as cur:
+            # T216: the `auto_spin_budget` column was dropped (migration 057).
+            # Only `auto_spin_since` needs clearing now.
             cur.execute(
-                '''UPDATE game_state SET auto_spin_since = NULL, auto_spin_budget = 0 WHERE user_id = %s''',
+                '''UPDATE game_state SET auto_spin_since = NULL WHERE user_id = %s''',
                 (current_user.id,),
             )
         conn.commit()
