@@ -1,4 +1,4 @@
-.PHONY: build watch install-js-deps dev
+.PHONY: build watch install-js-deps dev test
 
 # One-time: install Babel toolchain
 install-js-deps:
@@ -17,6 +17,10 @@ watch:
 # Run dev server (requires .env)
 dev:
 	python server.py
+
+# Run the test suite
+test:
+	python3 -m pytest -q
 
 # ── Staging ─────────────────────────────────────────────────────────────────
 

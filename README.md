@@ -417,8 +417,11 @@ For convenience, copy `.env.example` to `.env` — `python-dotenv` will load it 
 The JSX source must be transpiled once (and again after any `app.jsx` changes):
 
 ```bash
-npx babel static/app.jsx --presets @babel/preset-react,@babel/preset-env -o static/app.js
+npx babel static/app.jsx -o static/app.js
 ```
+
+Presets are loaded from `babel.config.json` in the repo root, so no
+`--presets` flag is required.
 
 ### 5. Start the server
 
@@ -470,6 +473,29 @@ python migrate.py --dry-run    # preview without executing
 ```
 
 Migration files live in `migrations/NNN_description.sql`. Applied versions are tracked in the `schema_migrations` table in each database.
+
+---
+
+## Running Tests
+
+The test suite uses `pytest`. Run it via the Makefile target or directly:
+
+```bash
+make test                  # equivalent to: python3 -m pytest -q
+python3 -m pytest -q       # run from the repo root
+python3 -m pytest tests/test_models.py -q   # single file
+```
+
+**Prerequisites:** a reachable PostgreSQL instance is required for the
+DB-backed tests (the test files target the local `wheeldb_staging`
+database). The connection string is read from the `DATABASE_URL`
+environment variable — set it in your shell or in `.env` (T234 moves
+the staging credentials out of the test files into `.env`, so a missing
+`DATABASE_URL` will fail with a clear error rather than silently using a
+baked-in credential).
+
+The unit tests in `tests/test_models.py` and
+`tests/test_format_wins_python.py` are pure and need no DB.
 
 ---
 
