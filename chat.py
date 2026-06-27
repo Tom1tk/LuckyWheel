@@ -230,14 +230,20 @@ _system_message_last_posted: dict = {}
 
 # T209: event_kinds whose auto-posted system messages get per-user dedup
 # (the user's previous message of the same kind is deleted before the new
-# one is inserted). First-spin and prestige are intentionally NOT in this
-# set — they're historical records the operator wants preserved.
+# one is inserted). First-spin is intentionally NOT in this set — it's a
+# historical record the operator wants preserved.
+#
+# T222: prestige is now deduped. The player only sees their LATEST
+# prestige level in chat; older messages for the same player are removed
+# when they re-prestige. This keeps the channel uncluttered for players
+# who prestige many times.
 DEDUP_EVENT_KINDS = frozenset({
-    'big_win',           # covers regular big wins and jackpots (same event_kind)
+    'big_win',           # covers regular big wins (jackpots no longer post)
     'hot_streak',        # wager-streak milestone
     'goal_milestone_25',
     'goal_milestone_50',
     'goal_milestone_75',
+    'prestige',          # T222: per-user dedup; show only latest level
 })
 
 
@@ -289,8 +295,8 @@ def post_dedup_system_message(conn, message, user_id, event_kind, *, message_typ
     it, then insert the new one — so the user always sees at most one
     message of each dedup-eligible event_kind.
 
-    For event_kinds NOT in DEDUP_EVENT_KINDS (e.g. first_spin, prestige),
-    this falls through to post_system_message unchanged. That way future
+    For event_kinds NOT in DEDUP_EVENT_KINDS (e.g. first_spin), this
+    falls through to post_system_message unchanged. That way future
     system messages that should be preserved can opt in by simply not
     being in the dedup set.
 

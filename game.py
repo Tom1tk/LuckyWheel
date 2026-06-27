@@ -3655,9 +3655,15 @@ def prestige_reset():
         # same connection.
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             fresh = _load_game_state(cur, current_user.id)
-        # Season 8: post system message on prestige
-        post_system_message(conn, chat_triggers.prestige_msg(current_user.username, new_level),
-                            'system', event_kind='prestige')
+        # T222: prestige messages are per-user deduped — when a player
+        # re-prestiges, their previous prestige message is removed and
+        # the new one is inserted. Each player shows their LATEST level.
+        post_dedup_system_message(
+            conn,
+            chat_triggers.prestige_msg(current_user.username, new_level),
+            current_user.id,
+            event_kind='prestige',
+        )
         # Bounty tracking
         bounty_date = dt.datetime.now(timezone.utc).date()
         increment_bounty(conn, current_user.id, 'bounty_prestige', bounty_date)
