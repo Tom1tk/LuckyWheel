@@ -2443,6 +2443,16 @@ const FISH_SKINS = [
     labels: { idle: 'Greetings, earthling', happy: 'ABDUCTION WIN!', sad: '*returns to home planet*' } },
   { id: 'fish_ufo',      emoji: '🛸', name: 'UFO',            cost: 425000,
     labels: { idle: '*hovering*', happy: 'BEAM UP!', sad: '*crashes*' } },
+  { id: 'fish_dice',     emoji: '🎲', name: 'Lucky Dice',     cost: 600000,
+    labels: { idle: '*rolls*', happy: 'SEVEN SEVEN!', sad: 'Snake eyes...' } },
+  { id: 'fish_joker',    emoji: '🃏', name: 'Joker',          cost: 850000,
+    labels: { idle: 'Up my sleeve~', happy: 'WILD CARD WIN!', sad: 'Folded...' } },
+  { id: 'fish_diamond',  emoji: '💎', name: 'Diamond',        cost: 1200000,
+    labels: { idle: 'Brilliant cut', happy: 'FLAWLESS WIN!', sad: 'Cracked...' } },
+  { id: 'fish_poker',    emoji: '♠️',  name: 'Poker',           cost: 1700000,
+    labels: { idle: 'All in', happy: 'ROYAL FLUSH!', sad: 'Busted...' } },
+  { id: 'fish_slot',     emoji: '🎰', name: 'Slot Machine',   cost: 2400000,
+    labels: { idle: '*spins*', happy: 'JACKPOT!', sad: 'No match...' } },
 ];
 
 const SHOP_SECTIONS = [
@@ -2619,6 +2629,7 @@ const COSMETIC_IDS = new Set([
   'fish_squid','fish_turtle','fish_crab','fish_lobster','fish_whale',
   'fish_seal','fish_shrimp','fish_coral','fish_mermaid','fish_croc',
   'fish_rocket','fish_comet','fish_saturn','fish_alien','fish_ufo',
+  'fish_dice','fish_joker','fish_diamond','fish_poker','fish_slot',
   'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
