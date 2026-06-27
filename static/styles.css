@@ -1322,6 +1322,16 @@ body::before {
   text-shadow: 0 0 12px var(--s-lt);
 }
 
+/* T217: spin-result breakdown — shows the Base + 🔥 Streak components
+   under the +N wins total. Smaller, dimmer than the total so the
+   breakdown reads as supporting detail, not a new headline. */
+.spin-result-detail {
+  font-size: 0.85rem;
+  color: var(--p-lt);
+  margin-top: 0.2rem;
+  opacity: 0.85;
+}
+
 @keyframes bonusPop {
   from { transform: scale(0); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
