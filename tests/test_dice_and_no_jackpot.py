@@ -239,3 +239,78 @@ def test_jsx_dice_refund_toast():
     assert 'Dice refund' in src or 'dice refund' in src.lower(), (
         "JSX must show a 'Dice refund' toast when the dice is refunded"
     )
+
+
+# ── T222: prestige messages are per-user deduped ────────────────────────────
+
+def test_prestige_in_dedup_event_kinds():
+    """T222: chat.DEDUP_EVENT_KINDS now includes 'prestige'."""
+    import chat
+    assert 'prestige' in chat.DEDUP_EVENT_KINDS, (
+        "chat.DEDUP_EVENT_KINDS must include 'prestige' (T222: per-user dedup)"
+    )
+
+
+def test_prestige_post_uses_dedup_call():
+    """T222: /api/prestige posts via post_dedup_system_message (per-user)."""
+    src = _read(GAME_PY)
+    # Find the prestige post block. It should call post_dedup_system_message
+    # with the user's id and event_kind='prestige'. The call is multi-line
+    # so use [\s\S] to match across newlines.
+    assert re.search(
+        r"post_dedup_system_message\(",
+        src,
+    ), "game.py must use post_dedup_system_message for the prestige post"
+    # And the call must include 'prestige' as the event_kind.
+    assert re.search(
+        r"post_dedup_system_message\([\s\S]*?event_kind\s*=\s*['\"]prestige['\"]",
+        src,
+    ), (
+        "the prestige post must use event_kind='prestige' so the dedup "
+        "SELECT (per user_id + event_kind) finds the right prior message"
+    )
+
+
+def test_prestige_post_passes_user_id():
+    """T222: the prestige dedup call passes current_user.id (not NULL).
+
+    Without user_id, the dedup falls into the NULL-user_id bucket and
+    groups all NULL-user_id system messages together (which is what
+    caused the dylan L1-L5 issue — the migration fixed those, but new
+    posts must use a proper user_id).
+    """
+    src = _read(GAME_PY)
+    # The post_dedup_system_message call near the prestige_msg must
+    # include current_user.id. Search for the block.
+    block = re.search(
+        r"chat_triggers\.prestige_msg\([^)]+\),\s*\n\s*current_user\.id,",
+        src,
+    )
+    assert block, (
+        "the prestige post_dedup_system_message call must pass "
+        "current_user.id as the user_id"
+    )
+
+
+def test_migration_064_exists_and_keeps_latest_per_user():
+    """Migration 064: keeps only the latest prestige message per user."""
+    assert os.path.exists(os.path.join(ROOT, 'migrations', '064_prestige_per_user_dedup.sql')), (
+        "migrations/064_prestige_per_user_dedup.sql must exist (T222)"
+    )
+    src = _read(os.path.join(ROOT, 'migrations', '064_prestige_per_user_dedup.sql'))
+    # Must backfill user_id from message content (LIKE on the username embedded
+    # in the message body, e.g. '⭐ alice reached Prestige Level 1!').
+    assert 'user_id' in src and 'Prestige Level' in src, (
+        "migration 064 must backfill user_id by matching the message body"
+    )
+    assert "LIKE ('⭐ ' || u.username" in src or "~ ('^" in src, (
+        "migration 064 must use LIKE (or ~) to match the username in the body"
+    )
+    # Must delete older duplicates
+    assert 'DELETE FROM chat_messages' in src, (
+        "migration 064 must DELETE FROM chat_messages"
+    )
+    # Must group by user_id for the keep-latest logic
+    assert 'GROUP BY user_id' in src, (
+        "migration 064 must GROUP BY user_id to dedup per user"
+    )

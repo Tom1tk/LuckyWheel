@@ -169,7 +169,10 @@ class _FakeConn:
 # ── DEDUP_EVENT_KINDS set shape ─────────────────────────────────────────────
 
 def test_dedup_event_kinds_set():
-    """DEDUP_EVENT_KINDS is a frozenset with the 5 expected members."""
+    """DEDUP_EVENT_KINDS is a frozenset with the 6 expected members.
+
+    T222: 'prestige' is now in the set (per-user dedup, latest level only).
+    """
     kinds = _chat.DEDUP_EVENT_KINDS
     assert isinstance(kinds, frozenset), f"expected frozenset, got {type(kinds)}"
     assert kinds == frozenset({
@@ -178,18 +181,27 @@ def test_dedup_event_kinds_set():
         'goal_milestone_25',
         'goal_milestone_50',
         'goal_milestone_75',
+        'prestige',
     })
 
 
-def test_dedup_event_kinds_excludes_first_spin_and_prestige():
-    """first_spin and prestige are NOT in DEDUP_EVENT_KINDS — they're preserved."""
+def test_dedup_event_kinds_excludes_first_spin():
+    """first_spin is NOT in DEDUP_EVENT_KINDS — it's a historical record.
+
+    T222: prestige moved INTO the set (it IS deduped now). Only first_spin
+    is still excluded.
+    """
     assert 'first_spin' not in _chat.DEDUP_EVENT_KINDS
-    assert 'prestige' not in _chat.DEDUP_EVENT_KINDS
+
+
+def test_dedup_event_kinds_includes_prestige():
+    """T222: prestige is now in DEDUP_EVENT_KINDS — per-user dedup."""
+    assert 'prestige' in _chat.DEDUP_EVENT_KINDS
 
 
 def test_dedup_event_kinds_size():
-    """Sanity: exactly 5 members, no more no fewer."""
-    assert len(_chat.DEDUP_EVENT_KINDS) == 5
+    """Sanity: exactly 6 members, no more no fewer."""
+    assert len(_chat.DEDUP_EVENT_KINDS) == 6
 
 
 # ── Live dedup behaviour ────────────────────────────────────────────────────
@@ -296,27 +308,53 @@ def test_first_spin_not_deduped():
     )
 
 
-def test_prestige_not_deduped():
-    """prestige is NOT in DEDUP_EVENT_KINDS — multiple prestige messages
-    must all persist (no dedup). Uses unique event_kinds to avoid the
-    30s post_system_message throttle dropping later inserts.
+def test_prestige_deduped():
+    """T222: prestige is in DEDUP_EVENT_KINDS — multiple prestige posts
+    for the same user dedup to the latest. The user's previous prestige
+    message is removed; the new one is inserted in its place.
     """
     _reset_throttle()
     conn = _FakeConn()
-    for i in range(3):
-        _chat.post_dedup_system_message(conn, f'p{i}', 1, event_kind=f'prestige_{i}')
-    assert len(conn.cursor_obj.rows) == 3, (
-        f"expected all 3 prestige messages to persist, got: {conn.cursor_obj.rows}"
+    # First prestige: Level 1
+    _chat.post_dedup_system_message(conn, '⭐ alice reached Prestige Level 1!', 1, event_kind='prestige')
+    assert len(conn.cursor_obj.rows) == 1
+    assert conn.cursor_obj.rows[0]['message'] == '⭐ alice reached Prestige Level 1!'
+
+    # Re-prestige to Level 2: the old one must be deleted, the new one inserted.
+    _chat.post_dedup_system_message(conn, '⭐ alice reached Prestige Level 2!', 1, event_kind='prestige')
+    prestige_rows = [r for r in conn.cursor_obj.rows if r.get('event_kind') == 'prestige']
+    assert len(prestige_rows) == 1, (
+        f"expected exactly 1 prestige row for user 1, got {len(prestige_rows)}: {prestige_rows}"
     )
-    # No dedup SELECT (filters by user_id + event_kind + message_type).
-    dedup_lookups = [
-        sql for sql, _ in conn.cursor_obj.sql_log
-        if 'SELECT id FROM chat_messages' in sql
-        and 'user_id = %s' in sql
+    assert prestige_rows[0]['message'] == '⭐ alice reached Prestige Level 2!', (
+        f"expected latest prestige, got: {prestige_rows[0]['message']}"
+    )
+
+    # Re-prestige to Level 3: same story.
+    _chat.post_dedup_system_message(conn, '⭐ alice reached Prestige Level 3!', 1, event_kind='prestige')
+    prestige_rows = [r for r in conn.cursor_obj.rows if r.get('event_kind') == 'prestige']
+    assert len(prestige_rows) == 1
+    assert prestige_rows[0]['message'] == '⭐ alice reached Prestige Level 3!'
+
+
+def test_prestige_dedup_isolated_per_user():
+    """T222: prestige dedup is per-user. Alice's Level 2 doesn't
+    delete Bob's Level 5 — each player keeps their own latest."""
+    _reset_throttle()
+    initial = [
+        {'id': 1, 'user_id': 1, 'username': 'alice', 'message': 'L1',
+         'message_type': 'system', 'event_kind': 'prestige'},
+        {'id': 2, 'user_id': 2, 'username': 'bob',   'message': 'L5',
+         'message_type': 'system', 'event_kind': 'prestige'},
     ]
-    assert dedup_lookups == [], (
-        f"dedup SELECT should not run for prestige, got: {dedup_lookups}"
+    conn = _FakeConn(rows=initial)
+    # Alice re-prestiges: only her L1 should be deleted, Bob's L5 stays.
+    _chat.post_dedup_system_message(conn, '⭐ alice reached Prestige Level 2!', 1, event_kind='prestige')
+    prestige_rows = [r for r in conn.cursor_obj.rows if r.get('event_kind') == 'prestige']
+    assert len(prestige_rows) == 2, (
+        f"expected 2 prestige rows (alice L2 + bob L5), got {prestige_rows}"
     )
+    assert {r['message'] for r in prestige_rows} == {'⭐ alice reached Prestige Level 2!', 'L5'}
 
 
 def test_user_messages_not_deduped():
@@ -451,8 +489,10 @@ def test_migration_058_retroactive_cleanup():
 
 
 def test_migration_058_preserves_first_spin_and_prestige():
-    """first_spin and prestige rows are NOT touched by the dedup migration,
-    even when there are multiple of each for the same user."""
+    """Migration 058's HISTORICAL behaviour: it preserved first_spin and
+    prestige. T222 (migration 064) changed this so prestige is now deduped
+    (see test_migration_064_dedups_prestige below). first_spin is still
+    preserved."""
     rows = [
         _make_row(1, 42, 'first_spin', 'fs-1'),
         _make_row(2, 42, 'first_spin', 'fs-2'),
@@ -464,8 +504,78 @@ def test_migration_058_preserves_first_spin_and_prestige():
     _apply_migration_058(conn)
     fs = [r for r in conn.cursor_obj.rows if r['event_kind'] == 'first_spin']
     pr = [r for r in conn.cursor_obj.rows if r['event_kind'] == 'prestige']
-    assert len(fs) == 2, f"all first_spin rows preserved, got: {fs}"
-    assert len(pr) == 3, f"all prestige rows preserved, got: {pr}"
+    assert len(fs) == 2, f"all first_spin rows preserved (058), got: {fs}"
+    # 058 did NOT dedup prestige — this is the historical behaviour. T222
+    # changed this; see test_migration_064_dedups_prestige for the new rule.
+    assert len(pr) == 3, f"058 preserved all prestige rows, got: {pr}"
+
+
+def _apply_migration_064(conn):
+    """Re-implementation of migration 064 for testing.
+
+    064: backfill user_id from message content, then keep only the
+    latest prestige message per user. Unlike 058, prestige is now
+    dedup-eligible.
+    """
+    cur = conn.cursor_obj
+    # Step 1: backfill user_id by matching the username embedded in
+    # the message text (⭐ {user} reached Prestige Level {N}!).
+    import re
+    for r in cur.rows:
+        if r.get('event_kind') == 'prestige' and r.get('user_id') is None:
+            m = re.match(r'^⭐ (\S+) reached Prestige Level', r['message'])
+            if m:
+                # In a real DB we'd look up users.username. For the test
+                # FakeConn we just assign a synthetic user_id from the row.
+                r['user_id'] = 100 + len(r['message'])  # deterministic
+    # Step 2: keep only the latest prestige per user (max id).
+    by_user = {}
+    for r in cur.rows:
+        if r.get('event_kind') == 'prestige' and r.get('user_id') is not None:
+            uid = r['user_id']
+            if uid not in by_user or r['id'] > by_user[uid]['id']:
+                by_user[uid] = r
+    cur.rows = [r for r in cur.rows
+                if r.get('event_kind') != 'prestige'
+                or (r.get('user_id') is not None and r.get('id') == by_user[r['user_id']]['id'])]
+
+
+def test_migration_064_dedups_prestige():
+    """T222 / migration 064: keeps only the latest prestige per user.
+    Older prestige messages for the same user are deleted."""
+    rows = [
+        _make_row(1, 2, 'prestige', '⭐ alice reached Prestige Level 1!'),
+        _make_row(2, 2, 'prestige', '⭐ alice reached Prestige Level 2!'),
+        _make_row(3, 2, 'prestige', '⭐ alice reached Prestige Level 3!'),
+        _make_row(4, 3, 'prestige', '⭐ bob reached Prestige Level 5!'),
+        _make_row(5, 3, 'prestige', '⭐ bob reached Prestige Level 6!'),
+    ]
+    conn = _FakeConn(rows=rows)
+    _apply_migration_064(conn)
+    alice = [r for r in conn.cursor_obj.rows
+             if r['event_kind'] == 'prestige' and 'alice' in r['message']]
+    bob = [r for r in conn.cursor_obj.rows
+           if r['event_kind'] == 'prestige' and 'bob' in r['message']]
+    assert len(alice) == 1, f"alice: expected 1 latest, got {len(alice)}"
+    assert alice[0]['id'] == 3, f"alice: expected latest (id=3), got {alice[0]}"
+    assert len(bob) == 1, f"bob: expected 1 latest, got {len(bob)}"
+    assert bob[0]['id'] == 5, f"bob: expected latest (id=5), got {bob[0]}"
+
+
+def test_migration_064_preserves_first_spin():
+    """first_spin is still preserved (not in DEDUP_EVENT_KINDS)."""
+    rows = [
+        _make_row(1, 2, 'first_spin', 'fs-1'),
+        _make_row(2, 2, 'first_spin', 'fs-2'),
+        _make_row(3, 2, 'prestige',  'p-1'),
+        _make_row(4, 2, 'prestige',  'p-2'),
+    ]
+    conn = _FakeConn(rows=rows)
+    _apply_migration_064(conn)
+    fs = [r for r in conn.cursor_obj.rows if r['event_kind'] == 'first_spin']
+    pr = [r for r in conn.cursor_obj.rows if r['event_kind'] == 'prestige']
+    assert len(fs) == 2, f"first_spin preserved, got: {fs}"
+    assert len(pr) == 1, f"prestige deduped to latest, got: {pr}"
 
 
 def test_migration_058_isolated_per_user():
