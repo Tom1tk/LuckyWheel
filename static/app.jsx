@@ -1287,7 +1287,7 @@ function FishEncyclopedia({ caughtSpecies, onClose }) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onOnboardingAdvance }) {
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onOnboardingAdvance }) {
   const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
@@ -1295,9 +1295,14 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   const [missReason, setMissReason] = useState('late'); // 'late' | 'early'
   const [luckyNextActive, setLuckyNextActive] = useState(fishingLuckyNext || false);
   const [autoCast, setAutoCast]   = useState(false);
-  const [autoFish, setAutoFish]   = useState(false);
+  // T224: initialise autoFish from the server's auto_fish_enabled flag
+  // (passed down via props). If the server says on, we trust it; if the
+  // server says off, we start off. The useEffect below also forces autoFish
+  // off if hasAutoFisher becomes false (e.g. after a prestige that drops
+  // the upgrade).
+  const [autoFish, setAutoFish]   = useState(!!autoFishEnabled);
   const [autoFishPopup, setAutoFishPopup] = useState(null); // { key, type:'hit'|'miss', emoji?, value? }
-  const autoFishRef               = useRef(false);
+  const autoFishRef               = useRef(!!autoFishEnabled);
   const autoCastRef               = useRef(false);
   const phaseRef                  = useRef('idle');
   const biteTimerRef              = useRef(null);
@@ -1318,6 +1323,17 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   useEffect(() => { autoCastRef.current = autoCast;  }, [autoCast]);
   useEffect(() => { phaseRef.current    = phase;     }, [phase]);
   useEffect(() => { setLuckyNextActive(fishingLuckyNext || false); }, [fishingLuckyNext]);
+
+  // T224: if the player lost the autofisher upgrade (e.g. via prestige),
+  // force autoFish off in local state. The toggle is only rendered when
+  // hasAutoFisher is true, so without this the player would be stuck with
+  // autoFish=true (server flag also true) and no way to turn it off — and
+  // the manual-fish UI is hidden when autoFish=true.
+  useEffect(() => {
+    if (autoFish && !hasAutoFisher) {
+      setAutoFish(false);
+    }
+  }, [autoFish, hasAutoFisher]);
 
   const countMiss = useCallback(() => {
     if (!autoCastRef.current) return;
@@ -3419,6 +3435,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishClicks, setFishClicks]   = useState(gameState.fish_clicks);
   const [caughtSpecies, setCaughtSpecies]     = useState(gameState.caught_species || []);
   const [fishingLuckyNext, setFishingLuckyNext] = useState(gameState.fishing_lucky_next || false);
+  // T224: server-supplied auto_fish_enabled. The FishingPanel child
+  // syncs from this via the autoFish prop. If the player has
+  // auto_fish_enabled=true in the DB but doesn't own autofisher_1
+  // (e.g. they prestiged with auto-fish on), the child useEffect
+  // forces autoFish off in local state. The /api/auto-fish-enabled
+  // endpoint also forces the flag off server-side.
+  const [autoFishEnabled, setAutoFishEnabled] = useState(!!gameState.auto_fish_enabled);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [bonusEarned, setBonusEarned] = useState(0);
   // T217: wins breakdown — capture the raw delta and the base multiplier so
@@ -3759,6 +3782,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         setDoubleDownPending(s.double_down_pending);
         setOwnedItems(s.owned_items);
         if (s.cumulative_wins != null) setCumulativeWins(s.cumulative_wins);
+        // T224: prestige clears auto_fish_enabled (PRESTIGE_RESET_COLUMNS).
+        // The server returns the new value (always false after prestige);
+        // sync the local state so the auto-fish UI is hidden and the
+        // manual-fish UI is shown.
+        if (s.auto_fish_enabled != null) setAutoFishEnabled(s.auto_fish_enabled);
       } else {
         // Server didn't return state (older build) — fall back to the
         // hand-rolled resets. Player will see stale shop "owned" badges
@@ -4365,6 +4393,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     // `wager_last_stake` is 0-45 in the new system (0 = safe/no-stake).
     if (gameState.wager_last_stake != null) setStakePct(gameState.wager_last_stake);
     if (gameState.max_stake_pct != null) setMaxStakePct(gameState.max_stake_pct);
+    // T224: sync auto-fish state from server. The FishingPanel child
+    // does the heavy lifting (forcing autoFish off when the upgrade
+    // is missing); we just mirror the server flag here.
+    if (gameState.auto_fish_enabled != null) setAutoFishEnabled(gameState.auto_fish_enabled);
   }, []); // eslint-disable-line
 
   // Season 8: community goal background poll (15s interval, respects document.hidden)
@@ -4918,6 +4950,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           fishingLuckyNext={fishingLuckyNext}
           ownedItems={ownedItems}
           fishPanelScale={fishPanelScale}
+          autoFishEnabled={autoFishEnabled}
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={refreshBountiesAndGoal}
@@ -4934,6 +4967,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             fishingLuckyNext={fishingLuckyNext}
             ownedItems={ownedItems}
             fishPanelScale={fishPanelScale}
+            autoFishEnabled={autoFishEnabled}
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
             onFishCaught={refreshBountiesAndGoal}

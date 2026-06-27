@@ -974,7 +974,8 @@ def get_state():
                               wager_last_win_amount, wager_banked_losses,
                               active_wheel_mode, insurance_tokens, aquarium_species,
                               cosmetic_fragments, guard_charges,
-                              gravity_drift
+                              gravity_drift,
+                              auto_fish_enabled, auto_fish_last_tick
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -1078,6 +1079,11 @@ def get_state():
             'wager_last_win_amount': int(gs.get('wager_last_win_amount', 0) or 0),
             'insurance_charges':     int(gs.get('insurance_charges', 0) or 0),
             'insurance_armed':       bool(gs.get('insurance_armed', False)),
+            # T224: surface auto_fish_enabled so the client stays in sync
+            # with the server. Without this, a player who prestiged with
+            # auto-fish on would have a stale client state (manual-fish UI
+            # hidden, toggle hidden because they no longer own autofisher_*).
+            'auto_fish_enabled':     bool(gs.get('auto_fish_enabled', False)),
             'insurance_free_claimed_date': (
                 gs.get('insurance_free_claimed_date').isoformat()
                 if gs.get('insurance_free_claimed_date') is not None
@@ -2885,12 +2891,28 @@ def set_auto_fish_enabled():
         return err
     try:
         data = request.get_json()
-        enabled = bool(data.get('enabled', False))
+        requested = bool(data.get('enabled', False))
         with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    'SELECT owned_items, auto_fish_enabled FROM game_state WHERE user_id = %s FOR UPDATE',
+                    (current_user.id,),
+                )
+                gs = cur.fetchone()
+            # T224: defensive. If the player doesn't own an autofisher
+            # upgrade, they can't actually use auto-fish — force the flag
+            # off regardless of what the client requested. This unsticks
+            # players who lost the upgrade on prestige (or any other
+            # case where the upgrade is missing while the flag is true).
+            autofisher_lvl = _autofisher_level(list(gs['owned_items']))
+            enabled = bool(requested and autofisher_lvl >= 1)
             with conn.cursor() as cur:
                 cur.execute(
-                    'UPDATE game_state SET auto_fish_enabled = %s WHERE user_id = %s',
-                    (enabled, current_user.id),
+                    '''UPDATE game_state
+                       SET auto_fish_enabled = %s,
+                           auto_fish_last_tick = CASE WHEN %s THEN auto_fish_last_tick ELSE NULL END
+                       WHERE user_id = %s''',
+                    (enabled, enabled, current_user.id),
                 )
             conn.commit()
         return jsonify({'ok': True, 'auto_fish_enabled': enabled})
@@ -3531,6 +3553,7 @@ def _prestige_default(col):
     if col in (
         'double_down_pending', 'insurance_armed',
         'dice_rolled_since_spin', 'fishing_lucky_next',
+        'auto_fish_enabled',  # T224: clear on prestige
     ):
         return False
     if col == 'active_wheel_mode':
@@ -3543,6 +3566,7 @@ def _prestige_default(col):
     if col in (
         'pending_dice', 'fastest_catch_pct', 'equipped_class', 'bounty_claimed_date',
         'insurance_free_claimed_date',
+        'auto_fish_last_tick',  # T224: clear on prestige
     ):
         return None
     if col == 'caught_species':
@@ -3710,6 +3734,9 @@ def prestige_reset():
             'double_down_pending': bool(fresh.get('double_down_pending', False)),
             'owned_items': list(fresh.get('owned_items', [])),
             'cumulative_wins': int(fresh.get('cumulative_wins', 0)),
+            # T224: auto_fish_enabled is reset on prestige — return the
+            # new (False) value so the client can clear its local state.
+            'auto_fish_enabled': bool(fresh.get('auto_fish_enabled', False)),
         },
     })
 
