@@ -4366,88 +4366,14 @@ var SHOP_SECTIONS = [{
     tier: 3
   }]
 }, {
-  label: '⚡ Season 8: Wager System',
-  items: [{
-    id: 'wager_unlock',
-    emoji: '⚡',
-    name: 'Wager Unlock',
-    cost: 500,
-    desc: 'Unlocks stake slider (0% safe, 5%-30% at risk)',
-    tier: 1
-  }, {
-    id: 'wager_safety_net',
-    emoji: '🛡️',
-    name: 'Safety Net',
-    cost: 2000,
-    desc: 'Refunds 25% of lost stake at 15%+ stake',
-    tier: 2,
-    requires: 'wager_unlock'
-  }, {
-    id: 'wager_hot_streak',
-    emoji: '🔥',
-    name: 'Hot Streak',
-    cost: 8000,
-    desc: '+5% per consecutive same-stake win, cap +50%',
-    tier: 2,
-    requires: 'wager_unlock'
-  }, {
-    id: 'wager_double_down',
-    emoji: '⚡',
-    name: 'Double Down',
-    cost: 25000,
-    desc: 'Arm 2x stake for next spin',
-    tier: 3,
-    requires: 'wager_hot_streak'
-  }, {
-    id: 'wager_insurance',
-    emoji: '🛡️',
-    name: 'Insurance',
-    cost: 50000,
-    desc: 'Caps next loss at stake amount',
-    tier: 3,
-    requires: 'wager_unlock'
-  }, {
-    id: 'wager_stake_extend_1',
-    emoji: '📈',
-    name: 'Stake Extender I',
-    cost: 5000,
-    desc: 'Raises max stake from 30% to 35%',
-    tier: 1,
-    requires: 'wager_unlock'
-  }, {
-    id: 'wager_stake_extend_2',
-    emoji: '📈',
-    name: 'Stake Extender II',
-    cost: 15000,
-    desc: 'Raises max stake from 35% to 40%',
-    tier: 1,
-    requires: 'wager_stake_extend_1'
-  }, {
-    id: 'wager_stake_extend_3',
-    emoji: '📈',
-    name: 'Stake Extender III',
-    cost: 40000,
-    desc: 'Raises max stake from 40% to 45%',
-    tier: 1,
-    requires: 'wager_stake_extend_2'
-  }, {
-    id: 'auto_spin_unlock',
-    emoji: '🔁',
-    name: 'Auto-Spin Unlock',
-    cost: 5000,
-    desc: 'Spins automatically at 0% stake — stake slider hides while active',
-    tier: 1
-  }]
-}, {
   label: '🎣 Season 8: Fishing',
-  items: [{
-    id: 'fish_to_wager',
-    emoji: '🪙',
-    name: 'Fish-to-Wager',
-    cost: 5000,
-    desc: 'Convert caught fish to wager tokens',
-    tier: 1
-  }, {
+  items: [
+  // T223: fish_to_wager removed — it was a legacy item that wasn't
+  // supposed to be in the shop. The item still exists in models.SHOP_ITEMS
+  // for the insurance-grant one-time bonus, but it's no longer purchasable
+  // from the shop UI. (Existing players who already own it keep it; new
+  // players won't be able to buy it.)
+  {
     id: 'catch_of_the_day',
     emoji: '📅',
     name: 'Catch of the Day',

@@ -91,6 +91,7 @@ def _install_stubs():
     sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
     sys.modules.setdefault('chat', _make_stub('chat',
         post_system_message=lambda *a, **kw: None,
+        post_dedup_system_message=lambda *a, **kw: None,
     ))
     sys.modules.setdefault('chat_triggers', _make_stub('chat_triggers',
         jackpot_msg=lambda *a, **kw: '',
