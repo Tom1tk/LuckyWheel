@@ -102,14 +102,21 @@ def _fake_post_system_message(conn, message, message_type='system', event_kind=N
     _posted.append({'message': message, 'event_kind': event_kind})
 
 
+def _fake_post_dedup_system_message(
+    conn, message, user_id, event_kind, *, message_type='system',
+):
+    _posted.append({'message': message, 'event_kind': event_kind, 'user_id': user_id})
+
+
 _spec = importlib.util.spec_from_file_location(
     'game', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py'),
 )
 _game = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_game)
 
-# Monkey-patch the side-effecting call the helper makes.
+# Monkey-patch the side-effecting calls the helper makes.
 _game.post_system_message = _fake_post_system_message
+_game.post_dedup_system_message = _fake_post_dedup_system_message
 
 
 def _gs(biggest=0, **overrides):
@@ -131,7 +138,7 @@ def test_big_win_fires_on_first_5k():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=0), _events(wins_delta=5001), 'alice')
+        conn, _gs(biggest=0), _events(wins_delta=5001), 'alice', 1)
     assert len(_posted) == 1
     assert _posted[0]['event_kind'] == 'big_win'
     assert '5001' in _posted[0]['message']
@@ -144,7 +151,7 @@ def test_big_win_escalates():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=5001), _events(wins_delta=5500), 'alice')
+        conn, _gs(biggest=5001), _events(wins_delta=5500), 'alice', 1)
     assert len(_posted) == 1
     assert _posted[0]['event_kind'] == 'big_win'
     assert '5500' in _posted[0]['message']
@@ -156,7 +163,7 @@ def test_big_win_does_not_fire_below_previous():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=5500), _events(wins_delta=5100), 'alice')
+        conn, _gs(biggest=5500), _events(wins_delta=5100), 'alice', 1)
     assert _posted == [], f"Expected no message, got: {_posted}"
     assert new_biggest == 5500  # unchanged
 
@@ -166,7 +173,7 @@ def test_big_win_does_not_fire_below_threshold():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=0), _events(wins_delta=1000), 'alice')
+        conn, _gs(biggest=0), _events(wins_delta=1000), 'alice', 1)
     assert _posted == []
     assert new_biggest == 0
 
@@ -178,7 +185,7 @@ def test_big_win_fires_three_times():
     biggest = 0
     for wins in (5001, 5500, 6000):
         biggest = _game._maybe_announce_big_win(
-            conn, _gs(biggest=biggest), _events(wins_delta=wins), 'alice')
+            conn, _gs(biggest=biggest), _events(wins_delta=wins), 'alice', 1)
     assert len(_posted) == 3
     assert biggest == 6000
     assert '5001' in _posted[0]['message']
@@ -195,7 +202,7 @@ def test_big_win_does_not_fire_on_lose():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=0), _events(wins_delta=10000, result='lose'), 'alice')
+        conn, _gs(biggest=0), _events(wins_delta=10000, result='lose'), 'alice', 1)
     assert _posted == []
     assert new_biggest == 0
 
@@ -205,7 +212,7 @@ def test_big_win_does_not_fire_on_tie():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=5001), _events(wins_delta=5001), 'alice')
+        conn, _gs(biggest=5001), _events(wins_delta=5001), 'alice', 1)
     assert _posted == [], f"Tie should not re-announce, got: {_posted}"
     assert new_biggest == 5001
 
@@ -215,7 +222,7 @@ def test_big_win_fires_on_exact_threshold():
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
-        conn, _gs(biggest=0), _events(wins_delta=5000), 'alice')
+        conn, _gs(biggest=0), _events(wins_delta=5000), 'alice', 1)
     assert len(_posted) == 1
     assert new_biggest == 5000
 
@@ -225,6 +232,6 @@ def test_big_win_message_uses_active_wheel_mode():
     _posted.clear()
     conn = _FakeConn()
     _game._maybe_announce_big_win(
-        conn, _gs(biggest=0), _events(wins_delta=7000, mode='mirror'), 'bob')
+        conn, _gs(biggest=0), _events(wins_delta=7000, mode='mirror'), 'bob', 1)
     assert len(_posted) == 1
     assert 'mirror' in _posted[0]['message']
