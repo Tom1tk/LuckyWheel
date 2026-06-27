@@ -5726,6 +5726,7 @@ function WagerPanel(_ref35) {
     onInsurance = _ref35.onInsurance,
     onCancelInsurance = _ref35.onCancelInsurance,
     onTogglePayWithTokens = _ref35.onTogglePayWithTokens;
+  if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "season8-wager-panel"
