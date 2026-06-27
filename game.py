@@ -142,12 +142,15 @@ def _maybe_announce_big_win(conn, gs, events, username, user_id):
     unchanged previous biggest when the message does not fire.
 
     T209: uses post_dedup_system_message so a player can only have one
-    big_win chat message at a time (jackpots share the same event_kind,
-    re-styled via the was_jackpot flag).
+    big_win chat message at a time.
+
+    T221: jackpots are excluded entirely. A jackpot no longer triggers a
+    chat message of any kind — neither the was_jackpot big_win nor any
+    other format. Only regular wins above the threshold post.
     """
     biggest = int(gs.get('biggest_win_announced', 0) or 0)
     wins_delta = int(events.get('wins_delta', 0) or 0)
-    if (events.get('result') in ('win', 'jackpot')
+    if (events.get('result') == 'win'
             and wins_delta >= chat_triggers.BIG_WIN_THRESHOLD
             and wins_delta > biggest):
         post_dedup_system_message(
@@ -156,7 +159,6 @@ def _maybe_announce_big_win(conn, gs, events, username, user_id):
                 username,
                 wins_delta,
                 events.get('active_wheel_mode', 'steady'),
-                was_jackpot=(events.get('result') == 'jackpot'),
             ),
             user_id,
             event_kind='big_win',
@@ -1275,9 +1277,23 @@ def spin():
                     }), 400
 
             new_spin_count = gs['spin_count'] + 1
+
+            # T220: consume any pending dice roll. The dice (rolled via
+            # /api/roll-dice) was either applied immediately (if no
+            # auto-spin was active) or buffered (if auto-spinning). In
+            # both cases pending_dice holds {new_streak, original_streak,
+            # dice_sum, ...}. We use new_streak as the input streak here.
+            # If the spin resolves as a loss, we revert the streak to
+            # original_streak and refund the dice charge below.
+            pd = gs.get('pending_dice')
+            if pd:
+                input_streak = pd['new_streak']
+            else:
+                input_streak = gs['streak']
+
             new_state, events = _resolve_spin(
                 owned=list(gs['owned_items']),
-                streak=gs['streak'],
+                streak=input_streak,
                 best_streak=gs['best_streak'],
                 regen_recharge_wins=gs['regen_recharge_wins'],
                 wins=int(gs['wins']),
@@ -1315,6 +1331,23 @@ def spin():
                 pay_with_tokens=pay_with_tokens,
             )
 
+            # T220: loss handler for pending dice. If this spin was a loss
+            # AND there was a pending dice roll, revert the streak to the
+            # pre-dice value and refund the dice charge.
+            dice_refunded = False
+            if pd and events['result'] == 'lose':
+                original = pd.get('original_streak', gs['streak'])
+                new_state['streak'] = original
+                # best_streak should not be increased by the (now-reverted) bonus
+                new_state['best_streak'] = max(gs['best_streak'], original) if original > 0 else gs['best_streak']
+                # Refund the dice charge (cap at max). Reset recharge clock so
+                # the player doesn't get a head-start on the next regen tick.
+                dice_charges = min(dice_charges + 1, max_charges)
+                last_recharge = now_utc
+                dice_refunded = True
+                log.info('DICE_REFUND_ON_LOSS  user_id=%s  original_streak=%s  dice_sum=%s',
+                         current_user.id, original, pd.get('dice_sum'))
+
             new_win_count  = gs['win_count']  + (1 if events['result'] in ('win', 'jackpot')  else 0)
             new_loss_count = gs['loss_count'] + (1 if events['result'] == 'lose' else 0)
             # T106: cumulative_wins tracks the lifetime value of wins gained.
@@ -1322,14 +1355,11 @@ def spin():
             # gained from this spin, including wager payouts). Never decremented.
             new_cumulative_wins = int(gs.get('cumulative_wins', 0)) + max(0, int(events.get('wins_delta', 0)))
 
-            # Season 8: post system message on jackpot
-            if events['jackpot_hit']:
-                post_system_message(conn, chat_triggers.jackpot_msg(
-                    current_user.username,
-                    events.get('active_wheel_mode', 'steady'),
-                    int(events.get('stake', 1)),
-                    int(events['wins_delta']),
-                ), 'system', event_kind='jackpot')
+            # T221: jackpot chat messages are gone entirely. No system message
+            # is posted for a jackpot, neither the old "JACKPOT in M mode at Nx
+            # stake" format nor the new "hit a N jackpot in M mode" format
+            # that big_win_msg produced via the was_jackpot flag. The
+            # `_maybe_announce_big_win` call below also skips jackpots now.
             # Season 8: post system message on big double-down win
             if (double_down_active and events['result'] in ('win', 'jackpot')
                     and int(events.get('stake', 1)) >= chat_triggers.DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE):
@@ -1427,6 +1457,7 @@ def spin():
                            dice_charges = %s, dice_last_recharge = %s,
                            jackpot_echo_next = %s, proc_streak = %s,
                            guard_charges = %s,
+                           pending_dice = NULL,
                            dice_rolled_since_spin = FALSE,
                            last_spin_at = NOW(),
                            active_tab_id = %s, tab_last_seen = NOW(),
@@ -1441,7 +1472,7 @@ def spin():
                           gravity_drift = %s,
                           insurance_tokens = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
-                      WHERE user_id = %s''',
+                       WHERE user_id = %s''',
                      (new_state['wins'], new_state['losses'],
                       new_state['streak'], new_state['best_streak'],
                       new_state['regen_recharge_wins'],
@@ -1469,6 +1500,11 @@ def spin():
         resp['new_spin_count'] = new_spin_count
         resp['dice_charges'] = dice_charges
         resp['dice_last_recharge'] = last_recharge.isoformat()
+        # T220: tell the client whether the dice roll was refunded (the spin
+        # was a loss, so the dice bonus was reverted and the charge given back).
+        resp['dice_refunded'] = dice_refunded
+        if dice_refunded and pd:
+            resp['dice_refunded_sum'] = pd.get('dice_sum', 0)
         # T106: echo the new cumulative_wins so the shop tier-locked text
         # updates live without a page refresh. The client had been waiting
         # for the next /api/state poll, which never happened on its own.
@@ -1695,13 +1731,22 @@ def tick():
             dice_charges = min(dice_charges, max_charges)
             dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
-            # Apply any pending dice roll before processing spins
-            if gs['pending_dice']:
-                pd = gs['pending_dice']
+            # T220: Apply any pending dice roll before processing spins.
+            # The pending dice was either buffered (if auto-spin was active
+            # at roll time) or applied immediately (if not). In both cases
+            # the input streak to the next spin is pd['new_streak'].
+            # Loss handling: if the spin resolves as a 'lose', we revert the
+            # streak to pd['original_streak'] and refund the dice charge
+            # inside the loop below.
+            pd = gs.get('pending_dice')
+            if pd:
                 streak      = pd['new_streak']
                 best_streak = max(best_streak, streak) if streak > 0 else best_streak
+            else:
+                pd = None
 
             spin_results = []
+            dice_refunded_this_tick = False
 
             for _ in range(spins_due):
                 new_spin_count += 1
@@ -1752,19 +1797,34 @@ def tick():
                 current_gravity_drift = new_state.get('gravity_drift', current_gravity_drift)
                 current_wager_banked_losses = new_state.get('wager_banked_losses', current_wager_banked_losses)
 
+                # T220: loss handler for pending dice. If this spin was a
+                # loss AND there was a pending dice roll, revert the streak
+                # to the pre-dice value and refund the dice charge. The
+                # dice is single-shot — only the first spin in the tick
+                # can consume it; subsequent spins in the same tick don't
+                # see the dice (we clear `pd` below after the first spin).
+                if pd and not dice_refunded_this_tick and events['result'] == 'lose':
+                    original = pd.get('original_streak', streak)
+                    streak = original
+                    best_streak = max(best_streak, original) if original > 0 else best_streak
+                    new_state['streak'] = original
+                    new_state['best_streak'] = best_streak
+                    dice_charges = min(dice_charges + 1, max_charges)
+                    last_recharge = now_utc
+                    dice_refunded_this_tick = True
+                    log.info('DICE_REFUND_ON_LOSS  user_id=%s  path=tick  original_streak=%s  dice_sum=%s',
+                             current_user.id, original, pd.get('dice_sum'))
+                # Clear pd after first spin regardless of result so
+                # subsequent spins in the same catch-up tick don't see it.
+                pd = None
+
                 new_win_count  += 1 if events['result'] == 'win'  else 0
                 new_loss_count += 1 if events['result'] == 'lose' else 0
                 # T106: cumulative_wins — track lifetime value of wins gained.
                 new_cumulative_wins += max(0, int(events.get('wins_delta', 0)))
 
+                # T221: jackpot chat messages are gone entirely (see /api/spin).
                 # T90: auto-post chat messages (mirror T82 manual /api/spin path)
-                if events['result'] == 'jackpot':
-                    post_system_message(conn, chat_triggers.jackpot_msg(
-                        current_user.username,
-                        events.get('active_wheel_mode', 'steady'),
-                        1,
-                        int(events['wins_delta']),
-                    ), 'system', event_kind='jackpot')
                 if (int(events.get('wager_streak', 0)) == chat_triggers.HOT_STREAK_MSG_THRESHOLD):
                     post_dedup_system_message(
                         conn, chat_triggers.hot_streak_msg(current_user.username),
@@ -1782,6 +1842,9 @@ def tick():
                     # T106: echo the new cumulative_wins so the shop tier-locked
                     # text updates live during auto-spin too. Same fix as /api/spin.
                     resp['cumulative_wins'] = new_cumulative_wins
+                    # T220: tell the client if the dice was refunded on this
+                    # spin (loss path) so it can show the refund toast.
+                    resp['dice_refunded'] = dice_refunded_this_tick
                     spin_results.append(resp)
 
             # Advance last_spin_at cursor
@@ -1921,7 +1984,8 @@ def roll_dice():
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, streak, best_streak, owned_items,
-                              dice_charges, dice_last_recharge, dice_rolled_since_spin
+                              dice_charges, dice_last_recharge, dice_rolled_since_spin,
+                              auto_spin_since
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -1932,6 +1996,7 @@ def roll_dice():
             best_streak = gs['best_streak']
             owned       = list(gs['owned_items'])
             now_utc     = dt.datetime.now(timezone.utc)
+            auto_spin_active = gs.get('auto_spin_since') is not None
 
             # Recharge dice charges
             max_charges = dice_max_charges(owned)
@@ -1960,6 +2025,7 @@ def roll_dice():
             cursed  = not cursed_triple  and ones  >= 2
             blessed = not blessed_triple and sixes >= 2
 
+            original_streak = streak
             if cursed_triple:
                 new_streak = max(0, streak // 3)
             elif blessed_triple:
@@ -1975,26 +2041,49 @@ def roll_dice():
             # Reset recharge clock from now when a charge is consumed
             new_last_recharge = now_utc if new_charges < max_charges else last_recharge
 
-            # Buffer the result — streak is applied by the next /api/tick, not immediately.
+            # T220: dice handling
+            #   - Not auto-spinning: apply the streak change to the DB right away.
+            #     The next spin's loss handler will revert + refund if the spin loses.
+            #   - Auto-spinning: buffer the result, consumed by the next /api/tick.
+            #     Same loss-revert + refund logic when that tick's spin loses.
+            # In both cases we save original_streak + dice_sum in pending_dice so
+            # the spin handler can identify "this is a pending dice roll" and
+            # know what to revert to.
             pending = {
                 'new_streak':      new_streak,
-                'die1':            dice[0],
-                'die2':            dice[1],
-                'die3':            dice[2] if len(dice) > 2 else None,
+                'original_streak': original_streak,
                 'dice_sum':        dice_sum,
                 'cursed':          cursed or cursed_triple,
                 'blessed':         blessed or blessed_triple,
                 'cursed_triple':   cursed_triple,
                 'blessed_triple':  blessed_triple,
+                'die1':            dice[0],
+                'die2':            dice[1],
+                'die3':            dice[2] if len(dice) > 2 else None,
             }
+
+            if auto_spin_active:
+                # Buffer for next auto-spin tick. The streak stays at the
+                # current value in the DB until the tick consumes it.
+                new_streak_to_store = streak
+                applied_immediately = False
+            else:
+                # Apply immediately. The DB streak is now new_streak; the next
+                # /api/spin checks the result and reverts on a loss.
+                new_streak_to_store = new_streak
+                applied_immediately = True
+
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
                        SET pending_dice = %s,
+                           streak = %s, best_streak = CASE WHEN %s > best_streak THEN %s ELSE best_streak END,
                            dice_charges = %s, dice_last_recharge = %s,
                            dice_rolled_since_spin = TRUE
                        WHERE user_id = %s''',
-                    (psycopg2.extras.Json(pending), new_charges, new_last_recharge, current_user.id),
+                    (psycopg2.extras.Json(pending), new_streak_to_store,
+                     new_streak_to_store, new_streak_to_store,
+                     new_charges, new_last_recharge, current_user.id),
                 )
             conn.commit()
 
@@ -2012,7 +2101,8 @@ def roll_dice():
             'wins':               wins,
             'dice_charges':       new_charges,
             'dice_last_recharge': last_recharge.isoformat(),
-            'buffered':           True,
+            'buffered':           not applied_immediately,
+            'applied_immediately': applied_immediately,
         })
     except Exception:
         log.exception('ROLL_DICE_ERROR  user_id=%s', current_user.id)
