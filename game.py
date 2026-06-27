@@ -3313,7 +3313,6 @@ def admin_advance_season():
 
 @game_bp.route('/api/wager/bank', methods=['POST'])
 @login_required
-@csrf.exempt
 def wager_bank():
     """Bank wager_banked_wins into wins AND wager_banked_losses into losses,
     then reset wager_streak to 0. The same double-down-pending guard from
@@ -3360,7 +3359,6 @@ def wager_bank():
 
 @game_bp.route('/api/wager/stake', methods=['POST'])
 @login_required
-@csrf.exempt
 def wager_set_stake():
     """Set the wager stake percentage for manual spins. Validates against wager_unlock."""
     err = require_json()
@@ -3401,7 +3399,6 @@ def wager_set_stake():
 
 @game_bp.route('/api/wager/double-down', methods=['POST'])
 @login_required
-@csrf.exempt
 def wager_double_down():
     """Double down: next spin uses 2× stake. Only if wager_double_down owned."""
     err = require_json()
@@ -3422,7 +3419,6 @@ def wager_double_down():
 
 @game_bp.route('/api/wager/double-down/cancel', methods=['POST'])
 @login_required
-@csrf.exempt
 def wager_double_down_cancel():
     """T108: cancel an armed double-down. No item ownership required."""
     with db_connection() as conn:
@@ -3438,7 +3434,6 @@ def wager_double_down_cancel():
 
 @game_bp.route('/api/insurance/arm', methods=['POST'])
 @login_required
-@csrf.exempt
 def wager_insurance():
     """T119: Arm insurance. Consumes 1 insurance_token per arm (was: 1
     charge). No recharge, no cap. Charge is wasted on a win (by design,
@@ -3471,7 +3466,6 @@ def wager_insurance():
 
 @game_bp.route('/api/insurance/cancel', methods=['POST'])
 @login_required
-@csrf.exempt
 def wager_insurance_cancel():
     """T108/T119: cancel armed insurance. The 1 insurance_token consumed
     on arm is NOT refunded — by design (T74: charge is wasted on a win
@@ -3489,7 +3483,6 @@ def wager_insurance_cancel():
 
 @game_bp.route('/api/insurance/buy', methods=['POST'])
 @login_required
-@csrf.exempt
 def insurance_buy_with_tokens():
     """T119: spend insurance tokens to buy insurance charges. 1 token =
     1 charge (fixed rate). No cap — players can stockpile as many
@@ -3534,7 +3527,6 @@ def insurance_buy_with_tokens():
 
 @game_bp.route('/api/insurance/claim-free', methods=['POST'])
 @login_required
-@csrf.exempt
 def insurance_claim_free():
     """T119: claim 3 free insurance tokens once per UTC day. Gated on
     the `insurance_free_claimed_date` column — if today's date equals
@@ -3614,7 +3606,6 @@ def _prestige_default(col):
 
 @game_bp.route('/api/prestige', methods=['POST'])
 @login_required
-@csrf.exempt
 def prestige_reset():
     """T121 atomic prestige: deduct 1M wins (if not yet owned), add the
     unlock, and reset state. All in one transaction.
@@ -3835,7 +3826,6 @@ def get_bounties_endpoint():
 
 @game_bp.route('/api/bounties/claim', methods=['POST'])
 @login_required
-@csrf.exempt
 def claim_bounty():
     """Claim a completed bounty (per-bounty, T117)."""
     err = require_json()
@@ -3920,7 +3910,6 @@ def singularity_status():
 
 @game_bp.route('/api/singularity/contribute', methods=['POST'])
 @login_required
-@csrf.exempt
 def singularity_contribute():
     """Contribute fish_clicks to the singularity meter (per-player capped, per fill cycle)."""
     err = require_json()
@@ -4001,7 +3990,6 @@ def get_loadout():
 
 @game_bp.route('/api/loadout', methods=['POST'])
 @login_required
-@csrf.exempt
 def save_loadout():
     """Save a build loadout to a slot (1-3)."""
     err = require_json()
@@ -4037,7 +4025,6 @@ _LOADOUT_CLASS_ITEMS = {'earth': 'class_earth', 'moon': 'class_moon', 'star': 'c
 
 @game_bp.route('/api/loadout/apply', methods=['POST'])
 @login_required
-@csrf.exempt
 def apply_loadout():
     """Apply a saved loadout — sets equipped_class and active_wheel_mode only.
 
@@ -4085,7 +4072,6 @@ def apply_loadout():
 
 @game_bp.route('/api/guard', methods=['POST'])
 @login_required
-@csrf.exempt
 def guard_endpoint():
     """Manually trigger a guard charge to block a loss. Only if guard_charges > 0."""
     err = require_json()
@@ -4106,7 +4092,6 @@ def guard_endpoint():
 
 @game_bp.route('/api/auto-spin/start', methods=['POST'])
 @login_required
-@csrf.exempt
 def auto_spin_start():
     """Start server-side auto-spin.
 
@@ -4145,7 +4130,6 @@ def auto_spin_start():
 
 @game_bp.route('/api/auto-spin/stop', methods=['POST'])
 @login_required
-@csrf.exempt
 def auto_spin_stop():
     """Stop server-side auto-spin."""
     err = require_json()
@@ -4180,7 +4164,6 @@ def aquarium_status():
 
 @game_bp.route('/api/wheel-mode', methods=['POST'])
 @login_required
-@csrf.exempt
 def set_wheel_mode():
     """Set the active wheel mode for the week."""
     err = require_json()
