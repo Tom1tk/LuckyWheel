@@ -7076,7 +7076,7 @@ false, the panel renders exactly as it does today. No other behaviour changes.
 
 ### T209: Refine auto-posted chat messages — replace each dedup-eligible message with its predecessor (no spam backlog)
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "I (user: tom7) just got a message
   in chat for winning a set amount of wins in steady mode, as well as
   hitting a streak, I don't want the chat to be fully cluttered with
@@ -7491,7 +7491,7 @@ on reducing that.**
 
 ### T211: Dice panel label and casino title text colour must match the S8 (Casino) theme
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "The dice and casino wheel title text are
   in the wrong colour they need to match the new theme colour.")
 - **Files:** `static/styles.css` only
@@ -7724,7 +7724,7 @@ Document the choice in the commit report.
 
 ### T213: Add 5 more casino-themed fish to the shop (emoji cosmetics) with increasing prices
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "Can you add five more emojis to the
   cosmetic shop for fish skins? Have them be casino related and increasing in
   prices after the currently most expensive one.")
@@ -7848,7 +7848,7 @@ fish list, which is mostly 1.5×-2× but flattens at the high end).
 
 ### T214: Rewrite PATCH_NOTES.md from a player-facing "this is brand new" perspective
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "The patch notes is player facing it
   needs to not be written about the development off-season eight it needs to
   be written from the perspective that season eight is all brand-new to this
@@ -8723,7 +8723,7 @@ per the SEASON_8_TICKETS.md hard-constraints convention.*
 
 ### T218: Prestige panel "Legacy" shows S7.7 carryover (~297B), should show S8-specific legacy wins only
 
-- **Status:** [ ] (2026-06-27) — reported by operator during T212 review
+- **Status:** [x] (2026-06-27) — reported by operator during T212 review
 - **Discovered:** 2026-06-27 ~01:10 (operator: "the presige panel has
   'legacy' and several billion, is this supposed to be legacy wins?
   i didn't reach anywhere near that amount, have you kept this
