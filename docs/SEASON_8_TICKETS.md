@@ -7998,7 +7998,7 @@ ticket is independent and can be picked up by a sub-agent. The branch
 naming convention is `t###-<short-slug>` per the SEASON_8_TICKETS.md
 hard-constraints convention.*
 
-### T216: Auto-spin runs invisibly in the background — wins/streak accumulate without user awareness
+### T216: Auto-spin runs invisibly in the background — strip the budget, add heartbeat auto-stop, prevent resume on page load
 
 - **Status:** [ ] (2026-06-27) — URGENT, reported by operator on main
 - **Discovered:** 2026-06-27 ~00:43 (operator: "very strange and urgent bug,
@@ -8006,7 +8006,8 @@ hard-constraints convention.*
   the wheel but for some reason I have almost 4 million wins all of a sudden?
   auto spin is not on and im not clicking. I also have a 39x win streak?
   is there leftover 'afk' behaviour kicking in here?")
-- **Files:** `game.py`, `static/app.jsx`, `static/styles.css`, `tests/test_auto_spin_visibility.py` (new)
+- **Files:** `game.py`, `static/app.jsx`, `migrations/057_*.sql` (new),
+  `tests/test_auto_spin_visibility.py` (new)
 - **Depends on:** none
 
 **Operator's vision (verbatim 2026-06-27):** "very strange and urgent bug, my
@@ -8014,6 +8015,11 @@ wins keep jumping without me doing anything. I haven't been spinning the
 wheel but for some reason I have almost 4 million wins all of a sudden?
 auto spin is not on and im not clicking. I also have a 39x win streak?
 is there leftover 'afk' behaviour kicking in here?"
+
+**Follow-up clarification (2026-06-27 ~00:55):** Operator also confirmed:
+- "there is no budget for auto spin, there shouldnt be. that was a bad idea
+  previously suggested and discarded. otherwise, yes it should stop on
+  disconnect and not resume on page load."
 
 **Bug investigation (what actually happened):**
 
@@ -8032,15 +8038,10 @@ that calls `handleStartAutoSpin`. There is no client-side auto-trigger.
 The operator clicked the auto-spin checkbox (likely while testing the new
 S8 features) and walked away. The server kept running auto-spins via
 `/api/tick` every 3 seconds until the 100-spin budget was exhausted at
-~00:43:30. During that 5-minute window:
-
-- spin_count went from 140 → 365 (225 extra spins, but only 100 were
-  the auto-spin budget; the other 125 were earlier in the session)
-- wins went from 140 → 3,736,603 (3.7M wins accumulated during auto-spin
-  at 0% stake)
-- streak climbed to 39 (each auto-spin at 0% stake resolves the wheel
-  normally; on steady mode the win probability is ~50% so a 39-streak
-  is plausible)
+~00:43:30. During that 5-minute window, wins climbed from 140 → 3,736,603
+and streak reached 39. (See T217 for the wins-amount investigation — the
+3.7M is from the `streak_bonus` formula at high streaks, not from any
+backend duplication.)
 
 **Why it feels like AFK behaviour:**
 
@@ -8048,65 +8049,102 @@ S8 features) and walked away. The server kept running auto-spins via
    `auto_spin_budget` (int) on `game_state`. Persists across page
    reloads indefinitely until budget is exhausted OR the user explicitly
    stops it.
-2. **No visual indicator of remaining budget** — the checkbox is checked,
-   but the player has no way to know "73 spins left" or "1 minute to go".
-   The player can easily forget it's running.
-3. **No auto-stop on page unload** — closing the tab does NOT stop
-   auto-spin. The server keeps running until budget hits 0.
-4. **Resume on page load** — when the player opens the page later,
+2. **No auto-stop on page unload** — closing the tab does NOT stop
+   auto-spin. The server keeps running.
+3. **Resume on page load** — when the player opens the page later,
    `/api/state` returns `auto_spin_active: true` and the client
    silently re-starts the 3-second tick interval. The player sees
    their wins climbing and assumes "this is broken" — not "I left
    auto-spin on 30 minutes ago".
+4. **The budget concept itself is unwanted** — operator confirmed the
+   "100 spins then stop" budget was "a bad idea previously suggested and
+   discarded". Auto-spin should run continuously until the user stops it
+   (or the heartbeat auto-stops it).
 
-**Goal:** Make auto-spin visible and bounded so the player can never
-lose track of it. Specifically:
+**Goal:** Make auto-spin safe to leave running by:
 
-1. **Visible budget counter** — when auto-spin is active, the wager
-   panel / spin area shows "🔁 Auto-spin: 73/100 spins left" in a
-   small badge. The counter updates as the server processes spins.
-2. **No resume on page load** — if `/api/state` returns
+1. **Stripping the budget entirely.** No `auto_spin_budget` column, no
+   per-start limit, no UI counter. Auto-spin runs until explicitly
+   stopped OR the heartbeat auto-stops it.
+2. **Heartbeat-based auto-stop** — the server tracks the timestamp of
+   the last `/api/tick` from the player's session. If 60s pass without
+   a tick, the server auto-stops auto-spin (`auto_spin_since = NULL`).
+3. **No resume on page load** — if `/api/state` returns
    `auto_spin_active: true` (server is mid-session), the client
    **does not** start ticking. Instead it shows a toast:
-   "Auto-spin was running on the server (52/100 left). It has been
-   stopped. Click the checkbox to start a new session." The server
-   clears its state on this first contact from the new tab.
-3. **Heartbeat-based auto-stop** — the server tracks the timestamp
-   of the last `/api/tick` from the player's session. If 60s pass
-   without a tick, the server auto-stops the auto-spin
-   (`auto_spin_since = NULL, auto_spin_budget = 0`). This catches
-   the case where the player closes the tab or the network drops
-   without an explicit stop.
+   "Auto-spin was running on the server — stopped. Click the checkbox
+   to start a new session." The server clears its state on this first
+   contact from the new tab.
 
 **Diagnosis (what to edit):**
 
-**A. Server-side heartbeat + auto-stop (`game.py`):**
+**A. Migration: drop the `auto_spin_budget` column (`migrations/057_*.sql`):**
 
-The `/api/tick` endpoint (at `game.py:1557`) already runs on every
-auto-spin tick. Add a `last_tick_at` column to `game_state` (or use
-`last_spin_at` as a proxy — it's already updated each tick) and a
-check at the start of the tick handler:
-
-```python
-# Auto-stop if the client hasn't ticked in 60 seconds (tab closed
-# or network dropped without an explicit /api/auto-spin/stop).
-if gs.get('auto_spin_since') is not None and gs.get('last_spin_at') is not None:
-    last_tick = _aware(gs['last_spin_at'])
-    if (now_utc - last_tick).total_seconds() > 60 and int(gs.get('auto_spin_budget', 0)) > 0:
-        # Also catches the "first tick of a stale session" case where
-        # auto_spin_since is from a previous tab and last_spin_at is
-        # also stale.
-        log.warning('AUTO_SPIN_STALE: user_id=%s, no tick for %ds, auto-stopping',
-                    current_user.id, int((now_utc - last_tick).total_seconds()))
-        cur.execute(
-            'UPDATE game_state SET auto_spin_since = NULL, auto_spin_budget = 0 WHERE user_id = %s',
-            (current_user.id,),
-        )
-        conn.commit()
-        return jsonify({'spins': [], 'auto_spin_active': False, 'auto_spin_stopped': 'stale', 'elapsed_ms': 0})
+```sql
+ALTER TABLE game_state DROP COLUMN IF EXISTS auto_spin_budget;
 ```
 
-**B. Client-side: don't resume on page load (`static/app.jsx`):**
+The `auto_spin_since` column stays (still needed to track whether
+auto-spin is active). The `last_spin_at` column is reused as the
+heartbeat proxy (already updated on every tick).
+
+**B. Strip `auto_spin_budget` from `game.py`:**
+
+- `/api/state` response (line 1058): remove the `auto_spin_budget`
+  field. Keep `auto_spin_active` derived from `auto_spin_since IS NOT
+  NULL`.
+- `/api/auto-spin/start` (line 3899): remove the `budget` parameter
+  parsing. Just set `auto_spin_since = NOW()` (no budget column to
+  set).
+- `/api/auto-spin/stop` (line 3939): unchanged (already only sets
+  `auto_spin_since = NULL` — but also needs to handle the dropped
+  column; if migration 057 is applied first, the column doesn't
+  exist, so the existing `SET auto_spin_since = NULL,
+  auto_spin_budget = 0` will fail. The implementer should update
+  this to `SET auto_spin_since = NULL` only — or do migration 057
+  first then this change).
+- `/api/tick` handler (line 1557):
+  - Remove the budget check at line 1573: change `if budget == 0`
+    to `if gs.get('auto_spin_since') is None`.
+  - Remove the `spins_due = min(spins_due, budget)` cap at line 1600.
+    Replace with `MAX_SPINS_PER_TICK` only (catches catch-up).
+  - Add the **heartbeat auto-stop** at the very top of the handler
+    (after the `FOR UPDATE` lock):
+    ```python
+    # T216: auto-stop if the client hasn't ticked in 60s (tab closed
+    # or network dropped). Uses last_spin_at as a heartbeat proxy
+    # (it's updated on every spin in the tick loop below).
+    if gs.get('auto_spin_since') is not None and gs.get('last_spin_at') is not None:
+        last_tick = _aware(gs['last_spin_at'])
+        stale_seconds = (now_utc - last_tick).total_seconds()
+        if stale_seconds > 60:
+            log.warning('AUTO_SPIN_STALE: user_id=%s, no tick for %ds, auto-stopping',
+                        current_user.id, int(stale_seconds))
+            cur.execute(
+                'UPDATE game_state SET auto_spin_since = NULL WHERE user_id = %s',
+                (current_user.id,),
+            )
+            conn.commit()
+            return jsonify({'spins': [], 'auto_spin_active': False,
+                            'auto_spin_stopped': 'stale', 'elapsed_ms': 0})
+    ```
+  - In the tick loop, remove the SQL line that decrements budget
+    (line 1753: `auto_spin_budget = GREATEST(auto_spin_budget - %s, 0)`)
+    and the corresponding SQL parameter (`spins_due` is no longer
+    needed in the budget column).
+
+**C. Strip `auto_spin_budget` from `static/app.jsx`:**
+
+- Line 4214: remove `const [autoSpinBudget, setAutoSpinBudget] = useState(...)`
+- Line 4283: remove the `setAutoSpinBudget(data.auto_spin_budget)` sync
+- Line 4050, 4060, 4077: remove all `setAutoSpinBudget(...)` calls
+- Line 4046: remove the `budget: 100` field from the start POST body
+- Line 5063 (the `setAutoSpinBudget(0)` after `handleStopAutoSpin`):
+  remove
+- Update `handleStartAutoSpin` body to no longer reference budget
+- Update the `tick` callback to not depend on `data.auto_spin_budget`
+
+**D. Client-side: don't resume on page load (`static/app.jsx`):**
 
 In the state-sync `useEffect` (around line 4282):
 ```js
@@ -8117,130 +8155,374 @@ if (gameState.auto_spin_active != null) {
     apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' })
       .then(() => showToast('Auto-spin was running on the server — stopped. Click the checkbox to start a new session.'));
     setAutoSpinActive(false);
-    setAutoSpinBudget(0);
   } else {
     setAutoSpinActive(false);
-    setAutoSpinBudget(0);
   }
 }
 ```
 
 This means: if a player refreshes or opens a new tab while auto-spin is
-still running server-side, the page will NOT continue auto-spinning. The
-existing budget is forfeited (cleared on first contact).
-
-**C. Visible budget counter (CSS + JSX):**
-
-Add a small badge below the auto-spin checkbox (in the
-`.autospin-row` block at `static/app.jsx:5016-5027`):
-
-```jsx
-{autoSpinActive && (
-  <span className="autospin-budget">
-    🔁 {autoSpinBudget} spins left
-  </span>
-)}
-```
-
-CSS in `static/styles.css` (within the existing `.autospin-row` rules):
-```css
-.autospin-budget {
-  display: block;
-  margin-top: 0.3rem;
-  font-size: 0.75rem;
-  color: var(--p-lt);
-  text-align: center;
-}
-```
-
-The `autoSpinBudget` state is already updated by the tick handler at
-`static/app.jsx:4077` (`if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);`),
-so it will tick down as spins are processed.
+still running server-side, the page will NOT continue auto-spinning.
 
 **Acceptance criteria:**
 
-1. With auto-spin OFF and `auto_spin_budget = 0`: opening the page
-   shows the checkbox unchecked and the budget badge is hidden.
-2. With auto-spin ON (server `auto_spin_active = true`, budget > 0):
-   - The checkbox is checked.
-   - The budget badge "🔁 {N} spins left" is visible below the checkbox.
-   - The budget ticks down with each /api/tick.
+1. The `auto_spin_budget` column does NOT exist in the `game_state`
+   table after migration 057 is applied.
+2. With auto-spin OFF: opening the page shows the checkbox unchecked.
 3. **Page reload while auto-spin is active:** the new page does NOT
    resume auto-spin. A toast appears: "Auto-spin was running on the
    server — stopped. Click the checkbox to start a new session." The
-   server's `auto_spin_since` and `auto_spin_budget` are cleared.
+   server's `auto_spin_since` is set to NULL.
 4. **Tab closed (no /api/tick for 60s) while auto-spin is active:** the
    next time /api/tick fires (e.g., from a different tab or after the
    player returns), the server detects the stale session, logs
    `AUTO_SPIN_STALE: user_id=...`, and returns
    `auto_spin_active: false, auto_spin_stopped: 'stale'`. The next
    tick returns no spins.
-5. **No data loss** — the player's wins/losses from the auto-spin
+5. **Auto-spin runs continuously (no budget) until stopped** — toggling
+   the checkbox on, walking away, and coming back shows the checkbox
+   still checked (until 60s of no ticks) but no accumulated win
+   confusion because the page-load check auto-stops and toasts.
+6. **No data loss** — the player's wins/losses from the auto-spin
    session are preserved. The fix only changes auto-spin state
    management, not the spin history.
-6. All existing tests pass; new tests in
-   `tests/test_auto_spin_visibility.py` cover the resume-prevention
-   and stale-detection logic.
+7. **No budget UI element** — the `.autospin-budget` element (if it
+   was added by an earlier draft) does not exist in the DOM. The
+   shop desc for `auto_spin_unlock` no longer mentions "100 spins
+   per activation".
+8. All existing tests pass; new tests in
+   `tests/test_auto_spin_visibility.py` cover the resume-prevention,
+   stale-detection, and column-removal logic.
 
 **Files to touch:**
 
-- `game.py` (the `/api/tick` endpoint — add the stale-detection
-  check at the top)
+- `migrations/057_*.sql` (NEW — drops the column)
+- `game.py` (the `/api/state`, `/api/auto-spin/start`, `/api/auto-spin/stop`,
+  and `/api/tick` endpoints — strip budget references and add heartbeat
+  auto-stop)
 - `static/app.jsx` (state sync at line 4282 — add the resume-prevention;
-  the wager panel at line 5016 — add the budget badge)
-- `static/styles.css` (add `.autospin-budget` rule)
+  remove all `autoSpinBudget` state and references; remove the
+  `budget: 100` from the start POST body)
 - `tests/test_auto_spin_visibility.py` (new file)
 
 **Files NOT to touch:**
 
-- `seasons.py` (auto-spin state is not part of season rollover logic
-  beyond the existing `auto_spin_since = NULL` reset)
-- The `auto_spin_start` / `auto_spin_stop` endpoints themselves — only
-  add stale-detection in `tick`, not the start/stop
+- `seasons.py` (auto-spin state is reset to NULL at season rollover;
+  the budget column will be gone by then)
 - The existing `autoSpinActive` useEffect at line 4241 (the 3-second
   polling interval) — only the state-sync at line 4282 changes
 - Any wager / DD / insurance logic
+- The shop description for `auto_spin_unlock` at `app.jsx:2473,2530` —
+  update to remove "100 spins per activation" wording if present
+  (the actual line says "100 spins per activation at 0% stake — stake
+  slider hides while active"; change to just "Spins automatically at
+  0% stake — stake slider hides while active")
 
 **Test additions (REQUIRED):**
 
 New file `tests/test_auto_spin_visibility.py`:
 
-- `test_no_resume_on_page_load` — set server `auto_spin_active = true,
-  budget = 50`. Call /api/state from a fresh client session. Assert
-  the response has `auto_spin_active: false` (or that the client-side
-  flow auto-stops and clears the server state). Verify the server's
-  `auto_spin_budget` is now 0 after the call.
-- `test_stale_session_auto_stopped` — set `auto_spin_active = true,
+- `test_no_resume_on_page_load` — set server `auto_spin_since = NOW()`.
+  Call /api/state from a fresh client session. Assert the response has
+  `auto_spin_active: true` initially. Then assert that after the
+  client-side state-sync runs (or a direct call to /api/auto-spin/stop
+  is made), the server's `auto_spin_since IS NULL`.
+- `test_stale_session_auto_stopped` — set `auto_spin_since = NOW(),
   last_spin_at = NOW() - INTERVAL '90 seconds'`. Call /api/tick.
   Assert response has `auto_spin_active: false,
   auto_spin_stopped: 'stale'`. Assert the server's
   `auto_spin_since IS NULL`.
-- `test_fresh_session_keeps_running` — set `auto_spin_active = true,
+- `test_fresh_session_keeps_running` — set `auto_spin_since = NOW(),
   last_spin_at = NOW() - INTERVAL '5 seconds'`. Call /api/tick.
   Assert response has `auto_spin_active: true` and the tick processes
   spins normally.
-- `test_budget_badge_visible` — Playwright e2e: load page with
-  auto-spin active, assert `.autospin-budget` is in the DOM and shows
-  a number.
+- `test_budget_column_does_not_exist` — after migration 057, query
+  `information_schema.columns` for `game_state.auto_spin_budget` and
+  assert it doesn't exist.
 - `test_toast_on_resume_prevention` — Playwright e2e: with server
   auto-spin active, load the page, assert the toast appears within
   2 seconds and the auto-spin checkbox is unchecked.
+- `test_no_budget_badge_in_dom` — Playwright e2e: load page with
+  auto-spin active, assert `.autospin-budget` (or similar) is NOT
+  in the DOM.
 
 **Hard constraints:**
 
-- ONE commit on a new branch `t216-auto-spin-visibility`.
+- ONE commit on a new branch `t216-auto-spin-no-budget`.
 - Do NOT push, do NOT merge.
-- Do NOT change the spin outcome logic (still 0% stake, 50% win rate).
-- Do NOT change the existing `/api/auto-spin/start` and
-  `/api/auto-spin/stop` endpoints' signatures.
+- Migration 057 must be applied BEFORE the `game.py` changes that
+  reference `auto_spin_budget` — or the changes must be coordinated
+  so the column is dropped first, then the code is updated to not
+  reference it. (Apply migration 057 in the same deploy: the code
+  changes use `IF EXISTS` for the column reference in any rollback
+  path, and the SQL `DROP COLUMN IF EXISTS` is idempotent.)
 - The heartbeat threshold (60s) is a magic number — leave a comment
   referencing the ticket and explaining the choice (60s = 20 missed
   ticks at 3s/tick; gives time for slow networks but catches
   abandoned tabs).
-- After commit, report: chosen approach for the 3 changes (A/B/C),
-  commit SHA, diff stat, pytest tail, and a Playwright measurement
-  of the badge text + a manual stop / start cycle.
+- Do NOT add a budget back. Operator was explicit: "there is no
+  budget for auto spin, there shouldnt be".
+- After commit, report: migration SHA, diff stat, pytest tail, and
+  a manual stop / start cycle on the live server.
 
-**Postmortem link:** This bug is the third major issue from the S8
-launch (after T122: page_season9 cosmetic bug, and T123: chat username
-regression). See `SEASON_8_LAUNCH_POSTMORTEM.md` for context.
+**Related ticket:** T217 covers the wins-amount visibility issue
+(streak_bonus is invisible in the UI), which is a separate concern
+from this auto-spin bug.
+
+**Postmortem link:** See `SEASON_8_LAUNCH_POSTMORTEM.md` for the
+broader S8 launch context (the previous T122 and T123 fixes plus
+this T216 are the three post-launch bugs).
+
+### T217: Wins "jump" because the streak_bonus formula is invisible in the UI
+
+- **Status:** [ ] (2026-06-27) — reported by operator during T216 investigation
+- **Discovered:** 2026-06-27 ~00:55 (operator: "You're 100% sure theres
+  nothing else happening in the backend to duplicate my spins or give me
+  much higher wins that I should have?")
+- **Files:** `static/app.jsx` (spin result display), `game.py` (response
+  includes bonus_earned already; no change needed if it's already there),
+  `tests/test_wins_visibility.py` (new)
+- **Depends on:** none
+
+**Operator's vision (verbatim 2026-06-27):** "You're 100% sure theres
+nothing else happening in the backend to duplicate my spins or give me
+much higher wins that I should have?"
+
+**Investigation summary (2026-06-27 ~00:55):**
+
+Investigated the backend end-to-end. Findings:
+
+1. **No spin duplication.** The `auto_spin_start` endpoint (game.py:3926)
+   returns 409 if already active. The 3 start calls in the access log
+   (23:59, 00:04, 00:38) ran sequentially — each to its 100-spin budget
+   completion before the next started. The `/api/tick` handler uses
+   `FOR UPDATE` row-level locking (game.py:1563), so two parallel ticks
+   for the same user would serialize correctly. **The user was not
+   "effectively running 3 wheels at once".**
+2. **No wins duplication.** Within the tick loop, `current_wins` is
+   updated per spin from `new_state['wins']` and the SQL UPDATE happens
+   once at the end (game.py:1750-1770). Each spin's wins are added
+   exactly once.
+3. **Win rate is correct.** Steady mode is `win_pct: 70, loss_pct: 28,
+   jackpot_pct: 2` (wheel_modes.py:15-21). The operator's
+   256 wins / 365 spins = 70.1% — exactly on the expected rate. The
+   "70% not 50%" surprise is from an earlier decision to make steady
+   mode player-friendly.
+4. **Win AMOUNTS are amplified by `streak_bonus`** — this is the real
+   issue. `models.py:384-399` defines `streak_bonus(count)`:
+   - `count <= 15`: `1 << (count - 3)` (exponential: 1 → 4096)
+   - `count <= 35`: `4096 + (count - 15) ** 3 * 2` (cubic ×2)
+   - `count <= 75`: `20096 + (count - 35) * 1200` (linear 1.2k/step)
+   - Cap at 113,096
+
+   The win path at game.py:670-672 does:
+   ```python
+   count = abs(new_streak)
+   raw_bonus = streak_bonus(count)
+   base_bonus = raw_bonus * bonus_mult   # bonus_mult = 8 for operator
+   bonus_earned = base_bonus
+   ```
+   With the operator at streak=39, `bonus_mult=8`, `winmult_3`:
+   - `streak_bonus(39)` = 24,896
+   - `base_bonus` = 24,896 × 8 = **199,168**
+   - `bonus_earned` = 199,168
+   - `base_payout` = effective_win_mult + bonus_earned = 8 + 199,168 = 199,176
+   - `direct_wins` = 199,176
+
+   **One win at streak=39 = 199,176 wins.** This matches the operator's
+   observation that wins "kept jumping" and explains the 3.7M total
+   (a few high-streak wins account for the bulk of the total).
+
+**Bug:** The win amount shown to the player is the raw delta
+(`wins_delta`), which is a single number. There's no breakdown of
+"8 base + 199,168 streak bonus = 199,176". The player sees
+"+199,176 wins" and assumes something is wrong, when in fact the
+math is correct — they just don't know what the streak bonus is.
+
+This is **not a backend bug**. The streak_bonus formula is
+intentional (T102 spec) and the wins are calculated correctly. The
+problem is purely UI: the player has no way to see *why* their wins
+are large at high streaks.
+
+**Goal:** Make the wins delta transparent. Two options:
+
+**Option A (recommended) — Show the breakdown in the result bubble:**
+
+The spin response already includes `bonus_earned` (game.py:_events_to_response
+already exposes it via `events['bonus_earned']`). The client just needs
+to display the breakdown:
+
+```
++199,176 wins
+  Base: +8
+  Streak bonus: +199,168 (×8 multiplier at 39-streak)
+```
+
+The breakdown appears in the result bubble (the existing popover
+that shows on each spin resolve). Currently it shows the result
+emoji and the wins/losses delta. Extend it to show the breakdown
+when the bonus is non-zero.
+
+**Option B (alternative) — Cap the per-spin wins delta:**
+
+Clamp `direct_wins` to a maximum of 10,000 (or some operator-chosen
+ceiling). Wins above the cap are silently dropped (or banked to
+`wager_banked_wins` for the player to bank later). This nerfs the
+streak_bonus mechanic for safety, but it changes the game balance.
+
+**Implementer should pick Option A** (the breakdown) — it preserves
+the streak_bonus mechanic (which is part of the game's design) while
+making it visible. Option B is a fallback if the operator changes
+their mind.
+
+**Diagnosis (what to edit):**
+
+The implementation depends on what `events` already includes in the
+spin response. Check `_events_to_response` in game.py:809-840. The
+response should already have:
+- `wins_delta` (the total)
+- `bonus_earned` (the streak bonus portion)
+- `effective_win_mult` (the base portion)
+
+If all three are present, only the client changes.
+
+**Client-side changes (`static/app.jsx`):**
+
+The result bubble is rendered around line 3857-3890 (in
+`applySpinResult`). Currently it shows:
+```jsx
+{result === 'win' && <div>+{fmt(wins_delta)} wins</div>}
+{result === 'lose' && <div>-{fmt(losses_delta)} loss</div>}
+```
+
+Extend to show the breakdown on wins:
+```jsx
+{result === 'win' && (
+  <div className="spin-result-breakdown">
+    <div className="spin-result-total">+{fmt(wins_delta)} wins</div>
+    {bonus_earned > 0 && (
+      <div className="spin-result-detail">
+        Base: {fmt(effective_win_mult)}
+        {bonus_earned > 0 && <> · 🔥 Streak: {fmt(streak)} (+{fmt(bonus_earned)})</>}
+      </div>
+    )}
+  </div>
+)}
+```
+
+CSS in `static/styles.css`:
+```css
+.spin-result-detail {
+  font-size: 0.85rem;
+  color: var(--p-lt);
+  margin-top: 0.2rem;
+  opacity: 0.85;
+}
+```
+
+**Server-side changes (`game.py`):**
+
+If the spin response already includes `bonus_earned` and
+`effective_win_mult` (likely yes — they're in `events`), no changes
+needed. If they're missing, add them to `_events_to_response`.
+
+The manual `/api/spin` response already exposes many fields. The
+`/api/tick` (auto-spin) response also exposes per-spin `resp` objects.
+Both should be checked for `bonus_earned` and `effective_win_mult`
+and the breakdown should appear in the same place in the UI.
+
+**Acceptance criteria:**
+
+1. On a regular win (streak < 3, bonus_earned = 0), the result
+   bubble shows "+N wins" (no breakdown) — same as today.
+2. On a win at streak >= 3 (bonus_earned > 0), the result bubble
+   shows:
+   - "+{total} wins" (the total, in the existing large font)
+   - "Base: {N} · 🔥 Streak: {S} (+{bonus})" in a smaller, dimmer
+     text below.
+3. The streak indicator shows the current streak count (e.g.,
+   "🔥 Streak: 39").
+4. The bonus_earned value matches what's in the server response —
+   no client-side calculation, no double-counting.
+5. The breakdown is visible on both manual spins and auto-spin
+   spins (the auto-spin tick returns per-spin results that flow
+   through the same applySpinResult path).
+6. The breakdown is also visible on jackpot wins (which use a
+   similar base_payout + bonus_earned formula).
+7. All existing tests pass; new tests in
+   `tests/test_wins_visibility.py` cover the breakdown rendering.
+
+**Files to touch:**
+
+- `static/app.jsx` (the result bubble JSX — extend to show the
+  breakdown when bonus_earned > 0)
+- `static/styles.css` (add `.spin-result-detail` rule)
+- `game.py` (only if `bonus_earned` or `effective_win_mult` is
+  missing from the spin response — verify and add if needed)
+- `tests/test_wins_visibility.py` (new file)
+
+**Files NOT to touch:**
+
+- `models.py` (the `streak_bonus` formula is intentional and
+  correct — only the UI is being changed)
+- The spin processing loop in `_resolve_spin` (the math is
+  correct)
+- `wheel_modes.py` (the win probabilities are intentional)
+- The `streak_bonus` function itself
+
+**Test additions (REQUIRED):**
+
+New file `tests/test_wins_visibility.py`:
+
+- `test_spin_response_includes_bonus_earned` — direct API test on
+  `/api/spin` for a player with a high streak. Assert the response
+  has `bonus_earned` as a positive int and
+  `effective_win_mult` as the base value.
+- `test_breakdown_visible_on_win` — Playwright e2e: do enough
+  spins to build a streak >= 3, then assert the result bubble
+  contains both the total AND the breakdown line.
+- `test_no_breakdown_on_loss` — Playwright e2e: a loss shows the
+  normal loss delta, no breakdown line.
+- `test_breakdown_at_streak_39` — Set up a player with streak=39
+  (via DB seed or repeated wins), trigger one win, assert
+  `bonus_earned` ~= 199,168 (or whatever the current formula gives
+  for streak=39 with the player's bonus_mult).
+- `test_streak_bonus_formula_values` — Unit test on
+  `models.streak_bonus`: assert streak_bonus(0)=0, (3)=0,
+  (4)=1, (15)=4096, (16)=4096+2=4098, (39)=24896, (150)=113096.
+
+**Hard constraints:**
+
+- ONE commit on a new branch `t217-wins-visibility`.
+- Do NOT push, do NOT merge.
+- Do NOT change the `streak_bonus` formula or the win calculation.
+- Do NOT change the spin outcome probabilities.
+- The breakdown is UI-only — no changes to the data layer.
+- The breakdown is purely additive info: "+{total}" still equals
+  the original delta; the breakdown just shows where it came from.
+- After commit, report: chosen option (A or B), commit SHA, diff
+  stat, pytest tail, and a Playwright screenshot of a high-streak
+  win showing the breakdown.
+
+**Related ticket:** T216 covers the auto-spin visibility issue
+(budget removal, heartbeat, no-resume). T217 is a separate concern
+about the wins-amount being invisible in the UI. Both can ship
+independently.
+
+**Wins amount sanity-check (operator's question):** "Nothing is
+duplicating your spins or giving you higher wins than you should
+have." The 3.7M wins are: 256 wins × (avg ~14,000 per win) ≈ 3.6M,
+where the avg is dominated by a few high-streak wins (~199,000
+each) and many low-streak wins (~8 each). The math is correct.
+The streak_bonus is a S6 design that was carried into S8 (T102
+spec). It's not a regression — it's a feature the operator may
+not have realized was there.
+
+---
+
+*Tickets T208–T217 filed 2026-06-27 against the master branch.
+T216 + T217 supersede the previous T216 budget-counter proposal
+(operator confirmed the budget was a "bad idea previously suggested
+and discarded"). Each ticket is independent and can be picked up
+by a sub-agent. The branch naming convention is `t###-<short-slug>`
+per the SEASON_8_TICKETS.md hard-constraints convention.*
