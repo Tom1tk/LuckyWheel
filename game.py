@@ -38,7 +38,7 @@ from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
                      PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
 from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty, BOUNTY_DEFS
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
-from chat import post_system_message
+from chat import post_system_message, post_dedup_system_message
 import chat_triggers
 
 COSMETIC_SLOTS = {
@@ -134,22 +134,32 @@ def _load_game_state(cur, user_id: int, *, for_update: bool = False):
     return cur.fetchone()
 
 
-def _maybe_announce_big_win(conn, gs, events, username):
+def _maybe_announce_big_win(conn, gs, events, username, user_id):
     """T83: Post a big-win chat message if this win strictly exceeds the
     player's previous biggest_win_announced, and return the value to persist
     in the same transaction (caller writes it to game_state). Returns the
     unchanged previous biggest when the message does not fire.
+
+    T209: uses post_dedup_system_message so a player can only have one
+    big_win chat message at a time (jackpots share the same event_kind,
+    re-styled via the was_jackpot flag).
     """
     biggest = int(gs.get('biggest_win_announced', 0) or 0)
     wins_delta = int(events.get('wins_delta', 0) or 0)
     if (events.get('result') in ('win', 'jackpot')
             and wins_delta >= chat_triggers.BIG_WIN_THRESHOLD
             and wins_delta > biggest):
-        post_system_message(conn, chat_triggers.big_win_msg(
-            username,
-            wins_delta,
-            events.get('active_wheel_mode', 'steady'),
-        ), 'system', event_kind='big_win')
+        post_dedup_system_message(
+            conn,
+            chat_triggers.big_win_msg(
+                username,
+                wins_delta,
+                events.get('active_wheel_mode', 'steady'),
+                was_jackpot=(events.get('result') == 'jackpot'),
+            ),
+            user_id,
+            event_kind='big_win',
+        )
         return wins_delta
     return biggest
 
@@ -1330,11 +1340,12 @@ def spin():
             # Season 8: hot streak milestone (fires on exact transition to threshold)
             if (events['result'] in ('win', 'jackpot')
                     and int(events.get('wager_streak', 0)) == chat_triggers.HOT_STREAK_MSG_THRESHOLD):
-                post_system_message(conn, chat_triggers.hot_streak_msg(current_user.username),
-                                    'system', event_kind='hot_streak_10')
+                post_dedup_system_message(
+                    conn, chat_triggers.hot_streak_msg(current_user.username),
+                    current_user.id, event_kind='hot_streak')
             # Season 8: big win (T83 per-player escalating threshold)
             new_biggest_win_announced = _maybe_announce_big_win(
-                conn, gs, events, current_user.username)
+                conn, gs, events, current_user.username, current_user.id)
 
             # Season 8: bounty tracking
             bounty_date = dt.datetime.now(timezone.utc).date()
@@ -1716,10 +1727,11 @@ def tick():
                         int(events['wins_delta']),
                     ), 'system', event_kind='jackpot')
                 if (int(events.get('wager_streak', 0)) == chat_triggers.HOT_STREAK_MSG_THRESHOLD):
-                    post_system_message(conn, chat_triggers.hot_streak_msg(current_user.username),
-                                        'system', event_kind='hot_streak_10')
+                    post_dedup_system_message(
+                        conn, chat_triggers.hot_streak_msg(current_user.username),
+                        current_user.id, event_kind='hot_streak')
                 new_biggest_win_announced = _maybe_announce_big_win(
-                    conn, gs, events, current_user.username)
+                    conn, gs, events, current_user.username, current_user.id)
                 gs['biggest_win_announced'] = new_biggest_win_announced
 
                 if not is_catch_up:

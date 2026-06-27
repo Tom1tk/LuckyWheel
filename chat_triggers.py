@@ -25,7 +25,9 @@ def hot_streak_msg(username: str) -> str:
     return f'🔥 {username} reached a {HOT_STREAK_MSG_THRESHOLD}-win hot streak!'
 
 
-def big_win_msg(username: str, wins_delta: int, mode: str) -> str:
+def big_win_msg(username: str, wins_delta: int, mode: str, *, was_jackpot: bool = False) -> str:
+    if was_jackpot:
+        return f'🎰 {username} hit a {wins_delta} jackpot in {mode} mode!'
     return f'💰 {username} won {wins_delta} wins in {mode} mode!'
 
 
