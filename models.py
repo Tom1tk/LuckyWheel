@@ -120,6 +120,11 @@ FISH_SKINS = {
     'fish_saturn':   {'cost': 145_000},
     'fish_alien':    {'cost': 250_000},
     'fish_ufo':      {'cost': 425_000},
+    'fish_dice':     {'cost': 600_000},
+    'fish_joker':    {'cost': 850_000},
+    'fish_diamond':  {'cost': 1_200_000},
+    'fish_poker':    {'cost': 1_700_000},
+    'fish_slot':     {'cost': 2_400_000},
 }
 
 SHOP_ITEMS = {

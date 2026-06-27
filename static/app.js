@@ -3921,6 +3921,56 @@ var FISH_SKINS = [{
     happy: 'BEAM UP!',
     sad: '*crashes*'
   }
+}, {
+  id: 'fish_dice',
+  emoji: '🎲',
+  name: 'Lucky Dice',
+  cost: 600000,
+  labels: {
+    idle: '*rolls*',
+    happy: 'SEVEN SEVEN!',
+    sad: 'Snake eyes...'
+  }
+}, {
+  id: 'fish_joker',
+  emoji: '🃏',
+  name: 'Joker',
+  cost: 850000,
+  labels: {
+    idle: 'Up my sleeve~',
+    happy: 'WILD CARD WIN!',
+    sad: 'Folded...'
+  }
+}, {
+  id: 'fish_diamond',
+  emoji: '💎',
+  name: 'Diamond',
+  cost: 1200000,
+  labels: {
+    idle: 'Brilliant cut',
+    happy: 'FLAWLESS WIN!',
+    sad: 'Cracked...'
+  }
+}, {
+  id: 'fish_poker',
+  emoji: '♠️',
+  name: 'Poker',
+  cost: 1700000,
+  labels: {
+    idle: 'All in',
+    happy: 'ROYAL FLUSH!',
+    sad: 'Busted...'
+  }
+}, {
+  id: 'fish_slot',
+  emoji: '🎰',
+  name: 'Slot Machine',
+  cost: 2400000,
+  labels: {
+    idle: '*spins*',
+    happy: 'JACKPOT!',
+    sad: 'No match...'
+  }
 }];
 var SHOP_SECTIONS = [{
   label: '🪐 Class',
@@ -4674,7 +4724,7 @@ function getFishData(equippedFish) {
 var COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fish_dice', 'fish_joker', 'fish_diamond', 'fish_poker', 'fish_slot', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 var getItemCurrency = function getItemCurrency(id) {
   if (COSMETIC_IDS.has(id)) return 'losses';
   return 'wins';
