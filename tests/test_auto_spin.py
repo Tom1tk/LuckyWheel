@@ -331,6 +331,37 @@ def test_tick_big_win_posts_message_and_persists_value():
     )
 
 
+def test_tick_double_down_path_does_not_post_big_win():
+    """T230 + auto-spin note: the auto-spin path uses stake_pct=0 and
+    never posts a double-down chat message. The duplication the T230
+    fix targets only arises in the manual /api/spin path (where the
+    spin handler can read the player's stake). This test pins the
+    auto-spin behavior: a big win in the auto-spin path still posts
+    exactly one big_win message, unaffected by the new skip_message
+    plumbing."""
+    from format_wins import format_wins
+    _posted.clear()
+    gs = _base_gs(biggest_win_announced=0)
+    # double_down_pending doesn't trigger anything in the auto-spin loop
+    # (stake_pct=0, no wager). Set it to confirm it doesn't matter.
+    gs['double_down_pending'] = True
+    events = _make_events(
+        result='win', wins_delta=12000, mode='steady', wager_streak=0,
+    )
+    _install_fakes(gs, events)
+
+    _game.tick()
+
+    big_wins = [m for m in _posted if m['event_kind'] == 'big_win']
+    assert len(big_wins) == 1, f"Expected 1 big_win, got: {_posted}"
+    assert format_wins(12000) in big_wins[0]['message']
+    dd = [m for m in _posted if m['event_kind'] == 'double_down_win']
+    assert dd == [], (
+        f"Auto-spin path must not post a double_down_win message "
+        f"(it uses stake_pct=0). Got: {dd}"
+    )
+
+
 def test_tick_hot_streak_10_posts_message():
     """T90.4: An auto-spin hot-streak-10 must post the hot-streak message."""
     _posted.clear()

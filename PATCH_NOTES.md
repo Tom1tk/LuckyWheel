@@ -2,6 +2,16 @@
 
 ---
 
+## 27 Jun 2026 (later) — Double-Down Chat Merge
+
+When a player landed a double-down that was also a big win, chat would show two messages back-to-back — the standalone double-down (🔥 `X won a Nx double-down for M wins!`) and the big-win (💰 `X won M wins in MODE mode!`). Both carried the same win amount, so the player saw a duplicate.
+
+They're now merged into one message at the moment a double-down lands a big win. The merged message uses the big-win style (💰 + 'in MODE mode!') and includes the double-down stake so you still see the multiplier:
+
+> `💰 dylan won a 45x double-down for 3.41T wins in steady mode!`
+
+Going forward you'll see one message instead of two for any double-down big win. The 8 historical standalone double-down chat lines have been cleaned up so the chat history matches the new style.
+
 ## 27 Jun 2026 (later) — Chat Numbers Reformatted
 
 Following on from the Big Numbers change above, the existing system messages in chat (the big-win and double-down announcements) were still showing the old raw integer format (e.g. `💰 dylan won 3405169339238 wins in steady mode!`). All 9 of them have been reformatted to match the new tier ladder — `3.41T` instead of `3405169339238`, `76.9K` instead of `76907`, etc. Going forward, new system messages are formatted at generation time, so no further cleanup passes should be needed.

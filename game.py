@@ -135,7 +135,7 @@ def _load_game_state(cur, user_id: int, *, for_update: bool = False):
     return cur.fetchone()
 
 
-def _maybe_announce_big_win(conn, gs, events, username, user_id):
+def _maybe_announce_big_win(conn, gs, events, username, user_id, *, skip_message=False):
     """T83: Post a big-win chat message if this win strictly exceeds the
     player's previous biggest_win_announced, and return the value to persist
     in the same transaction (caller writes it to game_state). Returns the
@@ -147,22 +147,28 @@ def _maybe_announce_big_win(conn, gs, events, username, user_id):
     T221: jackpots are excluded entirely. A jackpot no longer triggers a
     chat message of any kind — neither the was_jackpot big_win nor any
     other format. Only regular wins above the threshold post.
+
+    T230: skip_message=True suppresses the chat message while still
+    updating biggest_win_announced. Used when the caller has already
+    posted a merged double-down/big-win message — that message already
+    conveys the big-win info, so a separate big_win would be a duplicate.
     """
     biggest = int(gs.get('biggest_win_announced', 0) or 0)
     wins_delta = int(events.get('wins_delta', 0) or 0)
     if (events.get('result') == 'win'
             and wins_delta >= chat_triggers.BIG_WIN_THRESHOLD
             and wins_delta > biggest):
-        post_dedup_system_message(
-            conn,
-            chat_triggers.big_win_msg(
-                username,
-                wins_delta,
-                events.get('active_wheel_mode', 'steady'),
-            ),
-            user_id,
-            event_kind='big_win',
-        )
+        if not skip_message:
+            post_dedup_system_message(
+                conn,
+                chat_triggers.big_win_msg(
+                    username,
+                    wins_delta,
+                    events.get('active_wheel_mode', 'steady'),
+                ),
+                user_id,
+                event_kind='big_win',
+            )
         return wins_delta
     return biggest
 
@@ -1366,23 +1372,34 @@ def spin():
             # stake" format nor the new "hit a N jackpot in M mode" format
             # that big_win_msg produced via the was_jackpot flag. The
             # `_maybe_announce_big_win` call below also skips jackpots now.
-            # Season 8: post system message on big double-down win
+            # T230: a double-down that lands produces a single merged
+            # message ('💰 X won a Nx double-down for M wins in MODE!') that
+            # also implies a big win. The big_win chat post is suppressed
+            # (skip_message=True below) so the player sees one message, not
+            # two. The biggest_win_annotated value is still updated, so the
+            # per-player escalating threshold keeps working for non-DD wins.
+            double_down_msg_posted = False
             if (double_down_active and events['result'] in ('win', 'jackpot')
                     and int(events.get('stake', 1)) >= chat_triggers.DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE):
                 post_system_message(conn, chat_triggers.double_down_win_msg(
                     current_user.username,
                     int(events.get('stake', 1)),
                     int(events['wins_delta']),
+                    events.get('active_wheel_mode', 'steady'),
                 ), 'system', event_kind='double_down_win')
+                double_down_msg_posted = True
             # Season 8: hot streak milestone (fires on exact transition to threshold)
             if (events['result'] in ('win', 'jackpot')
                     and int(events.get('wager_streak', 0)) == chat_triggers.HOT_STREAK_MSG_THRESHOLD):
                 post_dedup_system_message(
                     conn, chat_triggers.hot_streak_msg(current_user.username),
                     current_user.id, event_kind='hot_streak')
-            # Season 8: big win (T83 per-player escalating threshold)
+            # Season 8: big win (T83 per-player escalating threshold).
+            # T230: skip the chat post when a double-down message already
+            # conveyed the same info (see skip_message=True below).
             new_biggest_win_announced = _maybe_announce_big_win(
-                conn, gs, events, current_user.username, current_user.id)
+                conn, gs, events, current_user.username, current_user.id,
+                skip_message=double_down_msg_posted)
 
             # Season 8: bounty tracking
             bounty_date = dt.datetime.now(timezone.utc).date()

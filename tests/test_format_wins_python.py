@@ -133,14 +133,16 @@ class TestFormatWinsChatTriggersIntegration(unittest.TestCase):
         )
 
     def test_double_down_msg_uses_format_wins(self):
+        # T230: merged big-win style. Now takes a `mode` arg and produces
+        # '💰 X won a Nx double-down for M wins in MODE mode!'.
         from chat_triggers import double_down_win_msg
         self.assertEqual(
-            double_down_win_msg("dylan", 45, 3405169339238),
-            "🔥 dylan won a 45x double-down for 3.41T wins!",
+            double_down_win_msg("dylan", 45, 3405169339238, "steady"),
+            "💰 dylan won a 45x double-down for 3.41T wins in steady mode!",
         )
         self.assertEqual(
-            double_down_win_msg("chudwigvanbetahoven", 30, 76907),
-            "🔥 chudwigvanbetahoven won a 30x double-down for 76.9K wins!",
+            double_down_win_msg("chudwigvanbetahoven", 30, 76907, "mirror"),
+            "💰 chudwigvanbetahoven won a 30x double-down for 76.9K wins in mirror mode!",
         )
 
     def test_double_down_stake_not_reformatted(self):
@@ -148,9 +150,10 @@ class TestFormatWinsChatTriggersIntegration(unittest.TestCase):
         # Regression guard: the regex in migration 069 relies on the
         # stake being "Nx" (not "N.xK" or "NK").
         from chat_triggers import double_down_win_msg
-        msg = double_down_win_msg("dylan", 45, 100)
+        msg = double_down_win_msg("dylan", 45, 100, "steady")
         self.assertIn("45x", msg)
         self.assertIn("for 100 wins", msg)
+        self.assertIn("in steady mode", msg)
 
 
 if __name__ == "__main__":

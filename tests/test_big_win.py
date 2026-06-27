@@ -238,3 +238,55 @@ def test_big_win_message_uses_active_wheel_mode():
         conn, _gs(biggest=0), _events(wins_delta=7000, mode='mirror'), 'bob', 1)
     assert len(_posted) == 1
     assert 'mirror' in _posted[0]['message']
+
+
+# ---------------------------------------------------------------------------
+# T230: skip_message kwarg. The /api/spin path posts a merged
+# double-down/big-win message when a double-down lands a big win. The
+# merged message conveys the big-win info, so _maybe_announce_big_win
+# is called with skip_message=True to avoid a second chat post. The
+# biggest_win_announced value must still be updated so non-DD big-wins
+# keep escalating.
+# ---------------------------------------------------------------------------
+
+def test_skip_message_suppresses_post_but_still_updates_biggest():
+    _posted.clear()
+    conn = _FakeConn()
+    new_biggest = _game._maybe_announce_big_win(
+        conn, _gs(biggest=0), _events(wins_delta=12000), 'alice', 1,
+        skip_message=True,
+    )
+    assert _posted == [], (
+        f"T230: skip_message=True must suppress the big_win chat post. "
+        f"Got: {_posted}"
+    )
+    # biggest_win_annotated is still updated so the per-player threshold
+    # keeps escalating for non-DD wins.
+    assert new_biggest == 12000, (
+        f"T230: skip_message must still return the new biggest for the "
+        f"persisted UPDATE. Got: {new_biggest}"
+    )
+
+
+def test_skip_message_false_still_posts():
+    """Sanity check: skip_message=False (the default) posts as before."""
+    _posted.clear()
+    conn = _FakeConn()
+    new_biggest = _game._maybe_announce_big_win(
+        conn, _gs(biggest=0), _events(wins_delta=12000), 'alice', 1,
+        skip_message=False,
+    )
+    assert len(_posted) == 1
+    assert new_biggest == 12000
+
+
+def test_skip_message_does_not_affect_below_threshold():
+    """A win below BIG_WIN_THRESHOLD posts nothing either way."""
+    _posted.clear()
+    conn = _FakeConn()
+    new_biggest = _game._maybe_announce_big_win(
+        conn, _gs(biggest=0), _events(wins_delta=1000), 'alice', 1,
+        skip_message=True,
+    )
+    assert _posted == []
+    assert new_biggest == 0
