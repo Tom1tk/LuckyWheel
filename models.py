@@ -442,5 +442,11 @@ HAPPY_HOUR_END_UTC   = 21
 
 REGEN_SHIELD_RECHARGE_WINS = 5
 
+# T215: Guard Charge passive regen — 1 charge every N spins.
+# The shop description claims this mechanic exists; previously it did not.
+# Applied in the /api/spin handler after the win/loss resolution.
+GUARD_CHARGE_RECHARGE_SPINS = 50
+GUARD_CHARGE_MAX = 3
+
 DEVICE_COOKIE = 'device_id'
 DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600  # 1 year

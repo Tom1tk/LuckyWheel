@@ -14,6 +14,7 @@ from flask_login import current_user, login_required
 from db import db_connection
 from extensions import limiter, csrf
 from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
+                    GUARD_CHARGE_RECHARGE_SPINS, GUARD_CHARGE_MAX,
                     ITEM_CURRENCY,
                     inf_upgrade_cost,
                     lure_mastery_mult,
@@ -1400,6 +1401,23 @@ def spin():
             # Manual spin: add extra full rotations for the wheel animation
             total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
 
+            # T215: Guard Charge passive regen. Every N spins, if the player
+            # owns the guard_charge item and has charges below the cap, grant
+            # one charge. Computed against new_spin_count so the regen fires
+            # on the Nth, 2Nth, 3Nth, ... spin (e.g. spin #50, #100, #150).
+            # Distinct from the Regen Shield item (which blocks losses).
+            prev_guard_charges = int(gs.get('guard_charges', 0) or 0)
+            owns_guard_charge  = 'guard_charge' in gs['owned_items']
+            if (owns_guard_charge
+                    and new_spin_count > 0
+                    and new_spin_count % GUARD_CHARGE_RECHARGE_SPINS == 0
+                    and prev_guard_charges < GUARD_CHARGE_MAX):
+                new_guard_charges = min(GUARD_CHARGE_MAX, prev_guard_charges + 1)
+                log.info('GUARD_CHARGE_REGEN  user_id=%s  spin_count=%s  new_charges=%s',
+                         current_user.id, new_spin_count, new_guard_charges)
+            else:
+                new_guard_charges = prev_guard_charges
+
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
@@ -1410,6 +1428,7 @@ def spin():
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            jackpot_echo_next = %s, proc_streak = %s,
+                           guard_charges = %s,
                            dice_rolled_since_spin = FALSE,
                            last_spin_at = NOW(),
                            active_tab_id = %s, tab_last_seen = NOW(),
@@ -1425,15 +1444,16 @@ def spin():
                           insurance_tokens = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                       WHERE user_id = %s''',
-                    (new_state['wins'], new_state['losses'],
-                     new_state['streak'], new_state['best_streak'],
-                     new_state['regen_recharge_wins'],
-                     new_state['owned'], new_spin_count, new_win_count, new_loss_count,
-                     new_cumulative_wins,
-                     gs['fish_clicks'], new_state['active_cosmetics'],
-                     dice_charges, last_recharge,
-                     new_state['jackpot_echo_next'], new_state['proc_streak'],
-                     req_tab_id or gs['active_tab_id'],
+                     (new_state['wins'], new_state['losses'],
+                      new_state['streak'], new_state['best_streak'],
+                      new_state['regen_recharge_wins'],
+                      new_state['owned'], new_spin_count, new_win_count, new_loss_count,
+                      new_cumulative_wins,
+                      gs['fish_clicks'], new_state['active_cosmetics'],
+                      dice_charges, last_recharge,
+                      new_state['jackpot_echo_next'], new_state['proc_streak'],
+                      new_guard_charges,
+                      req_tab_id or gs['active_tab_id'],
                      new_state.get('wager_streak', 0), new_state.get('wager_last_stake', 1),
                      new_state.get('wager_banked_wins', 0),
                      new_state.get('wager_banked_losses', 0),
@@ -1475,6 +1495,9 @@ def spin():
         # the recharge timestamp key is gone.
         resp['insurance_charges'] = int(gs.get('insurance_charges', 0) or 0)
         resp['insurance_armed'] = False
+        # T215: surface the post-regen guard_charges so the client's UI
+        # updates immediately after the spin (no /api/state poll required).
+        resp['guard_charges'] = new_guard_charges
         # T77: gravity drift + drift-adjusted probabilities on the spin
         # response so the wheel redraws correctly after each resolve.
         resp['gravity_drift'] = new_state.get('gravity_drift', 0)

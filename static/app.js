@@ -4317,7 +4317,7 @@ var SHOP_SECTIONS = [{
     emoji: '🔋',
     name: 'Guard Charge',
     cost: 10000,
-    desc: 'Adds a guard charge (max 3). Recharges 1 per 50 spins via Regen Shield.',
+    desc: 'Adds a guard charge (max 3). Passively recharges 1 charge every 50 spins.',
     tier: 2
   }, {
     id: 'regen_shield',
