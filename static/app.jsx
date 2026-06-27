@@ -1971,7 +1971,7 @@ function HiatusWheel() {
       rotationRef.current = next;
       setRotation(next);
       setTimeout(() => {
-        if (data.result === 'win') setWins(w => w + 1); else setLosses(l => l + 1);
+        if (data.result === 'win' || data.result === 'jackpot') setWins(w => w + 1); else setLosses(l => l + 1);
         spinningRef.current = false; setSpinning(false);
         if (autoSpinRef.current) setTimeout(spin, 250);
       }, SPEED * 1000 + 200);
@@ -3938,7 +3938,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
     const cosm = activeCosmeticsRef.current;
     if (!lowSpecRef.current) {
-      if (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) {
+      if (data.result === 'win' || data.result === 'jackpot' || (data.guard_triggered && data.guard_blocked)) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
         setConfetti(true);
@@ -3947,7 +3947,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       confettiTimerRef.current = setTimeout(() => setConfetti(false), 3500);
     }
 
-    const mood = (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) ? 'happy' : 'sad';
+    const mood = (data.result === 'win' || data.result === 'jackpot' || (data.guard_triggered && data.guard_blocked)) ? 'happy' : 'sad';
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
@@ -4935,9 +4935,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       {showResult && (
         <div className={`result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`}>
-          {result === 'win' || (result === 'lose' && shieldFeedback) ? (
-            <div className={`result-text ${result === 'win' ? 'win' : 'win'}`}>
-              {result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️'}
+          {result === 'win' || result === 'jackpot' || (result === 'lose' && shieldFeedback) ? (
+            <div className={`result-text ${result === 'lose' ? 'win' : 'win'}`}>
+              {result === 'jackpot' ? '🎰 JACKPOT! 🎰' : result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️'}
             </div>
           ) : (
             <div className="result-text lose">💀 YOU LOSE 💀</div>
@@ -4945,7 +4945,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {/* T217: show the wins delta in the bubble so the player can see
               the total of the spin. For wins this is the "+N wins" line; for
               losses it's "-N losses" (the loss value is shown on a loss). */}
-          {result === 'win' && winsDelta > 0 && (
+          {(result === 'win' || result === 'jackpot') && winsDelta > 0 && (
             <div className="bonus-line spin-result-total">+{fmt(winsDelta)} wins</div>
           )}
           {result === 'lose' && lossesDelta > 0 && (
@@ -4975,7 +4975,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {/* T217: streak_bonus breakdown — when the bonus is non-zero, show
               Base + 🔥 Streak components so the player sees why the win is
               large. Plain wins (bonus_earned=0) show only the total. */}
-          {result === 'win' && bonusEarned > 0 && (
+          {(result === 'win' || result === 'jackpot') && bonusEarned > 0 && (
             <div className="spin-result-detail">
               Base: {fmt(effectiveWinMult)} · 🔥 Streak: {fmt(streak)} (+{fmt(bonusEarned)})
             </div>
