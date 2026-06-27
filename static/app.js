@@ -1754,16 +1754,24 @@ function drawGuardWheel(canvas) {
 
 // ── Number formatter ──────────────────────────────────────────────────────
 function fmt(n) {
-  // T15: Use shared format_wins() from format.js for consistency
+  // T15 + T227: Use shared format_wins() from format.js for consistency.
+  // T227: format_wins now handles the full tier ladder (K, M, B, T,
+  // scientific for 1e15+). The inline fallback is no longer needed —
+  // we just defer to format_wins. If format.js hasn't loaded for
+  // some reason, fall back to a minimal in-line formatter that
+  // mirrors the same tier ladder.
   if (typeof window.format_wins === 'function') return window.format_wins(n);
-  // Fallback if format.js not loaded
-  if (!isFinite(n) || isNaN(n)) return '0';
-  if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
-  if (n >= 1e12) return parseFloat((n / 1e12).toPrecision(3)) + 'T';
-  if (n >= 1e9) return parseFloat((n / 1e9).toPrecision(3)) + 'B';
-  if (n >= 1e6) return parseFloat((n / 1e6).toPrecision(3)) + 'M';
-  if (n >= 10e3) return parseFloat((n / 1e3).toPrecision(3)) + 'K';
-  return String(n);
+  // Fallback (format.js not loaded) — same tier ladder as format_wins:
+  if (n === null || n === undefined) return '0';
+  var num = Number(n);
+  if (isNaN(num)) return '0';
+  if (num === Infinity) return '∞';
+  if (num === -Infinity) return '-∞';
+  var neg = num < 0;
+  var abs = Math.abs(num);
+  var str;
+  if (abs < 1e3) str = String(Math.round(abs));else if (abs < 1e6) str = abs.toFixed(1).replace(/0+$/, '').replace(/\.$/, '') + 'K';else if (abs < 1e9) str = abs.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'M';else if (abs < 1e12) str = abs.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'B';else if (abs < 1e15) str = abs.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'T';else str = abs.toExponential(2);
+  return neg ? '-' + str : str;
 }
 
 // ── Hiatus mode — set to false to re-enable the full game ─────────────────
