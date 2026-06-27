@@ -1833,7 +1833,7 @@ function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo({ seasonName, endsAt }) {
+function SeasonInfo({ seasonName, playerFacingNumber, endsAt }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
@@ -1851,9 +1851,18 @@ function SeasonInfo({ seasonName, endsAt }) {
     return () => clearInterval(id);
   }, [endsAt]);
 
+  // T212: prefer the player-facing number (e.g. "8") over the raw
+  // season_name ("Casino") or season_number ("9") so the widget reads
+  // "Season 8" not "Season Casino" or "Season 9". Fall back to the
+  // legacy prop when the API hasn't been updated (older rows have a
+  // NULL player_facing_number).
+  const displayNumber = playerFacingNumber != null
+    ? playerFacingNumber
+    : seasonName;
+
   return (
     <div className="season-info">
-      <span>Season {seasonName} ends:</span>
+      <span>Season {displayNumber} ends:</span>
       {timeLeft && <span className="season-countdown">{timeLeft}</span>}
     </div>
   );
@@ -4851,7 +4860,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
-        {season && <SeasonInfo seasonName={season.season_name || season.season_number} endsAt={season.ends_at} />}
+        {season && <SeasonInfo seasonName={season.season_name || season.season_number} playerFacingNumber={season.player_facing_number} endsAt={season.ends_at} />}
       </div>
 
       {showEncyclopedia && (

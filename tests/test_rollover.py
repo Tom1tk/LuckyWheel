@@ -94,6 +94,7 @@ def _run_advance_season_and_grab_game_state_sql():
     fake_season = {
         'id': 1,
         'season_number': 7,
+        'player_facing_number': 7,
         'started_at': None,
         'ends_at': None,
     }

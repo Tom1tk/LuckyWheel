@@ -2917,6 +2917,7 @@ function SeasonWinners(_ref16) {
 // ── Season Info ───────────────────────────────────────────────────────────
 function SeasonInfo(_ref17) {
   var seasonName = _ref17.seasonName,
+    playerFacingNumber = _ref17.playerFacingNumber,
     endsAt = _ref17.endsAt;
   var _useState23 = useState(''),
     _useState24 = _slicedToArray(_useState23, 2),
@@ -2941,9 +2942,16 @@ function SeasonInfo(_ref17) {
       return clearInterval(id);
     };
   }, [endsAt]);
+
+  // T212: prefer the player-facing number (e.g. "8") over the raw
+  // season_name ("Casino") or season_number ("9") so the widget reads
+  // "Season 8" not "Season Casino" or "Season 9". Fall back to the
+  // legacy prop when the API hasn't been updated (older rows have a
+  // NULL player_facing_number).
+  var displayNumber = playerFacingNumber != null ? playerFacingNumber : seasonName;
   return /*#__PURE__*/React.createElement("div", {
     className: "season-info"
-  }, /*#__PURE__*/React.createElement("span", null, "Season ", seasonName, " ends:"), timeLeft && /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", null, "Season ", displayNumber, " ends:"), timeLeft && /*#__PURE__*/React.createElement("span", {
     className: "season-countdown"
   }, timeLeft));
 }
@@ -8291,6 +8299,7 @@ function GameApp(_ref36) {
     onClick: handleLogout
   }, "Logout"), season && /*#__PURE__*/React.createElement(SeasonInfo, {
     seasonName: season.season_name || season.season_number,
+    playerFacingNumber: season.player_facing_number,
     endsAt: season.ends_at
   })), showEncyclopedia && /*#__PURE__*/React.createElement(FishEncyclopedia, {
     caughtSpecies: caughtSpecies,
