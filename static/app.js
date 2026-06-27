@@ -6654,9 +6654,17 @@ function GameApp(_ref36) {
               blessed_triple: (_data$blessed_triple = data.blessed_triple) !== null && _data$blessed_triple !== void 0 ? _data$blessed_triple : false,
               streak_before: prevStreak,
               streak_after: data.streak,
-              pending: true
+              // T220: pending is true only when the dice is buffered (auto-spin
+              // was active at roll time). When applied_immediately=true, the
+              // server already wrote new_streak to the DB, so no "⏳ next spin"
+              // hint is shown.
+              pending: !data.applied_immediately
             });
-            // Streak is applied by the next /api/tick, not immediately
+            // T220: when the dice was applied immediately (no active auto-spin),
+            // the server already wrote new_streak to the DB. Mirror that into
+            // local state so the StreakPanel updates right away. When buffered,
+            // the next spin's response will update setStreak.
+            if (data.applied_immediately) setStreak(data.streak);
             if (data.dice_charges != null) setDiceCharges(data.dice_charges);
             if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
             setDiceRolledSinceSpin(true);
@@ -6880,10 +6888,18 @@ function GameApp(_ref36) {
               guardCompleteRef.current = function () {
                 setGuardState(null);
                 applySpinResult(data);
+                // T220: dice roll was refunded because the spin lost.
+                if (data.dice_refunded) {
+                  showToast("\uD83C\uDFB2 Dice refund: -".concat(data.dice_refunded_sum, " streak (rolled back)"));
+                }
                 scheduleResultDismiss();
               };
             } else {
               applySpinResult(data);
+              // T220: dice roll was refunded because the spin lost.
+              if (data.dice_refunded) {
+                showToast("\uD83C\uDFB2 Dice refund: -".concat(data.dice_refunded_sum, " streak (rolled back)"));
+              }
               scheduleResultDismiss();
             }
             spinningRef.current = false;

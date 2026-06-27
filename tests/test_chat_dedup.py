@@ -515,24 +515,20 @@ def test_migration_058_idempotent_on_rerun():
     assert conn.cursor_obj.rows == snapshot
 
 
-# ── chat_triggers.big_win_msg format (was_jackpot switch) ───────────────────
+# ── chat_triggers.big_win_msg format ────────────────────────────────────────
+# T221: was_jackpot kwarg is removed. The big_win_msg now only emits the
+# regular 💰 format. Jackpots are silenced entirely.
 
 def test_big_win_msg_non_jackpot_default():
-    """Default (was_jackpot=False) returns the existing 💰 format."""
+    """Default returns the 💰 format."""
     import chat_triggers
     msg = chat_triggers.big_win_msg('alice', 6000, 'steady')
     assert msg == '💰 alice won 6000 wins in steady mode!'
 
 
-def test_big_win_msg_jackpot_true():
-    """was_jackpot=True returns the 🎰 jackpot format."""
+def test_big_win_msg_rejects_was_jackpot_kwarg():
+    """T221: passing was_jackpot raises TypeError (no silent fall-through)."""
     import chat_triggers
-    msg = chat_triggers.big_win_msg('bob', 8000, 'mirror', was_jackpot=True)
-    assert msg == '🎰 bob hit a 8000 jackpot in mirror mode!'
-
-
-def test_big_win_msg_jackpot_false_explicit():
-    """was_jackpot=False explicitly returns the non-jackpot format."""
-    import chat_triggers
-    msg = chat_triggers.big_win_msg('carol', 5500, 'steady', was_jackpot=False)
-    assert msg == '💰 carol won 5500 wins in steady mode!'
+    import pytest
+    with pytest.raises(TypeError):
+        chat_triggers.big_win_msg('bob', 8000, 'mirror', was_jackpot=True)

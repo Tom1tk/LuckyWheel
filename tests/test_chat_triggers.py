@@ -7,11 +7,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import chat_triggers
 
 
-def test_jackpot_msg_format():
-    msg = chat_triggers.jackpot_msg('alice', 'wild', 5, 12000)
-    assert msg == '🎰 alice hit a JACKPOT in wild mode at 5x stake for 12000 wins!'
-
-
 def test_double_down_win_msg_format():
     msg = chat_triggers.double_down_win_msg('bob', 10, 7500)
     assert msg == '🔥 bob won a 10x double-down for 7500 wins!'
@@ -49,7 +44,26 @@ def test_goal_milestone_msg_format():
 
 
 def test_threshold_constants():
-    assert chat_triggers.JACKPOT_MSG_ALWAYS is True
+    # T221: JACKPOT_MSG_ALWAYS removed (no more jackpot messages).
+    assert not hasattr(chat_triggers, 'JACKPOT_MSG_ALWAYS'), (
+        "JACKPOT_MSG_ALWAYS must be removed (T221: no jackpot messages)"
+    )
     assert chat_triggers.DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE == 5
     assert chat_triggers.HOT_STREAK_MSG_THRESHOLD == 10
     assert chat_triggers.BIG_WIN_THRESHOLD == 5000
+
+
+def test_no_jackpot_msg_formatter():
+    """T221: chat_triggers.jackpot_msg is removed. Jackpots no longer
+    produce any chat message format."""
+    assert not hasattr(chat_triggers, 'jackpot_msg'), (
+        "chat_triggers.jackpot_msg must be removed (T221: no jackpot messages)"
+    )
+
+
+def test_big_win_msg_no_was_jackpot_param():
+    """T221: big_win_msg dropped the was_jackpot kwarg. Calling it with
+    was_jackpot=True must raise (no silent fall-through)."""
+    import pytest
+    with pytest.raises(TypeError):
+        chat_triggers.big_win_msg('alice', 6000, 'mirror', was_jackpot=True)

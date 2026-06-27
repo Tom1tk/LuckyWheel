@@ -3,20 +3,20 @@
 Centralizes code-level constants for which events should post a chat message
 and the message templates. Used by game.py endpoints to call
 post_system_message() with the right event_kind and message text.
+
+T221: jackpot messages are gone entirely. Jackpots no longer post any
+system message — neither the old "JACKPOT in M mode at Nx stake" format
+nor the "hit a N jackpot" was_jackpot re-style. The `was_jackpot`
+parameter on `big_win_msg` is removed; `JACKPOT_MSG_ALWAYS` is removed.
 """
 
 # ── Trigger thresholds ───────────────────────────────────────────────────────
-JACKPOT_MSG_ALWAYS = True
 DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE = 5
 HOT_STREAK_MSG_THRESHOLD = 10
 BIG_WIN_THRESHOLD = 5000
 
 
 # ── Message formatters ───────────────────────────────────────────────────────
-def jackpot_msg(username: str, mode: str, stake: int, wins_delta: int) -> str:
-    return f'🎰 {username} hit a JACKPOT in {mode} mode at {stake}x stake for {wins_delta} wins!'
-
-
 def double_down_win_msg(username: str, effective_stake: int, wins_delta: int) -> str:
     return f'🔥 {username} won a {effective_stake}x double-down for {wins_delta} wins!'
 
@@ -25,9 +25,7 @@ def hot_streak_msg(username: str) -> str:
     return f'🔥 {username} reached a {HOT_STREAK_MSG_THRESHOLD}-win hot streak!'
 
 
-def big_win_msg(username: str, wins_delta: int, mode: str, *, was_jackpot: bool = False) -> str:
-    if was_jackpot:
-        return f'🎰 {username} hit a {wins_delta} jackpot in {mode} mode!'
+def big_win_msg(username: str, wins_delta: int, mode: str) -> str:
     return f'💰 {username} won {wins_delta} wins in {mode} mode!'
 
 
