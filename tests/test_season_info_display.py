@@ -24,10 +24,6 @@ import inspect
 import json
 import os
 import re
-import socket
-import subprocess
-import sys
-import time
 import urllib.request
 import uuid
 from pathlib import Path
@@ -191,49 +187,10 @@ def test_advance_season_writes_player_facing_number():
 # ── Live API + Playwright tests (need a running server) ─────────────────────
 
 
-def _free_port():
-    s = socket.socket()
-    s.bind(('127.0.0.1', 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
 def _http_get_json(url, timeout=5):
     req = urllib.request.Request(url, method='GET')
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.status, json.loads(r.read().decode('utf-8'))
-
-
-@pytest.fixture(scope='module')
-def server_url():
-    port = _free_port()
-    env = os.environ.copy()
-    env['PORT'] = str(port)
-    env.setdefault('WHEEL_SECRET_KEY', 't212-test-secret-key-for-playwright-only')
-    env['DATABASE_URL'] = DSN
-    proc = subprocess.Popen(
-        [sys.executable, 'server.py'],
-        cwd=str(REPO_ROOT), env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    base = f'http://127.0.0.1:{port}'
-    deadline = time.time() + 20
-    while time.time() < deadline:
-        try:
-            urllib.request.urlopen(base + '/', timeout=1).read()
-            break
-        except Exception:
-            time.sleep(0.25)
-    else:
-        proc.terminate()
-        pytest.fail('Flask server did not start within 20s')
-    yield base
-    proc.terminate()
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
 
 
 @pytest.fixture(scope='module')
