@@ -287,7 +287,8 @@ def test_seasons_py_rollover_sql_uses_legacy_wins_equals_zero():
             self.sql_log.append(sql)
 
         def fetchone(self): return {
-            'id': 1, 'season_number': 7, 'started_at': None, 'ends_at': None,
+            'id': 1, 'season_number': 7, 'player_facing_number': 7,
+            'started_at': None, 'ends_at': None,
         }
         def fetchall(self): return []
 
