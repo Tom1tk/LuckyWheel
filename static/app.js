@@ -3108,7 +3108,7 @@ function HiatusWheel() {
           }
           spinningRef.current = false;
           setSpinning(false);
-          if (autoSpinRef.current) setTimeout(spin, 1500);
+          if (autoSpinRef.current) setTimeout(spin, 250);
           return _context5.a(2);
         case 4:
           data = res.data;
@@ -3125,7 +3125,7 @@ function HiatusWheel() {
             });
             spinningRef.current = false;
             setSpinning(false);
-            if (autoSpinRef.current) setTimeout(spin, 1500);
+            if (autoSpinRef.current) setTimeout(spin, 250);
           }, SPEED * 1000 + 200);
           _context5.n = 6;
           break;
@@ -3134,7 +3134,7 @@ function HiatusWheel() {
           _t2 = _context5.v;
           spinningRef.current = false;
           setSpinning(false);
-          if (autoSpinRef.current) setTimeout(spin, 1500);
+          if (autoSpinRef.current) setTimeout(spin, 250);
         case 6:
           return _context5.a(2);
       }
