@@ -3418,6 +3418,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishingLuckyNext, setFishingLuckyNext] = useState(gameState.fishing_lucky_next || false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [bonusEarned, setBonusEarned] = useState(0);
+  // T217: wins breakdown — capture the raw delta and the base multiplier so
+  // the result bubble can show where large wins came from (Base + Streak).
+  const [winsDelta, setWinsDelta]           = useState(0);
+  const [lossesDelta, setLossesDelta]       = useState(0);
+  const [effectiveWinMult, setEffectiveWinMult] = useState(0);
   const [echoTriggered, setEchoTriggered]               = useState(false);
   const [jackpotHit, setJackpotHit]                     = useState(false);
   const [resilienceTriggered, setResilienceTriggered]   = useState(false);
@@ -3869,6 +3874,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setResult(data.result);
     if (data.wins_delta)   setWins(prev => prev + data.wins_delta);
     if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
+    // T217: capture the raw delta so the result bubble can show the
+    // "+N wins" total + Base/Streak breakdown when bonus_earned > 0.
+    setWinsDelta(data.wins_delta ?? 0);
+    setLossesDelta(data.losses_delta ?? 0);
     setStreak(data.streak);
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
     if (data.owned_items) {
@@ -3880,7 +3889,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         return spinResult.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
       });
     }
-    setBonusEarned(data.bonus_earned);
+    setBonusEarned(data.bonus_earned ?? 0);
+    setEffectiveWinMult(data.effective_win_mult ?? 0);
     setEchoTriggered(!!data.echo_triggered);
     setJackpotHit(!!data.jackpot_hit);
     setResilienceTriggered(!!data.resilience_triggered);
@@ -4025,6 +4035,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       if (showResultRef.current) dismissResult();
       setBonusEarned(0); setEchoTriggered(false); setJackpotHit(false);
       setResilienceTriggered(false); setLuckySevenTriggered(false); setFortuneCharmTriggered(false);
+      // T217: clear last-spin delta so the new bubble shows the new total.
+      setWinsDelta(0); setLossesDelta(0); setEffectiveWinMult(0);
 
       setTimeout(() => {
         if (data.guard_triggered) {
@@ -4901,6 +4913,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           ) : (
             <div className="result-text lose">💀 YOU LOSE 💀</div>
           )}
+          {/* T217: show the wins delta in the bubble so the player can see
+              the total of the spin. For wins this is the "+N wins" line; for
+              losses it's "-N losses" (the loss value is shown on a loss). */}
+          {result === 'win' && winsDelta > 0 && (
+            <div className="bonus-line spin-result-total">+{fmt(winsDelta)} wins</div>
+          )}
+          {result === 'lose' && lossesDelta > 0 && (
+            <div className="bonus-line lose-bonus">-{fmt(lossesDelta)} losses</div>
+          )}
           {jackpotHit && (
             <div className="bonus-line jackpot-line">🎰 JACKPOT! 25x multiplier applied!</div>
           )}
@@ -4921,6 +4942,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           )}
           {bonusEarned < 0 && (
             <div className="bonus-line lose-bonus">💀 Loss Streak +{fmt(Math.abs(bonusEarned))} extra losses!</div>
+          )}
+          {/* T217: streak_bonus breakdown — when the bonus is non-zero, show
+              Base + 🔥 Streak components so the player sees why the win is
+              large. Plain wins (bonus_earned=0) show only the total. */}
+          {result === 'win' && bonusEarned > 0 && (
+            <div className="spin-result-detail">
+              Base: {fmt(effectiveWinMult)} · 🔥 Streak: {fmt(streak)} (+{fmt(bonusEarned)})
+            </div>
           )}
           {shieldFeedback && (() => {
             const names  = { regen_shield: 'Regenerating Shield', guard: 'Guard' };
