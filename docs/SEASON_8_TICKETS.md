@@ -8008,7 +8008,7 @@ its own." Implementer picks.
 
 ### T215: Guard Charge shop description is misleading — no passive regen, no timer
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "Guard charge, I think this feature
   hasn't been fully implemented properly. Isn't this supposed to come with a
   timer? what's missing from the implementation on this one?")
@@ -8194,7 +8194,7 @@ hard-constraints convention.*
 
 ### T216: Auto-spin runs invisibly in the background — strip the budget, add heartbeat auto-stop, prevent resume on page load
 
-- **Status:** [ ] (2026-06-27) — URGENT, reported by operator on main
+- **Status:** [x] (2026-06-27) — URGENT, reported by operator on main
 - **Discovered:** 2026-06-27 ~00:43 (operator: "very strange and urgent bug,
   my wins keep jumping without me doing anything. I haven't been spinning
   the wheel but for some reason I have almost 4 million wins all of a sudden?
