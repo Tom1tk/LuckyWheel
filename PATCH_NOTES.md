@@ -4,80 +4,79 @@
 
 ## Season 8 — Casino — 27 Jun 2026
 
-Season 8 ("Casino") launches a flat-percentage wager model, retires most of the S7-era prestige complexity, refreshes the shop layout, and ships a reworked mobile experience. Wins and losses reset at the season boundary; `cumulative_wins` (lifetime) and cosmetics (fish skins, themes, Aquarium progress, page themes) carry forward.
+Welcome to Season 8 — Casino! 🎰
+
+Here's everything that's new this season. Take a look, try things out, and have fun at the tables. If you get stuck, the in-game help button is the fastest way to reach the team.
 
 ### 🎰 Casino Theme
 
-The page background is now an animated casino floor (Canvas + CSS). All existing players are granted the **`page_season8`** page theme automatically; switch back to any prior season's page theme in the shop if you prefer the old look.
+The whole page now feels like a casino floor. The wheel sits in front of an animated background built with Canvas and CSS. The first time you log in this season, you'll see the **`page_season8`** page theme applied automatically. If you'd rather a different look, you can swap to any other page theme from the shop.
 
-### 🎲 Wager System — Flat-Percentage Stake
+### 🎲 Wager — Pick Your Risk
 
-The 1×–10× stake multiplier is gone. Wager is now a **flat percentage of your current wins**, selectable in 5% steps from 0% to 45% (0% = safe, no escrow):
+On every spin, you choose how much of your current wins to put on the line. Pick anywhere from 0% (no risk at all) up to 45% in 5% steps. The slice you pick is held at risk for that spin:
 
-- **Stake escrow** — when you choose N%, N% of your current wins is debited up front and held at risk. Win the spin: you get it back plus your payout. Lose the spin: it's gone. Choose 0% and you're back to a plain unrisked spin.
-- **Stake-extension upgrades** — three shop items raise the cap by +5% each: **Stake Extension I** (5,000 wins, 50%), **II** (15,000 wins, 55%), **III** (40,000 wins, 60%).
-- **Stake value display** — the wager panel now shows the **actual stake value** (the number of wins being escrowed) next to the slider, not just the percentage — so you can see exactly what's at risk before you spin.
+- **Win the spin** — you get your stake back, plus your payout.
+- **Lose the spin** — you lose that slice.
+- **Set 0%** — and you can spin for fun with no risk at all.
 
-### 🔥 Double-Down — True All-or-Nothing
+The wager panel shows the **actual number of wins** you've put on the line, so you can see exactly what's at stake before you commit. Want to raise the cap? Three shop items add +5% each:
 
-Double-Down is no longer a 2× stake bump. Arming DD before a spin puts your **entire last win amount** on the line:
+- **Stake Extension I** (5,000 wins) — raises the cap to 50%.
+- **Stake Extension II** (15,000 wins) — raises the cap to 55%.
+- **Stake Extension III** (40,000 wins) — raises the cap to 60%.
 
-- Win: you double the escrowed winnings.
-- Lose: you lose the full escrowed pot, with **no insurance, no safety net, no resilience** — the only outcome that counts is the wheel's.
-- The DD button now clearly warns of the all-or-nothing rule. Insurance cannot be armed on a Double-Down spin.
+### 🔥 Double-Down — All or Nothing
 
-### 🛡️ Insurance — Reworked Earning, Simpler Spending
+When you arm Double-Down before a spin, your **entire last win** is on the line:
 
-The "Wager Tokens" currency is renamed to **Insurance Tokens**, and the old 1-charge-per-10-minutes recharge is **gone**. Insurance charges now come from **three sources only**:
+- **Win the spin** — your last win is doubled.
+- **Lose the spin** — you lose the full pot. No insurance, no safety net. The only thing that matters is the wheel.
+- The Double-Down button clearly warns you of the all-or-nothing rule.
+- Insurance can't be armed on a Double-Down spin.
 
-- **3 free tokens per UTC day** (claim button in the Insurance panel, resets at 00:00 UTC).
-- **1 / 2 / 3 tokens** for clearing the 1st / 2nd / 3rd daily bounty — the bounty's Claim button illuminates once it's completed.
-- **5 tokens** granted once, automatically, on your first Insurance purchase (the `wager_insurance` shop item).
+### 🛡️ Insurance — Keep Something in Your Pocket
 
-Spending is unchanged in spirit: arm Insurance before a spin to cap the loss at your stake and refund the escrow. Tokens are a balance, not charges-with-recharge.
+This season introduces **Insurance Tokens** — a balance of charges that protect your stake on a risky spin. There are three ways to earn them:
 
-### 🎯 Daily Bounties — Per-Bounty Claims
+- **3 free tokens per day** (UTC). Claim them from the Insurance panel; they reset at 00:00 UTC.
+- **1 / 2 / 3 tokens** for clearing your 1st / 2nd / 3rd daily bounty. The bounty's Claim button lights up when it's done.
+- **5 tokens**, granted automatically, once, on your first Insurance purchase.
 
-Each bounty has its own **Claim** button now (the old "claim all 3 in one batch" UI is gone). Bounty rewards are 1 token for the 1st-tier bounty, 2 for the 2nd, 3 for the 3rd — total 6 tokens per day across all three. Bounties reset at UTC midnight with the same deterministic-per-player selection as before.
+Arm Insurance before a spin to cap that spin's loss at your stake and refund what you put on the line. Tokens are a balance, not a recharge timer.
 
-### ⭐ Prestige — Reworked
+### 🎯 Daily Bounties — Three New Each Day
 
-Prestige moves out of the hidden stat-panel flow and into the **shop**, with a confirmation modal before you commit. The two prestige sub-upgrades — **Prestige Efficiency** (lower threshold) and **Prestige Legacy** (keep an extra item per level) — are **retired**.
+Three fresh objectives drop for you every UTC day, picked just for you. Each one has its own **Claim** button — clear them one at a time and grab each reward as you go. Rewards are **1 token** for the 1st, **2** for the 2nd, and **3** for the 3rd — that's **6 tokens a day** if you clear all three. Bounties reset at UTC midnight.
 
-- The trigger: buy `prestige_unlock` from the shop. A modal shows the cost in wins, what you'll keep (cosmetics, Aquarium, Prestige level), and what you'll lose (wins, losses, streak, most shop items).
-- The bonus: each Prestige level is a flat **+2% to your win payouts on winning spins**, up to level 20 (+40%). Losses are unaffected; jackpots use their own multiplier.
-- Threshold: 1,000,000 cumulative wins to enter, scaling ×1.05 per level (so level 2 costs ~1.05M, level 3 ~1.1M, etc.). `cumulative_wins` is a **lifetime** counter — it never resets, even on Prestige.
+### ⭐ Prestige — A New Long Game
 
-### 🎡 Wheel Modes — Long Shot Replaces Mirror
+Prestige lives in the **shop** as a purchase you make when you're ready. Tap it, and a confirmation modal walks you through what you'll keep (cosmetics, Aquarium, Prestige level) and what you'll lose (wins, losses, streak, most shop items) before you commit.
 
-Mirror has retired from the weekly rotation. **Long Shot** takes its slot — long odds for a jackpot-heavy payout profile, with most spins losing. The rotation is now Inverted → Gravity → Long Shot, repeating weekly. Steady and Volatile remain always-available.
+Once you enter Prestige, every level adds a flat **+2% to your win payouts on winning spins**, all the way up to level 20 (+40%). Losses aren't affected, and jackpots use their own multiplier.
+
+The entry threshold is **1,000,000 cumulative wins**, and each level after that costs **×1.05 more** than the last (so level 2 is about 1.05M, level 3 is about 1.1M, and so on). Your `cumulative_wins` is a **lifetime** counter — it never resets, even on Prestige.
+
+### 🎡 Wheel Modes — Try Long Shot
+
+There's a new mode in the weekly rotation: **Long Shot**. It joins Inverted and Gravity in a three-mode rotation — long odds, but a jackpot-heavy payout profile. Most spins will lose, but when you hit, you hit big. The rotation goes **Inverted → Gravity → Long Shot**, repeating weekly. **Steady** and **Volatile** are always available, and you can switch modes any time from the wheel-mode selector.
 
 ### 🏆 Leaderboard & Hall of Fame
 
-- The leaderboard (bottom-left) now ranks by **Prestige level (desc), then wins (desc)** instead of the retired Win Power / Bonus Power. A Lv3 player with 100 wins ranks above a Lv0 player with 1,000,000. Players with zero wins but at least one Prestige level are now listed (previously filtered out).
-- The **Hall of Fame** modal (🏆 toolbar button) and the `/api/legacy-boards` endpoint are **removed**. Past-season winners are still visible from the leaderboard's own history view; Hall of Fame was redundant.
+- The leaderboard (bottom-left) ranks by **Prestige level (desc), then wins (desc)**. A Lv3 player with 100 wins ranks above a Lv0 player with 1,000,000. Players with zero wins but at least one Prestige level now show up on the list.
+- **Season 8 doesn't have a Hall of Fame** — every spin stands on its own. If you want to revisit past-season winners, the leaderboard's own history view has you covered.
 
-### 🔁 Auto-Spin Is Now a Shop Upgrade
+### 🔁 Auto-Spin — Unlock in the Shop
 
-Auto-spin is no longer free by default. Buy the **Auto-Spin Unlock** (5,000 cumulative wins, Tier 3-gated) to enable it. Once unlocked, the same tick-driven auto-spinUI as before applies (budget, manual-spin guard).
+Auto-Spin lives in the shop. Pick up **Auto-Spin Unlock** (5,000 cumulative wins, Tier 3) and it's yours. Once you have it, the same tick-driven auto-spin experience is there for you — set a budget, set a guard for manual spins, and let it run.
 
-### 📱 Mobile — Drawer Rework
+### 📱 Mobile — Smoother Than Ever
 
 A big pass on the mobile (≤ 768px) experience:
 
-- **Tab-less drawer** — the slide-in drawer now stacks **all** S8 panels in one scrollable column (Wager, Bounties, Free Tokens, Prestige, Singularity, Community Goal, Aquarium, Loadouts), instead of cycling through tab buttons. The 6 toolbar buttons (Shop, Leaderboard, Fish, Bounties, Stats, Backpack) remain.
-- **Page scrolls on mobile only** — the desktop holds the wheel fixed in place, but on mobile the page scrolls so the dice, roll button, and wager panel are all reachable even with Safari's address bar eating vertical space. The "Casino Wheel" title is offset just below the top bar.
-- **Dice and roll button** — bigger dice pip rendering, slimmer mode buttons, content-sized roll button (no longer full-width).
-
-### 🎓 Onboarding (Off by Default)
-
-The new-player coach-mark overlay (4 steps: first spin, first wager, first catch, first bounty view) is **disabled by default** this season. The backend still tracks `onboarding_step`, so it can be re-enabled in a later sub-season without losing state.
-
-### 🛠️ Behind the Scenes
-
-- The season rollover is now driven by a cron at the `ends_at` instant, posting an admin-secret-authenticated request to `/api/admin/advance-season`. This is the first season launch to ship via the new mechanism; the historical "we forgot to reset a column" breakages are mitigated by the §6.1 dry-run + the §6.2 `user_season_history` S8-column snapshot (every S8 player-state field is now preserved in the permanent season history, not just S7-era fields).
-- `wins` (NUMERIC) snapshots fully — no more lossy casts in season history.
-- `user_season_history` row inserted at rollover now captures 26 S8 columns (wager streaks, insurance tokens, prestige level, cumulative_wins, gravity_drift, biggest_win_announced, etc.) — previously only the 18 S7-era columns were snapshotted.
+- **One scrollable drawer** — the slide-in drawer stacks all of this season's panels in one column (Wager, Bounties, Free Tokens, Prestige, Singularity, Community Goal, Aquarium, Loadouts). The 6 toolbar buttons (Shop, Leaderboard, Fish, Bounties, Stats, Backpack) are still there.
+- **The page scrolls on mobile** — on desktop the wheel holds its place, but on mobile the page scrolls so the dice, the roll button, and the wager panel are all reachable even with the browser's address bar taking up space. The "Casino Wheel" title sits just below the top bar.
+- **Bigger dice, slimmer buttons** — clearer pip rendering, slimmer mode buttons, and a roll button sized to its content.
 
 ---
 
