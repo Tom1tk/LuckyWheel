@@ -328,8 +328,12 @@ def test_buy_endpoint_registered_in_game_py():
     # The decorators sit immediately before the function.
     def_idx = src.find("def insurance_buy_with_tokens")
     decorators = src[max(0, def_idx - 200):def_idx]
-    assert "csrf.exempt" in decorators, (
-        "insurance_buy_with_tokens must be CSRF-exempt (@csrf.exempt decorator)"
+    # T236: CSRF is enforced app-wide; this session-auth route must NOT
+    # carry @csrf.exempt. The frontend (static/app.jsx:10-11) sends
+    # X-CSRFToken on every non-GET, so the client still works.
+    assert "csrf.exempt" not in decorators, (
+        "insurance_buy_with_tokens must NOT be @csrf.exempt (T236: app-wide "
+        "CSRFProtect enforces the X-CSRFToken header on all session routes)"
     )
     assert "login_required" in decorators, (
         "insurance_buy_with_tokens must require login (@login_required decorator)"
