@@ -7074,100 +7074,281 @@ false, the panel renders exactly as it does today. No other behaviour changes.
 - After commit, report: commit SHA, diff stat, pytest tail, and a Playwright
   screenshot of the page in both states.
 
-### T209: Refine auto-posted chat messages — wins, streaks, and milestones cluttering chat
+### T209: Refine auto-posted chat messages — replace each dedup-eligible message with its predecessor (no spam backlog)
 
 - **Status:** [ ] (2026-06-27)
-- **Discovered:** 2026-06-27 (operator: "I (user: tom7) just got a message in chat
-  for winning a set amount of wins in steady mode, as well as hitting a streak, I
-  don't want the chat to be fully cluttered with messages like this, can we refine
-  this system?")
-- **Files:** `game.py`, `static/app.jsx` (chat render only), `chat.py` (filter
-  if needed), `tests/test_chat_autopost.py` (new)
+- **Discovered:** 2026-06-27 (operator: "I (user: tom7) just got a message
+  in chat for winning a set amount of wins in steady mode, as well as
+  hitting a streak, I don't want the chat to be fully cluttered with
+  messages like this, can we refine this system?")
+- **Follow-up refinement (2026-06-27 ~01:05):** "For these announcements,
+  I see there are 4 types right? Initial first spin (one time, i like
+  this), big win + mode used, jackpot win, prestige (each time). However
+  if you simply glance at the current chat, we clearly have a 'spam'
+  problem. Can it be changed so that with the exception of the first
+  spin and prestige messages, for each subsequent message the user
+  triggers (e.g. big win, hitting jackpot), it should remove their
+  previous message (as to not have a huge backlog of system messages).
+  This needs to be applied retroactively to my system messages too."
+- **Files:** `chat.py`, `migrations/058_*.sql` (new), `tests/test_chat_dedup.py` (new)
 - **Depends on:** none
 
-**Operator's vision (verbatim 2026-06-27):** "I (user: tom7) just got a message
-in chat for winning a set amount of wins in steady mode, as well as hitting a
-streak, I don't want the chat to be fully cluttered with messages like this,
-can we refine this system?"
+**Operator's vision (verbatim 2026-06-27):** "For these announcements,
+I see there are 4 types right? Initial first spin (one time, i like
+this), big win + mode used, jackpot win, prestige (each time). However
+if you simply glance at the current chat, we clearly have a 'spam'
+problem. Can it be changed so that with the exception of the first
+spin and prestige messages, for each subsequent message the user
+triggers (e.g. big win, hitting jackpot), it should remove their
+previous message (as to not have a huge backlog of system messages).
+This needs to be applied retroactively to my system messages too."
 
-**Context:** The chat currently auto-posts three classes of system messages
-that the operator finds noisy:
+**The 4 announcement types and their disposition:**
 
-1. **Big-win announcements** (`game.py:138` — `_maybe_post_big_win`):
-   - Fires when a single win strictly exceeds `chat_triggers.BIG_WIN_THRESHOLD`
-     (defined in `chat_triggers.py`).
-   - This is the message operator just saw in steady mode.
+| Type | event_kind | Behaviour | Why |
+|---|---|---|---|
+| 1. First spin (one time) | `first_spin` | **Keep all** (only fires once anyway) | Operator likes this; it's a personal welcome |
+| 2. Big win + mode used | `big_win` | **Dedup** — replace the previous one | Spam source — fires every time a win exceeds the threshold |
+| 3. Jackpot win | `big_win` (same event_kind in current code — see "Note on jackpots" below) | **Dedup** | Spam source |
+| 4. Prestige (each time) | `prestige` | **Keep all** | Operator wants each prestige preserved as a historical record |
 
-2. **Hot-streak milestones** (`game.py:1330` and `game.py:1718`):
-   - Fires on the exact transition to `chat_triggers.HOT_STREAK_MSG_THRESHOLD`
-     (the wager-streak counter, NOT the wheel spin-streak).
-   - A single message when the player first hits the threshold.
+Plus 2 additional auto-posted types that already exist and should also
+be deduped (not on the operator's 4-item list, but they have the same
+spam problem):
 
-3. **Community-goal milestones** (`community_goals.py:99-167`):
-   - Fires on 25% / 50% / 75% crossings of the community goal target.
-   - Already gated to once-per-milestone-per-goal, so not a high-frequency
-     source, but still a chat message the operator sees.
+| Type | event_kind | Behaviour | Why |
+|---|---|---|---|
+| 5. Hot-streak milestone | `hot_streak` | **Dedup** | Fires on every re-entry to the wager-streak threshold |
+| 6. Community-goal milestone | `goal_milestone_25`, `goal_milestone_50`, `goal_milestone_75` | **Dedup** | Already gated to once-per-milestone-per-goal but still accumulates |
 
-Plus: the original `event_kind` system on `chat_messages` is in place
-(`chat.py:231` — `post_system_message(conn, message, message_type, event_kind)`)
-which was designed exactly for this kind of filtering.
+**Note on jackpots:** The current `_maybe_post_big_win` (game.py:138)
+posts a `big_win` event for BOTH regular wins and jackpots above the
+threshold (the threshold-based trigger fires on any `result in ('win',
+'jackpot')` with `wins_delta >= BIG_WIN_THRESHOLD`). There is no
+separate `jackpot` event_kind in the current schema. The dedup logic
+treats all `big_win` events the same — whether from a regular win or
+a jackpot — and the user gets exactly one `big_win` message visible
+in chat at a time. If a future ticket wants to split "regular big
+win" vs "jackpot" into separate event_kinds (so players can see them
+both in chat without dedup), that's a separate concern; T209 keeps the
+current single-event-kind behaviour.
 
-**Goal:** Reduce chat clutter from these auto-posted messages while keeping
-the celebration feel. The exact mechanism is up to the implementer; the
-constraint is "less chat noise". Operator wants this **refined**, not
-removed entirely.
+**Goal:** When a dedup-eligible message is posted for a user, find that
+user's previous message of the same `event_kind` and DELETE it before
+inserting the new one. The user always sees at most one message of
+each dedup-eligible event_kind in their chat history. First-spin and
+prestige messages are NEVER deleted (they're historical records).
 
-**Recommended approach (one option — pick and document the choice in the
-ticket comment):**
+**Apply retroactively:** Run a one-time SQL cleanup that, for every
+user, keeps only the most recent message of each dedup-eligible
+event_kind and deletes the older ones. This cleans up the operator's
+existing chat backlog.
 
-**Option A (least invasive) — Per-player toggle:**
-Add a chat-render filter that hides system messages with certain `event_kind`
-values. Default to HIDDEN. Player can toggle "Show system achievements" in
-the chat settings.
+**Diagnosis (what to edit):**
 
-**Option B (server-side throttle) — Limit frequency:**
-- Big-win: post at most once per UTC hour per player.
-- Hot-streak: post only on FIRST streak-threshold hit; suppress on subsequent
-  re-entries (e.g., after a loss, if the player hits the threshold again,
-  don't repost).
-- Community-goal: leave as-is (rare).
+**A. `chat.py` — add a dedup-aware system message poster:**
 
-**Option C (consolidate) — Combine related messages:**
-- Merge big-win + streak into a single line if both fire on the same spin.
-  "🎉 1,250,000 wins on a 12-streak!" (one bubble instead of two).
-- Or move all of these to a separate "Achievements" panel that pops up
-  briefly and adds to a list — chat stays user-only.
+The current `post_system_message(conn, message, message_type='system',
+event_kind=None)` (chat.py:231) doesn't dedup. Add a new function
+`post_dedup_system_message(conn, message, user_id, event_kind, *,
+message_type='system')` that:
+1. Looks up the user's most recent chat message with the same
+   `event_kind` and `message_type='system'`.
+2. If found, DELETES that previous message.
+3. Inserts the new message (same schema as `post_system_message`).
 
-The implementer should propose a recommendation in the commit report and
-justify it. The acceptance criteria below are outcome-based, not approach-based.
+A list of "dedup-eligible" event_kinds is defined as a constant in
+`chat.py`:
+```python
+DEDUP_EVENT_KINDS = frozenset({
+    'big_win',                          # covers regular + jackpot
+    'hot_streak',                       # wager-streak milestone
+    'goal_milestone_25',
+    'goal_milestone_50',
+    'goal_milestone_75',
+    # First-spin and prestige are NOT in this set — they're
+    # preserved as historical records.
+})
+```
+
+`post_dedup_system_message` only dedupes if `event_kind` is in
+`DEDUP_EVENT_KINDS`; otherwise it falls back to `post_system_message`
+(no dedup). This way, future system messages that should be preserved
+can opt in by simply not being in the dedup set.
+
+**B. Update callers to use the new function:**
+
+- `game.py:_maybe_post_big_win` (line 138) — change
+  `post_system_message(..., 'system', event_kind='big_win')` to
+  `post_dedup_system_message(..., user_id, event_kind='big_win')`.
+  The `user_id` is available in the function context (it's
+  `current_user.id` at the spin endpoint and the gs['user_id'] /
+  `current_user.id` in the tick handler).
+- `game.py:1330, 1718` (hot-streak milestone post) — same change.
+  If this currently uses `post_system_message` with
+  `event_kind='hot_streak'`, switch to `post_dedup_system_message`.
+- `community_goals.py:99-167` (goal-milestone posts) — same change
+  for the three milestone event_kinds.
+- **Do NOT change** first-spin or prestige post calls. They keep
+  using `post_system_message` (no dedup).
+
+If a hot-streak or first-spin post doesn't currently set an
+`event_kind`, the implementer should add one (this is a minor
+follow-on cleanup, not part of the dedup logic itself, but required
+for the new function to be able to dedup correctly).
+
+**C. Migration 058 — retroactive chat dedup (`migrations/058_chat_dedup_retroactive.sql`):**
+
+A one-time SQL that, for every (user_id, event_kind) pair in the
+dedup-eligible list, keeps only the most recent message and deletes
+the rest:
+
+```sql
+-- Migration 058: T209 retroactive chat dedup
+-- For each (user_id, event_kind) pair in DEDUP_EVENT_KINDS, keep only
+-- the most recent chat message; delete older duplicates. This applies
+-- T209's dedup behaviour to the existing chat history.
+DELETE FROM chat_messages
+WHERE id IN (
+    SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY user_id, event_kind
+            ORDER BY created_at DESC, id DESC
+        ) AS rn
+        FROM chat_messages
+        WHERE message_type = 'system'
+          AND event_kind IN (
+              'big_win',
+              'hot_streak',
+              'goal_milestone_25',
+              'goal_milestone_50',
+              'goal_milestone_75'
+          )
+    ) t
+    WHERE rn > 1
+);
+```
+
+This is a one-way data cleanup. The deleted messages are NOT
+recoverable (no audit log). The operator accepted this risk when
+they said "remove their previous message" — they want the cleanup
+to be aggressive.
+
+**D. Optional: small UI hint that a message was replaced (not required):**
+
+The user did NOT ask for this. Skipping. If they later want a
+"X achievements replaced" indicator, it can be a follow-up.
 
 **Acceptance criteria:**
-1. In a fresh session where a player hits the big-win threshold 5 times in a
-   row, the chat shows AT MOST 1 big-win message (down from 5). Streak messages
-   similarly throttled (at most 1 per session, or 1 per UTC hour, etc.).
-2. The chat still functions for actual user messages — no regression in
-   `event_kind='user'` rendering, ordering, or persistence.
-3. If a toggle / preference was added, the player can re-enable the system
-   messages in settings; the default is OFF or throttled.
-4. Community-goal milestones (25/50/75%) still fire (they're rare and
-   intentional). Only the high-frequency sources (big-win, hot-streak) are
-   affected.
-5. All existing chat tests pass. New tests in `tests/test_chat_autopost.py`
-   cover the throttling or toggle behaviour.
+
+1. **Live behaviour (forward-looking):**
+   - A player hits the big-win threshold 5 times in a row. The chat
+     shows exactly 1 big-win message (the most recent). The previous
+     4 are deleted from `chat_messages` by the server before each
+     new one is inserted.
+   - A player triggers a hot-streak milestone, loses, then re-enters
+     the threshold. The chat shows exactly 1 hot-streak message (the
+     most recent).
+   - A player hits 25%, 50%, and 75% community-goal milestones
+     across the session. The chat shows exactly 1 each of
+     `goal_milestone_25`, `goal_milestone_50`, `goal_milestone_75`
+     messages.
+2. **First-spin and prestige are NEVER deleted:**
+   - A player has a first-spin message from a previous session. It
+     persists across all future activity (no dedup applies).
+   - A player has prestiged 3 times. The chat shows all 3 prestige
+     messages.
+3. **User messages are NEVER deleted:**
+   - All `message_type='user'` messages (actual user chat) persist
+     as before. The dedup only affects `message_type='system'`.
+4. **Retroactive cleanup:**
+   - Migration 058 is applied. The operator's existing chat history
+     is cleaned: at most 1 message per (user_id, event_kind) in the
+     dedup set, with the most recent preserved.
+5. **All existing chat tests pass.** New tests in
+   `tests/test_chat_dedup.py` cover the live dedup behaviour and
+   the retroactive migration.
 
 **Files to touch:**
-- `game.py` (throttle / change event_kind emission)
-- `chat.py` (filtering at the API level if Option A)
-- `static/app.jsx` (chat render — if a toggle UI is added, put it in the
-  chat header or a Settings entry; do NOT change the chat panel layout)
-- `chat_triggers.py` (the threshold constants — leave values alone, but
-  document the new behaviour above them)
-- `tests/test_chat_autopost.py` (new file)
+
+- `chat.py` (add `DEDUP_EVENT_KINDS` constant and
+  `post_dedup_system_message` function)
+- `game.py` (update `_maybe_post_big_win` and the hot-streak
+  milestone posts to use the new function)
+- `community_goals.py` (update the goal-milestone posts to use the
+  new function)
+- `migrations/058_chat_dedup_retroactive.sql` (NEW — one-time
+  cleanup)
+- `tests/test_chat_dedup.py` (new file)
 
 **Files NOT to touch:**
-- `community_goals.py` (milestones are fine as-is)
-- `bounties.py` (bounty completions are intentional and infrequent)
-- The chat column layout / CSS
+
+- `static/app.jsx` (chat render — the dedup is server-side, the
+  client just sees fewer messages; no UI changes needed)
+- `chat_triggers.py` (the threshold constants and message templates
+  are unchanged)
+- The `chat_messages` schema (no new columns)
+- `bounties.py` (bounty-completion messages are user-specific and
+  infrequent; out of scope for T209)
+- The `seasons.py` chat-history reset (not affected by T209)
+- The `chat_triggers.big_win_msg` / `hot_streak_msg` / etc.
+  templates (templates are unchanged; only the posting function
+  changes)
+- First-spin and prestige post calls (they keep using
+  `post_system_message` — no dedup)
+
+**Test additions (REQUIRED):**
+
+New file `tests/test_chat_dedup.py`:
+
+- `test_dedup_event_kinds_set` — assert `DEDUP_EVENT_KINDS` is a
+  frozenset with the expected 5 members (`big_win`, `hot_streak`,
+  `goal_milestone_25`, `goal_milestone_50`, `goal_milestone_75`).
+- `test_dedup_event_kinds_excludes_first_spin_and_prestige` — assert
+  `first_spin` and `prestige` are NOT in `DEDUP_EVENT_KINDS`.
+- `test_big_win_dedup` — fresh user, post 5 `big_win` messages
+  in a row. Assert the chat has exactly 1 `big_win` row and it's
+  the most recent one.
+- `test_hot_streak_dedup` — same for `hot_streak`.
+- `test_goal_milestone_dedup` — post all three goal_milestone
+  kinds, plus a second 25% after re-trigger; assert each kind
+  has at most 1 row, all 3 kinds present, the most recent
+  preserved.
+- `test_first_spin_not_deduped` — fresh user, post 2 `first_spin`
+  messages (artificially); assert both are present (no dedup).
+  This is a "smoke test" that the function doesn't accidentally
+  dedup non-dedup kinds.
+- `test_prestige_not_deduped` — same, for `prestige`.
+- `test_user_messages_not_deduped` — post 5 `message_type='user'`
+  messages, assert all 5 are present (dedup only affects
+  system).
+- `test_migration_058_retroactive_cleanup` — pre-populate
+  `chat_messages` with multiple rows of the same (user_id,
+  event_kind='big_win'). Apply migration 058 logic. Assert only
+  the most recent survives.
+- `test_migration_058_preserves_first_spin_and_prestige` — same,
+  but with `event_kind='first_spin'` and `'prestige'`. Assert
+  ALL rows are preserved (no dedup).
+
+**Hard constraints:**
+
+- ONE commit on a new branch `t209-chat-dedup`.
+- Do NOT push, do NOT merge.
+- Migration 058 must run BEFORE the live code change (the live
+  code change is a no-op for existing data; the migration cleans
+  up the existing backlog). Apply both in the same deploy.
+- The retroactive cleanup is a ONE-WAY DELETE. Make a backup
+  before running migration 058 on production:
+  `pg_dump wheeldb > /home/user/backups/wheeldb_pre_t209_$(date
+  +%Y%m%d_%H%M%S).sql.gz` (or equivalent).
+- Do NOT change the `chat_messages` schema.
+- Do NOT change the `post_system_message` function's signature
+  (it stays for first-spin / prestige / any other non-dedup
+  caller). The new function is `post_dedup_system_message`.
+- Do NOT dedup `first_spin` or `prestige` under any circumstance.
+- After commit, report: chosen approach, migration SHA, diff stat,
+  pytest tail, and a 5-spin sequence on a test user showing the
+  chat output before/after the dedup.
 
 **Hard constraints:**
 - ONE commit on a new branch `t209-refine-autopost-chat`.
