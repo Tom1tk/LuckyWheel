@@ -283,12 +283,13 @@ def test_t106_frontend_uses_cumulative_wins_from_spin():
     )
 
 
-def test_t107_auto_spin_start_ignores_stale_since_with_zero_budget():
-    """T107 follow-up: `auto_spin_since` left over from a prior session with
-    `auto_spin_budget = 0` must NOT block a fresh `/api/auto-spin/start`.
-    The check should mirror `/api/state`'s `auto_spin_active` gate
-    (since-set AND budget > 0). A stale since alone is limbo state, not
-    'already active'."""
+def test_t216_auto_spin_start_uses_only_auto_spin_since():
+    """T216 follow-up: the per-activation `auto_spin_budget` column was
+    dropped. /api/auto-spin/start now uses `auto_spin_since` as the sole
+    'is active' signal (a stale timestamp is treated as active — the
+    heartbeat auto-stop in /api/tick will clear it after 60s of no
+    ticks). The 'already active' check must NOT reference
+    `auto_spin_budget` (the column no longer exists)."""
     with open(os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         'game.py',
@@ -301,18 +302,20 @@ def test_t107_auto_spin_start_ignores_stale_since_with_zero_budget():
     )
     assert start_block, "could not locate /api/auto-spin/start endpoint body"
     body = start_block.group(0)
-    # The "already active" check must inspect BOTH auto_spin_since AND
-    # auto_spin_budget. A bare `if gs['auto_spin_since'] is not None:` is
-    # the bug — rejects fresh starts when stale state is present.
-    assert re.search(
-        r"auto_spin_since.*\bis\s+not\s+None\b.*\bauto_spin_budget\b",
-        body, re.DOTALL,
-    ), (
-        "/api/auto-spin/start must check both auto_spin_since AND "
-        "auto_spin_budget before reporting 'already active'"
+    # The 'already active' check uses only auto_spin_since now.
+    assert 'auto_spin_budget' not in body, (
+        "/api/auto-spin/start still references auto_spin_budget but the "
+        "column was dropped in migration 057 (T216)"
     )
-    assert 'auto_spin_budget' in body, (
-        "/api/auto-spin/start must reference auto_spin_budget in the check"
+    # The check still inspects auto_spin_since (sanity). The actual code
+    # uses `gs.get('auto_spin_since')` (with the get() call), so look
+    # for the close-paren + 'is not None' pattern.
+    assert re.search(
+        r"gs(?:\[[''\"]auto_spin_since['\"]\]|\.get\(['\"]auto_spin_since['\"]\))\s+is\s+not\s+None",
+        body,
+    ), (
+        "/api/auto-spin/start must check auto_spin_since before reporting "
+        "'already active' (T216)"
     )
 
 
