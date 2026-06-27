@@ -6984,7 +6984,7 @@ ships a behaviour or visual change to the live game.
 
 ### T208: Wager panel should disappear completely when auto-spin is active (not go blank)
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "With auto spin on the wager element just
   goes blank. It needs to disappear completely.")
 - **Files:** `static/app.jsx` (WagerPanel component only)
@@ -7373,7 +7373,7 @@ New file `tests/test_chat_dedup.py`:
 
 ### T210: Auto-spin start delay is too long — make it feel like a manual spin
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "There is a long delay between pressing
   auto spin and the auto spinning starting. This is bad. UX it feels like it's
   broken. Can this be more natural and faster like manually spinning the wheel?")
@@ -7605,7 +7605,7 @@ a starting point.)
 
 ### T212: Top-right Season info should read "Season 8", not "Season Casino"
 
-- **Status:** [ ] (2026-06-27)
+- **Status:** [x] (2026-06-27)
 - **Discovered:** 2026-06-27 (operator: "The top right says season casino, this
   needs to say season 8.")
 - **Files:** `static/app.jsx` (SeasonInfo component only)
@@ -8469,7 +8469,7 @@ this T216 are the three post-launch bugs).
 
 ### T217: Wins "jump" because the streak_bonus formula is invisible in the UI
 
-- **Status:** [ ] (2026-06-27) — reported by operator during T216 investigation
+- **Status:** [x] (2026-06-27) — reported by operator during T216 investigation
 - **Discovered:** 2026-06-27 ~00:55 (operator: "You're 100% sure theres
   nothing else happening in the backend to duplicate my spins or give me
   much higher wins that I should have?")
