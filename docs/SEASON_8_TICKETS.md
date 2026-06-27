@@ -8982,3 +8982,300 @@ New file `tests/test_legacy_wins_separation.py`:
 companion for the legacy_wins value: both are retroactively
 correcting the 7.7→Casino rollover decisions the operator now
 disagrees with.
+
+---
+
+## Advisor audit batch — 2026-06-27 (T231–T240)
+
+> **Source:** read-only senior-advisor audit, not `SEASON_8_BUILD_SPEC.md`.
+> Shared context, conventions, verification commands, dependency graph, and the
+> `game.py` extraction design live in **`docs/ADVISOR_AUDIT_2026-06-27.md`**
+> ("Advisor ref" below points to its sections). Anchored to the **live**
+> codebase `/home/user/wheel-app` at commit `e4c97b4` (the source of truth;
+> staging is behind). Every ticket: run the drift check (Advisor ref §1) first,
+> re-locate by symbol name if line numbers moved, and honour the STOP
+> conditions instead of improvising.
+
+### T231: Fix flaky pytest baseline — `sys.modules` stub leak breaks mobile e2e
+
+- **Advisor ref:** §2 (verification), finding TESTS-01
+- **Status:** [ ] not started
+- **Parallel group:** A-foundation
+- **Depends on:** none
+- **Files:**
+  - tests/test_auto_spin.py
+  - tests/test_mobile_e2e.py, tests/test_mobile_drawer_style.py (read-only; verify they pass after)
+  - tests/conftest.py (may be created here or in T232 — coordinate)
+- **Why:** `python3 -m pytest` is never cleanly green, so neither CI nor any
+  executor can use it as a verification gate — every other ticket inherits this
+  problem. `tests/test_auto_spin.py` installs fake `flask` / `flask_login` /
+  `psycopg2` modules into `sys.modules` at import time; those stubs survive into
+  the Playwright `test_mobile_*` files when collected in the same process,
+  causing ~16 spurious errors/failures. The same mobile files pass in isolation.
+- **Current state (`tests/test_auto_spin.py:40-55`):**
+  ```python
+  sys.modules.setdefault('flask', _make_stub(...))
+  sys.modules.setdefault('flask_login', _make_stub(...))
+  ...
+  sys.modules.setdefault('psycopg2', _psycopg2_stub)
+  ```
+  These run at module import and are never torn down.
+- **Acceptance criteria:**
+  1. Reproduce the leak: `python3 -m pytest -q tests/test_auto_spin.py tests/test_mobile_e2e.py` fails today; capture the error.
+  2. Make the stubbing local so it cannot leak. Preferred: move the stub install/teardown into a fixture (or `setup_module`/`teardown_module`) that records which modules it inserted and `del`s exactly those in teardown; do **not** clobber real modules that are already imported. Acceptable alternative if isolation proves brittle: run the stub-based unit tests in a separate pytest invocation (documented), but the in-process fix is preferred.
+  3. `python3 -m pytest -q tests/test_auto_spin.py tests/test_mobile_e2e.py` now passes (or errors only for genuinely unrelated reasons such as no display for Playwright — if so, see STOP).
+  4. Plain `python3 -m pytest -q` is green (modulo any test that needs a live DB/browser that isn't available in the run environment — document any such precondition).
+  5. `ruff check tests/test_auto_spin.py` exits 0.
+- **Verify:** `python3 -m pytest -q tests/test_auto_spin.py tests/test_mobile_e2e.py` → all pass.
+- **Out of scope:** rewriting the auto-spin tests' logic; changing non-test source.
+- **STOP and report if:** the mobile tests require a browser/display that the
+  environment lacks (then the fix is "isolate so they're cleanly *skipped*, not
+  *errored*"); or removing the stubs breaks `test_auto_spin.py` itself in a way
+  that needs real Flask/psycopg2 (report what it needs).
+
+### T232: Add `tests/conftest.py` with shared fixtures
+
+- **Advisor ref:** §3 (conventions), findings TESTS-02 / DX-03
+- **Status:** [ ] not started
+- **Parallel group:** A-foundation
+- **Depends on:** T231
+- **Files:**
+  - tests/conftest.py (new)
+  - the ~9 test files that currently redefine fixtures (e.g. tests/test_aquarium_panel.py, tests/test_mobile_e2e.py, tests/test_mobile_mode_centering.py, tests/test_mobile_drawer_style.py, tests/test_onboarding_disabled.py, tests/test_prestige_tooltip.py, tests/test_season_info_display.py, tests/test_wager_panel_layout.py, tests/test_arm_button_truncation.py)
+- **Why:** there is no `conftest.py`; fixtures (`server_url`, `db_url`, free-port
+  helpers, Playwright `browser`) are copy-pasted across 9+ files, so any change
+  to test setup must touch all of them and they drift.
+- **Acceptance criteria:**
+  1. Create `tests/conftest.py` exposing the shared fixtures used by the mobile/e2e suite (port allocation, `db_url`/`server_url`, Playwright `browser`/`playwright_instance`). Read the duplicated definitions and lift the common version verbatim.
+  2. `db_url` reads from `DATABASE_URL` env (falling back to `.env` via `python-dotenv` if present) — do **not** hardcode credentials (coordinates with T234).
+  3. Remove the now-duplicated fixture definitions from the individual test files; they inherit from `conftest.py`.
+  4. No behavioral change to tests: the same set passes before and after.
+- **Verify:** `python3 -m pytest -q` → same pass set as after T231; `grep -rn "def server_url\|def db_url\|def browser" tests/*.py` shows the definitions only in `conftest.py`.
+- **Out of scope:** changing what any test asserts; adding new tests (that's T239).
+- **STOP and report if:** two files define the "same" fixture with materially different bodies (don't silently pick one — report the divergence).
+
+### T233: Add `make test` target + README "Running Tests" section
+
+- **Advisor ref:** §2, findings DX-01 / DOCS-02 / DOCS-01
+- **Status:** [ ] not started
+- **Parallel group:** A-foundation
+- **Depends on:** T231 (so the documented command is actually green)
+- **Files:**
+  - Makefile
+  - README.md
+- **Why:** the `Makefile` has `build`/`watch`/`dev`/`staging`/`migrate` targets
+  but **no `test`**, and the README has no "Running Tests" section, so there is
+  no discoverable one-command way to verify the codebase.
+- **Acceptance criteria:**
+  1. Add to `Makefile`:
+     ```make
+     # Run the test suite
+     test:
+     	python3 -m pytest -q
+     ```
+     (add `test` to `.PHONY`.)
+  2. Add a "## Running Tests" section to `README.md` (after "Database Migrations", before "Project Structure") documenting: `make test` (or `python3 -m pytest`), the Postgres prerequisite, and that `DATABASE_URL` must be set in env/`.env` (per T234).
+  3. Fix the one stale doc line: `README.md:420`'s build command should match the Makefile (`npx babel static/app.jsx -o static/app.js`, presets come from `babel.config.json`).
+- **Verify:** `make test` runs the suite; `grep -n "Running Tests" README.md` matches.
+- **Out of scope:** CI workflow files (separate future ticket); changing test behavior.
+
+### T234: Move staging DB credentials out of test files → env + rotate
+
+- **Advisor ref:** §3, security finding (committed credential)
+- **Status:** [ ] not started
+- **Parallel group:** B-secfix
+- **Depends on:** none (pairs naturally with T232)
+- **Files:**
+  - ~10 test files containing a literal `postgresql://…@localhost/wheeldb_staging` connection string (e.g. tests/test_mobile_e2e.py:43,74; tests/test_aquarium_panel.py:40,96; tests/test_onboarding_disabled.py:40; tests/test_arm_button_truncation.py:29; tests/test_wager_panel_layout.py:34,97; tests/test_season_info_display.py:47; tests/test_mobile_mode_centering.py:53; tests/test_mobile_drawer_style.py:45; tests/test_prestige_tooltip.py:44)
+  - tests/conftest.py (if T232 landed, centralize here)
+- **Why:** the staging Postgres password is hardcoded as a default fallback in
+  ~10 committed test files. Even for a local-only staging DB, a credential in
+  version control is exposed in history and to anyone with repo access.
+- **Acceptance criteria:**
+  1. Replace each hardcoded `postgresql://…@localhost/wheeldb_staging` literal with a read from `os.environ['DATABASE_URL']` (or the shared `db_url` fixture from `conftest.py`). No password literal remains in any test file.
+  2. Tests that need the staging DB fail with a clear message if `DATABASE_URL` is unset (do not silently fall back to a baked-in credential).
+  3. **Rotate** the staging DB password after it is removed from code (a committed secret is burned even once deleted) and update the staging `.env` accordingly. Coordinate the rotation with the operator.
+  4. `grep -rn "wheeldb_staging" tests/ | grep -i "@localhost"` returns no rows containing a password (URLs sourced from env are fine; the `is_staging_url` *assertions* in `tests/test_backfill_season8_theme.py` that test the string-matching helper are fine to keep — they contain no real password).
+- **Verify:** the grep above is clean; `python3 -m pytest -q -k "not mobile"` still green with `DATABASE_URL` set.
+- **Out of scope:** changing how production credentials are handled (already env-based, not committed).
+- **STOP and report if:** rotating the password would break a running staging service the operator hasn't been told about — confirm the rotation window first.
+
+### T235: Fix insurance/token escrow refund underpaying protected losses
+
+- **Advisor ref:** finding CORRECTNESS-01
+- **Status:** [ ] not started
+- **Parallel group:** B-secfix
+- **Depends on:** none
+- **Files:**
+  - game.py (function `_resolve_spin`, ~lines 435-650)
+  - tests/test_insurance_tokens.py (or a new test file) — regression test
+- **Why (money path):** when a player uses `pay_with_tokens=True` on a
+  high-stake spin, part of the escrow is funded by insurance tokens and the cash
+  debit is reduced accordingly. On a **win/jackpot** the refund uses
+  `stake_cost_total` (the full escrow, crediting the tokens) — see e.g.
+  `game.py:739`, `669`, `594`. But on a **protected loss** (insurance / regen
+  shield / guard / safety-net) the refund uses the token-reduced `stake_wins` /
+  `stake_losses` instead, so the token-funded portion is silently lost with no
+  protection applied. The function's own comment documents the intended rule:
+  > `game.py:423-426` — "the wager refund / payout still uses the full
+  > `stake_cost_total` so the player gets credit for the tokens they spent."
+- **Current state — the sites that refund the *reduced* amount (normal mode):**
+  - `game.py:617` `wins += stake_wins`  (lose + regen_shield)
+  - `game.py:623` `wins += stake_wins`  (lose + guard)
+  - `game.py:644` `wins += stake_wins`  (lose + insurance)
+  - `game.py:650` `wins += apply_safety_net(stake_wins, actual_stake, True)`
+  And inverted mode:
+  - `game.py:567` `losses += stake_losses`  (bad-outcome win + insurance)
+  - `game.py:573` `losses += apply_safety_net(stake_losses, actual_stake, True)`
+  Token spend happens just above (normal `game.py:481-485`, inverted `452-456`),
+  reducing `stake_wins`/`stake_losses` by `tokens_spent` while `stake_cost_total`
+  keeps the full value.
+- **Acceptance criteria:**
+  1. At the six sites above, refund/credit the **full** escrow value: use `stake_cost_total` in place of `stake_wins` (normal mode) and `stake_cost_total` in place of `stake_losses` (inverted mode), including as the `apply_safety_net(...)` first argument.
+  2. Because `stake_cost_total == stake_wins`/`stake_losses` whenever `tokens_spent == 0`, all non-token spins are unchanged. Confirm this is true by reading the token-spend blocks.
+  3. Add a regression test: a normal-mode high-stake spin with `pay_with_tokens=True` and insurance armed that resolves as a loss must return the player to their pre-spin `wins` (full escrow credited), with `tokens_spent > 0` and `insurance_used == True`. Model it on the existing insurance/token tests in `tests/test_insurance_tokens.py` / `tests/test_insurance_buy_with_tokens.py`.
+  4. If any existing test asserts the *old* (reduced) refund for a token-spend + protection combo, it encodes the bug — update it and call it out (see STOP).
+- **Verify:** `python3 -m pytest -q tests/test_insurance_tokens.py tests/test_insurance_buy_with_tokens.py` → all pass, including the new test.
+- **Out of scope:** any other `_resolve_spin` logic; the win/jackpot paths (already correct); non-token spins.
+- **STOP and report if:** the maintainer intends token value to be forfeited on a protected loss (this fix changes payouts in the player's favour for that narrow combo — confirm before shipping); or more than a couple of existing tests assert the old behaviour (surface them rather than mass-editing).
+
+### T236: Close CSRF-exempt inconsistency on session-auth endpoints
+
+- **Advisor ref:** finding SECURITY-01
+- **Status:** [ ] not started
+- **Parallel group:** B-secfix
+- **Depends on:** none
+- **Files:**
+  - game.py (the `@csrf.exempt` decorators in the Season-8 route block, ~lines 3295-4164)
+  - static/app.jsx (read-only — confirm it sends `X-CSRFToken`)
+- **Why:** CSRF is configured app-wide (`app.py` registers `CSRFProtect`,
+  checks the `X-CSRFToken` header) and the frontend already sends that header on
+  every non-GET (`static/app.jsx:10-11`). The early routes (`/api/spin`,
+  `/api/buy`, …) rely on it. But a contiguous block of later Season-8 routes
+  (`/api/wager/*`, `/api/insurance/*`, loadout, guard, auto-spin, wheel-mode)
+  carry `@csrf.exempt`, disabling that protection inconsistently. `SameSite=Lax`
+  session cookies already blunt cross-site POST, so this is defense-in-depth /
+  consistency rather than an open hole — but the exemptions are a shortcut to
+  remove, not a design choice.
+- **Current state:** 18 `@csrf.exempt` occurrences in `game.py`
+  (`grep -n "csrf.exempt" game.py`). **One must stay:**
+  `/api/admin/advance-season` (`game.py:3271-3272`) authenticates with an
+  `X-Admin-Secret` header via `hmac.compare_digest`, **not** a session cookie —
+  CSRF does not apply to it. Leave that one exempt.
+- **Acceptance criteria:**
+  1. Remove `@csrf.exempt` from every **session-authenticated** route (the ones decorated with `@login_required`). Keep it on `/api/admin/advance-season` only.
+  2. Confirm `static/app.jsx` sends `X-CSRFToken` on all POST/PUT/DELETE (it does at lines 10-11) so removing the exemptions doesn't break the client.
+  3. Add/extend a test that a state-changing session route (e.g. `/api/wager/stake`) rejects a POST with a **missing/invalid** CSRF token (400/403) and accepts one **with** a valid token. (This dovetails with T239's route tests; a minimal version here is fine.)
+- **Verify:** `grep -c "csrf.exempt" game.py` → 1 (only advance-season); `python3 -m pytest -q -k "not mobile"` green.
+- **Out of scope:** the header-secret admin route; changing CSRF config in `app.py`; the f-string-SQL hardening item (separate, not planned).
+- **STOP and report if:** any exempt route turns out to be called by a non-browser client that cannot send the CSRF token (then it needs the same header-secret pattern as the admin route, not a silent exemption) — report which.
+
+### T237: Composite leaderboard index (migration 071)
+
+- **Advisor ref:** finding PERF-02
+- **Status:** [ ] not started
+- **Parallel group:** C-perf
+- **Depends on:** none
+- **Files:**
+  - migrations/071_leaderboard_prestige_index.sql (new)
+  - schema.sql (keep in sync — add the same index for fresh DBs)
+- **Why:** the leaderboard query orders by `prestige_level DESC, wins DESC`
+  (`game.py` `leaderboard()`, ~lines 3199-3208) but the only relevant index is
+  `idx_game_state_wins ON game_state(wins DESC)` (`schema.sql:41`). Postgres
+  can't satisfy the two-column ordering from a one-column index, so it sorts.
+  Cheap, clean win that scales with player count.
+- **Current state (`schema.sql:41`):** `CREATE INDEX IF NOT EXISTS idx_game_state_wins ON game_state(wins DESC);`
+- **Acceptance criteria:**
+  1. Create `migrations/071_leaderboard_prestige_index.sql`:
+     ```sql
+     -- T237: composite index for the leaderboard ORDER BY prestige_level DESC, wins DESC
+     CREATE INDEX IF NOT EXISTS idx_game_state_prestige_wins
+       ON game_state (prestige_level DESC, wins DESC)
+       WHERE wins > 0 OR prestige_level > 0;
+     ```
+     Plain `CREATE INDEX` (not `CONCURRENTLY`) — `migrate.py` runs migrations inside a transaction and the table is small.
+  2. Add the same `CREATE INDEX IF NOT EXISTS …` statement to `schema.sql` near line 41 so fresh databases get it.
+  3. Apply to staging and confirm the planner uses it: `EXPLAIN` of the leaderboard query shows an index scan on `idx_game_state_prestige_wins` instead of a sort (on a table with enough rows to matter — seed if needed, or note that at current row counts Postgres may still seq-scan, which is acceptable).
+- **Verify:** `python3 migrate.py --status` lists 071 applied; `EXPLAIN (the leaderboard SELECT)` references the new index (or seq-scan is acknowledged at low row counts).
+- **Out of scope:** rewriting the query; caching the leaderboard (that's in `tasks/io-optimization-plan.md`).
+
+### T238: Consolidate `/api/state` database access
+
+- **Advisor ref:** findings PERF-01, PERF-03, PERF-04
+- **Status:** [ ] not started
+- **Parallel group:** C-perf
+- **Depends on:** none
+- **Files:**
+  - game.py (`get_state`, ~lines 954-1135)
+  - bounties.py (`get_bounty_status`, ~lines 152-175)
+- **Why:** `/api/state` is the hottest poll endpoint and does avoidable DB work
+  each call: (a) it queries the `seasons` table twice — `ensure_current_season(conn)`
+  then `get_season_info(conn)` (`game.py:959-960`); (b) it opens a **second**
+  pooled connection `conn2` (`game.py:~1021`) for bounties/goals that the
+  already-open `conn` could serve; (c) `get_bounty_status` issues **one SELECT
+  per bounty** in a loop (`bounties.py:155-162`, 3 round-trips) where one query
+  would do.
+- **Current state:**
+  - `game.py:959-960` — `season_info = ensure_current_season(conn)` then `full_info = get_season_info(conn)` (both hit `seasons`).
+  - `game.py:~1021` — `with db_connection() as conn2:` for `get_bounty_status` / `get_active_goal` / `get_player_contribution`.
+  - `bounties.py:155-162` — `for position, b in enumerate(selected, ...): cur.execute('SELECT … FROM bounty_progress WHERE user_id=%s AND bounty_date=%s AND bounty_id=%s', …)`.
+- **Acceptance criteria:**
+  1. **N+1 → single query** in `get_bounty_status`: replace the per-bounty loop with one `SELECT … FROM bounty_progress WHERE user_id=%s AND bounty_date=%s AND bounty_id = ANY(%s)`, then map rows by `bounty_id` and build the same result list (same keys, same order/positions). Behaviour identical, 1 round-trip instead of 3.
+  2. **Reuse one connection:** drop the `conn2` block in `get_state`; call `get_bounty_status`/`get_active_goal`/`get_player_contribution` on the existing `conn`. (Confirm none of them need autocommit/isolation that conflicts with `conn`'s open transaction — they're reads, so fine.)
+  3. **De-duplicate the season read:** have `get_state` use the row already returned by `ensure_current_season(conn)` instead of immediately calling `get_season_info(conn)` for the same columns — either reuse `season_info`, or if `get_season_info` returns a needed extra column (`name`), fetch it in the same query. Net: one `seasons` read per `/api/state`.
+  4. Response shape unchanged (the React client depends on it).
+- **Verify:** `python3 -m pytest -q -k "not mobile"` green (covers `bounties`, `community_goals`, `season` tests); manually confirm `/api/state` returns the same JSON keys as before.
+- **Out of scope:** caching (`tasks/io-optimization-plan.md`); changing the response shape; the `seasons`/`bounties` schema.
+- **STOP and report if:** `get_active_goal`/`get_player_contribution` require a separate transaction/connection for a reason visible in their code — keep correctness over connection-count and report.
+
+### T239: Characterization + integration tests for the spin engine and critical routes
+
+- **Advisor ref:** §7 (prerequisite for extraction), findings TESTS-03 / TESTS-04 / TESTS-06
+- **Status:** [ ] not started
+- **Parallel group:** D-refactor
+- **Depends on:** T231, T232
+- **Files:**
+  - tests/test_spin_integration.py (new)
+  - tests/test_auth_lockout.py (new)
+  - tests/test_critical_routes.py (new) — or extend existing route tests
+- **Why:** the money engine is mostly tested via `_resolve_spin` with mocked
+  DB, and several critical routes have **zero** integration coverage
+  (`/api/wager/stake`, `/api/tab/heartbeat`, fishing routes), while
+  `security.py`'s lockout logic (`check_lockout`/`record_attempt`/`clear_attempts`)
+  is untested. This coverage is the **safety net that T240 (extraction) depends
+  on** — you cannot safely move code that isn't characterized.
+- **Acceptance criteria:**
+  1. **Spin integration** (`test_spin_integration.py`): set up a real app + DB, then for each critical path — plain win/lose, wager stake escrow, insurance arm→use, double-down, hot-streak banking — POST `/api/spin`, read the DB game_state back, and assert the side effects (`wins`, `losses`, `streak`, `wager_banked_wins`, `insurance_tokens`, etc.) persist correctly across two consecutive spins. These are **characterization** tests: capture current behaviour, don't "fix" anything (if a test reveals a bug, file it separately — except T235's bug, already ticketed).
+  2. **Auth lockout** (`test_auth_lockout.py`): for each threshold in `LOCKOUT_RULES`, assert `check_lockout` returns 0 below threshold and >0 at/after it, that the remaining time decreases over time (mock the clock), and that `clear_attempts` resets. Follow the DB-backed test pattern from existing integration tests.
+  3. **Critical routes** (`test_critical_routes.py`): happy-path + invalid-input + auth-required for at least `/api/wager/stake` (stake clamping, unlock gating, persistence) and `/api/tab/heartbeat` (tab-lock behaviour).
+  4. All new tests pass and are included in `python3 -m pytest -q`.
+- **Verify:** `python3 -m pytest -q tests/test_spin_integration.py tests/test_auth_lockout.py tests/test_critical_routes.py` → all pass; overall suite still green.
+- **Out of scope:** changing source behaviour; the `game.py` split itself (T240).
+- **STOP and report if:** a characterization test cannot be made to pass because current behaviour is genuinely non-deterministic or already buggy — capture the observed behaviour and report rather than asserting a "should be" value.
+
+### T240: Extract the fishing subsystem from `game.py` (pilot)
+
+- **Advisor ref:** §7 (full design + subsystem map), findings ARCH-01 / ARCH-02
+- **Status:** [ ] not started
+- **Parallel group:** D-refactor
+- **Depends on:** T239
+- **Files:**
+  - fish.py (new)
+  - game.py (fishing routes become thin; logic moves out)
+  - tests/test_fish.py (new or extend) for the moved logic
+- **Why:** `game.py` is 4,220 lines / 49 routes — every change carries the whole
+  file. Fishing is the lowest-risk seam to prove the extraction recipe before
+  applying it to dice/shop/loadout (follow-up tickets). See the subsystem map
+  and the "match the existing convention" rationale in
+  `docs/ADVISOR_AUDIT_2026-06-27.md` §7.
+- **Acceptance criteria:**
+  1. Create `fish.py` and move the **logic/helpers** of the fishing routes into it (`cast_line`/`bite_poll`/`reel_line`/`auto_fish_tick` bodies, `_get_total_fish_clicks` at `game.py:97`, and fishing helpers not already in `models.py`), as testable functions that take explicit args (cursor/state in, result out) — mirroring how `wagers.py`/`prestige.py` are structured.
+  2. Leave **thin** route handlers in `game.py` on `game_bp` (`/api/cast`, `/api/bite-poll`, `/api/reel`, `/api/auto-fish-tick`, `/api/auto-fish-enabled`) that parse the request, open the transaction, call `fish.py`, and build the response. Do **not** create a new blueprint.
+  3. Work in small commits, suite green between each: (a) add `fish.py` with the moved functions + their tests; (b) switch each route to call `fish.py`; (c) delete the now-dead inline code from `game.py`.
+  4. No change to any fishing endpoint's request/response shape (the React client depends on it). No DB schema change. `game.py` shrinks by roughly the size of the moved logic.
+  5. Add `tests/test_fish.py` covering the moved pure/helper functions; the T239 spin/route integration tests still pass unchanged.
+- **Verify:** `python3 -m pytest -q` green; `python3 -c "import fish"` succeeds; `git diff --stat` shows `game.py` reduced and `fish.py` added; fishing endpoints return identical JSON shapes (spot-check against the T239 tests).
+- **Out of scope:** dice/shop/loadout extraction (follow-up tickets per §7); splitting `_resolve_spin` (ARCH-02, a separate future effort); any behaviour or schema change; new blueprints.
+- **STOP and report if:** a fishing function turns out to be entangled with
+  `_resolve_spin`'s money math (it shouldn't be) — report the coupling instead
+  of moving it; or moving a function would force a response-shape change.
