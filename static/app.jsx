@@ -3322,6 +3322,7 @@ function WagerPanel({
   onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
   onInsurance, onCancelInsurance, onTogglePayWithTokens,
 }) {
+  if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
   return (
     <div className="season8-wager-panel">
