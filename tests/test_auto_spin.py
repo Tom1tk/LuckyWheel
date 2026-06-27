@@ -15,6 +15,31 @@ from datetime import timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
+# ── Stub install/teardown (T231) ────────────────────────────────────────────
+# The stub `flask` / `flask_login` / `psycopg2` / `extensions` / `seasons` /
+# `security` / `db` modules were previously installed at module-import time.
+# That leaked the stubs into other test files collected in the same pytest
+# process (e.g. tests/test_mobile_e2e.py — `module 'psycopg2' has no
+# attribute 'connect'`). The fix: install the stubs only during this
+# module's tests (via setup_module) and restore whatever was in sys.modules
+# before in teardown_module, so other test files see the real modules.
+#
+# We do NOT use setdefault semantics: another test file in the same
+# invocation (e.g. tests/test_auto_spin_visibility.py) installs its own
+# `db` stub at module-import time and, if we used setdefault, our
+# `game.py` reload would resolve `from db import db_connection` to *that*
+# file's `_fake_db_connection` — meaning our tests would feed the cursor
+# log into the *other* test file's `_shared_conn`, not our own, and the
+# test assertions on `_shared_conn.log` would all be empty. We must
+# override whatever is in sys.modules for the duration of the test run
+# and restore it in teardown so the rest of the suite is unaffected.
+_SENTINEL = object()
+_STUB_PREV = {}  # name -> previous sys.modules entry (or _SENTINEL)
+_GAME = None     # the loaded game.py module, set in setup_module
+_REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+_GAME_PATH = os.path.join(_REPO_ROOT, 'game.py')
+
+
 def _make_stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
@@ -22,7 +47,10 @@ def _make_stub(name, **attrs):
     return mod
 
 
-_noop = lambda *a, **kw: (lambda f: f)
+def _noop(*a, **kw):
+    def _inner(f):
+        return f
+    return _inner
 
 
 class _UserMixinStub:
@@ -33,38 +61,6 @@ class _StubUser:
     """Replaces flask_login.current_user for the duration of the test."""
     username = 'alice'
     id = 42
-
-
-# Stubs must be registered BEFORE game.py is imported so the
-# `from flask_login import current_user` binding picks up our user.
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-sys.modules.setdefault('flask_login', _make_stub(
-    'flask_login',
-    current_user=_StubUser(),
-    login_required=lambda f: f,
-    UserMixin=_UserMixinStub,
-))
-_psycopg2_extras_stub = _make_stub(
-    'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
-_psycopg2_stub = _make_stub('psycopg2', extras=_psycopg2_extras_stub)
-sys.modules.setdefault('psycopg2', _psycopg2_stub)
-sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
-sys.modules.setdefault('extensions', _make_stub(
-    'extensions',
-    limiter=types.SimpleNamespace(limit=_noop),
-    csrf=types.SimpleNamespace(exempt=lambda f: f),
-))
-sys.modules.setdefault('seasons', _make_stub('seasons',
-    ensure_current_season=lambda c: None,
-    get_season_info=lambda c: {},
-    advance_season=lambda c: None,
-))
-sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
 
 
 # ── Fake DB plumbing ────────────────────────────────────────────────────────
@@ -116,17 +112,6 @@ def _fake_db_connection():
     yield _shared_conn
 
 
-sys.modules.setdefault('db', _make_stub('db', db_connection=_fake_db_connection))
-
-
-# Load game.py after stubs are in place so its imports resolve.
-_spec = importlib.util.spec_from_file_location(
-    'game', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py'),
-)
-_game = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_game)
-
-
 # ── Capture post_system_message / post_dedup_system_message calls ───────────
 _posted = []
 
@@ -141,8 +126,85 @@ def _fake_post_dedup_system_message(
     _posted.append({'message': message, 'event_kind': event_kind, 'user_id': user_id})
 
 
-_game.post_system_message = _fake_post_system_message
-_game.post_dedup_system_message = _fake_post_dedup_system_message
+def _stub_specs():
+    """Return (name, factory) pairs for every module the auto-spin tests stub.
+
+    Factories are called only when a name is not already in sys.modules, so
+    we don't churn work for names that another test file has already loaded
+    (and that we will therefore leave alone).
+    """
+    psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login',
+            current_user=_StubUser(),
+            login_required=lambda f: f,
+            UserMixin=_UserMixinStub,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: psycopg2_extras_stub),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda c: None,
+            get_season_info=lambda c: {},
+            advance_season=lambda c: None,
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+        ('db', lambda: _make_stub('db', db_connection=_fake_db_connection)),
+    ]
+
+
+def setup_module(module):
+    """Install stubs and load game.py once before any test in this module.
+
+    Runs after pytest has finished collecting all test files in this
+    invocation, so sys.modules may already contain another test file's
+    stubs (e.g. tests/test_auto_spin_visibility.py installs a `db` stub
+    at import time). We override whatever is there for the duration of
+    this module's tests, remembering the previous entry so teardown
+    can restore it.
+    """
+    global _GAME
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+
+    # Force-reload game.py from source under the now-stubbed environment
+    # so its `from flask_login import current_user` etc. bindings pick up
+    # OUR stubs (not another test file's).
+    sys.modules.pop('game', None)
+    spec = importlib.util.spec_from_file_location('game', _GAME_PATH)
+    _GAME = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_GAME)
+
+    _GAME.post_system_message = _fake_post_system_message
+    _GAME.post_dedup_system_message = _fake_post_dedup_system_message
+
+
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded game so the next test
+    file (e.g. tests/test_mobile_e2e.py) sees real modules and a fresh
+    `game` (or no `game` at all, if nothing else loads it)."""
+    global _GAME
+    sys.modules.pop('game', None)
+    _GAME = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
@@ -249,7 +311,7 @@ def _install_fakes(gs, events):
     # consumed for the gs row; the queue only feeds pot_row and rank_row.
     def fake_load_game_state(cur, user_id, *, for_update=False):
         return gs
-    _game._load_game_state = fake_load_game_state
+    _GAME._load_game_state = fake_load_game_state
 
     # _build_spin_context isn't on the hot path for these tests — return
     # a minimal valid context with the keys _resolve_spin() reads.
@@ -264,12 +326,12 @@ def _install_fakes(gs, events):
             'proc_streak_level':  0,
             'aquarium_luck':      0.0,
         }
-    _game._build_spin_context = fake_build_spin_context
+    _GAME._build_spin_context = fake_build_spin_context
 
     # _resolve_spin returns a fixed (new_state, events) pair.
     def fake_resolve_spin(**kwargs):
         return dict(_BASE_NEW_STATE), events
-    _game._resolve_spin = fake_resolve_spin
+    _GAME._resolve_spin = fake_resolve_spin
 
     # Single shared conn; the cursor's fetchone queue feeds pot_row + rank_row
     # (gs is short-circuited by the _load_game_state patch above).
@@ -291,7 +353,7 @@ def test_tick_jackpot_posts_no_message():
     events = _make_events(result='jackpot', wins_delta=12345, mode='mirror')
     _install_fakes(gs, events)
 
-    _game.tick()
+    _GAME.tick()
 
     assert _posted == [], (
         f"T221: jackpot spins must not post any chat message. Got: {_posted}"
@@ -308,7 +370,7 @@ def test_tick_big_win_posts_message_and_persists_value():
     events = _make_events(result='win', wins_delta=6000)
     _install_fakes(gs, events)
 
-    _game.tick()
+    _GAME.tick()
 
     big_wins = [m for m in _posted if m['event_kind'] == 'big_win']
     assert len(big_wins) == 1, f"Expected 1 big_win message, got: {_posted}"
@@ -350,7 +412,7 @@ def test_tick_double_down_path_does_not_post_big_win():
     )
     _install_fakes(gs, events)
 
-    _game.tick()
+    _GAME.tick()
 
     big_wins = [m for m in _posted if m['event_kind'] == 'big_win']
     assert len(big_wins) == 1, f"Expected 1 big_win, got: {_posted}"
@@ -369,7 +431,7 @@ def test_tick_hot_streak_10_posts_message():
     events = _make_events(result='win', wins_delta=10, wager_streak=10)
     _install_fakes(gs, events)
 
-    _game.tick()
+    _GAME.tick()
 
     streaks = [m for m in _posted if m['event_kind'] == 'hot_streak']
     assert len(streaks) == 1, f"Expected 1 hot_streak message, got: {_posted}"
@@ -385,7 +447,7 @@ def test_tick_big_win_does_not_fire_below_previous_biggest():
     events = _make_events(result='win', wins_delta=7500)
     _install_fakes(gs, events)
 
-    _game.tick()
+    _GAME.tick()
 
     big_wins = [m for m in _posted if m['event_kind'] == 'big_win']
     assert big_wins == [], f"Did not expect big_win, got: {_posted}"
