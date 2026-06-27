@@ -8999,7 +8999,7 @@ disagrees with.
 ### T231: Fix flaky pytest baseline — `sys.modules` stub leak breaks mobile e2e
 
 - **Advisor ref:** §2 (verification), finding TESTS-01
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `d1934b4`) — `setup_module`/`teardown_module` pair restores `sys.modules` after the auto_spin stubs run; same pytest invocation now passes 18/20 mobile tests (2 pre-existing DOM-assertion failures, unrelated).
 - **Parallel group:** A-foundation
 - **Depends on:** none
 - **Files:**
@@ -9057,7 +9057,7 @@ disagrees with.
 ### T233: Add `make test` target + README "Running Tests" section
 
 - **Advisor ref:** §2, findings DX-01 / DOCS-02 / DOCS-01
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `96a4dc0`) — `make test` runs the suite; README has a "Running Tests" section between "Database Migrations" and "Project Structure"; the stale `README.md:420` build command fixed.
 - **Parallel group:** A-foundation
 - **Depends on:** T231 (so the documented command is actually green)
 - **Files:**
@@ -9103,7 +9103,7 @@ disagrees with.
 ### T235: Fix insurance/token escrow refund underpaying protected losses
 
 - **Advisor ref:** finding CORRECTNESS-01
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `22be74c`) — six protected-loss refund sites in `_resolve_spin` now use `stake_cost_total` (pre-token-spend) instead of the cash-only `stake_wins`/`stake_losses`; new test `test_protected_loss_refunds_full_escrow_with_tokens` verifies the fix and was confirmed to FAIL on the pre-fix code.
 - **Parallel group:** B-secfix
 - **Depends on:** none
 - **Files:**
@@ -9173,7 +9173,7 @@ disagrees with.
 ### T237: Composite leaderboard index (migration 071)
 
 - **Advisor ref:** finding PERF-02
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `f33420a`) — migration 071 creates partial composite index `idx_game_state_prestige_wins ON game_state (prestige_level DESC, wins DESC) WHERE wins > 0 OR prestige_level > 0`; same index added to `schema.sql` near line 41; `EXPLAIN` confirms Index Scan on the new index, no Sort node.
 - **Parallel group:** C-perf
 - **Depends on:** none
 - **Files:**
