@@ -564,13 +564,21 @@ def _resolve_spin(
             # fraction; min(int, float) would otherwise return the float).
             if insurance_active and not insurance_used:
                 direct_wins = min(direct_wins, int(base_payout * effective_stake))
-                losses += stake_losses
+                # T235: use stake_cost_total (pre-token-spend) so the
+                # full escrow — including any token-funded portion —
+                # is refunded. stake_losses here is the post-spend
+                # cash-only debit; using it would silently forfeit
+                # the token-funded portion on a protected loss.
+                losses += stake_cost_total
                 insurance_used = True
             wins += direct_wins
             # T79 AC#6: safety net on the bad outcome (win) at ≥5x stake
             # refunds 25% of staked losses.
+            # T235: pass stake_cost_total (pre-token-spend) so the
+            # 25% refund covers the full escrow, not just the cash
+            # portion.
             if 'wager_safety_net' in owned and not insurance_used:
-                losses += apply_safety_net(stake_losses, actual_stake, True)
+                losses += apply_safety_net(stake_cost_total, actual_stake, True)
             # T71: hot streak resets to 0, banked losses forfeited.
             wager_streak = 0
             wager_banked_losses = 0
@@ -614,13 +622,18 @@ def _resolve_spin(
             shield_used_type    = 'regen_shield'
             regen_recharge_wins = REGEN_SHIELD_RECHARGE_WINS
             new_streak          = streak
-            wins += stake_wins
+            # T235: refund the full escrow (stake_cost_total) — includes
+            # the token-funded portion. stake_wins is the post-spend
+            # cash-only value; using it would silently forfeit the
+            # tokens on a protected loss.
+            wins += stake_cost_total
         elif 'guard' in owned:
             guard_triggered = True
             guard_blocked = True
             new_owned  = [x for x in new_owned if x != 'guard']
             new_streak = streak
-            wins += stake_wins
+            # T235: see regen_shield branch — full-escrow refund.
+            wins += stake_cost_total
         else:
             if 'resilience' in owned and streak > 0 and random.random() < resilience_chance:
                 resilience_triggered = True
@@ -641,13 +654,19 @@ def _resolve_spin(
                 # effective_stake to int since it's a fraction (0.0-0.45);
                 # otherwise min(int, float) returns the float.
                 actual_loss = min(actual_loss, int(base_loss * effective_stake))
-                wins += stake_wins
+                # T235: refund the full escrow (stake_cost_total) —
+                # includes the token-funded portion. stake_wins is the
+                # post-spend cash-only value; using it would silently
+                # forfeit the tokens on a protected loss.
+                wins += stake_cost_total
                 insurance_used = True
             losses      += actual_loss
             # v2 (T45): safety net refunds 25% of lost escrow, not reduces losses.
             # T74 AC#7: skip when insurance already fired.
+            # T235: pass stake_cost_total (pre-token-spend) so the 25%
+            # refund covers the full escrow, not just the cash portion.
             if 'wager_safety_net' in owned and not insurance_used:
-                wins += apply_safety_net(stake_wins, actual_stake, True)
+                wins += apply_safety_net(stake_cost_total, actual_stake, True)
             bonus_earned = -loss_bonus if loss_bonus > 0 else 0
     elif not inverted_handled and outcome == 'jackpot':
         new_streak = streak + 1 if streak >= 0 else 1

@@ -674,6 +674,111 @@ def test_stake_spends_tokens():
         _game.random.random = original_random
 
 
+def test_protected_loss_refunds_full_escrow_with_tokens():
+    """T235: a normal-mode high-stake spin with pay_with_tokens=True and
+    insurance armed that resolves as a loss must refund the FULL escrow
+    (stake_cost_total), not just the post-spend cash portion
+    (stake_wins). The token-funded portion must NOT be silently lost on
+    a protected loss.
+
+    Setup: 1000 wins, 50 insurance tokens, 30% stake (escrow 300),
+    pay_with_tokens=True → tokens cover 50, cash debit 250. Pre-spin
+    wins = 750. Insurance-armed, outcome = lose.
+
+    Expected (correct) post-spin wins = 750 + 300 = 1050 — the player
+    ends with their pre-spin wins (1000) PLUS the 50 tokens they
+    spent, now reflected as wins. Token value is preserved.
+
+    With the pre-T235 bug, the refund was `wins += stake_wins` (the
+    post-spend 250), giving wins = 750 + 250 = 1000 — the 50 tokens
+    were silently lost. This test catches that bug.
+    """
+    import random
+    # Force a deterministic lose roll. With the test's stubbed
+    # WHEEL_MODES['steady'] = {win:70, lose:27, jackpot:3}, roll=0.99
+    # lands in the 'lose' branch (> 0.03+0.70 = 0.73).
+    original_random = _game.random.random
+    _game.random.random = lambda: 0.99  # 'lose'
+    try:
+        pre_spin_wins = 1000
+        pre_spin_tokens = 50
+        state = dict(
+            # owns wager_unlock (required for stake escrow) AND
+            # wager_insurance (the item the player buys to arm the
+            # insurance flag). The T110 token-spend path requires
+            # insurance_tokens > 0 + pay_with_tokens=True.
+            owned=['wager_unlock', 'wager_insurance'],
+            streak=0,
+            best_streak=0,
+            regen_recharge_wins=0,
+            wins=pre_spin_wins,
+            losses=0,
+            jackpot_echo_next=False,
+            spin_count=1,
+            active_cosmetics=[],
+            proc_streak=0,
+        )
+        new_state, events = _game._resolve_spin(
+            **state,
+            effective_win_mult=2.0,
+            bonus_mult=1,
+            jackpot_chance=0.0,
+            echo_chance=0.0,
+            charm_chance=0.0,
+            resilience_chance=0.0,    # disable resilience to keep math predictable
+            proc_streak_level=0,
+            pot_active=False,
+            pot_win_pct=0.505,
+            stake_pct=30,             # 30% of 1000 = 300 stake
+            wager_streak=0,
+            wager_last_stake=0,
+            active_wheel_mode='steady',
+            aquarium_luck=0.0,
+            wager_banked_wins=0,
+            insurance_active=True,    # insurance armed for this spin
+            double_down_active=False,
+            wager_last_win_amount=0,
+            gravity_drift=0,
+            wager_banked_losses=0,
+            insurance_tokens=pre_spin_tokens,
+            pay_with_tokens=True,
+        )
+        # The outcome was forced to 'lose'.
+        assert events['result'] == 'lose', (
+            f"test setup expects 'lose' outcome, got {events['result']!r}"
+        )
+        # Insurance fired.
+        assert events['insurance_used'] is True, (
+            "insurance should fire on a protected loss with insurance_active=True"
+        )
+        # Tokens were actually spent.
+        assert events['tokens_spent'] > 0, (
+            f"pay_with_tokens=True at 30% stake should spend tokens, "
+            f"got tokens_spent={events['tokens_spent']}"
+        )
+        # T235: the FULL escrow (stake_cost_total = 300) is credited
+        # back. The player ends at pre_spin_wins + tokens_spent (the
+        # token value is preserved as wins). Pre-T235 the refund was
+        # stake_wins=250, giving wins=1000 and silently losing the
+        # 50 token value.
+        expected_wins = pre_spin_wins + events['tokens_spent']
+        assert new_state['wins'] == expected_wins, (
+            f"protected loss with token spend must refund the FULL "
+            f"escrow (stake_cost_total). Expected wins={expected_wins} "
+            f"(pre_spin_wins + tokens_spent), got {new_state['wins']}. "
+            f"Pre-T235 bug: refund was stake_wins (post-spend), "
+            f"silently losing the token value."
+        )
+        # Sanity: the player didn't take a cash loss either (insurance
+        # caps the loss at 0 at this stake% with streak=0).
+        assert new_state['losses'] == 0, (
+            f"insurance should cap the loss at 0 (stake=30%, base_loss=1), "
+            f"got losses={new_state['losses']}"
+        )
+    finally:
+        _game.random.random = original_random
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # G. Schema — column renamed in place
 # ════════════════════════════════════════════════════════════════════════════
