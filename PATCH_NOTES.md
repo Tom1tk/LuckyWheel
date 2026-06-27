@@ -2,6 +2,83 @@
 
 ---
 
+## 27 Jun 2026 — Bugfixes & Quality of Life
+
+A patch drop covering a pile of fixes from the Season 8 launch window. Most of these were reported in the first few days of the season — thank you to everyone who flagged them.
+
+### Jackpots Now Count As Wins
+
+The biggest one. When you hit a jackpot, the result bubble now reads **"🎰 JACKPOT! 🎰"**, the fish reacts happy, confetti fires, and your **Wins** total goes up by the payout. Previously a jackpot landed in the **"💀 YOU LOSE"** branch of the result bubble — confetti didn't fire, the fish looked sad, and your Wins counter didn't move. That was a big miss, and it's fixed.
+
+The old **5,000,000 win cap** has also been removed. Wins can now grow without bound across the season, and the underlying storage has been widened to match (see "Big Numbers" below).
+
+### Dice: No More Silent Disappearing Charges
+
+If you used the 🎲 Dice button in Season 7 or earlier, you probably noticed the charge sometimes felt like it "vanished" — you'd roll, then start a spin, then *lose*, and the charge was gone with no payout and no refund. That's been fixed:
+
+- If you roll the dice **before** starting a spin, the new streak is applied immediately and your charge is spent. You can see the new number right away.
+- If you roll the dice **while auto-spin is running**, the charge is held and applied to your next spin.
+- If that next spin is a **loss**, the streak is rolled back to where it was *before* your roll and the charge is refunded. A toast pops up so you know.
+
+You never lose a dice charge to a loss anymore.
+
+### Jackpot Chat Messages Are Gone
+
+Previously, hitting a jackpot posted a chat message of the form **"🎰 X hit a Y jackpot in MODE mode"**. After a few seasons of seeing them, the team decided jackpot chat is just noise — the result bubble is celebration enough. All jackpot chat messages have been removed, and any pre-existing ones in chat history have been deleted.
+
+### Prestige Chat Is Now Per-Player
+
+Previously, every prestige level-up posted a fresh **"X reached Prestige Level N"** message, so a player who prestiged five times had five lines in chat. Now, your prestige message in chat is **deduplicated**: when you prestige again, your old line is replaced in place with the new level. First-spin messages still work the same way (they accumulate, by design — they're milestones).
+
+### Shop Cleanup
+
+Two tidy-ups to the in-game shop:
+
+- The **🪙 Fish-to-Wager** entry has been removed from the **🎣 Season 8: Fishing** section. It was always a one-time grant of 5 insurance tokens, and players who already bought it still own the upgrade (it stays in your inventory and in the buy eligibility check). It just doesn't take up a shop slot anymore.
+- A duplicate **⚡ Season 8: Wager System** section was lurking below the **Special Upgrades** section. It's gone.
+
+### Auto-Fish No Longer Gets Stuck on Prestige
+
+If you bought an autofisher, turned auto-fishing on, and then prestiged, you'd find yourself **stranded** — the autofisher upgrade got cleared by prestige (as designed), but the auto-fish flag stayed **on**, and the toggle was hidden because the upgrade was gone. So you couldn't turn it off, and you also couldn't cast manually because the UI hides the cast button when auto-fish is on.
+
+That's fixed. Prestige now clears the auto-fish flag for you, the API defensively forces it off if you somehow end up without the upgrade, and the client UI re-syncs from the server. Any players who were already stuck have been unstuck by a one-shot database migration.
+
+### "Spin Failed" Bug for High-Value Players — Fixed
+
+If you were a high-value player (Dylan-style — all the multipliers compounded together), every spin past a certain point returned a **"spin failed"** error and your wheel was stuck. The cause was a 32-bit storage limit on a few columns that store win amounts: the value grew past 2,147,483,647 (the int max) and Postgres rejected the write.
+
+Fixed in two steps:
+
+1. The columns are now `BIGINT` (max ~9.2 quintillion — way past anything plausible).
+2. The same columns are now `NUMERIC` (unlimited precision) so that the values from previous seasons (which legitimately reached 1e50+ in some cases) round-trip cleanly.
+
+If you were getting "spin failed" errors, refresh the page and you'll be back to spinning. The error is gone.
+
+### Big Numbers Now Display Properly
+
+The leaderboard's **Wins** column was 28 pixels wide, which was fine for "1.2M" but absolutely collapsed when someone had "221.78T" wins. The column has been widened and the number formatter now uses a full tier ladder:
+
+| Range | Format | Example |
+| --- | --- | --- |
+| < 1,000 | integer | `999` |
+| 1K – 1M | 1 decimal + K | `1.2K` |
+| 1M – 1B | 2 decimals + M | `1.23M` |
+| 1B – 1T | 2 decimals + B | `1.23B` |
+| 1T – 1Qa | 2 decimals + T | `222.28T` |
+| 1e15+ | scientific | `1.23e+50` |
+
+This propagates everywhere wins, losses, fish counts, and shop costs are displayed — the scoreboard, the top bar, the wager panel, shop descriptions, the singularity progress, and the leaderboard. Big numbers no longer overflow the layout.
+
+Negative numbers show with a leading `-` (e.g. `-1.2K`), and `Infinity` is rendered as `∞` for the rare edge case.
+
+### Under the Hood
+
+- 9 new database migrations (062 – 068) covering the column widens, the dedup of legacy chat messages, the deletion of jackpot messages, and the auto-fish unstick.
+- 6 new test files, 35+ new test cases covering the full set of fixes above. Tests run automatically on every deploy.
+- Gunicorn is now managed by `systemctl` (clean restarts, no orphan processes).
+
+---
+
 ## Season 8 — Casino — 27 Jun 2026
 
 Welcome to Season 8 — Casino! 🎰
