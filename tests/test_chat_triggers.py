@@ -9,8 +9,11 @@ from format_wins import format_wins
 
 
 def test_double_down_win_msg_format():
-    msg = chat_triggers.double_down_win_msg('bob', 10, 7500)
-    assert msg == f'🔥 bob won a 10x double-down for {format_wins(7500)} wins!'
+    # T230: merged big-win style. Now takes a `mode` arg and uses the
+    # 💰 emoji + 'in MODE mode' suffix so a double-down that lands a big
+    # win no longer posts a duplicate big-win message after the fact.
+    msg = chat_triggers.double_down_win_msg('bob', 10, 7500, 'mirror')
+    assert msg == f'💰 bob won a 10x double-down for {format_wins(7500)} wins in mirror mode!'
 
 
 def test_hot_streak_msg_format():
