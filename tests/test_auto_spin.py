@@ -127,7 +127,7 @@ _game = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_game)
 
 
-# ── Capture post_system_message calls ───────────────────────────────────────
+# ── Capture post_system_message / post_dedup_system_message calls ───────────
 _posted = []
 
 
@@ -135,7 +135,14 @@ def _fake_post_system_message(conn, message, message_type='system', event_kind=N
     _posted.append({'message': message, 'event_kind': event_kind})
 
 
+def _fake_post_dedup_system_message(
+    conn, message, user_id, event_kind, *, message_type='system',
+):
+    _posted.append({'message': message, 'event_kind': event_kind, 'user_id': user_id})
+
+
 _game.post_system_message = _fake_post_system_message
+_game.post_dedup_system_message = _fake_post_dedup_system_message
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
@@ -323,8 +330,8 @@ def test_tick_hot_streak_10_posts_message():
 
     _game.tick()
 
-    streaks = [m for m in _posted if m['event_kind'] == 'hot_streak_10']
-    assert len(streaks) == 1, f"Expected 1 hot_streak_10 message, got: {_posted}"
+    streaks = [m for m in _posted if m['event_kind'] == 'hot_streak']
+    assert len(streaks) == 1, f"Expected 1 hot_streak message, got: {_posted}"
     assert 'alice' in streaks[0]['message']
 
 
