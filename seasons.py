@@ -10,16 +10,17 @@ def ensure_current_season(conn):
     """
     Return current season info. Never auto-advances — call advance_season() explicitly.
 
-    Returns dict: {season_number, ends_at}
+    Returns dict: {season_number, player_facing_number, ends_at}
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            'SELECT season_number, ends_at FROM seasons ORDER BY id LIMIT 1'
+            'SELECT season_number, player_facing_number, ends_at '
+            'FROM seasons ORDER BY id LIMIT 1'
         )
         season = cur.fetchone()
 
     if season is None:
-        return {'season_number': 1, 'ends_at': None}
+        return {'season_number': 1, 'player_facing_number': None, 'ends_at': None}
 
     now = datetime.now(timezone.utc)
     if season['ends_at'] and now >= season['ends_at']:
@@ -28,19 +29,29 @@ def ensure_current_season(conn):
 
     return {
         'season_number': season['season_number'],
+        'player_facing_number': season['player_facing_number'],
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
     }
 
 
-def advance_season(conn):
+def advance_season(conn, player_facing_number=None):
     """
     Manually advance the season. Snapshots current standings, resets game_state,
     and bumps season_number + ends_at by 7 days. Commits internally.
     Call this explicitly — never called automatically.
+
+    `player_facing_number` (T212) sets the new row's player-facing
+    season number. If None, the new row inherits
+    `current.player_facing_number + 1` (falling back to
+    `season_number + 1` for legacy rows predating migration 055). The
+    admin endpoint can pass an explicit value for sub-seasons (e.g.
+    8.1 once the column is widened to NUMERIC) or for any
+    non-monotonic transition.
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            'SELECT id, season_number, started_at, ends_at FROM seasons ORDER BY id LIMIT 1 FOR UPDATE'
+            'SELECT id, season_number, player_facing_number, started_at, ends_at '
+            'FROM seasons ORDER BY id LIMIT 1 FOR UPDATE'
         )
         season = cur.fetchone()
 
@@ -55,7 +66,19 @@ def advance_season(conn):
     next_starts = now
     next_ends = now + timedelta(days=7)
 
-    log.info('SEASON_ROLLOVER_START  season=%s', current_number)
+    if player_facing_number is None:
+        # T212: default to current + 1 so the player-facing number
+        # advances monotonically. Legacy rows (player_facing_number
+        # IS NULL) fall back to season_number + 1.
+        pfn_base = season['player_facing_number']
+        if pfn_base is None:
+            pfn_base = season['season_number']
+        next_player_facing_number = pfn_base + 1
+    else:
+        next_player_facing_number = player_facing_number
+
+    log.info('SEASON_ROLLOVER_START  season=%s  next_pfn=%s',
+             current_number, next_player_facing_number)
 
     # Snapshot top 3 players (permanent record for every season)
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -184,12 +207,15 @@ def advance_season(conn):
         cur.execute(
             '''UPDATE seasons
                SET season_number = %s, name = 'Casino',
+                   player_facing_number = %s,
                    started_at = %s, ends_at = %s
                WHERE id = %s''',
-            (next_number, next_starts, next_ends, season_id),
+            (next_number, next_player_facing_number,
+             next_starts, next_ends, season_id),
         )
 
-    log.info('SEASON_ROLLOVER_DONE  old_season=%s  new_season=%s', current_number, next_number)
+    log.info('SEASON_ROLLOVER_DONE  old_season=%s  new_season=%s  new_pfn=%s',
+             current_number, next_number, next_player_facing_number)
 
     # Force WAL flush for this critical once-per-week transaction.
     # All other commits use the server-level synchronous_commit=off for performance.
@@ -204,11 +230,15 @@ def get_season_info(conn):
     Read-only — no locks.
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute('SELECT season_number, name, ends_at FROM seasons ORDER BY id LIMIT 1')
+        cur.execute(
+            'SELECT season_number, name, player_facing_number, ends_at '
+            'FROM seasons ORDER BY id LIMIT 1'
+        )
         season = cur.fetchone()
 
     if season is None:
-        return {'season_number': 1, 'season_name': '1', 'ends_at': None, 'latest_winners': []}
+        return {'season_number': 1, 'season_name': '1', 'player_facing_number': None,
+                'ends_at': None, 'latest_winners': []}
 
     prev = season['season_number'] - 1
     latest_winners = []
@@ -235,6 +265,7 @@ def get_season_info(conn):
     return {
         'season_number': season['season_number'],
         'season_name':   season['name'] or str(season['season_number']),
+        'player_facing_number': season['player_facing_number'],
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
         'latest_winners': latest_winners,
     }
