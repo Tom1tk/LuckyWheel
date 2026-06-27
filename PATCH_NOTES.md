@@ -2,6 +2,10 @@
 
 ---
 
+## 27 Jun 2026 (later) — Chat Numbers Reformatted
+
+Following on from the Big Numbers change above, the existing system messages in chat (the big-win and double-down announcements) were still showing the old raw integer format (e.g. `💰 dylan won 3405169339238 wins in steady mode!`). All 9 of them have been reformatted to match the new tier ladder — `3.41T` instead of `3405169339238`, `76.9K` instead of `76907`, etc. Going forward, new system messages are formatted at generation time, so no further cleanup passes should be needed.
+
 ## 27 Jun 2026 — Bugfixes & Quality of Life
 
 A patch drop covering a pile of fixes from the Season 8 launch window. Most of these were reported in the first few days of the season — thank you to everyone who flagged them.
