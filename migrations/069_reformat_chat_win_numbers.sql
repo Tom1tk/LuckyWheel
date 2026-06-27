@@ -58,10 +58,14 @@ BEGIN
         --   * 5-E+ forms ('0.00EEEEE') are rejected with
         --     "EEEE is incompatible with other formats".
         --   * '0.00EEEE' works but prepends a space (sign placeholder).
-        --   * '9.99EEEE' works AND no leading space. Use this.
+        --   * '9.99EEEE' works for any exponent BUT always prepends
+        --     a single space (the sign-position placeholder, even
+        --     though we're passing abs_val which is always >= 0).
+        --   * btrim strips it. (Cannot use FM with EEEE — Postgres
+        --     rejects 'FMEEEE' as "incompatible with other formats".)
         -- Output is lowercase 'e+' to match static/js/format.js and
         -- format_wins.py.
-        s := to_char(abs_val, '9.99EEEE');
+        s := btrim(to_char(abs_val, '9.99EEEE'));
     END IF;
 
     IF neg THEN

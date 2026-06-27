@@ -632,8 +632,9 @@ def test_migration_058_idempotent_on_rerun():
 def test_big_win_msg_non_jackpot_default():
     """Default returns the 💰 format."""
     import chat_triggers
+    from format_wins import format_wins
     msg = chat_triggers.big_win_msg('alice', 6000, 'steady')
-    assert msg == '💰 alice won 6000 wins in steady mode!'
+    assert msg == f'💰 alice won {format_wins(6000)} wins in steady mode!'
 
 
 def test_big_win_msg_rejects_was_jackpot_kwarg():

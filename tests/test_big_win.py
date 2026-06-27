@@ -135,26 +135,28 @@ def _events(wins_delta, result='win', mode='steady'):
 
 def test_big_win_fires_on_first_5k():
     """Win of 5001 with biggest=0 fires the message; helper returns 5001."""
+    from format_wins import format_wins
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
         conn, _gs(biggest=0), _events(wins_delta=5001), 'alice', 1)
     assert len(_posted) == 1
     assert _posted[0]['event_kind'] == 'big_win'
-    assert '5001' in _posted[0]['message']
+    assert format_wins(5001) in _posted[0]['message']
     assert 'alice' in _posted[0]['message']
     assert new_biggest == 5001
 
 
 def test_big_win_escalates():
     """Win of 5500 with biggest=5001 fires; helper returns 5500."""
+    from format_wins import format_wins
     _posted.clear()
     conn = _FakeConn()
     new_biggest = _game._maybe_announce_big_win(
         conn, _gs(biggest=5001), _events(wins_delta=5500), 'alice', 1)
     assert len(_posted) == 1
     assert _posted[0]['event_kind'] == 'big_win'
-    assert '5500' in _posted[0]['message']
+    assert format_wins(5500) in _posted[0]['message']
     assert new_biggest == 5500
 
 
@@ -180,6 +182,7 @@ def test_big_win_does_not_fire_below_threshold():
 
 def test_big_win_fires_three_times():
     """Sequential wins of 5001, 5500, 6000 each escalate and fire."""
+    from format_wins import format_wins
     _posted.clear()
     conn = _FakeConn()
     biggest = 0
@@ -188,9 +191,9 @@ def test_big_win_fires_three_times():
             conn, _gs(biggest=biggest), _events(wins_delta=wins), 'alice', 1)
     assert len(_posted) == 3
     assert biggest == 6000
-    assert '5001' in _posted[0]['message']
-    assert '5500' in _posted[1]['message']
-    assert '6000' in _posted[2]['message']
+    assert format_wins(5001) in _posted[0]['message']
+    assert format_wins(5500) in _posted[1]['message']
+    assert format_wins(6000) in _posted[2]['message']
 
 
 # ---------------------------------------------------------------------------

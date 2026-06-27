@@ -59,6 +59,17 @@ class TestFormatWinsTierLadder(unittest.TestCase):
         self.assertEqual(format_wins(1e15), "1.00e+15")
         self.assertEqual(format_wins(1e50), "1.00e+50")
 
+    def test_scientific_no_leading_space(self):
+        # Regression: the SQL '9.99EEEE' format (in migration 069)
+        # always prepends a single space (sign-placeholder). The
+        # Python port must not. (Postgres bug: btrim is required on
+        # the SQL side, see migrations/069_reformat_chat_win_numbers.sql
+        # for the rationale.)
+        for n in [1e15, 1.5e15, 1.5e16, 1.5e17, 1.5e18, 1.5e19, 1.5e20, 1e50, 1e100]:
+            result = format_wins(n)
+            self.assertFalse(result.startswith(" "), f"leading space in {result!r} for {n}")
+            self.assertFalse(result.endswith(" "), f"trailing space in {result!r} for {n}")
+
 
 class TestFormatWinsEdgeCases(unittest.TestCase):
     def test_negative(self):
