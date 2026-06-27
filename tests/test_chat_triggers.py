@@ -5,11 +5,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import chat_triggers
+from format_wins import format_wins
 
 
 def test_double_down_win_msg_format():
     msg = chat_triggers.double_down_win_msg('bob', 10, 7500)
-    assert msg == '🔥 bob won a 10x double-down for 7500 wins!'
+    assert msg == f'🔥 bob won a 10x double-down for {format_wins(7500)} wins!'
 
 
 def test_hot_streak_msg_format():
@@ -20,7 +21,7 @@ def test_hot_streak_msg_format():
 
 def test_big_win_msg_format():
     msg = chat_triggers.big_win_msg('dave', 6000, 'mirror')
-    assert msg == '💰 dave won 6000 wins in mirror mode!'
+    assert msg == f'💰 dave won {format_wins(6000)} wins in mirror mode!'
 
 
 def test_prestige_msg_format():

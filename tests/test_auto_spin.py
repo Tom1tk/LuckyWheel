@@ -281,8 +281,11 @@ def _install_fakes(gs, events):
 
 # ── T90 acceptance criteria ────────────────────────────────────────────────
 
-def test_tick_jackpot_posts_message():
-    """T90.1/2: An auto-spin jackpot must post the jackpot chat message."""
+def test_tick_jackpot_posts_no_message():
+    """T221: jackpot spins no longer post a chat message. Neither the
+    old "JACKPOT in M mode at Nx stake" format, the was_jackpot big_win
+    format, nor any other event_kind is posted. The win is still
+    tallied in wins; only the chat announcement is suppressed."""
     _posted.clear()
     gs = _base_gs()
     events = _make_events(result='jackpot', wins_delta=12345, mode='mirror')
@@ -290,19 +293,16 @@ def test_tick_jackpot_posts_message():
 
     _game.tick()
 
-    jackpots = [m for m in _posted if m['event_kind'] == 'jackpot']
-    assert len(jackpots) == 1, f"Expected 1 jackpot message, got: {_posted}"
-    msg = jackpots[0]['message']
-    assert 'alice' in msg
-    assert 'JACKPOT' in msg
-    assert 'mirror' in msg
-    assert '12345' in msg
+    assert _posted == [], (
+        f"T221: jackpot spins must not post any chat message. Got: {_posted}"
+    )
 
 
 def test_tick_big_win_posts_message_and_persists_value():
     """T90.3: An auto-spin big win must post the big-win chat message and
     persist biggest_win_announced in the final UPDATE so the threshold
     escalates across the loop and across ticks."""
+    from format_wins import format_wins
     _posted.clear()
     gs = _base_gs(biggest_win_announced=0)
     events = _make_events(result='win', wins_delta=6000)
@@ -313,7 +313,7 @@ def test_tick_big_win_posts_message_and_persists_value():
     big_wins = [m for m in _posted if m['event_kind'] == 'big_win']
     assert len(big_wins) == 1, f"Expected 1 big_win message, got: {_posted}"
     assert 'alice' in big_wins[0]['message']
-    assert '6000' in big_wins[0]['message']
+    assert format_wins(6000) in big_wins[0]['message']
 
     # The final UPDATE must persist biggest_win_announced = 6000 so a second
     # tick (or a later spin in this loop) can detect the escalation.
