@@ -151,8 +151,11 @@ def advance_season(conn):
                    auto_spin_since = CASE WHEN season_registered THEN %s ELSE NULL END,
                    last_spin_at    = CASE WHEN season_registered THEN %s ELSE NULL END,
                    season_registered = FALSE,
-                   -- Season 8: preserve legacy_wins (accumulate), reset prestige per-season
-                   legacy_wins = legacy_wins + wins,
+                   -- T218: do NOT carry over prior-season wins into S{N}'s legacy_wins.
+                   -- legacy_wins is now a per-season prestige counter, reset to 0 at
+                   -- the season boundary. cumulative_wins is the all-time lifetime
+                   -- value, used for tier-2/3 unlock gating (T106).
+                   legacy_wins = 0,
                    prestige_level = 0, prestige_count = 0,
                    auto_spin_budget = 0,
                     wager_streak = 0, wager_last_stake = 0, double_down_pending = FALSE,
