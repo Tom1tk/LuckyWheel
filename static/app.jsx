@@ -2527,7 +2527,7 @@ const SHOP_SECTIONS = [
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 1000,   desc: 'Blocks one loss per manual trigger. Consumes a guard charge.' },
-    { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Recharges 1 per 50 spins via Regen Shield.', tier: 2 },
+    { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Passively recharges 1 charge every 50 spins.', tier: 2 },
     { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 5000,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
     { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 20000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
   ]},
