@@ -3817,6 +3817,15 @@ body.page-season8 .result-text.win { color: #45E27A; border-color: #45E27A; text
 body.page-season8 .score-box.wins-box { border-color: #1FBE5C; background: rgba(31,190,92,0.08); box-shadow: 0 0 16px rgba(31,190,92,0.2); }
 body.page-season8 .score-box.wins-box .score-label { color: #45E27A; }
 body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow: 0 0 12px #1FBE5C; }
+body.page-season8 .casino-title {
+  color: #45E27A;
+  text-shadow:
+    0 0 10px #45E27A,
+    0 0 30px #1FBE5C,
+    0 0 60px #E23030;
+}
+body.page-season8 .dice-panel-label { color: #45E27A; }
+body.page-season8 .dice-panel-desc  { color: #138C42; }
 
 /* ── Hiatus Screen ────────────────────────────────────────────────────────── */
 .hiatus-screen {
