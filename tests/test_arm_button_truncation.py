@@ -20,13 +20,7 @@ import psycopg2.extras
 from playwright.sync_api import sync_playwright
 
 
-DSN = os.environ.get(
-    'DATABASE_URL',
-    'postgresql://wheelapp:a51f2d9685f4d6dca9d2f9d8d6e66374@localhost/wheeldb_staging',
-)
-
-
-def _grant_wager_items(username: str):
+def _grant_wager_items(db_url: str, username: str):
     """Directly grant the wager items + insurance charges + insurance
     tokens that the tests need. Buying them via the API would cost
     75,500 wins (T116 is a UI fix, not a balance test), so we seed the
@@ -36,7 +30,7 @@ def _grant_wager_items(username: str):
     (N tokens)") is gated on insurance_tokens >= 1, so we seed
     tokens here as well.
     """
-    conn = psycopg2.connect(DSN)
+    conn = psycopg2.connect(db_url)
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
@@ -63,13 +57,13 @@ def _grant_wager_items(username: str):
         conn.close()
 
 
-def _reset_arm_state(username: str):
+def _reset_arm_state(db_url: str, username: str):
     """Reset DD / insurance armed flags + insurance charges so each
     function-scoped test starts from the same disarmed baseline.
     T119 renamed the column wager_insurance_charges → insurance_charges
     and wager_insurance_armed → insurance_armed.
     """
-    conn = psycopg2.connect(DSN)
+    conn = psycopg2.connect(db_url)
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
@@ -88,7 +82,7 @@ def _reset_arm_state(username: str):
 
 
 @pytest.fixture(scope='module')
-def shared_user(server_url):
+def shared_user(db_url, server_url):
     """Register ONE user for the whole module, grant wager items, and
     keep the browser open so individual tests can open fresh pages
     against the same logged-in session. Avoids hitting the
@@ -122,7 +116,7 @@ def shared_user(server_url):
         if not result['ok']:
             browser.close()
             pytest.fail(f'register failed: {result}')
-        _grant_wager_items(username)
+        _grant_wager_items(db_url, username)
         yield {
             'context': context,
             'username': username,
@@ -132,7 +126,7 @@ def shared_user(server_url):
 
 
 @pytest.fixture()
-def armed_user(shared_user, server_url):
+def armed_user(shared_user, db_url, server_url):
     """Per-test fixture: open a fresh page in the shared logged-in
     context, reset DD/insurance armed state, and confirm the wager
     panel is visible.
@@ -140,7 +134,7 @@ def armed_user(shared_user, server_url):
     context = shared_user['context']
     username = shared_user['username']
     page = context.new_page()
-    _reset_arm_state(username)
+    _reset_arm_state(db_url, username)
     page.goto(server_url + '/')
     page.wait_for_load_state('domcontentloaded')
     page.wait_for_selector('.season8-wager-panel', timeout=10000)
