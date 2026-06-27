@@ -1952,7 +1952,7 @@ function HiatusWheel() {
       const res = await apiGame('/api/spin', { method: 'POST', body: JSON.stringify({ tab_id: tabId.current }) });
       if (!res.ok) {
         spinningRef.current = false; setSpinning(false);
-        if (autoSpinRef.current) setTimeout(spin, 1500);
+        if (autoSpinRef.current) setTimeout(spin, 250);
         return;
       }
       const data = res.data;
@@ -1964,11 +1964,11 @@ function HiatusWheel() {
       setTimeout(() => {
         if (data.result === 'win') setWins(w => w + 1); else setLosses(l => l + 1);
         spinningRef.current = false; setSpinning(false);
-        if (autoSpinRef.current) setTimeout(spin, 1500);
+        if (autoSpinRef.current) setTimeout(spin, 250);
       }, SPEED * 1000 + 200);
     } catch {
       spinningRef.current = false; setSpinning(false);
-      if (autoSpinRef.current) setTimeout(spin, 1500);
+      if (autoSpinRef.current) setTimeout(spin, 250);
     }
   }, []);
 
