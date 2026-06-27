@@ -4121,7 +4121,7 @@ var SHOP_SECTIONS = [{
     emoji: '🔁',
     name: 'Auto-Spin Unlock',
     cost: 5000,
-    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)',
+    desc: 'Spins automatically at 0% stake — stake slider hides while active',
     tier: 1
   }]
 }, {
@@ -4435,7 +4435,7 @@ var SHOP_SECTIONS = [{
     emoji: '🔁',
     name: 'Auto-Spin Unlock',
     cost: 5000,
-    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)',
+    desc: 'Spins automatically at 0% stake — stake slider hides while active',
     tier: 1
   }]
 }, {
@@ -6906,6 +6906,11 @@ function GameApp(_ref36) {
   // T107: auto-spin start/stop handlers. The auto-spin server endpoint
   // runs at 0% stake (no escrow) and prevents DD/insurance; the UI hides
   // the stake slider while active.
+  //
+  // T216: no budget is sent in the start body (the per-activation 100-spin
+  // budget was removed). Auto-spin now runs continuously until the user
+  // explicitly stops it, or the server's heartbeat auto-stop fires (60s of
+  // no /api/tick).
   var handleStartAutoSpin = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
     var _yield$apiGame12, ok, data;
     return _regenerator().w(function (_context18) {
@@ -6914,9 +6919,7 @@ function GameApp(_ref36) {
           _context18.n = 1;
           return apiGame('/api/auto-spin/start', {
             method: 'POST',
-            body: JSON.stringify({
-              budget: 100
-            })
+            body: '{}'
           });
         case 1:
           _yield$apiGame12 = _context18.v;
@@ -6930,7 +6933,6 @@ function GameApp(_ref36) {
           return _context18.a(2);
         case 2:
           setAutoSpinActive(true);
-          setAutoSpinBudget(data.budget || 100);
         case 3:
           return _context18.a(2);
       }
@@ -6958,7 +6960,6 @@ function GameApp(_ref36) {
           return _context19.a(2);
         case 2:
           setAutoSpinActive(false);
-          setAutoSpinBudget(0);
         case 3:
           return _context19.a(2);
       }
@@ -7000,7 +7001,6 @@ function GameApp(_ref36) {
         case 5:
           if (data.auto_spin_active === true) {
             setAutoSpinActive(true);
-            if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
           }
           if (data.happy_hour != null) setHappyHour(data.happy_hour);
           if (!data.started) {
@@ -7250,31 +7250,30 @@ function GameApp(_ref36) {
     setStakeValue = _useState250[1];
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
+  // T216: the per-activation 100-spin budget was removed; auto-spin is
+  // simply on/off. The server tracks `auto_spin_since` and auto-stops
+  // after 60s of no /api/tick.
   var _useState251 = useState(gameState.auto_spin_active || false),
     _useState252 = _slicedToArray(_useState251, 2),
     autoSpinActive = _useState252[0],
     setAutoSpinActive = _useState252[1];
-  var _useState253 = useState(gameState.auto_spin_budget || 0),
-    _useState254 = _slicedToArray(_useState253, 2),
-    autoSpinBudget = _useState254[0],
-    setAutoSpinBudget = _useState254[1];
   // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
   // server gates the 3-free-per-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
-  var _useState255 = useState(gameState.insurance_free_claimed_date || null),
-    _useState256 = _slicedToArray(_useState255, 2),
-    insuranceFreeClaimedDate = _useState256[0],
-    setInsuranceFreeClaimedDate = _useState256[1];
+  var _useState253 = useState(gameState.insurance_free_claimed_date || null),
+    _useState254 = _slicedToArray(_useState253, 2),
+    insuranceFreeClaimedDate = _useState254[0],
+    setInsuranceFreeClaimedDate = _useState254[1];
   var todayStr = new Date().toISOString().slice(0, 10);
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
   // wager-stale pattern as stakeRef).
-  var _useState257 = useState(false),
-    _useState258 = _slicedToArray(_useState257, 2),
-    payWithTokens = _useState258[0],
-    setPayWithTokens = _useState258[1];
+  var _useState255 = useState(false),
+    _useState256 = _slicedToArray(_useState255, 2),
+    payWithTokens = _useState256[0],
+    setPayWithTokens = _useState256[1];
   var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
@@ -7300,18 +7299,18 @@ function GameApp(_ref36) {
   // T121: prestige now triggers from the shop buy of prestige_unlock, with
   // a patch-notes-style confirmation modal shown first. The side-panel
   // Prestige button is gone — the buy is intercepted and the modal opens.
-  var _useState259 = useState(false),
+  var _useState257 = useState(false),
+    _useState258 = _slicedToArray(_useState257, 2),
+    showPrestigeBuyConfirm = _useState258[0],
+    setShowPrestigeBuyConfirm = _useState258[1];
+  var _useState259 = useState(1000000),
     _useState260 = _slicedToArray(_useState259, 2),
-    showPrestigeBuyConfirm = _useState260[0],
-    setShowPrestigeBuyConfirm = _useState260[1];
-  var _useState261 = useState(1000000),
+    prestigeBuyCost = _useState260[0],
+    setPrestigeBuyCost = _useState260[1];
+  var _useState261 = useState(false),
     _useState262 = _slicedToArray(_useState261, 2),
-    prestigeBuyCost = _useState262[0],
-    setPrestigeBuyCost = _useState262[1];
-  var _useState263 = useState(false),
-    _useState264 = _slicedToArray(_useState263, 2),
-    showOnboarding = _useState264[0],
-    setShowOnboarding = _useState264[1]; // T114: disabled for S8 launch
+    showOnboarding = _useState262[0],
+    setShowOnboarding = _useState262[1]; // T114: disabled for S8 launch
 
   var refreshBountiesAndGoal = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22() {
     var _yield$Promise$all, _yield$Promise$all2, bountyRes, goalRes;
@@ -7353,8 +7352,25 @@ function GameApp(_ref36) {
       // T114: onboarding modal disabled for S8 launch; do not auto-show.
     }
     // T107: sync auto-spin state from server.
-    if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active);
-    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
+    // T216: if the server reports auto-spin is active, that means a
+    // previous tab/session left it running. We do NOT resume ticking
+    // on this page load — instead we ask the server to stop, show a
+    // toast so the player understands why their wins look weird, and
+    // clear the local state. They can re-check the box to start a
+    // fresh session.
+    if (gameState.auto_spin_active != null) {
+      if (gameState.auto_spin_active === true) {
+        apiGame('/api/auto-spin/stop', {
+          method: 'POST',
+          body: '{}'
+        }).then(function () {
+          return showToast('Auto-spin was running on the server — stopped. Click the checkbox to start a new session.');
+        });
+        setAutoSpinActive(false);
+      } else {
+        setAutoSpinActive(false);
+      }
+    }
     if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
     if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
@@ -8771,18 +8787,18 @@ function GameApp(_ref36) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState265 = useState(undefined),
+  var _useState263 = useState(undefined),
+    _useState264 = _slicedToArray(_useState263, 2),
+    user = _useState264[0],
+    setUser = _useState264[1];
+  var _useState265 = useState(null),
     _useState266 = _slicedToArray(_useState265, 2),
-    user = _useState266[0],
-    setUser = _useState266[1];
-  var _useState267 = useState(null),
+    gameState = _useState266[0],
+    setGameState = _useState266[1];
+  var _useState267 = useState(''),
     _useState268 = _slicedToArray(_useState267, 2),
-    gameState = _useState268[0],
-    setGameState = _useState268[1];
-  var _useState269 = useState(''),
-    _useState270 = _slicedToArray(_useState269, 2),
-    sessionMsg = _useState270[0],
-    setSessionMsg = _useState270[1];
+    sessionMsg = _useState268[0],
+    setSessionMsg = _useState268[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee38() {
       var _yield$apiFetch2, ok, data, gs;

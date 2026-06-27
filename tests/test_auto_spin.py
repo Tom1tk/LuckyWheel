@@ -148,9 +148,19 @@ _game.post_dedup_system_message = _fake_post_dedup_system_message
 # ── Fixtures ────────────────────────────────────────────────────────────────
 def _base_gs(**overrides):
     """A game_state dict with all columns the tick() path reads."""
-    now = dt.datetime(2024, 1, 1, tzinfo=timezone.utc)
-    # last_spin_at one interval in the past so elapsed // AUTO_SPIN_INTERVAL_SECONDS = 1
-    last_spin = now - dt.timedelta(seconds=4)
+    # T216: use the current wall-clock time as the reference so the
+    # heartbeat auto-stop in /api/tick (which compares `last_spin_at`
+    # against the handler's now_utc with a 60s threshold) treats the
+    # session as fresh. A static 2024-01-01 timestamp would now look
+    # years-stale and the heartbeat would auto-stop before the test
+    # can run its assertions.
+    now = dt.datetime.now(timezone.utc)
+    # Stage the session so exactly 1 spin is due and the heartbeat
+    # doesn't fire:
+    #   cursor   = max(auto_spin_since, last_spin_at) = auto_spin_since
+    #   elapsed  = now_utc - cursor ≈ 5s  ->  spins_due = 1
+    #   stale    = now_utc - last_spin_at ≈ 9s  < 60s  ->  no heartbeat
+    last_spin = now - dt.timedelta(seconds=9)
     g = {
         'wins': 0, 'losses': 0, 'streak': 0, 'best_streak': 0,
         'owned_items': [], 'regen_recharge_wins': 0,
@@ -163,12 +173,12 @@ def _base_gs(**overrides):
         'dice_charges': 1, 'dice_last_recharge': last_spin,
         'jackpot_echo_next': False, 'dice_rolled_since_spin': False,
         'pending_dice': None,
-        'auto_spin_since': now, 'last_spin_at': last_spin,
+        'auto_spin_since': now - dt.timedelta(seconds=5),
+        'last_spin_at':    last_spin,
         'active_tab_id': 1, 'tab_last_seen': now,
         'auto_fish_enabled': False, 'auto_fish_last_tick': None,
         'prestige_level': 0, 'prestige_count': 0, 'legacy_wins': 0,
         'onboarding_step': 1,  # skip first-spin path
-        'auto_spin_budget': 1,
         'wager_streak': 0, 'wager_last_stake': 0,
         'double_down_pending': False, 'wager_banked_wins': 0,
         'insurance_charges': 0, 'insurance_armed': False,

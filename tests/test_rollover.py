@@ -121,12 +121,14 @@ def test_update_game_state_does_not_reset_onboarding_step():
     )
 
 
-def test_update_game_state_still_resets_auto_spin_budget():
-    """Sanity: the related `auto_spin_budget = 0` reset must still be present
-    (a different ticket owns that field, but it shares the same SQL block)."""
+def test_update_game_state_does_not_reset_auto_spin_budget():
+    """T216: the `auto_spin_budget` column was dropped. The rollover SQL
+    must NOT mention it (the column doesn't exist any more — referencing
+    it would raise a PG error at rollover time)."""
     sql = _run_advance_season_and_grab_game_state_sql()
     assert sql is not None, "advance_season() did not execute an UPDATE game_state"
-    assert 'auto_spin_budget' in sql.lower(), (
-        "auto_spin_budget reset is missing — it should remain in the same "
-        "UPDATE game_state block as the other per-season resets."
+    assert 'auto_spin_budget' not in sql.lower(), (
+        "auto_spin_budget is referenced in the rollover SQL but the column "
+        "was dropped in migration 057 (T216). Remove the assignment.\n"
+        f"Captured SQL:\n{sql}"
     )
