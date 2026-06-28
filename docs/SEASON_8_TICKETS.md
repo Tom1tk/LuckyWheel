@@ -9256,7 +9256,7 @@ disagrees with.
 ### T240: Extract the fishing subsystem from `game.py` (pilot)
 
 - **Advisor ref:** §7 (full design + subsystem map), findings ARCH-01 / ARCH-02
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commits `26fdedb`/`6edc43a`/`5ec1ca5`/`3906b8f`) — `fish.py` (625 lines) holds the fishing logic; `game.py` shrank from 4237 → 3903 lines (-334); the 5 fishing routes (`/api/cast`, `/api/bite-poll`, `/api/reel`, `/api/auto-fish-tick`, `/api/auto-fish-enabled`) are now thin handlers that delegate to `fish.*` functions; `tests/test_fish.py` (716 lines, 41 new tests) covers the moved logic; no DB schema change, no response-shape change, no new blueprint. End-to-end Flask test client spot-check confirmed identical JSON shapes.
 - **Parallel group:** D-refactor
 - **Depends on:** T239
 - **Files:**
