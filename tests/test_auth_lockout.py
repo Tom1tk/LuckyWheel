@@ -30,6 +30,7 @@ changelog note.
 import os
 import sys
 import uuid
+import types
 from datetime import datetime, timezone
 from unittest import mock
 
@@ -38,6 +39,41 @@ import psycopg2.extras
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+# T239 / T231 follow-up: install a minimal `flask` stub BEFORE importing
+# `security`, so security's `from flask import request, jsonify` resolves
+# to the stub and does NOT load the real `flask` into sys.modules. Real
+# flask is a werkzeug.LocalProxy-using module; loading it pollutes
+# sys.modules and breaks the ~20 sibling test files that rely on the
+# stub-flask pattern. The stubs below match what test_chat.py /
+# test_auto_spin.py install at their own import time, so whichever
+# test's stub "wins" the race, the rest of the suite still works.
+def _noop(*a, **kw):
+    return lambda f: f
+def _maybe_stub(name, attrs):
+    existing = sys.modules.get(name)
+    if existing is None or not (hasattr(existing, 'Flask') or hasattr(existing, 'LoginManager')):
+        mod = types.ModuleType(name)
+        for k, v in attrs.items():
+            setattr(mod, k, v)
+        sys.modules[name] = mod
+_maybe_stub('flask', {
+    'Blueprint': lambda *a, **kw: types.SimpleNamespace(route=_noop),
+    'jsonify': lambda x: x,
+    'request': types.SimpleNamespace(method='GET', is_json=True, json=None, get_json=lambda: None),
+})
+# current_user: match the most common stub shape used by the
+# 22 stub-installing test files. Some use `None` (e.g. test_chat.py),
+# others use a SimpleNamespace with id+username (e.g.
+# test_auto_spin_visibility.py, which calls `current_user.id`).
+# A SimpleNamespace with `.id` works for BOTH: tests that don't
+# touch current_user still pass (id is just an attribute), and
+# tests that touch .id get a valid value.
+_maybe_stub('flask_login', {
+    'current_user': types.SimpleNamespace(id=42, username='alice', is_authenticated=True),
+    'login_required': lambda f: f,
+    'UserMixin': type('UserMixin', (), {}),
+})
 
 from security import check_lockout, clear_attempts, record_attempt  # noqa: E402
 
