@@ -142,30 +142,45 @@ def test_prestige_post_response_includes_auto_fish_enabled():
 def test_set_auto_fish_enabled_forces_off_when_no_upgrade():
     """T224: /api/auto-fish-enabled must force the flag off if the
     player doesn't own an autofisher upgrade. This is the server-side
-    unstick mechanism (the client also handles it, but defence in depth)."""
+    unstick mechanism (the client also handles it, but defence in depth).
+
+    T240: the autofisher gate now lives in ``fish.py`` (the route
+    handler in ``game.py`` is a thin wrapper that delegates to
+    ``fish.set_auto_fish_enabled``).  This test now pins both pieces:
+    the route must delegate, and the delegated function must do the
+    autofisher gate.
+    """
     src = _read(GAME_PY)
-    # The handler must check autofisher level and gate the enabled flag.
+    # The handler must still exist in game.py and delegate to fish.
     assert re.search(
         r"def set_auto_fish_enabled",
         src,
-    ), "set_auto_fish_enabled handler must exist"
-    # Inside the function, autofisher_lvl must be computed from owned
-    # items, and the effective `enabled` must be `requested and
-    # autofisher_lvl >= 1`.
+    ), "set_auto_fish_enabled handler must exist in game.py"
     handler_block = re.search(
         r"def set_auto_fish_enabled.*?(?=^def [a-zA-Z_]|\Z)",
         src,
         re.DOTALL | re.MULTILINE,
     )
-    assert handler_block, "could not locate set_auto_fish_enabled function"
+    assert handler_block, "could not locate set_auto_fish_enabled function in game.py"
     body = handler_block.group(0)
-    assert '_autofisher_level' in body, (
-        "set_auto_fish_enabled must call _autofisher_level to check "
-        "ownership of the autofisher upgrade"
+    # The route must call into fish.set_auto_fish_enabled (the actual
+    # autofisher gate lives there now).
+    assert 'set_auto_fish_enabled' in body, (
+        "set_auto_fish_enabled route must call into fish.set_auto_fish_enabled"
     )
-    assert 'autofisher_lvl' in body and '>= 1' in body, (
-        "set_auto_fish_enabled must gate the enabled flag on "
-        "autofisher_lvl >= 1"
+    # And the gate must live in fish.py — the autofisher level check
+    # + 'autofisher_lvl >= 1' gate.
+    fish_src = _read(os.path.join(ROOT, 'fish.py'))
+    fish_func = re.search(
+        r"def set_auto_fish_enabled.*?(?=^def [a-zA-Z_]|\Z)",
+        fish_src,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert fish_func, "fish.set_auto_fish_enabled must exist (T240)"
+    fish_body = fish_func.group(0)
+    assert 'autofisher_lvl' in fish_body and '>= 1' in fish_body, (
+        "fish.set_auto_fish_enabled must gate the enabled flag on "
+        "autofisher_lvl >= 1 (T224 server-side unstick)"
     )
 
 
