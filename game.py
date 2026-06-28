@@ -4,7 +4,6 @@ import logging
 import os
 import random
 import secrets
-import time
 from datetime import timezone, timedelta
 
 import psycopg2.extras
