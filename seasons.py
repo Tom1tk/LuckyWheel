@@ -10,17 +10,24 @@ def ensure_current_season(conn):
     """
     Return current season info. Never auto-advances — call advance_season() explicitly.
 
-    Returns dict: {season_number, player_facing_number, ends_at}
+    Returns dict: {season_number, player_facing_number, ends_at, season_name}
+    T238: also fetches `name` so callers that need both this shape and
+    get_season_info's `season_name` field can avoid a second `seasons` read.
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            'SELECT season_number, player_facing_number, ends_at '
+            'SELECT season_number, name, player_facing_number, ends_at '
             'FROM seasons ORDER BY id LIMIT 1'
         )
         season = cur.fetchone()
 
     if season is None:
-        return {'season_number': 1, 'player_facing_number': None, 'ends_at': None}
+        return {
+            'season_number': 1,
+            'season_name': '1',
+            'player_facing_number': None,
+            'ends_at': None,
+        }
 
     now = datetime.now(timezone.utc)
     if season['ends_at'] and now >= season['ends_at']:
@@ -29,6 +36,7 @@ def ensure_current_season(conn):
 
     return {
         'season_number': season['season_number'],
+        'season_name': season['name'] or str(season['season_number']),
         'player_facing_number': season['player_facing_number'],
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
     }
@@ -268,3 +276,33 @@ def get_season_info(conn):
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
         'latest_winners': latest_winners,
     }
+
+
+def get_latest_winners(conn, season_number):
+    """Return the top finishers of the previous season (or [] for season 1).
+
+    T238: split out from get_season_info so callers that already loaded the
+    current season row via ensure_current_season() can avoid a second read
+    of the `seasons` table when they only need the winners list.
+    """
+    prev = season_number - 1
+    if prev < 1:
+        return []
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            '''SELECT position, username, wins, losses
+               FROM season_snapshots
+               WHERE season_number = %s
+               ORDER BY position''',
+            (prev,),
+        )
+        return [
+            {
+                'position': r['position'],
+                'username': r['username'],
+                'wins': int(r['wins']),
+                'losses': r['losses'],
+            }
+            for r in cur.fetchall()
+        ]

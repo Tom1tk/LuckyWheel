@@ -56,6 +56,7 @@ sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
 sys.modules.setdefault('replays', _make_stub('replays', record_replay=lambda *a, **kw: None))
 sys.modules.setdefault('seasons', _make_stub('seasons', **{'ensure_current_season': lambda *a, **kw: None,
                                                             'get_season_info': lambda *a, **kw: {},
+                                                            'get_latest_winners': lambda *a, **kw: [],
                                                             'get_week_number': lambda *a, **kw: 1,
                                                             'get_active_goal': lambda *a, **kw: (None, None)}))
 sys.modules.setdefault('community_goals', _make_stub('community_goals',
