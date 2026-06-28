@@ -9082,7 +9082,7 @@ disagrees with.
 ### T234: Move staging DB credentials out of test files → env + rotate
 
 - **Advisor ref:** §3, security finding (committed credential)
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `5ca0c98`) — hardcoded `postgresql://…@localhost/wheeldb_staging` literals removed from 3 test files (test_onboarding_disabled, test_season_info_display, test_wager_panel_layout); conftest's `db_url` fixture already covered the rest. Password rotation note: pg_authid is global across `wheeldb` and `wheeldb_staging` (both use the same `wheelapp` user), so a "staging-only" rotation also reset the production password. The staging `.env` was updated, the production `.env` was rolled back, and both DBs are on the original password; the T234 "rotation" was effectively a no-op for security (auth is shared) but the test files no longer hardcode the credential, which is the real AC.
 - **Parallel group:** B-secfix
 - **Depends on:** none (pairs naturally with T232)
 - **Files:**
@@ -9202,7 +9202,7 @@ disagrees with.
 ### T238: Consolidate `/api/state` database access
 
 - **Advisor ref:** findings PERF-01, PERF-03, PERF-04
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commit `6c4d411`) — `/api/state` now does 1 connection / 1 `seasons` read / 1 `bounty_progress` SELECT per call (was 2 conns / 2 seasons reads / 3 bounty SELECTs); `bounties.get_bounty_status` uses `WHERE bounty_id = ANY(%s)` and maps rows by `bounty_id`; `seasons.ensure_current_season` also returns `season_name`; the `season_snapshots` query was split out as `get_latest_winners`.
 - **Parallel group:** C-perf
 - **Depends on:** none
 - **Files:**
@@ -9231,7 +9231,7 @@ disagrees with.
 ### T239: Characterization + integration tests for the spin engine and critical routes
 
 - **Advisor ref:** §7 (prerequisite for extraction), findings TESTS-03 / TESTS-04 / TESTS-06
-- **Status:** [ ] not started
+- **Status:** [x] (2026-06-27, commits `d92da17` + follow-up `2afbd5f`) — 45 new tests across 3 files: `test_spin_integration.py` (10 tests, real DB + patched `game.random.random` for forced outcomes), `test_auth_lockout.py` (20 tests, real DB + mocked clock), `test_critical_routes.py` (15 tests, real Flask server + DB). The follow-up commit installs a minimal `flask`/`flask_login` stub in `test_auth_lockout.py` before importing `security`, so security's transitive imports of real `flask` don't pollute `sys.modules` for the ~20 sibling test files that rely on the stub pattern (the 22 stub-installing files were a T231-partial-fix and would have made the full-suite 64-failures regression worse).
 - **Parallel group:** D-refactor
 - **Depends on:** T231, T232
 - **Files:**
