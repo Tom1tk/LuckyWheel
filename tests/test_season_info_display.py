@@ -38,11 +38,6 @@ APP_JSX = REPO_ROOT / 'static' / 'app.jsx'
 APP_JS = REPO_ROOT / 'static' / 'app.js'
 MIGRATION_055 = REPO_ROOT / 'migrations' / '055_seasons_player_facing_number.sql'
 
-DSN = os.environ.get(
-    'DATABASE_URL',
-    'postgresql://wheelapp:a51f2d9685f4d6dca9d2f9d8d6e66374@localhost/wheeldb_staging',
-)
-
 
 # ── Source-string assertions (no server, no DB) ──────────────────────────────
 
@@ -194,14 +189,14 @@ def _http_get_json(url, timeout=5):
 
 
 @pytest.fixture(scope='module')
-def season_s8_state():
+def season_s8_state(db_url: str):
     """Save the staging DB's current season row, set it to the S8
     (Casino) state with player_facing_number=8, yield, then restore.
     The seasons table is a single-row table, so all tests in this
     module share the modified state for the duration of the run.
     Other test files using the same staging DB see the original state
     again at teardown."""
-    conn = psycopg2.connect(DSN)
+    conn = psycopg2.connect(db_url)
     conn.autocommit = True
     cur = conn.cursor()
     cur.execute(
