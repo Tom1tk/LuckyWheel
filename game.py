@@ -27,7 +27,7 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
                     SINGULARITY_PER_PLAYER_CAP,
                     RETIRED_ITEMS)
-from seasons import ensure_current_season, get_season_info, advance_season
+from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
@@ -976,7 +976,7 @@ def get_state():
     try:
         with db_connection() as conn:
             season_info = ensure_current_season(conn)
-            full_info   = get_season_info(conn)
+            latest_winners = get_latest_winners(conn, season_info['season_number'])
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     '''SELECT wins, losses, fish_clicks, streak, owned_items,
@@ -1012,7 +1012,31 @@ def get_state():
                 cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
                 singularity = cur.fetchone()
 
-        now_utc = dt.datetime.now(timezone.utc)
+            # T238: bounties + community goal run on the same conn as the rest
+            # of the route. All three helpers are read-only (or read+INSERT-
+            # then-rollback, same as before — the route does not commit), so
+            # the open transaction is fine.
+            now_utc = dt.datetime.now(timezone.utc)
+            bounty_date = now_utc.date()
+            week_num = get_week_number(now_utc)
+            bounties = get_bounty_status(conn, current_user.id, bounty_date)
+            goal_row, goal_def = get_active_goal(conn, season_info['season_number'], week_num)
+            player_contrib = (
+                get_player_contribution(conn, goal_def['goal_id'], current_user.id)
+                if goal_row else 0
+            )
+
+            # T238: build the same `season` payload as before, from the single
+            # ensure_current_season row + get_latest_winners. Net: one `seasons`
+            # read per /api/state (was 2), same response shape.
+            full_info = {
+                'season_number': season_info['season_number'],
+                'season_name': season_info['season_name'],
+                'player_facing_number': season_info['player_facing_number'],
+                'ends_at': season_info['ends_at'],
+                'latest_winners': latest_winners,
+            }
+
         pot_celebrate = bool(
             pot and pot['filled'] and pot['filled_at'] and
             pot['filled_at'] > now_utc - dt.timedelta(days=7)
@@ -1029,18 +1053,9 @@ def get_state():
         # the WAGER_INSURANCE_MAX_CHARGES cap are gone (see migration 054).
 
         # Season 8: available wheel modes for this week
-        week_num = get_week_number(now_utc)
         available_modes = get_available_modes(week_num)
         if singularity and singularity['filled']:
             available_modes = available_modes + ['singularity']
-
-        # Season 8: bounty status + community goal (needs a connection)
-        bounty_date = now_utc.date()
-        season_num = full_info.get('season_number', 8) if full_info else 8
-        with db_connection() as conn2:
-            bounties = get_bounty_status(conn2, current_user.id, bounty_date)
-            goal_row, goal_def = get_active_goal(conn2, season_num, week_num)
-            player_contrib = get_player_contribution(conn2, goal_def['goal_id'], current_user.id) if goal_row else 0
 
         return jsonify({
             'wins':               int(gs['wins']),
