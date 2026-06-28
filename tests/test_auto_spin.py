@@ -158,6 +158,7 @@ def _stub_specs():
         ('seasons', lambda: _make_stub('seasons',
             ensure_current_season=lambda c: None,
             get_season_info=lambda c: {},
+            get_latest_winners=lambda c, n: [],
             advance_season=lambda c: None,
         )),
         ('security', lambda: _make_stub('security', require_json=lambda: None)),

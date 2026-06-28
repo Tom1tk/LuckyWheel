@@ -58,6 +58,7 @@ sys.modules.setdefault('extensions', _make_stub(
 sys.modules.setdefault('seasons', _make_stub('seasons',
     ensure_current_season=lambda c: None,
     get_season_info=lambda c: {},
+    get_latest_winners=lambda c, n: [],
     advance_season=lambda c: None,
 ))
 sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
@@ -355,9 +356,10 @@ def test_payload_uses_bounty_id_key():
             self.log.append((sql, params))
             self._calls += 1
 
-        def fetchone(self):
-            # Mirror the shape the real SELECT returns when there's no row.
-            return None
+        def fetchall(self):
+            # T238: get_bounty_status now issues a single SELECT and
+            # reads via fetchall. No progress rows -> empty list.
+            return []
 
     class _ProgConn:
         def __init__(self):

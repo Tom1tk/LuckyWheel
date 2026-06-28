@@ -86,6 +86,7 @@ def _install_stubs():
     sys.modules.setdefault('seasons', _make_stub('seasons',
         ensure_current_season=lambda c: None,
         get_season_info=lambda c: {},
+        get_latest_winners=lambda c, n: [],
         advance_season=lambda c: None,
     ))
     sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))

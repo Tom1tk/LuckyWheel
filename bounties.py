@@ -142,34 +142,42 @@ def get_bounty_status(conn, user_id, bounty_date=None):
     set (used by the claim handler to award position-based tokens), and
     a `claimed` flag (per-bounty; was a single per-day `bounty_claimed_date`
     on game_state before T117).
+
+    T238: single SELECT for all 3 bounties (`bounty_id = ANY(%s)`) instead
+    of one round-trip per bounty. Rows are then mapped by `bounty_id` and
+    the result list is assembled in the same order as `get_daily_bounties`
+    returns, preserving positions and keys.
     """
     if bounty_date is None:
         bounty_date = date.today()
 
     selected = get_daily_bounties(user_id, bounty_date)
-    result = []
+    bounty_ids = [b['id'] for b in selected]
 
     import psycopg2.extras
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        for position, b in enumerate(selected, start=1):
-            cur.execute(
-                '''SELECT progress, completed, completed_at, claimed, claimed_at
-                   FROM bounty_progress
-                   WHERE user_id = %s AND bounty_date = %s AND bounty_id = %s''',
-                (user_id, bounty_date, b['id']),
-            )
-            row = cur.fetchone()
-            result.append({
-                'bounty_id': b['id'],
-                'description': b['description'],
-                'target': b['target'],
-                'progress': row['progress'] if row else 0,
-                'completed': row['completed'] if row else False,
-                'claimed': row['claimed'] if row else False,
-                'position': position,
-                'reward_tokens': b['reward_tokens'],
-            })
+        cur.execute(
+            '''SELECT bounty_id, progress, completed, completed_at, claimed, claimed_at
+               FROM bounty_progress
+               WHERE user_id = %s AND bounty_date = %s AND bounty_id = ANY(%s)''',
+            (user_id, bounty_date, bounty_ids),
+        )
+        rows_by_id = {r['bounty_id']: r for r in cur.fetchall()}
+
+    result = []
+    for position, b in enumerate(selected, start=1):
+        row = rows_by_id.get(b['id'])
+        result.append({
+            'bounty_id': b['id'],
+            'description': b['description'],
+            'target': b['target'],
+            'progress': row['progress'] if row else 0,
+            'completed': row['completed'] if row else False,
+            'claimed': row['claimed'] if row else False,
+            'position': position,
+            'reward_tokens': b['reward_tokens'],
+        })
 
     return result
 
