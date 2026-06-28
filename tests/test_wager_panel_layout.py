@@ -8,12 +8,13 @@ the ?-tooltip trigger sits below the slider.
 import os
 import uuid
 
+import psycopg2
 import pytest
 from playwright.sync_api import sync_playwright
 
 
 @pytest.fixture(scope='module')
-def logged_in_context(server_url):
+def logged_in_context(server_url, db_url):
     with sync_playwright() as p:
         b = p.chromium.launch()
         context = b.new_context()
@@ -46,10 +47,7 @@ def logged_in_context(server_url):
         # T108 follow-up: the wager panel only renders when the player
         # owns wager_unlock. Grant it via SQL so the fixture user sees
         # the panel (these tests check layout, not the unlock flow).
-        import psycopg2
-        dsn = os.environ.get('DATABASE_URL',
-                             'postgresql://wheelapp:a51f2d9685f4d6dca9d2f9d8d6e66374@localhost/wheeldb_staging')
-        conn = psycopg2.connect(dsn)
+        conn = psycopg2.connect(db_url)
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(
