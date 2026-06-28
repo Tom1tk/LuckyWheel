@@ -40,10 +40,9 @@ from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message, post_dedup_system_message
 import chat_triggers
+import fish
 from fish import (
     lure_level, autofisher_level, get_total_fish_clicks,
-    cast_line, bite_poll, reel_line, auto_fish_tick,
-    set_auto_fish_enabled,
 )
 
 COSMETIC_SLOTS = {
@@ -2545,8 +2544,8 @@ def cast_line():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                result = cast_line(cur, current_user.id,
-                                   dt.datetime.now(timezone.utc))
+                result = fish.cast_line(cur, current_user.id,
+                                        dt.datetime.now(timezone.utc))
             conn.commit()
         if isinstance(result, tuple):
             return jsonify(result[1]), result[0]
@@ -2566,8 +2565,8 @@ def bite_poll():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                result = bite_poll(cur, current_user.id,
-                                   dt.datetime.now(timezone.utc))
+                result = fish.bite_poll(cur, current_user.id,
+                                        dt.datetime.now(timezone.utc))
         return jsonify(result)
     except Exception:
         log.exception('BITE_POLL_ERROR  user_id=%s', current_user.id)
@@ -2584,8 +2583,8 @@ def reel_line():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                result = reel_line(cur, conn, current_user.id,
-                                   dt.datetime.now(timezone.utc))
+                result = fish.reel_line(cur, conn, current_user.id,
+                                        dt.datetime.now(timezone.utc))
             conn.commit()
         if isinstance(result, tuple):
             return jsonify(result[1]), result[0]
@@ -2605,8 +2604,8 @@ def auto_fish_tick():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                result = auto_fish_tick(cur, conn, current_user.id,
-                                        dt.datetime.now(timezone.utc))
+                result = fish.auto_fish_tick(cur, conn, current_user.id,
+                                             dt.datetime.now(timezone.utc))
             conn.commit()
         if isinstance(result, tuple):
             return jsonify(result[1]), result[0]
@@ -2628,9 +2627,10 @@ def set_auto_fish_enabled():
         requested = bool(data.get('enabled', False))
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                result = set_auto_fish_enabled(cur, conn, current_user.id,
-                                               requested,
-                                               dt.datetime.now(timezone.utc))
+                result = fish.set_auto_fish_enabled(
+                    cur, conn, current_user.id, requested,
+                    dt.datetime.now(timezone.utc),
+                )
             conn.commit()
         return jsonify(result)
     except Exception:
