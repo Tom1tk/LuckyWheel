@@ -9279,3 +9279,8 @@ disagrees with.
 - **STOP and report if:** a fishing function turns out to be entangled with
   `_resolve_spin`'s money math (it shouldn't be) — report the coupling instead
   of moving it; or moving a function would force a response-shape change.
+
+### T241: Hide test users from `/api/leaderboard` (server-side filter)
+
+- **Advisor ref:** §3 (test suite writes to prod), post-T240 live observation
+- **Status:** [x] (2026-06-29, commit `15ffab4`) — the T231–T240 audit run wrote ~1282 users into the prod `wheeldb` (all from `127.0.0.1`, usernames `^t\d+…`). They appeared on the live `/api/leaderboard` for every real player. **User decision:** keep the users, hide them. Fix: `WHERE u.ip_address <> '127.0.0.1'` added to the `/api/leaderboard` SELECT (`game.py:2901`) and the season-rollover top-3 SELECT (`seasons.py:97`, so future `season_snapshots` stay clean). Past `season_snapshots` were already clean (no test users existed at any past rollover). New file `tests/test_hide_test_users.py` (3 re-grep assertions). Suite: 741 passed, 1 skipped, 23 deselected (was 738). **Deployment note:** restart `wheel-app.service` so gunicorn picks up the new SQL; the 1282 localhost users are still in the DB and the filter is the canonical cleanup boundary.
