@@ -29,40 +29,78 @@ def _fake_db(*a, **kw):
 
 
 # Register stubs before importing game.py
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-sys.modules.setdefault('flask_login', _make_stub(
-    'flask_login',
-    current_user=None,
-    login_required=lambda f: f,
-))
-sys.modules.setdefault('psycopg2', _make_stub('psycopg2'))
-sys.modules.setdefault('psycopg2.extras', _make_stub('psycopg2.extras', Json=lambda x: x))
-sys.modules.setdefault('db', _make_stub('db', db_connection=_fake_db))
-sys.modules.setdefault('extensions', _make_stub(
-    'extensions',
-    limiter=types.SimpleNamespace(limit=_noop),
-    csrf=types.SimpleNamespace(exempt=lambda f: f),
-))
-sys.modules.setdefault('seasons', _make_stub('seasons',
-    ensure_current_season=lambda c: None,
-    get_season_info=lambda c: {},
-    get_latest_winners=lambda c, n: [],
-    advance_season=lambda c: None,
-))
-sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
+_STUB_PREV = {}
+_SENTINEL = object()
+_mod = None
+_resolve_spin = None
+_REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+_GAME_PATH = os.path.join(_REPO_ROOT, 'game.py')
 
-_spec = importlib.util.spec_from_file_location(
-    'game',
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py'),
-)
-_mod = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_mod)
-_resolve_spin = _mod._resolve_spin
+
+def _stub_specs():
+    """Return (name, factory) pairs for every module this test stubs.
+
+    T242: these are installed in setup_module (not at module load) and
+    removed in teardown_module, so the stubs do not pollute sys.modules
+    for sibling test files collected in the same pytest process.
+    """
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login',
+            current_user=None,
+            login_required=lambda f: f,
+            UserMixin=type('_UserMixinStub', (), {}),
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2')),
+        ('psycopg2.extras', lambda: _make_stub('psycopg2.extras', Json=lambda x: x)),
+        ('db', lambda: _make_stub('db', db_connection=_fake_db)),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda c: None,
+            get_season_info=lambda c: {},
+            get_latest_winners=lambda c, n: [],
+            advance_season=lambda c: None,
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+    ]
+
+
+def setup_module(module):
+    """Install stubs and load game.py once before any test in this module."""
+    global _mod, _resolve_spin
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+
+    sys.modules.pop('game', None)
+    spec = importlib.util.spec_from_file_location('game', _GAME_PATH)
+    _mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_mod)
+    _resolve_spin = _mod._resolve_spin
+
+
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded game."""
+    global _mod, _resolve_spin
+    sys.modules.pop('game', None)
+    _mod = None
+    _resolve_spin = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
