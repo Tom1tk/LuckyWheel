@@ -2898,12 +2898,17 @@ def leaderboard():
         with db_connection() as conn:
             ensure_current_season(conn)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # T241: hide test users (pytest runs against the prod DB, so
+                # 127.0.0.1 means "created by a test"). The 8 real players
+                # connect from 192.168.68.10; never localhost. Filtering here
+                # keeps the leaderboard clean for every viewer, server-side.
                 cur.execute(
                     '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
                               gs.prestige_level, gs.last_spin_at
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
-                       WHERE gs.wins > 0 OR gs.prestige_level > 0
+                       WHERE (gs.wins > 0 OR gs.prestige_level > 0)
+                         AND u.ip_address <> '127.0.0.1'
                        ORDER BY gs.prestige_level DESC, gs.wins DESC
                        LIMIT 10'''
                 )

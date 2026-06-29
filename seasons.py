@@ -88,12 +88,16 @@ def advance_season(conn, player_facing_number=None):
     log.info('SEASON_ROLLOVER_START  season=%s  next_pfn=%s',
              current_number, next_player_facing_number)
 
-    # Snapshot top 3 players (permanent record for every season)
+    # Snapshot top 3 players (permanent record for every season).
+    # T241: filter out test users (127.0.0.1) so a future rollover doesn't
+    # freeze a pytest fixture into the permanent season_snapshots table
+    # (the "winners" tab in the leaderboard reads from there).
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             '''SELECT gs.user_id, u.username, gs.wins, gs.losses
                FROM game_state gs
                JOIN users u ON u.id = gs.user_id
+               WHERE u.ip_address <> '127.0.0.1'
                ORDER BY gs.wins DESC
                LIMIT 3'''
         )
