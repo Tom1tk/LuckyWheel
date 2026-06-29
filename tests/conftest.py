@@ -33,6 +33,35 @@ from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
 
+# ── T242: pre-load flask_limiter (T242 follow-up) ───────────────────────────
+# A few test modules do real `import game` / `import community_goals` /
+# `import fish` at module load time. Those cascade through chat.py →
+# extensions.py → flask_limiter → flask.{wrappers,ctx,signals,...}.
+#
+# Pre-T242, sibling test files used `sys.modules.setdefault(<name>, <stub>)`
+# at module-load time, and whichever file was collected first won the race
+# — so by the time `test_community_goals.py` was collected, `flask` was
+# already the stub. T242 moved those into setup_module (post-collection),
+# leaving a window where `import community_goals` triggers the real
+# chain and fails.
+#
+# Fix: pre-load flask_limiter and flask_login here so their import
+# chains run at conftest import time, NOT during pytest collection.
+# If the chains fail here, we surface a clear error rather than
+# letting collection fail with a confusing traceback.
+try:
+    import flask_limiter  # noqa: F401
+    import flask_login    # noqa: F401
+except ImportError as _exc:
+    import sys
+    print(
+        f'WARNING: tests/conftest.py could not pre-load flask_limiter: {_exc}\n'
+        f'Tests that do real `import community_goals` / `import fish` /\n'
+        f'`import game` at module load time will fail to collect.',
+        file=sys.stderr,
+    )
+
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _TEST_DOTENV = REPO_ROOT / '.env'
 

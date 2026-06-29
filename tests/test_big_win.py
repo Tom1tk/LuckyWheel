@@ -13,6 +13,17 @@ from contextlib import contextmanager
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
+# ── Stub install/teardown (T242) ────────────────────────────────────────────
+# Stubs are installed only during this module's tests (via setup_module) and
+# restored in teardown_module, so other test files collected in the same
+# pytest process see the real modules / whichever stubs the previous test
+# file left behind.
+_SENTINEL = object()
+_STUB_PREV = {}  # name -> previous sys.modules entry (or _SENTINEL)
+_GAME_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py')
+_game = None     # set in setup_module
+
+
 def _make_stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
@@ -23,43 +34,42 @@ def _make_stub(name, **attrs):
 _noop = lambda *a, **kw: (lambda f: f)
 
 
-# Match the stub pattern from test_bounties.py / test_chat.py so all test
-# files coexist no matter which loads first.
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-
-
 class _UserMixinStub:
     pass
 
 
-sys.modules.setdefault('flask_login', _make_stub(
-    'flask_login',
-    current_user=None,
-    login_required=lambda f: f,
-    UserMixin=_UserMixinStub,
-))
-_psycopg2_extras_stub = _make_stub(
-    'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
-_psycopg2_stub = _make_stub('psycopg2', extras=_psycopg2_extras_stub)
-sys.modules.setdefault('psycopg2', _psycopg2_stub)
-sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
-sys.modules.setdefault('extensions', _make_stub(
-    'extensions',
-    limiter=types.SimpleNamespace(limit=_noop),
-    csrf=types.SimpleNamespace(exempt=lambda f: f),
-))
-sys.modules.setdefault('seasons', _make_stub('seasons',
-    ensure_current_season=lambda c: None,
-    get_season_info=lambda c: {},
-    get_latest_winners=lambda c, n: [],
-    advance_season=lambda c: None,
-))
-sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
+def _stub_specs():
+    """Return (name, factory) pairs for every module this test stubs."""
+    _psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login',
+            current_user=None,
+            login_required=lambda f: f,
+            UserMixin=_UserMixinStub,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=_psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: _psycopg2_extras_stub),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda c: None,
+            get_season_info=lambda c: {},
+            get_latest_winners=lambda c, n: [],
+            advance_season=lambda c: None,
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+    ]
 
 
 class _FakeCursor:
@@ -93,9 +103,6 @@ def _fake_db_connection():
     yield conn
 
 
-sys.modules.setdefault('db', _make_stub('db', db_connection=_fake_db_connection))
-
-
 _posted = []
 
 
@@ -109,15 +116,41 @@ def _fake_post_dedup_system_message(
     _posted.append({'message': message, 'event_kind': event_kind, 'user_id': user_id})
 
 
-_spec = importlib.util.spec_from_file_location(
-    'game', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py'),
-)
-_game = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_game)
+def setup_module(module):
+    """Install stubs and load game.py once before any test in this module."""
+    global _game
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+    # The `db` stub needs the locally-defined _fake_db_connection, which
+    # the stubs above don't see. Override it now that the contextmanager
+    # exists.
+    _STUB_PREV['db'] = sys.modules.get('db', _SENTINEL)
+    sys.modules['db'] = _make_stub('db', db_connection=_fake_db_connection)
 
-# Monkey-patch the side-effecting calls the helper makes.
-_game.post_system_message = _fake_post_system_message
-_game.post_dedup_system_message = _fake_post_dedup_system_message
+    # Force-reload game.py under the now-stubbed environment.
+    sys.modules.pop('game', None)
+    spec = importlib.util.spec_from_file_location('game', _GAME_PATH)
+    _game = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_game)
+
+    # Monkey-patch the side-effecting calls the helper makes.
+    _game.post_system_message = _fake_post_system_message
+    _game.post_dedup_system_message = _fake_post_dedup_system_message
+
+
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded game so the next test
+    file sees real modules (or whichever stubs it installs)."""
+    global _game
+    sys.modules.pop('game', None)
+    _game = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 def _gs(biggest=0, **overrides):
