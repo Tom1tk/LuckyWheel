@@ -224,4 +224,17 @@ def test_spin_handler_does_not_break_other_unchanged_items():
     # The trigger_guard_charge endpoint still decrements by 1.
     assert "SET guard_charges = guard_charges - 1" in src
     # Regen Shield re-initialization on buy is untouched.
-    assert "new_regen_recharge = 0 if item_id == 'regen_shield'" in src
+    # T244: the buy logic moved to shop.py — the regen-shield
+    # branch moved with it.  Check both files (the new module
+    # uses double-quoted strings; accept both).
+    repo = os.path.dirname(GAME_PY_PATH)
+    shop_src_path = os.path.join(repo, 'shop.py')
+    with open(shop_src_path) as f:
+        shop_src = f.read()
+    assert (
+        "new_regen_recharge = 0 if item_id == 'regen_shield'" in shop_src
+        or 'new_regen_recharge = 0 if item_id == "regen_shield"' in shop_src
+    ), (
+        "regen_shield re-initialization must remain in the buy flow "
+        "(shop.py after T244)"
+    )
