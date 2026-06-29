@@ -158,10 +158,12 @@ class _FakeCursor:
 
         # INSERT INTO chat_messages ...
         if s_upper.startswith('INSERT INTO CHAT_MESSAGES'):
-            # post_dedup_system_message: (user_id, message, message_type, event_kind)
+            # post_dedup_system_message: (user_id, message, message_type, event_kind, ip_address)
             # post_system_message (fall-through): (message, message_type)
-            if len(params) == 4:
-                user_id, message, message_type, event_kind = params
+            if len(params) >= 4:
+                # post_dedup_system_message — user_id, message, message_type, event_kind, [ip_address]
+                user_id, message, message_type, event_kind = params[:4]
+                user_ip = params[4] if len(params) >= 5 else None
                 new_row = {
                     'id': self._next_id,
                     'user_id': user_id,
@@ -169,6 +171,7 @@ class _FakeCursor:
                     'message': message,
                     'message_type': message_type,
                     'event_kind': event_kind,
+                    'ip_address': user_ip,
                 }
             else:
                 # post_system_message inlines NULL and 'SYSTEM' literally.
@@ -180,6 +183,7 @@ class _FakeCursor:
                     'message': message,
                     'message_type': message_type,
                     'event_kind': None,
+                    'ip_address': None,
                 }
             self._next_id += 1
             self.rows.append(new_row)
