@@ -142,9 +142,16 @@ def test_roll_dice_response_includes_applied_immediately():
 
 def test_roll_dice_response_includes_original_streak():
     """T220: pending_dice stores original_streak so the spin handler can
-    revert on a loss."""
-    src = _read(GAME_PY)
-    assert "'original_streak':" in src or '"original_streak":' in src, (
+    revert on a loss.
+
+    T243: the dice-roll logic was extracted to ``dice.py``; the field
+    is now built there, then passed back to ``game.py`` via the
+    ``roll_dice_core`` return value. Check both files.
+    """
+    game_src  = _read(GAME_PY)
+    dice_src  = _read(os.path.join(ROOT, 'dice.py'))
+    combined  = game_src + dice_src
+    assert "'original_streak':" in combined or '"original_streak":' in combined, (
         "/api/roll-dice must store original_streak in pending_dice so the "
         "next spin can revert on a loss"
     )
