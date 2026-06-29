@@ -487,12 +487,25 @@ python3 -m pytest tests/test_models.py -q   # single file
 ```
 
 **Prerequisites:** a reachable PostgreSQL instance is required for the
-DB-backed tests (the test files target the local `wheeldb_staging`
-database). The connection string is read from the `DATABASE_URL`
-environment variable — set it in your shell or in `.env` (T234 moves
-the staging credentials out of the test files into `.env`, so a missing
+DB-backed tests. The test suite now runs against `wheeldb_test` (a
+clone of the production schema), NOT the production `wheeldb` —
+T246's conftest safety check refuses to run if `DATABASE_URL` points
+at the prod database. Set up the test DB once:
+
+```bash
+make test-db-reset   # drops, recreates, and migrates wheeldb_test
+make test            # runs the suite
+```
+
+The connection string is read from the `DATABASE_URL` environment
+variable — set it in your shell or in `.env`. The `make test` target
+auto-rewrites a `wheeldb` URL to `wheeldb_test` so a developer's
+local `.env` works as-is. (T234 moves the staging credentials out
+of the test files into `.env`, so a missing
 `DATABASE_URL` will fail with a clear error rather than silently using a
-baked-in credential).
+baked-in credential). The safety check also refuses to run if
+`DATABASE_URL` points at the production `wheeldb` (it must be
+`wheeldb_test` or `wheeldb_staging`).
 
 The unit tests in `tests/test_models.py` and
 `tests/test_format_wins_python.py` are pure and need no DB.
