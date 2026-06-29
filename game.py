@@ -12,20 +12,16 @@ from flask_login import current_user, login_required
 
 from db import db_connection
 from extensions import limiter, csrf
-from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
+from models import (REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
                     GUARD_CHARGE_RECHARGE_SPINS, GUARD_CHARGE_MAX,
-                    ITEM_CURRENCY,
-                    inf_upgrade_cost,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
-                    streak_bonus, dice_max_charges,
-                    UPGRADE_TIER_THRESHOLDS, item_tier,
-                    FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
+                    streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
+                    roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
-                    SINGULARITY_PER_PLAYER_CAP,
-                    RETIRED_ITEMS)
+                    SINGULARITY_PER_PLAYER_CAP)
 from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
@@ -42,28 +38,11 @@ from chat import post_system_message, post_dedup_system_message
 import chat_triggers
 import dice
 import fish
+import shop
 from fish import (
     lure_level, autofisher_level, get_total_fish_clicks,
 )
-
-COSMETIC_SLOTS = {
-    'bg_ocean':   'bg', 'bg_royal':   'bg', 'bg_inferno': 'bg',
-    'bg_forest':  'bg', 'bg_abyss':   'bg', 'bg_cosmic':  'bg',
-    'fishsize_small': 'size', 'fishsize_1': 'size', 'fishsize_2': 'size', 'fishsize_3': 'size',
-    'confetti_1': 'confetti', 'confetti_2': 'confetti', 'confetti_3': 'confetti',
-    'party_mode': 'party',
-    'trail_1': 'trail', 'trail_2': 'trail', 'trail_3': 'trail',
-    'trail_4': 'trail', 'trail_5': 'trail', 'trail_6': 'trail',
-    'theme_fire': 'wheel', 'theme_ice': 'wheel', 'theme_neon': 'wheel',
-    'theme_void': 'wheel', 'theme_gold': 'wheel',
-    'theme_tidal': 'wheel', 'theme_ember': 'wheel', 'theme_frost': 'wheel',
-    'theme_aurora': 'wheel', 'theme_vintage': 'wheel',
-    'golden_wheel': 'golden',
-    'page_season1': 'page_theme', 'page_season2': 'page_theme', 'page_season3': 'page_theme',
-    'page_season4': 'page_theme', 'page_season5': 'page_theme', 'page_season6': 'page_theme', 'page_season7': 'page_theme',
-    'page_season8': 'page_theme',
-    'auto_guard':   'auto_guard',
-}
+from shop import COSMETIC_SLOTS
 
 
 def is_happy_hour(now_utc=None):
@@ -2074,204 +2053,16 @@ def buy():
     data = request.get_json(silent=True) or {}
     item_id = data.get('item_id') or ''
 
-    # T121: items retired from the shop (prestige_efficiency, prestige_legacy)
-    # return 403. They're no longer in SHOP_ITEMS, so the 400 "Unknown item"
-    # branch below would also catch them — this guard produces a clearer
-    # error and is documented as defence-in-depth for any client that still
-    # references the old item IDs.
-    if item_id in RETIRED_ITEMS:
-        return jsonify({'error': 'Item retired'}), 403
-
-    # Infinite repeatable upgrades — handled separately (no "already owned" restriction)
-    if item_id in INFINITE_UPGRADES:
-        inf      = INFINITE_UPGRADES[item_id]
-        col      = inf['db_column']
-        currency = 'wins'  # ponytail: only clickmult_inf survives Season 8 (spec S5)
-        try:
-            with db_connection() as conn:
-                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                    gs = _load_game_state(cur, current_user.id, for_update=True)
-
-                owned     = list(gs['owned_items'])
-                cur_level = gs[col]
-
-                # Generic max_level check
-                max_level = inf.get('max_level')
-                if max_level is not None and cur_level >= max_level:
-                    return jsonify({'error': 'Maximum level reached'}), 400
-
-                # Per-upgrade requirement checks
-                if item_id == 'streak_armor_inf':
-                    if 'resilience' not in owned:
-                        return jsonify({'error': 'Requires Resilience'}), 400
-                elif item_id == 'jackpot_resonance_inf':
-                    if 'jackpot' not in owned:
-                        return jsonify({'error': 'Requires Jackpot upgrade'}), 400
-                elif item_id == 'echo_amp_inf':
-                    if 'win_echo' not in owned:
-                        return jsonify({'error': 'Requires Win Echo upgrade'}), 400
-                elif item_id == 'proc_streak_inf':
-                    if not any(x in owned for x in ('jackpot', 'win_echo', 'fortune_charm')):
-                        return jsonify({'error': 'Requires Jackpot, Win Echo, or Fortune Charm'}), 400
-
-                cost = inf_upgrade_cost(item_id, cur_level)
-
-                # Currency-aware balance check and deduction
-                if currency == 'fish_clicks':
-                    if int(gs['fish_clicks']) < cost:
-                        return jsonify({'error': 'Insufficient fish bucks'}), 402
-                    new_wins  = int(gs['wins'])
-                    new_fish  = int(gs['fish_clicks']) - cost
-                else:  # wins
-                    if int(gs['wins']) < cost:
-                        return jsonify({'error': 'Insufficient wins'}), 402
-                    new_wins  = int(gs['wins']) - cost
-                    new_fish  = gs['fish_clicks']
-
-                new_level = cur_level + 1
-
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f'UPDATE game_state SET wins = %s, fish_clicks = %s, {col} = %s WHERE user_id = %s',
-                        (new_wins, new_fish, new_level, current_user.id),
-                    )
-                conn.commit()
-
-            def _lvl(field):
-                return new_level if col == field else gs[field]
-
-            return jsonify({
-                'wins':                    new_wins,
-                'losses':                  gs['losses'],
-                'fish_clicks':             new_fish,
-                'owned_items':             owned,
-                'regen_recharge_wins':     gs['regen_recharge_wins'],
-                'active_cosmetics':        list(gs['active_cosmetics']),
-                'winmult_inf_level':         _lvl('winmult_inf_level'),
-                'bonusmult_inf_level':       _lvl('bonusmult_inf_level'),
-                'streak_armor_level':        _lvl('streak_armor_level'),
-                'lure_mastery_level':        _lvl('lure_mastery_level'),
-                'jackpot_resonance_level':   _lvl('jackpot_resonance_level'),
-                'echo_amp_level':            _lvl('echo_amp_level'),
-                'proc_streak_level':         _lvl('proc_streak_level'),
-            })
-        except Exception:
-            log.exception('BUY_INF_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
-            return jsonify({'error': 'Purchase failed'}), 500
-
-    if item_id not in ALL_ITEMS:
-        return jsonify({'error': 'Unknown item'}), 400
-
-    item     = ALL_ITEMS[item_id]
-    cost     = item['cost']
-    requires = item.get('requires')
-    currency = ITEM_CURRENCY[item_id]
-
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 gs = _load_game_state(cur, current_user.id, for_update=True)
-
-            owned = list(gs['owned_items'])
-
-            if item_id in owned:
-                return jsonify({'error': 'Already owned'}), 409
-            if requires and requires not in owned:
-                return jsonify({'error': 'Prerequisite not met'}), 400
-
-            # Master upgrades require all 13 species caught (complete Encyclopaedia)
-            if item_id in ('lure_5', 'autofisher_4', 'precise_angler_3'):
-                caught = set(gs['caught_species'])
-                all_species = set(FISH_CATALOG.keys())
-                if caught < all_species:
-                    missing = len(all_species) - len(caught & all_species)
-                    return jsonify({'error': f'Complete your Encyclopaedia first — {missing} species still to catch'}), 403
-
-            # T106: tier gating — check cumulative_wins threshold (lifetime wins gained)
-            tier = item_tier(item_id)
-            if tier > 1:
-                threshold = UPGRADE_TIER_THRESHOLDS[tier]
-                cumulative = int(gs.get('cumulative_wins', 0))
-                if cumulative < threshold:
-                    return jsonify({'error': f'Unlocks at {threshold:,} total wins gained (you have {cumulative:,})'}), 403
-
-            # Currency-specific balance check
-            if currency == 'wins':
-                if int(gs['wins']) < cost:
-                    return jsonify({'error': 'Insufficient wins'}), 402
-                new_wins   = int(gs['wins']) - cost
-                new_losses = gs['losses']
-                new_clicks = gs['fish_clicks']
-            elif currency == 'losses':
-                if gs['losses'] < cost:
-                    return jsonify({'error': 'Insufficient losses'}), 402
-                new_wins   = int(gs['wins'])
-                new_losses = gs['losses'] - cost
-                new_clicks = gs['fish_clicks']
-            else:  # fish_clicks — singularity only
-                if gs['fish_clicks'] < cost:
-                    return jsonify({'error': 'Insufficient fish bucks'}), 402
-                new_wins   = int(gs['wins'])
-                new_losses = gs['losses']
-                new_clicks = gs['fish_clicks'] - cost
-
-            new_owned          = owned + [item_id]
-            new_regen_recharge = 0 if item_id == 'regen_shield' else gs['regen_recharge_wins']
-
-            # Auto-activate cosmetic items when purchased
-            new_active_cosmetics = list(gs['active_cosmetics'])
-            if item_id in COSMETIC_SLOTS:
-                slot = COSMETIC_SLOTS[item_id]
-                new_active_cosmetics = [c for c in new_active_cosmetics if COSMETIC_SLOTS.get(c) != slot]
-                new_active_cosmetics.append(item_id)
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    '''UPDATE game_state
-                       SET wins = %s, losses = %s, fish_clicks = %s,
-                           owned_items = %s, regen_recharge_wins = %s, active_cosmetics = %s
-                       WHERE user_id = %s''',
-                     (new_wins, new_losses, new_clicks, new_owned,
-                      new_regen_recharge, new_active_cosmetics, current_user.id),
-                )
+                result = shop.buy_core(cur, conn, item_id, current_user.id, gs)
+            if isinstance(result, tuple):
+                status, body = result
+                return jsonify(body), status
             conn.commit()
-
-            if item_id == 'wager_insurance':
-                with conn.cursor() as cur:
-                    cur.execute(
-                        'UPDATE game_state SET insurance_charges = insurance_charges + 3 WHERE user_id = %s',
-                        (current_user.id,),
-                    )
-                conn.commit()
-
-            # T119: the very first purchase of fish_to_wager grants 5
-            # insurance_tokens. The insurance_unlock_grant_given column
-            # gates the one-time grant — after the first buy the player
-            # has 5 tokens to spend; further buys cost the same 5,000 wins
-            # but grant no further tokens. The grant is added in the same
-            # transaction as the item buy so the user can never end up
-            # with the item and no grant, or vice versa.
-            if item_id == 'fish_to_wager' and not bool(gs.get('insurance_unlock_grant_given', False)):
-                with conn.cursor() as cur:
-                    cur.execute(
-                        '''UPDATE game_state
-                           SET insurance_tokens = insurance_tokens + 5,
-                               insurance_unlock_grant_given = TRUE
-                           WHERE user_id = %s''',
-                        (current_user.id,),
-                    )
-                conn.commit()
-
-        return jsonify({
-            'wins':                new_wins,
-            'losses':              new_losses,
-            'fish_clicks':         new_clicks,
-            'owned_items':         new_owned,
-            'regen_recharge_wins': new_regen_recharge,
-            'active_cosmetics':    new_active_cosmetics,
-            'winmult_inf_level':   gs['winmult_inf_level'],
-            'bonusmult_inf_level': gs['bonusmult_inf_level'],
-        })
+            return jsonify(result)
     except Exception:
         log.exception('BUY_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
         return jsonify({'error': 'Purchase failed'}), 500
