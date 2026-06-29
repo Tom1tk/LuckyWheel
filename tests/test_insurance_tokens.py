@@ -240,13 +240,152 @@ def _fake_db_connection(conn):
     yield conn
 
 
-_install_stubs()
-sys.modules.setdefault('db', _make_stub('db', db_connection=_fake_db_connection))
+_STUB_PREV = {}
+_SENTINEL = object()
+_game = None
 
 
-_spec = importlib.util.spec_from_file_location('game', GAME_PY_PATH)
-_game = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_game)
+def _stub_specs():
+    """Return (name, factory) pairs for every module this test stubs.
+
+    T242: each factory is a callable that returns a fresh stub module.
+    setup_module installs them and records the previous sys.modules
+    entry; teardown_module restores. Without this, the stubs leak into
+    sibling test files that import the same names.
+    """
+    _psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login',
+            current_user=None,
+            login_required=lambda f: f,
+            UserMixin=_UserMixinStub,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=_psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: _psycopg2_extras_stub),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda c: None,
+            get_season_info=lambda c: {},
+            get_latest_winners=lambda c, n: [],
+            advance_season=lambda c: None,
+            get_week_number=lambda c: 1,
+            get_bounty_status=lambda *a, **kw: [],
+            get_claim_rewards_for_bounty=lambda *a, **kw: {},
+            BOUNTY_DEFS={},
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+        ('chat', lambda: _make_stub('chat',
+            post_system_message=lambda *a, **kw: None,
+            post_dedup_system_message=lambda *a, **kw: None,
+        )),
+        ('chat_triggers', lambda: _make_stub('chat_triggers',
+            jackpot_msg=lambda *a, **kw: '',
+            prestige_msg=lambda *a, **kw: '',
+            double_down_win_msg=lambda *a, **kw: '',
+            hot_streak_msg=lambda *a, **kw: '',
+            big_win_msg=lambda *a, **kw: '',
+            new_player_msg=lambda *a, **kw: '',
+            singularity_fill_msg=lambda *a, **kw: '',
+            DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE=5,
+            HOT_STREAK_MSG_THRESHOLD=10,
+            BIG_WIN_THRESHOLD=5000,
+        )),
+        ('bounties', lambda: _make_stub('bounties',
+            increment_bounty=lambda *a, **kw: None,
+            get_bounty_status=lambda *a, **kw: [],
+            get_claim_rewards=lambda *a, **kw: {},
+            get_claim_rewards_for_bounty=lambda *a, **kw: {},
+            BOUNTY_DEFS={},
+        )),
+        ('community_goals', lambda: _make_stub('community_goals',
+            COMMUNITY_GOAL_DEFS={},
+            get_active_goal=lambda *a, **kw: (None, None),
+            increment_goal=lambda *a, **kw: None,
+            check_goal_completion=lambda *a, **kw: None,
+            get_player_contribution=lambda *a, **kw: 0,
+        )),
+        ('wagers', lambda: _make_stub('wagers',
+            validate_stake=lambda pct, *a, **kw: int(pct) if pct is not None else 0,
+            compute_hot_streak_bonus=lambda *a, **kw: 0,
+            should_reset_streak=lambda *a, **kw: False,
+            apply_safety_net=lambda *a, **kw: 0,
+            compute_wager_payout=lambda *a, **kw: (0, 0),
+            compute_wager_loss=lambda *a, **kw: 0,
+            compute_stake_risk=lambda wins, pct, *a, **kw: int(wins * pct / 100) if wins and pct else 0,
+            compute_max_stake_pct=lambda *a, **kw: 30,
+            compute_stake_value=lambda *a, **kw: 0,
+            HIGH_STAKE_TOKEN_THRESHOLD=30,
+        )),
+        ('wheel_modes', lambda: _make_stub('wheel_modes',
+            WHEEL_MODES={
+                'steady':   {'win_pct': 70.0, 'loss_pct': 27.0, 'jackpot_pct': 3.0},
+                'volatile': {'win_pct': 45.0, 'loss_pct': 50.0, 'jackpot_pct': 5.0},
+                'inverted': {'win_pct': 60.0, 'loss_pct': 35.0, 'jackpot_pct': 5.0},
+                'mirror':   {'win_pct': 65.0, 'loss_pct': 30.0, 'jackpot_pct': 5.0},
+                'gravity':  {'win_pct': 55.0, 'loss_pct': 40.0, 'jackpot_pct': 5.0},
+            },
+            compute_gravity_probabilities=lambda d: {'win_pct': 55.0, 'loss_pct': 40.0, 'jackpot_pct': 3.0},
+            clamp_gravity_drift=lambda d: max(-35, min(35, d)),
+            get_available_modes=lambda w: ['steady', 'volatile', 'mirror', 'gravity', 'inverted'],
+            get_week_number=lambda d: 1,
+        )),
+        ('prestige', lambda: _make_stub('prestige',
+            get_prestige_bonus=lambda lvl: 0,
+            get_starting_prestige=lambda x: 0,
+            can_prestige=lambda *a, **kw: False,
+            get_prestige_threshold=lambda *a, **kw: 0,
+            filter_kept_items=lambda items, n: list(items) if items else [],
+            PRESTIGE_RESET_COLUMNS=(),
+            MAX_PRESTIGE_LEVEL=10,
+        )),
+    ]
+
+
+def setup_module(module):
+    """Install stubs and load game.py once before any test in this module.
+
+    T242: every stub name is recorded in _STUB_PREV (not just `db`) so
+    teardown restores the real modules. Without this, the stubs leak
+    into sibling test files (e.g. test_prestige_scaling.py sees a
+    stub `prestige` without `compute_wins_kept` after test_insurance_
+    tokens.py teardown, breaking the `from prestige import` import).
+    """
+    global _game
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+    _STUB_PREV['db'] = sys.modules.get('db', _SENTINEL)
+    sys.modules['db'] = _make_stub('db', db_connection=_fake_db_connection)
+
+    sys.modules.pop('game', None)
+    spec = importlib.util.spec_from_file_location('game', GAME_PY_PATH)
+    _game = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_game)
+
+
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded game."""
+    global _game
+    sys.modules.pop('game', None)
+    _game = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 # ════════════════════════════════════════════════════════════════════════════
