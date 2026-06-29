@@ -17,6 +17,20 @@ import types
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
+# ── Stub install/teardown (T242) ────────────────────────────────────────────
+# The `flask_login` setdefault below MUST stay at module load time: the
+# `from models import …` line that follows imports models.py, which
+# executes `from flask_login import UserMixin`. Without a flask_login
+# stub already in sys.modules, the import would load the real
+# flask_login (and transitively real flask) and pollute sys.modules for
+# the whole suite — exactly the leak T242 is trying to fix.
+#
+# Every other stub has been moved to setup_module / teardown_module so
+# they only exist for the duration of THIS file's tests.
+_SENTINEL = object()
+_STUB_PREV = {}
+
+
 def _make_stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
@@ -27,48 +41,17 @@ def _make_stub(name, **attrs):
 _noop = lambda *a, **kw: (lambda f: f)
 
 
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-
-
 class _UserMixinStub:
     pass
 
 
+# Minimum needed for the module-level `from models import …` below.
 sys.modules.setdefault('flask_login', _make_stub(
     'flask_login',
     current_user=None,
     login_required=lambda f: f,
     UserMixin=_UserMixinStub,
 ))
-_psycopg2_extras_stub = _make_stub(
-    'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
-_psycopg2_stub = _make_stub('psycopg2', extras=_psycopg2_extras_stub)
-sys.modules.setdefault('psycopg2', _psycopg2_stub)
-sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
-
-
-# Stub game modules to avoid loading them in tests
-sys.modules.setdefault('replays', _make_stub('replays', record_replay=lambda *a, **kw: None))
-sys.modules.setdefault('seasons', _make_stub('seasons', **{'ensure_current_season': lambda *a, **kw: None,
-                                                            'get_season_info': lambda *a, **kw: {},
-                                                            'get_latest_winners': lambda *a, **kw: [],
-                                                            'get_week_number': lambda *a, **kw: 1,
-                                                            'get_active_goal': lambda *a, **kw: (None, None)}))
-sys.modules.setdefault('community_goals', _make_stub('community_goals',
-    **{'increment_goal': lambda *a, **kw: None,
-       'check_goal_completion': lambda *a, **kw: None}))
-sys.modules.setdefault('chat_triggers', _make_stub('chat_triggers',
-    **{'jackpot_msg': lambda *a, **kw: 'JACKPOT',
-       'big_win_msg': lambda *a, **kw: 'BIG WIN',
-       'new_player_msg': lambda *a, **kw: 'NEW'}))
-sys.modules.setdefault('chat', _make_stub('chat',
-    **{'post_system_message': lambda *a, **kw: None,
-       'record_replay': lambda *a, **kw: None}))
 
 
 from models import (
@@ -386,3 +369,74 @@ def test_t107_polling_useeffect_after_autospinactive_state():
         f"tick useCallback (line {tick_callback_line}) must be defined before "
         f"polling useEffect (line {polling_effect_line})"
     )
+
+
+# ── Per-test setup / teardown (T242) ────────────────────────────────────────
+# This file does NOT load game.py — its tests are source-string
+# assertions against models.py / static/app.jsx. The remaining stubs
+# (flask, psycopg2, replays, seasons, community_goals, chat_triggers,
+# chat) are installed in setup_module and removed in teardown_module
+# so they don't pollute sys.modules for sibling test files.
+
+def _stub_specs():
+    """Return (name, factory) pairs for the stubs installed during this
+    module's tests. Note: `flask_login` is NOT here — it stays installed
+    at module load (see the comment at the top of the file) because the
+    `from models import …` line requires it."""
+    _psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=_psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: _psycopg2_extras_stub),
+        ('replays', lambda: _make_stub('replays', record_replay=lambda *a, **kw: None)),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda *a, **kw: None,
+            get_season_info=lambda *a, **kw: {},
+            get_latest_winners=lambda *a, **kw: [],
+            advance_season=lambda *a, **kw: None,
+            get_week_number=lambda *a, **kw: 1,
+            get_active_goal=lambda *a, **kw: (None, None),
+        )),
+        ('community_goals', lambda: _make_stub('community_goals',
+            COMMUNITY_GOAL_DEFS={},
+            increment_goal=lambda *a, **kw: None,
+            check_goal_completion=lambda *a, **kw: None,
+            get_active_goal=lambda *a, **kw: (None, None),
+            get_player_contribution=lambda *a, **kw: 0,
+        )),
+        ('chat_triggers', lambda: _make_stub('chat_triggers',
+            jackpot_msg=lambda *a, **kw: 'JACKPOT',
+            big_win_msg=lambda *a, **kw: 'BIG WIN',
+            new_player_msg=lambda *a, **kw: 'NEW',
+        )),
+        ('chat', lambda: _make_stub('chat',
+            post_system_message=lambda *a, **kw: None,
+            record_replay=lambda *a, **kw: None,
+        )),
+    ]
+
+
+def setup_module(module):
+    """Install the per-test stubs (everything except flask_login, which
+    is needed at module load for `from models import …`)."""
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+
+
+def teardown_module(module):
+    """Restore sys.modules — drop the stubs we installed, leave the
+    flask_login stub (installed at module load) and any other modules
+    another test file's setup_module may have placed."""
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
