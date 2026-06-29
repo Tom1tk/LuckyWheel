@@ -87,14 +87,31 @@ def _resolve_db_url() -> str:
     Fails with a clear error if `DATABASE_URL` is not set anywhere.
     (T232 removes the hardcoded staging credential as a silent
     fallback; T234 will do the full credential rotation.)
+
+    T246 safety check: if the URL points at the PRODUCTION database
+    (i.e. the path component is `/wheeldb`, not `/wheeldb_test` /
+    `/wheeldb_staging`), refuse and fail with a clear error. Tests
+    must run against `wheeldb_test` (or `wheeldb_staging` for the
+    backfill tests, which have their own guard). This is the
+    canonical defense against the pytest-suits-writing-to-prod
+    problem flagged in §3 of the advisor audit.
     """
     if not os.environ.get('DATABASE_URL') and _TEST_DOTENV.is_file():
         load_dotenv(_TEST_DOTENV, override=False)
     url = os.environ.get('DATABASE_URL')
     if not url:
-        pytest.fail(
+        raise RuntimeError(
             'DATABASE_URL is not set. Export it in the environment, '
             'or put DATABASE_URL=... in a .env file at the repo root.'
+        )
+    # Refuse to run tests against the production DB. The path component
+    # is the last `/...` segment of the URL.
+    dbname = url.rsplit('/', 1)[-1].split('?')[0]
+    if dbname == 'wheeldb':
+        raise RuntimeError(
+            f'Refusing to run tests against the production database '
+            f'(DATABASE_URL={url!r}). Use wheeldb_test (run '
+            f'`make test-db-reset && make test`) or wheeldb_staging.'
         )
     return url
 
