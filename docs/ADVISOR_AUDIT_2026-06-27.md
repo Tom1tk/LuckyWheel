@@ -128,15 +128,22 @@ of the parallel set.
 | Ticket | Title | Bundle | Effort | Depends on | Status |
 |--------|-------|--------|--------|------------|--------|
 | T231 | Fix flaky pytest baseline (stub leak) | A | M | — | [x] |
-| T232 | Add `tests/conftest.py` shared fixtures | A | S | T231 | [ ] |
+| T232 | Add `tests/conftest.py` shared fixtures | A | S | T231 | [x] |
 | T233 | `make test` target + README "Running Tests" | A | S | T231 | [x] |
-| T234 | Move staging DB creds out of tests → env + rotate | B | S | — | [ ] |
+| T234 | Move staging DB creds out of tests → env + rotate | B | S | — | [x] |
 | T235 | Fix insurance/token escrow refund underpayment | B | S | — | [x] |
-| T236 | Close CSRF-exempt inconsistency on session routes | B | M | — | [ ] |
+| T236 | Close CSRF-exempt inconsistency on session routes | B | M | — | [x] |
 | T237 | Composite leaderboard index (migration 071) | C | S | — | [x] |
-| T238 | Consolidate `/api/state` DB access | C | S | — | [ ] |
-| T239 | Characterization + integration tests (spin + routes) | D | L | T231,T232 | [ ] |
-| T240 | Extract fishing subsystem from `game.py` (pilot) | D | L | T239 | [ ] |
+| T238 | Consolidate `/api/state` database access | C | S | — | [x] |
+| T239 | Characterization + integration tests (spin + routes) | D | L | T231,T232 | [x] |
+| T240 | Extract fishing subsystem from `game.py` (pilot) | D | L | T239 | [x] |
+| T241 | Hide test users from `/api/leaderboard` (server-side filter) | D | S | — | [x] |
+| T242 | Convert 22 stub-installing test files to `setup_module`/`teardown_module` | A | M | T231 | [ ] |
+| T243 | Extract `dice.py` from `game.py` | D | M | T240 | [ ] |
+| T244 | Extract `shop.py` from `game.py` (ARCH-04 dedup) | D | M | T240 | [ ] |
+| T245 | Extract `loadout.py` from `game.py` (`COSMETIC_SLOTS`) | D | M | T240 | [ ] |
+| T246 | Set up `wheeldb_test` (route pytest off prod) | B | M | T234 | [ ] |
+| T247 | `/api/state` further consolidation (move more to SQL) | C | S | T238 | [ ] |
 
 ## §7. `game.py` extraction design (for T240 and follow-ups)
 
