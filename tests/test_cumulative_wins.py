@@ -95,19 +95,51 @@ def test_cumulative_wins_in_state_response():
 
 
 def test_tier_gate_uses_cumulative_wins():
-    """T106: the tier check uses cumulative_wins, not win_count."""
-    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py')) as f:
-        src = f.read()
-    # Find the tier check block. Old: `if gs['win_count'] < threshold:`
-    # New: must reference cumulative_wins in the same check.
-    assert "gs.get('cumulative_wins'" in src, (
-        "tier gate must check gs.get('cumulative_wins', 0)"
+    """T106: the tier check uses cumulative_wins, not win_count.
+
+    T244: the buy logic moved to shop.py — the tier-gate check
+    moved with it. We check both files for the substring and
+    verify the (one) check uses cumulative_wins, not win_count.
+    """
+    repo = os.path.dirname(os.path.dirname(__file__))
+    sources = []
+    for name in ("game.py", "shop.py"):
+        path = os.path.join(repo, name)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            sources.append((name, f.read()))
+    combined = "\n".join(f"# {name}\n{src}" for name, src in sources)
+    # The tier check must reference cumulative_wins. It now lives
+    # in shop.py; before T244 it lived in game.py.
+    assert "gs.get('cumulative_wins'" in combined, (
+        "tier gate must check gs.get('cumulative_wins', 0) "
+        "in game.py or shop.py"
     )
-    # Make sure the old win_count check is NOT in the buy endpoint
-    buy_block = src.split("'Unlocks at")[0:1] + [src.split("'Unlocks at")[1][:500]]
-    # The buy endpoint should not check win_count for tier gating
-    assert 'win_count' not in buy_block[1] or 'cumulative_wins' in buy_block[1], (
-        "tier gate should use cumulative_wins, not win_count"
+    # The old win_count check must not be present in the buy
+    # endpoint. The buy endpoint is shop.buy_core (T244) — the
+    # cumulative_wins check moved with it.  Just check the buy
+    # logic (shop.py) directly.
+    repo = os.path.dirname(os.path.dirname(__file__))
+    with open(os.path.join(repo, 'shop.py')) as f:
+        shop_src = f.read()
+    # The tier check must reference cumulative_wins.  We look
+    # for the full if-block to make sure it's the tier gate and
+    # not a coincidental substring.  shop.py uses double quotes
+    # (T244 moved the code); accept either.
+    assert (
+        "gs.get('cumulative_wins'" in shop_src
+        or 'gs.get("cumulative_wins"' in shop_src
+    ), (
+        "shop.py tier gate must check gs.get('cumulative_wins', 0)"
+    )
+    # The old win_count check must not be in shop.py at all.
+    # win_count is a different column and was the bug T106 fixed.
+    assert (
+        "gs['win_count']" not in shop_src
+        and 'gs["win_count"]' not in shop_src
+    ), (
+        "shop.py must not check gs['win_count'] for tier gating"
     )
 
 

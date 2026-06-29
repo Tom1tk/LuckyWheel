@@ -16,7 +16,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-import shop
 from shop import (
     COSMETIC_SLOTS,
     deduct_cost,
@@ -124,42 +123,54 @@ def _base_gs(**overrides):
 
 class TestDeductCost:
     def test_wins_success(self):
-        ok, w, l, f, err = deduct_cost({"wins": 500, "losses": 100, "fish_clicks": 10}, 200, "wins")
+        ok, w, losses, fish, err = deduct_cost(
+            {"wins": 500, "losses": 100, "fish_clicks": 10}, 200, "wins"
+        )
         assert ok is True
         assert w == 300
-        assert l == 100
-        assert f == 10
+        assert losses == 100
+        assert fish == 10
         assert err is None
 
     def test_wins_insufficient(self):
-        ok, w, l, f, err = deduct_cost({"wins": 50, "losses": 100, "fish_clicks": 10}, 200, "wins")
+        ok, w, losses, fish, err = deduct_cost(
+            {"wins": 50, "losses": 100, "fish_clicks": 10}, 200, "wins"
+        )
         assert ok is False
         assert err == "Insufficient wins"
-        assert (w, l, f) == (0, 0, 0)
+        assert (w, losses, fish) == (0, 0, 0)
 
     def test_losses_success(self):
-        ok, w, l, f, err = deduct_cost({"wins": 500, "losses": 300, "fish_clicks": 10}, 100, "losses")
+        ok, w, losses, fish, err = deduct_cost(
+            {"wins": 500, "losses": 300, "fish_clicks": 10}, 100, "losses"
+        )
         assert ok is True
         assert w == 500
-        assert l == 200
-        assert f == 10
+        assert losses == 200
+        assert fish == 10
         assert err is None
 
     def test_losses_insufficient(self):
-        ok, _w, _l, _f, err = deduct_cost({"wins": 500, "losses": 50, "fish_clicks": 10}, 100, "losses")
+        ok, _w, _l, _f, err = deduct_cost(
+            {"wins": 500, "losses": 50, "fish_clicks": 10}, 100, "losses"
+        )
         assert ok is False
         assert err == "Insufficient losses"
 
     def test_fish_clicks_success(self):
-        ok, w, l, f, err = deduct_cost({"wins": 500, "losses": 100, "fish_clicks": 50}, 20, "fish_clicks")
+        ok, w, losses, fish, err = deduct_cost(
+            {"wins": 500, "losses": 100, "fish_clicks": 50}, 20, "fish_clicks"
+        )
         assert ok is True
         assert w == 500
-        assert l == 100
-        assert f == 30
+        assert losses == 100
+        assert fish == 30
         assert err is None
 
     def test_fish_clicks_insufficient(self):
-        ok, _w, _l, _f, err = deduct_cost({"wins": 500, "losses": 100, "fish_clicks": 5}, 20, "fish_clicks")
+        ok, _w, _l, _f, err = deduct_cost(
+            {"wins": 500, "losses": 100, "fish_clicks": 5}, 20, "fish_clicks"
+        )
         assert ok is False
         assert err == "Insufficient fish bucks"
 
@@ -171,11 +182,11 @@ class TestDeductCost:
         fish_clicks branch — the helper keeps that as the default
         for any future re-enable.
         """
-        ok, _w, _l, f, _err = deduct_cost(
+        ok, _w, _l, fish, _err = deduct_cost(
             {"wins": 500, "losses": 100, "fish_clicks": 50}, 10, "unknown"
         )
         assert ok is True
-        assert f == 40
+        assert fish == 40
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -265,7 +276,9 @@ class TestBuyCoreAllItems:
         assert result == (400, {"error": "Prerequisite not met"})
 
     def test_prerequisite_met(self):
-        gs = _base_gs(wins=100000, owned_items=["fish_to_wager"], cumulative_wins=100000)
+        gs = _base_gs(
+            wins=100000, owned_items=["fish_to_wager"], cumulative_wins=100000
+        )
         cur = MockCursor()
         conn = MockConn()
         result = buy_core(cur, conn, "lure_specialization", 7, gs)
@@ -330,14 +343,16 @@ class TestBuyCoreAllItems:
         # non-empty caught_species, the encyclopaedia check
         # would fire (403). Either is a valid signal.
         assert status in (400, 403)
-        assert ("Prerequisite not met" in body["error"]
-                or "Encyclopaedia" in body["error"])
+        assert (
+            "Prerequisite not met" in body["error"] or "Encyclopaedia" in body["error"]
+        )
 
     def test_master_upgrade_encyclopaedia_complete(self):
         # lure_5 with all species caught → purchase succeeds.
         # lure_5 is tier 2 → needs cumulative_wins >= 10,000.
         # lure_5 requires lure_4 (which requires lure_3, etc.)
         from models import FISH_CATALOG
+
         gs = _base_gs(
             wins=1_000_000,
             owned_items=["lure_1", "lure_2", "lure_3", "lure_4"],
@@ -389,6 +404,7 @@ class TestBuyCoreCosmeticAutoActivation:
     def test_cosmetic_replaces_existing_in_same_slot(self):
         """Buying a new bg_* removes the previously active bg_*."""
         from models import ALL_ITEMS
+
         bg_cost = ALL_ITEMS["bg_royal"]["cost"]
         gs = _base_gs(
             losses=10_000_000,
@@ -457,8 +473,7 @@ class TestBuyCoreFishToWager:
         # The grant UPDATE was issued.
         updates = [c for c in cur.execute_calls if c[0].startswith("UPDATE")]
         grant_update = [
-            u for u in updates
-            if "insurance_tokens = insurance_tokens + 5" in u[0]
+            u for u in updates if "insurance_tokens = insurance_tokens + 5" in u[0]
         ]
         assert len(grant_update) == 1
         assert "insurance_unlock_grant_given = TRUE" in grant_update[0][0]
@@ -478,8 +493,7 @@ class TestBuyCoreFishToWager:
         # No grant UPDATE was issued.
         updates = [c for c in cur.execute_calls if c[0].startswith("UPDATE")]
         grant_updates = [
-            u for u in updates
-            if "insurance_tokens = insurance_tokens + 5" in u[0]
+            u for u in updates if "insurance_tokens = insurance_tokens + 5" in u[0]
         ]
         assert grant_updates == []
 
@@ -494,6 +508,7 @@ class TestBuyCoreInfinite:
         # clickmult_inf starts at level 0. inf_upgrade_cost
         # returns the first tier cost.
         from shop import INFINITE_UPGRADES
+
         # INFINITE_UPGRADES is imported by shop from models.
         first_cost = INFINITE_UPGRADES["clickmult_inf"]["tier_costs"][0]
         gs = _base_gs(wins=first_cost + 100, clickmult_inf_level=0)
@@ -517,6 +532,7 @@ class TestBuyCoreInfinite:
     def test_infinite_max_level_returns_400(self):
         # Patch INFINITE_UPGRADES to give clickmult_inf a max_level=2.
         from shop import INFINITE_UPGRADES as orig_inf
+
         orig = dict(orig_inf["clickmult_inf"])
         orig_inf["clickmult_inf"] = {**orig, "max_level": 2}
         try:
@@ -530,6 +546,7 @@ class TestBuyCoreInfinite:
 
     def test_infinite_insufficient_wins_returns_402(self):
         from shop import INFINITE_UPGRADES
+
         first_cost = INFINITE_UPGRADES["clickmult_inf"]["tier_costs"][0]
         gs = _base_gs(wins=first_cost - 1, clickmult_inf_level=0)
         cur = MockCursor()
