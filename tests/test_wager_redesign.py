@@ -45,57 +45,63 @@ class _UserMixinStub:
     pass
 
 
-# ── Stubs (match the setdefault pattern from other test files) ──────────────
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-sys.modules.setdefault('flask_login', _make_stub(
-    'flask_login',
-    current_user=None,
-    login_required=lambda f: f,
-    UserMixin=_UserMixinStub,
-))
-_psycopg2_extras_stub = _make_stub(
-    'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
-_psycopg2_stub = _make_stub('psycopg2', extras=_psycopg2_extras_stub)
-sys.modules.setdefault('psycopg2', _psycopg2_stub)
-sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
-sys.modules.setdefault('extensions', _make_stub(
-    'extensions',
-    limiter=types.SimpleNamespace(limit=_noop),
-    csrf=types.SimpleNamespace(exempt=lambda f: f),
-))
-sys.modules.setdefault('seasons', _make_stub('seasons',
-    ensure_current_season=lambda c: None,
-    get_season_info=lambda c: {},
-    get_latest_winners=lambda c, n: [],
-    advance_season=lambda c: None,
-))
-sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
-sys.modules.setdefault('db', _make_stub('db', db_connection=lambda: None))
+# ── Stubs (T242: install in setup_module / restore in teardown_module) ──────
+_STUB_PREV = {}
+_SENTINEL = object()
+_game = None
+wagers = None
+_resolve_spin = None
+_REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+_GAME_PATH = os.path.join(_REPO_ROOT, 'game.py')
+_WAGERS_PATH = os.path.join(_REPO_ROOT, 'wagers.py')
 
 
-# ── Load wagers.py and game.py for direct import ────────────────────────────
-def _load_wagers():
-    if 'wagers' in sys.modules and not getattr(sys.modules['wagers'], '_test_stub', None):
-        return sys.modules['wagers']
-    spec = importlib.util.spec_from_file_location(
-        'wagers',
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'wagers.py'),
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    sys.modules['wagers'] = mod
-    return mod
+def _stub_specs():
+    """Return (name, factory) pairs for every module this test stubs.
+
+    T242: these are installed in setup_module (not at module load) and
+    removed in teardown_module, so the stubs do not pollute sys.modules
+    for sibling test files collected in the same pytest process.
+    """
+    _psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login',
+            current_user=None,
+            login_required=lambda f: f,
+            UserMixin=_UserMixinStub,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=_psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: _psycopg2_extras_stub),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda c: None,
+            get_season_info=lambda c: {},
+            get_latest_winners=lambda c, n: [],
+            advance_season=lambda c: None,
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+        ('db', lambda: _make_stub('db', db_connection=lambda: None)),
+    ]
 
 
-def _load_game():
-    """Load game.py with all its imports stubbed (mirrors test_subphase6)."""
-    # Stub a few more game.py dependencies that other tests don't need.
-    sys.modules.setdefault('wheel_modes', _make_stub(
+def _install_game_load_stubs():
+    """Additional game.py-only stubs the test installs in setup_module
+    before loading game. Same names as the legacy setdefault calls in
+    _load_game(), but installed via sys.modules[name] = (force) so they
+    don't depend on what was already in sys.modules."""
+    sys.modules['wheel_modes'] = _make_stub(
         'wheel_modes',
         WHEEL_MODES={
             'steady': {'win_pct': 70.0, 'loss_pct': 27.0, 'jackpot_pct': 3.0},
@@ -104,38 +110,38 @@ def _load_game():
             'mirror': {'win_pct': 65.0, 'loss_pct': 30.0, 'jackpot_pct': 5.0},
             'gravity': {'win_pct': 55.0, 'loss_pct': 40.0, 'jackpot_pct': 5.0},
         },
-        compute_gravity_probabilities=lambda d: {'win_pct': 55.0, 'loss_pct': 40.0, 'jackpot_pct': 5.0},
+        compute_gravity_probabilities=lambda d: {'win_pct': 55.0, 'loss_pct': 40.0, 'jackpot_pct': 3.0},
         clamp_gravity_drift=lambda d: max(-35, min(35, d)),
         get_available_modes=lambda w: ['steady', 'volatile', 'mirror', 'gravity', 'inverted'],
         get_week_number=lambda d: 1,
-    ))
-    sys.modules.setdefault('chat', _make_stub('chat',
+    )
+    sys.modules['chat'] = _make_stub('chat',
         post_system_message=lambda *a, **kw: None,
         post_dedup_system_message=lambda *a, **kw: None,
-    ))
-    sys.modules.setdefault('chat_triggers', _make_stub('chat_triggers',
+    )
+    sys.modules['chat_triggers'] = _make_stub('chat_triggers',
         jackpot_msg=lambda *a, **kw: '',
         double_down_win_msg=lambda *a, **kw: '',
         hot_streak_msg=lambda *a, **kw: '',
         DOUBLE_DOWN_MSG_MIN_EFFECTIVE_STAKE=5,
         HOT_STREAK_MSG_THRESHOLD=10,
         BIG_WIN_THRESHOLD=5000,
-    ))
-    sys.modules.setdefault('bounties', _make_stub('bounties',
+    )
+    sys.modules['bounties'] = _make_stub('bounties',
         increment_bounty=lambda *a, **kw: None,
         get_bounty_status=lambda *a, **kw: [],
         get_claim_rewards=lambda *a, **kw: {},
         get_claim_rewards_for_bounty=lambda *a, **kw: {},
         BOUNTY_DEFS={},
-    ))
-    sys.modules.setdefault('community_goals', _make_stub('community_goals',
+    )
+    sys.modules['community_goals'] = _make_stub('community_goals',
         COMMUNITY_GOAL_DEFS={},
         get_active_goal=lambda *a, **kw: (None, None),
         increment_goal=lambda *a, **kw: None,
         check_goal_completion=lambda *a, **kw: None,
         get_player_contribution=lambda *a, **kw: 0,
-    ))
-    sys.modules.setdefault('wagers', _make_stub('wagers', _test_stub=True,
+    )
+    sys.modules['wagers'] = _make_stub('wagers', _test_stub=True,
         validate_stake=lambda *a, **kw: 0,
         compute_stake_risk=lambda *a, **kw: 0,
         compute_stake_value=lambda *a, **kw: 0,
@@ -145,19 +151,49 @@ def _load_game():
         apply_safety_net=lambda *a, **kw: 0,
         compute_wager_payout=lambda *a, **kw: (0, 0),
         compute_wager_loss=lambda *a, **kw: 0,
-    ))
-    spec = importlib.util.spec_from_file_location(
-        'game',
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py'),
     )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
-wagers = _load_wagers()
-game = _load_game()
-_resolve_spin = game._resolve_spin
+def setup_module(module):
+    """Install stubs and load wagers.py + game.py once before any test."""
+    global _game, wagers, _resolve_spin
+
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+
+    # Track the game-only stubs in _STUB_PREV too so teardown restores them.
+    for name in ('wheel_modes', 'chat', 'chat_triggers', 'bounties',
+                 'community_goals', 'wagers'):
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+    _install_game_load_stubs()
+
+    # Load wagers (real) and game (under the stubbed env).
+    spec = importlib.util.spec_from_file_location('wagers', _WAGERS_PATH)
+    wagers = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(wagers)
+    sys.modules['wagers'] = wagers
+
+    sys.modules.pop('game', None)
+    spec = importlib.util.spec_from_file_location('game', _GAME_PATH)
+    _game = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_game)
+    _resolve_spin = _game._resolve_spin
+
+
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded game."""
+    global _game, wagers, _resolve_spin
+    sys.modules.pop('game', None)
+    _game = None
+    wagers = None
+    _resolve_spin = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
