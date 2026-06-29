@@ -7,12 +7,11 @@ the shop; the *route handler* stays in ``game.py`` on the
 ``game_bp`` blueprint and calls into here.
 
 Scope of this module:
-  * ``COSMETIC_SLOTS`` — the cosmetic-slot mapping used by the buy
-    flow (auto-activate cosmetics when purchased) and the
-    ``/api/equip-cosmetic`` route handler. Moved here from
-    ``game.py:48-65`` so shop logic and slot-lookup live together.
-    T245 (loadout extraction) will move it to ``loadout.py`` if it
-    needs to; for now this module owns it.
+  * ``COSMETIC_SLOTS`` — re-imported from ``loadout`` for the buy
+    flow's cosmetic auto-activation. The map itself moved to
+    ``loadout.py`` in T245 (ARCH-06 — loadout owns the cosmetic
+    equip concern); ``shop.py`` keeps the import so the buy flow
+    can still use the same mapping.
   * ``deduct_cost`` — the shared balance-check / cost-deduct
     helper called out by ARCH-04 in the audit. The same pattern
     was duplicated in the original ``buy()`` body and the dice
@@ -33,13 +32,15 @@ Out of scope:
     the same pattern but lives on a different transaction; the
     helper is now available and a follow-up ticket can fold it
     in.
-  * ``/api/equip-cosmetic`` — that route handler stays in
-    ``game.py`` until T245. It imports ``COSMETIC_SLOTS`` from
-    this module.
+  * ``/api/equip-cosmetic`` — that route handler is in
+    ``game.py``; the underlying logic lives in
+    ``loadout.equip_cosmetic_core`` (T245). It imports
+    ``COSMETIC_SLOTS`` from ``loadout`` directly.
 """
 
 import logging
 
+from loadout import COSMETIC_SLOTS
 from models import (
     ALL_ITEMS,
     FISH_CATALOG,
@@ -52,56 +53,6 @@ from models import (
 )
 
 log = logging.getLogger("wheel")
-
-
-# ── Cosmetic slots ────────────────────────────────────────────────────────
-# Maps each cosmetic item id to the slot it occupies. The buy flow
-# auto-activates cosmetics when purchased; the equip-cosmetic route
-# uses the same mapping to switch slots on a per-player basis. T245
-# will move this to ``loadout.py`` if needed; for now it lives with
-# the only place that mutates ``active_cosmetics`` on purchase.
-COSMETIC_SLOTS = {
-    "bg_ocean": "bg",
-    "bg_royal": "bg",
-    "bg_inferno": "bg",
-    "bg_forest": "bg",
-    "bg_abyss": "bg",
-    "bg_cosmic": "bg",
-    "fishsize_small": "size",
-    "fishsize_1": "size",
-    "fishsize_2": "size",
-    "fishsize_3": "size",
-    "confetti_1": "confetti",
-    "confetti_2": "confetti",
-    "confetti_3": "confetti",
-    "party_mode": "party",
-    "trail_1": "trail",
-    "trail_2": "trail",
-    "trail_3": "trail",
-    "trail_4": "trail",
-    "trail_5": "trail",
-    "trail_6": "trail",
-    "theme_fire": "wheel",
-    "theme_ice": "wheel",
-    "theme_neon": "wheel",
-    "theme_void": "wheel",
-    "theme_gold": "wheel",
-    "theme_tidal": "wheel",
-    "theme_ember": "wheel",
-    "theme_frost": "wheel",
-    "theme_aurora": "wheel",
-    "theme_vintage": "wheel",
-    "golden_wheel": "golden",
-    "page_season1": "page_theme",
-    "page_season2": "page_theme",
-    "page_season3": "page_theme",
-    "page_season4": "page_theme",
-    "page_season5": "page_theme",
-    "page_season6": "page_theme",
-    "page_season7": "page_theme",
-    "page_season8": "page_theme",
-    "auto_guard": "auto_guard",
-}
 
 
 # ── ARCH-04: shared balance / cost-deduct helper ─────────────────────────

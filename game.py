@@ -12,7 +12,7 @@ from flask_login import current_user, login_required
 
 from db import db_connection
 from extensions import limiter, csrf
-from models import (REGEN_SHIELD_RECHARGE_WINS, VALID_FISH_IDS,
+from models import (REGEN_SHIELD_RECHARGE_WINS,
                     GUARD_CHARGE_RECHARGE_SPINS, GUARD_CHARGE_MAX,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
@@ -39,10 +39,11 @@ import chat_triggers
 import dice
 import fish
 import shop
+import loadout
 from fish import (
     lure_level, autofisher_level, get_total_fish_clicks,
 )
-from shop import COSMETIC_SLOTS
+from loadout import COSMETIC_SLOTS
 
 
 def is_happy_hour(now_utc=None):
@@ -2215,6 +2216,7 @@ def community_pot_contribute():
 @game_bp.route('/api/equip', methods=['POST'])
 @login_required
 def equip():
+    """T245: logic moved to loadout.equip_fish_core."""
     err = require_json()
     if err:
         return err
@@ -2222,30 +2224,14 @@ def equip():
     data    = request.get_json(silent=True) or {}
     fish_id = data.get('fish_id') or ''
 
-    if fish_id not in VALID_FISH_IDS:
-        return jsonify({'error': 'Invalid fish'}), 400
-
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    'SELECT owned_items FROM game_state WHERE user_id = %s FOR UPDATE',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
-
-            owned = list(gs['owned_items'])
-            if fish_id != 'default' and fish_id not in owned:
-                return jsonify({'error': 'Fish not owned'}), 403
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    'UPDATE game_state SET equipped_fish = %s WHERE user_id = %s',
-                    (fish_id, current_user.id),
-                )
+                result = loadout.equip_fish_core(cur, conn, current_user.id, fish_id)
             conn.commit()
-
-        return jsonify({'equipped_fish': fish_id})
+        if isinstance(result, tuple):
+            return jsonify(result[1]), result[0]
+        return jsonify(result)
     except Exception:
         log.exception('EQUIP_ERROR  user_id=%s  fish_id=%s', current_user.id, fish_id)
         return jsonify({'error': 'Equip failed'}), 500
@@ -2365,33 +2351,21 @@ def set_auto_fish_enabled():
 @login_required
 @limiter.limit('20 per minute')
 def equip_class():
+    """T245: logic moved to loadout.equip_class_core."""
     err = require_json()
     if err:
         return err
     data = request.get_json(silent=True) or {}
-    class_item = data.get('class_id')  # 'class_earth' | 'class_moon' | 'class_star' | None
-
-    CLASS_MAP = {'class_earth': 'earth', 'class_moon': 'moon', 'class_star': 'star', None: None}
-    if class_item not in CLASS_MAP:
-        return jsonify({'error': 'Invalid class'}), 400
-    equipped_value = CLASS_MAP[class_item]
+    class_id = data.get('class_id')  # 'class_earth' | 'class_moon' | 'class_star' | None
 
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute('SELECT owned_items FROM game_state WHERE user_id = %s', (current_user.id,))
-                gs = cur.fetchone()
-
-            if class_item and class_item not in list(gs['owned_items']):
-                return jsonify({'error': 'Class not owned'}), 400
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    'UPDATE game_state SET equipped_class = %s WHERE user_id = %s',
-                    (equipped_value, current_user.id),
-                )
+                result = loadout.equip_class_core(cur, conn, current_user.id, class_id)
             conn.commit()
-        return jsonify({'ok': True, 'equipped_class': equipped_value})
+        if isinstance(result, tuple):
+            return jsonify(result[1]), result[0]
+        return jsonify(result)
     except Exception:
         log.exception('EQUIP_CLASS_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Failed to equip class'}), 500
@@ -2518,6 +2492,7 @@ def wins_exchange():
 @game_bp.route('/api/equip-cosmetic', methods=['POST'])
 @login_required
 def equip_cosmetic():
+    """T245: logic moved to loadout.equip_cosmetic_core."""
     err = require_json()
     if err:
         return err
@@ -2525,41 +2500,14 @@ def equip_cosmetic():
     data    = request.get_json(silent=True) or {}
     item_id = data.get('item_id') or ''
 
-    if item_id not in COSMETIC_SLOTS:
-        return jsonify({'error': 'Invalid cosmetic item'}), 400
-
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    'SELECT owned_items, active_cosmetics FROM game_state WHERE user_id = %s FOR UPDATE',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
-
-            owned            = list(gs['owned_items'])
-            active_cosmetics = list(gs['active_cosmetics'])
-
-            if item_id not in owned:
-                return jsonify({'error': 'Not owned'}), 400
-
-            if item_id in active_cosmetics:
-                # Unequip (toggle off)
-                active_cosmetics = [c for c in active_cosmetics if c != item_id]
-            else:
-                # Remove all items in same slot, then equip
-                slot = COSMETIC_SLOTS[item_id]
-                active_cosmetics = [c for c in active_cosmetics if COSMETIC_SLOTS.get(c) != slot]
-                active_cosmetics.append(item_id)
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    'UPDATE game_state SET active_cosmetics = %s WHERE user_id = %s',
-                    (active_cosmetics, current_user.id),
-                )
+                result = loadout.equip_cosmetic_core(cur, conn, current_user.id, item_id)
             conn.commit()
-
-        return jsonify({'active_cosmetics': active_cosmetics})
+        if isinstance(result, tuple):
+            return jsonify(result[1]), result[0]
+        return jsonify(result)
     except Exception:
         log.exception('EQUIP_COSMETIC_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
         return jsonify({'error': 'Equip failed'}), 500
@@ -3387,46 +3335,30 @@ def singularity_contribute():
 @game_bp.route('/api/loadout', methods=['GET'])
 @login_required
 def get_loadout():
-    """Get saved build loadouts."""
+    """T245: logic moved to loadout.get_loadout."""
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT slot, config FROM build_loadouts WHERE user_id = %s ORDER BY slot',
-                        (current_user.id,))
-            rows = cur.fetchall()
-    loadouts = {row['slot']: row['config'] for row in rows}
-    return jsonify({'loadouts': loadouts})
+            result = loadout.get_loadout(cur, current_user.id)
+    return jsonify(result)
 
 
 @game_bp.route('/api/loadout', methods=['POST'])
 @login_required
 def save_loadout():
-    """Save a build loadout to a slot (1-3)."""
+    """T245: logic moved to loadout.save_loadout_core."""
     err = require_json()
     if err:
         return err
     data = request.json or {}
     slot = data.get('slot', 1)
     raw = data.get('loadout', {}) or {}
-    if not (1 <= slot <= 3):
-        return jsonify({'error': 'Slot must be 1-3'}), 400
-    # A loadout is equipped_class + active_wheel_mode only (spec S11). Never
-    # persist client-supplied owned_items/active_cosmetics — apply_loadout
-    # used to write those straight to game_state with no validation, letting
-    # any player grant themselves every item in the shop for free.
-    loadout_data = {
-        'equipped_class':    raw.get('equipped_class'),
-        'active_wheel_mode': raw.get('active_wheel_mode', 'steady'),
-    }
     with db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                '''INSERT INTO build_loadouts (user_id, slot, config)
-                   VALUES (%s, %s, %s)
-                   ON CONFLICT (user_id, slot) DO UPDATE SET config = EXCLUDED.config''',
-                (current_user.id, slot, psycopg2.extras.Json(loadout_data)),
-            )
+            result = loadout.save_loadout_core(cur, conn, current_user.id, slot, raw)
         conn.commit()
-    return jsonify({'ok': True, 'slot': slot})
+    if isinstance(result, tuple):
+        return jsonify(result[1]), result[0]
+    return jsonify(result)
 
 
 _LOADOUT_CLASS_ITEMS = {'earth': 'class_earth', 'moon': 'class_moon', 'star': 'class_star'}
