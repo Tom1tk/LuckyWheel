@@ -18,7 +18,7 @@ from models import (ALL_ITEMS, INFINITE_UPGRADES, REGEN_SHIELD_RECHARGE_WINS, VA
                     inf_upgrade_cost,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
-                    streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
+                    streak_bonus, dice_max_charges,
                     UPGRADE_TIER_THRESHOLDS, item_tier,
                     FISH_CATALOG, roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
@@ -40,6 +40,7 @@ from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message, post_dedup_system_message
 import chat_triggers
+import dice
 import fish
 from fish import (
     lure_level, autofisher_level, get_total_fish_clicks,
@@ -75,16 +76,6 @@ def _aware(dt_val):
     if dt_val is not None and dt_val.tzinfo is None:
         return dt_val.replace(tzinfo=timezone.utc)
     return dt_val
-
-
-def _recharge_dice(charges, last_recharge, max_charges, now_utc):
-    """Recharge dice charges based on elapsed time. Returns (charges, last_recharge)."""
-    last_recharge = _aware(last_recharge)
-    elapsed = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
-    if elapsed > 0 and charges < max_charges:
-        charges = min(charges + elapsed, max_charges)
-        last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed)
-    return charges, last_recharge
 
 
 log = logging.getLogger('wheel')
@@ -1004,7 +995,7 @@ def get_state():
         max_charges     = dice_max_charges(owned_items)
         dice_charges    = min(gs['dice_charges'], max_charges)
         last_recharge   = gs['dice_last_recharge']
-        dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+        dice_charges, last_recharge = dice._recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
         # T119: insurance has no recharge. Charges are now derived purely
         # from tokens spent on insurance buys. The old
@@ -1265,7 +1256,7 @@ def spin():
             owned_for_dice = list(gs['owned_items'])
             max_charges    = dice_max_charges(owned_for_dice)
             dice_charges   = min(dice_charges, max_charges)
-            dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+            dice_charges, last_recharge = dice._recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
             # T119: insurance has no recharge — charges are derived purely
             # from tokens spent on /api/insurance/buy. Cap is removed; the
@@ -1766,7 +1757,7 @@ def tick():
             last_recharge = gs['dice_last_recharge']
             max_charges = dice_max_charges(owned)
             dice_charges = min(dice_charges, max_charges)
-            dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+            dice_charges, last_recharge = dice._recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
 
             # T220: Apply any pending dice roll before processing spins.
             # The pending dice was either buffered (if auto-spin was active
@@ -2020,7 +2011,7 @@ def roll_dice():
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    '''SELECT wins, losses, streak, best_streak, owned_items,
+                    '''SELECT wins, streak, best_streak, owned_items,
                               dice_charges, dice_last_recharge, dice_rolled_since_spin,
                               auto_spin_since
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
@@ -2028,87 +2019,12 @@ def roll_dice():
                 )
                 gs = cur.fetchone()
 
-            wins        = int(gs['wins'])
-            streak      = gs['streak']
-            best_streak = gs['best_streak']
-            owned       = list(gs['owned_items'])
-            now_utc     = dt.datetime.now(timezone.utc)
-            auto_spin_active = gs.get('auto_spin_since') is not None
+            owned   = list(gs['owned_items'])
+            now_utc = dt.datetime.now(timezone.utc)
 
-            # Recharge dice charges
-            max_charges = dice_max_charges(owned)
-            dice_charges  = min(gs['dice_charges'], max_charges)  # cap stale over-limit values
-            last_recharge = gs['dice_last_recharge']
-            dice_charges, last_recharge = _recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
-
-            # Season 5: dice requires win streak >= 3 (no loss streak amplification)
-            if streak < 3:
-                return jsonify({'error': 'Need a win streak of 3 or more to roll'}), 400
-            if dice_charges < 1:
-                return jsonify({'error': 'No dice charges available'}), 400
-            if gs['dice_rolled_since_spin']:
-                return jsonify({'error': 'You must spin once before rolling again'}), 400
-
-            num_dice = 3 if 'dice_extra' in owned else 2
-            dice     = [random.randint(1, 6) for _ in range(num_dice)]
-            dice_sum = sum(dice)
-
-            ones  = dice.count(1)
-            sixes = dice.count(6)
-            # Triple outcomes (3-die only): cursed_triple / blessed_triple take priority
-            cursed_triple  = (num_dice == 3 and ones  == 3)
-            blessed_triple = (num_dice == 3 and sixes == 3)
-            # Pair outcomes: any two 1s or two 6s (includes snake-eyes on 2-die)
-            cursed  = not cursed_triple  and ones  >= 2
-            blessed = not blessed_triple and sixes >= 2
-
-            original_streak = streak
-            if cursed_triple:
-                new_streak = max(0, streak // 3)
-            elif blessed_triple:
-                new_streak = streak * 3
-            elif cursed:
-                new_streak = max(0, streak // 2)
-            elif blessed:
-                new_streak = streak * 2
-            else:
-                new_streak = streak + dice_sum
-
-            new_charges   = dice_charges - 1
-            # Reset recharge clock from now when a charge is consumed
-            new_last_recharge = now_utc if new_charges < max_charges else last_recharge
-
-            # T220: dice handling
-            #   - Not auto-spinning: apply the streak change to the DB right away.
-            #     The next spin's loss handler will revert + refund if the spin loses.
-            #   - Auto-spinning: buffer the result, consumed by the next /api/tick.
-            #     Same loss-revert + refund logic when that tick's spin loses.
-            # In both cases we save original_streak + dice_sum in pending_dice so
-            # the spin handler can identify "this is a pending dice roll" and
-            # know what to revert to.
-            pending = {
-                'new_streak':      new_streak,
-                'original_streak': original_streak,
-                'dice_sum':        dice_sum,
-                'cursed':          cursed or cursed_triple,
-                'blessed':         blessed or blessed_triple,
-                'cursed_triple':   cursed_triple,
-                'blessed_triple':  blessed_triple,
-                'die1':            dice[0],
-                'die2':            dice[1],
-                'die3':            dice[2] if len(dice) > 2 else None,
-            }
-
-            if auto_spin_active:
-                # Buffer for next auto-spin tick. The streak stays at the
-                # current value in the DB until the tick consumes it.
-                new_streak_to_store = streak
-                applied_immediately = False
-            else:
-                # Apply immediately. The DB streak is now new_streak; the next
-                # /api/spin checks the result and reverts on a loss.
-                new_streak_to_store = new_streak
-                applied_immediately = True
+            result = dice.roll_dice_core(gs, owned, now_utc)
+            if not result['ok']:
+                return jsonify({'error': result['error']}), result['status']
 
             with conn.cursor() as cur:
                 cur.execute(
@@ -2118,28 +2034,30 @@ def roll_dice():
                            dice_charges = %s, dice_last_recharge = %s,
                            dice_rolled_since_spin = TRUE
                        WHERE user_id = %s''',
-                    (psycopg2.extras.Json(pending), new_streak_to_store,
-                     new_streak_to_store, new_streak_to_store,
-                     new_charges, new_last_recharge, current_user.id),
+                    (psycopg2.extras.Json(result['pending']),
+                     result['new_streak_to_store'],
+                     result['new_streak_to_store'], result['new_streak_to_store'],
+                     result['new_charges'], result['new_last_recharge'],
+                     current_user.id),
                 )
             conn.commit()
 
         return jsonify({
-            'die1':               dice[0],
-            'die2':               dice[1],
-            'die3':               dice[2] if len(dice) > 2 else None,
-            'dice':               dice,
-            'dice_sum':           dice_sum,
-            'cursed':             cursed or cursed_triple,
-            'blessed':            blessed or blessed_triple,
-            'cursed_triple':      cursed_triple,
-            'blessed_triple':     blessed_triple,
-            'streak':             new_streak,
-            'wins':               wins,
-            'dice_charges':       new_charges,
-            'dice_last_recharge': last_recharge.isoformat(),
-            'buffered':           not applied_immediately,
-            'applied_immediately': applied_immediately,
+            'die1':               result['dice'][0],
+            'die2':               result['dice'][1],
+            'die3':               result['dice'][2] if len(result['dice']) > 2 else None,
+            'dice':               result['dice'],
+            'dice_sum':           result['dice_sum'],
+            'cursed':             result['cursed'] or result['cursed_triple'],
+            'blessed':            result['blessed'] or result['blessed_triple'],
+            'cursed_triple':      result['cursed_triple'],
+            'blessed_triple':     result['blessed_triple'],
+            'streak':             result['new_streak'],
+            'wins':               int(gs['wins']),
+            'dice_charges':       result['new_charges'],
+            'dice_last_recharge': result['recharged_last_recharge'].isoformat(),
+            'buffered':           not result['applied_immediately'],
+            'applied_immediately': result['applied_immediately'],
         })
     except Exception:
         log.exception('ROLL_DICE_ERROR  user_id=%s', current_user.id)
