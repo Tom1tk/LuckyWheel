@@ -19,6 +19,21 @@ from contextlib import contextmanager
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
+# ── Stub install/teardown (T242) ────────────────────────────────────────────
+_SENTINEL = object()
+_STUB_PREV = {}
+_REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+_GAME_PATH = os.path.join(_REPO_ROOT, 'game.py')
+_WHEEL_MODES_PATH = os.path.join(_REPO_ROOT, 'wheel_modes.py')
+_game = None
+_wheel_modes = None
+_resolve_spin = None
+WHEEL_MODES = None  # set in setup_module
+_ROTATING_MODES = None
+get_rotating_mode = None
+get_available_modes = None
+
+
 def _make_stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
@@ -33,36 +48,38 @@ class _UserMixinStub:
     pass
 
 
-# ── Stubs (match the setdefault pattern from sibling mode test files) ───────
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-sys.modules.setdefault('flask_login', _make_stub(
-    'flask_login',
-    current_user=None,
-    login_required=lambda f: f,
-    UserMixin=_UserMixinStub,
-))
-_psycopg2_extras_stub = _make_stub(
-    'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
-_psycopg2_stub = _make_stub('psycopg2', extras=_psycopg2_extras_stub)
-sys.modules.setdefault('psycopg2', _psycopg2_stub)
-sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
-sys.modules.setdefault('extensions', _make_stub(
-    'extensions',
-    limiter=types.SimpleNamespace(limit=_noop),
-    csrf=types.SimpleNamespace(exempt=lambda f: f),
-))
-sys.modules.setdefault('seasons', _make_stub('seasons',
-    ensure_current_season=lambda c: None,
-    get_season_info=lambda c: {},
-    get_latest_winners=lambda c, n: [],
-    advance_season=lambda c: None,
-))
-sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
+def _stub_specs():
+    """Return (name, factory) pairs for every module this test stubs."""
+    _psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login',
+            current_user=None,
+            login_required=lambda f: f,
+            UserMixin=_UserMixinStub,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=_psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: _psycopg2_extras_stub),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda c: None,
+            get_season_info=lambda c: {},
+            get_latest_winners=lambda c, n: [],
+            advance_season=lambda c: None,
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+    ]
 
 
 class _FakeCursor:
@@ -107,27 +124,48 @@ def _fake_db_connection():
     yield conn
 
 
-sys.modules.setdefault('db', _make_stub('db', db_connection=_fake_db_connection))
+def setup_module(module):
+    """Install stubs and load wheel_modes.py + game.py once before any
+    test in this module."""
+    global _game, _wheel_modes, _resolve_spin, WHEEL_MODES
+    global _ROTATING_MODES, get_rotating_mode, get_available_modes
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+    _STUB_PREV['db'] = sys.modules.get('db', _SENTINEL)
+    sys.modules['db'] = _make_stub('db', db_connection=_fake_db_connection)
+
+    sys.modules.pop('wheel_modes', None)
+    wheel_spec = importlib.util.spec_from_file_location('wheel_modes', _WHEEL_MODES_PATH)
+    _wheel_modes = importlib.util.module_from_spec(wheel_spec)
+    wheel_spec.loader.exec_module(_wheel_modes)
+
+    sys.modules.pop('game', None)
+    spec = importlib.util.spec_from_file_location('game', _GAME_PATH)
+    _game = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_game)
+    _resolve_spin = _game._resolve_spin
+
+    WHEEL_MODES         = _wheel_modes.WHEEL_MODES
+    _ROTATING_MODES     = _wheel_modes._ROTATING_MODES
+    get_rotating_mode   = _wheel_modes.get_rotating_mode
+    get_available_modes = _wheel_modes.get_available_modes
 
 
-# ── Load wheel_modes.py + game.py with the stubs in place ──────────────────
-_wheel_spec = importlib.util.spec_from_file_location(
-    'wheel_modes',
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'wheel_modes.py'),
-)
-_wheel_modes = importlib.util.module_from_spec(_wheel_spec)
-_wheel_spec.loader.exec_module(_wheel_modes)
-
-_spec = importlib.util.spec_from_file_location(
-    'game', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py'),
-)
-_game = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_game)
-_resolve_spin = _game._resolve_spin
-WHEEL_MODES        = _wheel_modes.WHEEL_MODES
-_ROTATING_MODES    = _wheel_modes._ROTATING_MODES
-get_rotating_mode  = _wheel_modes.get_rotating_mode
-get_available_modes = _wheel_modes.get_available_modes
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded modules."""
+    global _game, _wheel_modes, _resolve_spin, WHEEL_MODES
+    global _ROTATING_MODES, get_rotating_mode, get_available_modes
+    sys.modules.pop('game', None)
+    sys.modules.pop('wheel_modes', None)
+    _game = _wheel_modes = _resolve_spin = WHEEL_MODES = None
+    _ROTATING_MODES = get_rotating_mode = get_available_modes = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
