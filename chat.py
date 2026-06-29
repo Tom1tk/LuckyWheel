@@ -41,6 +41,15 @@ def _build_chat_query(args):
 
     args: dict-like with optional 'before' (id cursor) and 'limit' keys.
     Returns (sql, params), or None if 'before' is present but not a valid int.
+
+    T241 follow-up: filter out test-user chat. The /api/leaderboard hides
+    test users via `WHERE u.ip_address <> '127.0.0.1'` on a JOIN. chat_messages
+    has no FK to users (system messages have user_id IS NULL) and the test
+    pollution is in the *text* of system messages, not a JOINable row. The
+    fix: store the originating user's IP on each chat_messages row, and
+    filter on it here. NULL means "no originating user" (e.g. server-side
+    events like singularity fills) — those pass through; their text never
+    references a specific user.
     """
     try:
         limit = int(args.get('limit', CHAT_PAGE_SIZE))
@@ -58,6 +67,7 @@ def _build_chat_query(args):
             'SELECT id, username, message, created_at, message_type '
             'FROM chat_messages '
             'WHERE id < %s '
+            '  AND (ip_address IS NULL OR ip_address <> \'127.0.0.1\') '
             'ORDER BY id DESC '
             'LIMIT %s',
             (before_id, limit),
@@ -65,6 +75,7 @@ def _build_chat_query(args):
     return (
         'SELECT id, username, message, created_at, message_type '
         'FROM chat_messages '
+        'WHERE ip_address IS NULL OR ip_address <> \'127.0.0.1\' '
         'ORDER BY id DESC '
         'LIMIT %s',
         (limit,),
@@ -204,9 +215,29 @@ def post_chat():
             }), 429
 
         with conn.cursor() as cur:
+            # T241 follow-up: capture the poster's IP so the chat feed
+            # can filter out test-user messages (T231-T240 batch left
+            # both /api/leaderboard and /api/chat polluted with t\d+
+            # test users). The IP is read from the users table (the
+            # authoritative source — the request's source IP can
+            # differ if there's a proxy).
             cur.execute(
-                'INSERT INTO chat_messages (user_id, username, message, message_type) VALUES (%s, %s, %s, %s)',
-                (current_user.id, current_user.username, message, 'user'),
+                'SELECT ip_address FROM users WHERE id = %s',
+                (current_user.id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                poster_ip = None
+            elif isinstance(row, tuple):
+                poster_ip = row[0]
+            elif isinstance(row, dict):
+                poster_ip = row.get('ip_address')
+            else:
+                poster_ip = None
+
+            cur.execute(
+                'INSERT INTO chat_messages (user_id, username, message, message_type, ip_address) VALUES (%s, %s, %s, %s, %s)',
+                (current_user.id, current_user.username, message, 'user', poster_ip),
             )
             # Trim to MAX_CHAT_MESSAGES most recent messages
             cur.execute(
@@ -314,6 +345,31 @@ def post_dedup_system_message(conn, message, user_id, event_kind, *, message_typ
 
     message = message[:MAX_MSG_LEN]
     with conn.cursor() as cur:
+        # T241 follow-up: capture the originating user's IP so the chat
+        # feed can filter out test-user system messages (the 106
+        # '🎉 t239s... first spin!' rows that piled up during the
+        # T231-T240 audit are an example). We look up the user_id's IP
+        # here so the SELECT filter is uniform for user messages AND
+        # system messages — no text regex needed.
+        cur.execute(
+            'SELECT ip_address FROM users WHERE id = %s',
+            (user_id,),
+        )
+        user_row = cur.fetchone()
+        if user_row is None:
+            user_ip = None
+        elif isinstance(user_row, tuple):
+            user_ip = user_row[0]
+        elif isinstance(user_row, dict):
+            # The fake cursors in the test suite (test_community_goals,
+            # test_chat_dedup) don't always populate 'ip_address' on
+            # their dict-shaped fetchone results. Fall back to None
+            # rather than KeyError — production code will always
+            # return the 'ip_address' column.
+            user_ip = user_row.get('ip_address')
+        else:
+            user_ip = None
+
         # Find the user's most recent chat message with the same event_kind
         # and message_type. message_type='system' matches auto-posted system
         # messages; user messages (message_type='user') are never affected
@@ -337,9 +393,9 @@ def post_dedup_system_message(conn, message, user_id, event_kind, *, message_typ
             )
         cur.execute(
             '''INSERT INTO chat_messages
-                  (user_id, username, message, message_type, event_kind)
-               VALUES (%s, 'SYSTEM', %s, %s, %s)''',
-            (user_id, message, message_type, event_kind),
+                  (user_id, username, message, message_type, event_kind, ip_address)
+               VALUES (%s, 'SYSTEM', %s, %s, %s, %s)''',
+            (user_id, message, message_type, event_kind, user_ip),
         )
         # Trim to MAX_CHAT_MESSAGES most recent (same trim post_system_message does).
         cur.execute(
