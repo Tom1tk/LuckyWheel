@@ -999,10 +999,7 @@ def get_state():
                 'latest_winners': latest_winners,
             }
 
-        pot_celebrate = bool(
-            pot and pot['filled'] and pot['filled_at'] and
-            pot['filled_at'] > now_utc - dt.timedelta(days=7)
-        )
+        pot_celebrate = _pot_boost_active(pot, now_utc)
         owned_items     = list(gs['owned_items'])
         max_charges     = dice_max_charges(owned_items)
         dice_charges    = min(gs['dice_charges'], max_charges)
@@ -1186,6 +1183,33 @@ def _reset_expired_pot(conn, pot) -> int:
     return new_target
 
 
+# T247: the community pot's "boost window" — the pot was filled, the global
+# win chance is boosted, and the boost expires 7 days after the fill. Every
+# route that reads the pot has to know whether the boost is still active.
+# The check is the same 3-clause expression in 5 places (see /api/state, the
+# spin/tick/route paths); consolidate it here so the 7-day window is defined
+# in exactly one place.
+_POT_BOOST_DAYS = 7
+
+
+def _pot_boost_active(pot_row, now_utc: dt.datetime) -> bool:
+    """Return True if the pot boost is still active right now.
+
+    Active = pot was filled AND the fill was within the last 7 days.
+    Returns False for any falsy pot_row, unfilled pots, or pots whose
+    filled_at is NULL — those are the same edge cases the inline
+    expressions at the 5 call sites had to guard.
+    """
+    if not pot_row:
+        return False
+    if not pot_row.get('filled'):
+        return False
+    filled_at = pot_row.get('filled_at')
+    if not filled_at:
+        return False
+    return filled_at > now_utc - dt.timedelta(days=_POT_BOOST_DAYS)
+
+
 @game_bp.route('/api/spin', methods=['POST'])
 @login_required
 @limiter.limit('10 per second')
@@ -1227,10 +1251,7 @@ def spin():
 
             now_utc = dt.datetime.now(timezone.utc)
 
-            pot_active = bool(
-                pot_row and pot_row['filled'] and pot_row['filled_at'] and
-                pot_row['filled_at'] > now_utc - dt.timedelta(days=7)
-            )
+            pot_active = _pot_boost_active(pot_row, now_utc)
             if pot_row and pot_row['filled'] and not pot_active:
                 _reset_expired_pot(conn, pot_row)
 
@@ -1710,10 +1731,7 @@ def tick():
 
             is_catch_up = spins_due > CATCH_UP_THRESHOLD
 
-            pot_active = bool(
-                pot_row and pot_row['filled'] and pot_row['filled_at'] and
-                pot_row['filled_at'] > now_utc - dt.timedelta(days=7)
-            )
+            pot_active = _pot_boost_active(pot_row, now_utc)
             pot_win_pct = float(pot_row['win_chance_pct']) / 100.0 if pot_row else 0.50
 
             # Carry-over mutable state
@@ -2353,10 +2371,7 @@ def community_pot_state():
             if not pot:
                 return jsonify({'total_contributed': 0, 'target': 1_000, 'filled': False, 'active': False, 'win_chance_pct': 50.0, 'total_pending_clicks': total_pending_clicks})
             now_utc = dt.datetime.now(timezone.utc)
-            pot_active = bool(
-                pot['filled'] and pot['filled_at'] and
-                pot['filled_at'] > now_utc - dt.timedelta(days=7)
-            )
+            pot_active = _pot_boost_active(pot, now_utc)
             if pot['filled'] and not pot_active:
                 new_pot_target = _reset_expired_pot(conn, pot)
                 conn.commit()
@@ -2409,8 +2424,7 @@ def community_pot_contribute():
             now_utc = dt.datetime.now(timezone.utc)
 
             if pot['filled']:
-                pot_window_active = pot['filled_at'] and pot['filled_at'] > now_utc - dt.timedelta(days=7)
-                if pot_window_active:
+                if _pot_boost_active(pot, now_utc):
                     return jsonify({'error': 'Pot is active — wait for the boost to expire'}), 400
                 new_exp_target = _reset_expired_pot(conn, pot)
                 pot = dict(pot)
