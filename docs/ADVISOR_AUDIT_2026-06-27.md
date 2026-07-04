@@ -138,12 +138,12 @@ of the parallel set.
 | T239 | Characterization + integration tests (spin + routes) | D | L | T231,T232 | [x] |
 | T240 | Extract fishing subsystem from `game.py` (pilot) | D | L | T239 | [x] |
 | T241 | Hide test users from `/api/leaderboard` (server-side filter) | D | S | — | [x] |
-| T242 | Convert 22 stub-installing test files to `setup_module`/`teardown_module` | A | M | T231 | [ ] |
-| T243 | Extract `dice.py` from `game.py` | D | M | T240 | [ ] |
-| T244 | Extract `shop.py` from `game.py` (ARCH-04 dedup) | D | M | T240 | [ ] |
-| T245 | Extract `loadout.py` from `game.py` (`COSMETIC_SLOTS`) | D | M | T240 | [ ] |
-| T246 | Set up `wheeldb_test` (route pytest off prod) | B | M | T234 | [ ] |
-| T247 | `/api/state` further consolidation (move more to SQL) | C | S | T238 | [ ] |
+| T242 | Convert 22 stub-installing test files to `setup_module`/`teardown_module` | A | M | T231 | [x] |
+| T243 | Extract `dice.py` from `game.py` | D | M | T240 | [x] |
+| T244 | Extract `shop.py` from `game.py` (ARCH-04 dedup) | D | M | T240 | [x] |
+| T245 | Extract `loadout.py` from `game.py` (`COSMETIC_SLOTS`) | D | M | T240 | [x] |
+| T246 | Set up `wheeldb_test` (route pytest off prod) | B | M | T234 | [x] |
+| T247 | `/api/state` further consolidation (move more to SQL) | C | S | T238 | [x] |
 
 ## §7. `game.py` extraction design (for T240 and follow-ups)
 
