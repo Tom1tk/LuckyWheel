@@ -1609,8 +1609,8 @@ function drawWheel(canvas) {
     span: loseSpan
   }, {
     label: '★',
-    color: '#4a3800',
-    bright: '#FFD700',
+    color: '#003a5c',
+    bright: '#00BFFF',
     start: origin + winSpan + loseSpan,
     span: jpSpan
   }];

@@ -980,7 +980,7 @@ function drawWheel(canvas, theme = 'default', wheelMode = 'steady', wheelProbabi
   const segments = [
     { label: winLabel,  color: winSegPalette[0],  bright: winSegPalette[1],  start: origin,                                  span: winSpan  },
     { label: loseLabel, color: loseSegPalette[0], bright: loseSegPalette[1], start: origin + winSpan,                        span: loseSpan },
-    { label: '★',       color: '#4a3800',          bright: '#FFD700',         start: origin + winSpan + loseSpan,             span: jpSpan   },
+    { label: '★',       color: '#003a5c',          bright: '#00BFFF',         start: origin + winSpan + loseSpan,             span: jpSpan   },
   ];
 
   segments.forEach(seg => {
