@@ -88,6 +88,7 @@ def _load_game():
     sys.modules.setdefault('seasons', types.SimpleNamespace(
         ensure_current_season=lambda c: None,
         get_season_info=lambda c: {},
+        get_latest_winners=lambda c, n: [],
         advance_season=lambda c: None,
     ))
     sys.modules.setdefault('security', types.SimpleNamespace(require_json=lambda: None))
@@ -107,6 +108,7 @@ def _load_game():
     ))
     sys.modules.setdefault('chat', types.SimpleNamespace(
         post_system_message=lambda *a, **kw: None,
+        post_dedup_system_message=lambda *a, **kw: None,
     ))
     sys.modules.setdefault('chat_triggers', types.SimpleNamespace(
         jackpot_msg=lambda *a, **kw: '',
@@ -120,6 +122,7 @@ def _load_game():
         increment_bounty=lambda *a, **kw: None,
         get_bounty_status=lambda *a, **kw: [],
         get_claim_rewards=lambda *a, **kw: {},
+        get_claim_rewards_for_bounty=lambda *a, **kw: {},
         BOUNTY_DEFS={},
     ))
     sys.modules.setdefault('community_goals', types.SimpleNamespace(

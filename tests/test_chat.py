@@ -9,6 +9,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import importlib.util
 
 
+_STUB_PREV = {}
+_SENTINEL = object()
+_chat = None
+_REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
+_CHAT_PATH = os.path.join(_REPO_ROOT, 'chat.py')
+
+
 def _make_stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
@@ -18,34 +25,65 @@ def _make_stub(name, **attrs):
 
 _noop = lambda *a, **kw: (lambda f: f)
 
-sys.modules.setdefault('flask', _make_stub(
-    'flask', Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x, request=None,
-))
+
 class _UserMixinStub:
     pass
 
 
-# Stubs are process-wide (sys.modules) and shared across test files via
-# setdefault -- match test_spin_logic.py's shape exactly (including
-# UserMixin, which only models.py needs) so whichever test file's stub
-# "wins" the race is still complete enough for every other file.
-sys.modules.setdefault('flask_login', _make_stub(
-    'flask_login', current_user=None, login_required=lambda f: f, UserMixin=_UserMixinStub,
-))
-sys.modules.setdefault('db', _make_stub('db', db_connection=lambda *a, **kw: None))
-sys.modules.setdefault('extensions', _make_stub(
-    'extensions',
-    limiter=types.SimpleNamespace(limit=_noop),
-    csrf=types.SimpleNamespace(exempt=lambda f: f),
-))
-sys.modules.setdefault('security', _make_stub('security', require_json=lambda: None))
+def _stub_specs():
+    """Return (name, factory) pairs for every module this test stubs.
 
-_spec = importlib.util.spec_from_file_location(
-    'chat', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'chat.py'),
-)
-_chat = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_chat)
+    T242: these are installed in setup_module (not at module load) and
+    removed in teardown_module, so the stubs do not pollute sys.modules
+    for sibling test files collected in the same pytest process.
+    """
+    return [
+        ('flask', lambda: _make_stub(
+            'flask', Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x, request=None,
+        )),
+        ('flask_login', lambda: _make_stub(
+            'flask_login', current_user=None, login_required=lambda f: f, UserMixin=_UserMixinStub,
+        )),
+        ('db', lambda: _make_stub('db', db_connection=lambda *a, **kw: None)),
+        ('extensions', lambda: _make_stub(
+            'extensions',
+            limiter=types.SimpleNamespace(limit=_noop),
+            csrf=types.SimpleNamespace(exempt=lambda f: f),
+        )),
+        ('security', lambda: _make_stub('security', require_json=lambda: None)),
+    ]
+
+
+def setup_module(module):
+    """Install stubs and load chat.py once before any test in this module.
+
+    T242: force-install (not setdefault) so this file's stubs win over
+    whatever another test file may have already placed in sys.modules.
+    teardown_module restores the previous entries.
+    """
+    global _chat
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+
+    sys.modules.pop('chat', None)
+    spec = importlib.util.spec_from_file_location('chat', _CHAT_PATH)
+    _chat = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_chat)
+
+
+def teardown_module(module):
+    """Restore sys.modules and drop the stub-loaded chat."""
+    global _chat
+    sys.modules.pop('chat', None)
+    _chat = None
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()
 
 
 class _FakeCursor:
