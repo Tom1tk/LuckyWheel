@@ -1322,6 +1322,16 @@ body::before {
   text-shadow: 0 0 12px var(--s-lt);
 }
 
+/* T217: spin-result breakdown — shows the Base + 🔥 Streak components
+   under the +N wins total. Smaller, dimmer than the total so the
+   breakdown reads as supporting detail, not a new headline. */
+.spin-result-detail {
+  font-size: 0.85rem;
+  color: var(--p-lt);
+  margin-top: 0.2rem;
+  opacity: 0.85;
+}
+
 @keyframes bonusPop {
   from { transform: scale(0); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
@@ -2126,7 +2136,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 }
 .lb-rank-h   { width: 18px; flex-shrink: 0; }
 .lb-name-h   { flex: 1; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-transform: uppercase; }
-.lb-wins-h   { width: 28px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+.lb-wins-h   { width: 64px; font-size: 0.5rem; color: #555; letter-spacing: 0.5px; text-align: right; flex-shrink: 0; }
 .lb-best-h   { width: 34px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
 .lb-streak-h { font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 
@@ -2160,12 +2170,20 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-name.is-you { color: var(--p); }
 
 .lb-wins {
-  width: 28px;
-  font-size: 0.65rem;
+  /* T227: widened from 28px to fit scientific notation ("1.23e+50"
+     is 8 chars at 0.6rem ≈ 65-75px). flex-shrink:0 + text-align:right
+     keep the number right-aligned and let .lb-name absorb the slack
+     via its flex:1. */
+  min-width: 64px;
+  width: 64px;
+  font-size: 0.6rem;
   color: var(--p);
   flex-shrink: 0;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-align: right;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .lb-best {
@@ -3817,6 +3835,15 @@ body.page-season8 .result-text.win { color: #45E27A; border-color: #45E27A; text
 body.page-season8 .score-box.wins-box { border-color: #1FBE5C; background: rgba(31,190,92,0.08); box-shadow: 0 0 16px rgba(31,190,92,0.2); }
 body.page-season8 .score-box.wins-box .score-label { color: #45E27A; }
 body.page-season8 .score-box.wins-box .score-value { color: #45E27A; text-shadow: 0 0 12px #1FBE5C; }
+body.page-season8 .casino-title {
+  color: #45E27A;
+  text-shadow:
+    0 0 10px #45E27A,
+    0 0 30px #1FBE5C,
+    0 0 60px #E23030;
+}
+body.page-season8 .dice-panel-label { color: #45E27A; }
+body.page-season8 .dice-panel-desc  { color: #138C42; }
 
 /* ── Hiatus Screen ────────────────────────────────────────────────────────── */
 .hiatus-screen {

@@ -14,31 +14,11 @@ frontend `useState(false)` gate is changed. Other modals that share the
 `onboarding-overlay` CSS class (prestige confirmation, legacy boards)
 are gated on their own state and still render when opened.
 """
-import os
-import socket
-import subprocess
-import sys
-import time
 import uuid
 
 import psycopg2
 import pytest
 from playwright.sync_api import sync_playwright
-
-
-def _free_port():
-    s = socket.socket()
-    s.bind(('127.0.0.1', 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
-def _db_dsn():
-    return os.environ.get(
-        'DATABASE_URL',
-        'postgresql://wheelapp:a51f2d9685f4d6dca9d2f9d8d6e66374@localhost/wheeldb_staging',
-    )
 
 
 def _register(page, base_url, username, password):
@@ -62,8 +42,8 @@ def _register(page, base_url, username, password):
     )
 
 
-def _user_id_for(username):
-    conn = psycopg2.connect(_db_dsn())
+def _user_id_for(db_url: str, username: str):
+    conn = psycopg2.connect(db_url)
     try:
         with conn.cursor() as cur:
             cur.execute('SELECT id FROM users WHERE username = %s', (username,))
@@ -73,8 +53,8 @@ def _user_id_for(username):
         conn.close()
 
 
-def _set_onboarding_step(user_id, step):
-    conn = psycopg2.connect(_db_dsn())
+def _set_onboarding_step(db_url: str, user_id, step):
+    conn = psycopg2.connect(db_url)
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -86,41 +66,8 @@ def _set_onboarding_step(user_id, step):
         conn.close()
 
 
-@pytest.fixture(scope='module')
-def server_url():
-    port = _free_port()
-    env = os.environ.copy()
-    env['PORT'] = str(port)
-    env.setdefault('WHEEL_SECRET_KEY', 't114-test-secret-key-for-playwright-only')
-    env.setdefault('DATABASE_URL', _db_dsn())
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    proc = subprocess.Popen(
-        [sys.executable, 'server.py'],
-        cwd=repo_root, env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    base = f'http://127.0.0.1:{port}'
-    deadline = time.time() + 20
-    while time.time() < deadline:
-        try:
-            import urllib.request
-            urllib.request.urlopen(base + '/', timeout=1).read()
-            break
-        except Exception:
-            time.sleep(0.25)
-    else:
-        proc.terminate()
-        pytest.fail('Flask server did not start within 20s')
-    yield base
-    proc.terminate()
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-
-
 @pytest.fixture()
-def fresh_page(server_url):
+def fresh_page(server_url, db_url):
     """Yield a fresh browser page logged in as a brand-new user with
     onboarding_step = 0 (the default). Each test gets its own user so
     there's no shared state to leak between tests.
@@ -142,9 +89,9 @@ def fresh_page(server_url):
             b.close()
             pytest.fail(f'register failed: {result["error"]}')
         # Grant wager_unlock so the wager panel renders.
-        uid = _user_id_for(username)
+        uid = _user_id_for(db_url, username)
         if uid is not None:
-            conn = psycopg2.connect(_db_dsn())
+            conn = psycopg2.connect(db_url)
             conn.autocommit = True
             with conn.cursor() as cur:
                 cur.execute(
@@ -185,16 +132,16 @@ def test_onboarding_overlay_not_visible_after_login(fresh_page):
         )
 
 
-def test_onboarding_overlay_still_hidden_when_step_is_2(fresh_page):
+def test_onboarding_overlay_still_hidden_when_step_is_2(fresh_page, db_url):
     """AC #2: even with `onboarding_step = 2` (the value that previously
     showed the 'Try setting a wager stake!' coach-mark), the modal must
     stay hidden. We directly UPDATE the game_state row to simulate a
     player who has partially completed onboarding in a previous session."""
     page = fresh_page['page']
     username = fresh_page['username']
-    uid = _user_id_for(username)
+    uid = _user_id_for(db_url, username)
     assert uid is not None, f'no users row for {username}'
-    _set_onboarding_step(uid, 2)
+    _set_onboarding_step(db_url, uid, 2)
     page.reload()
     page.wait_for_load_state('domcontentloaded')
     page.wait_for_selector('.season8-wager-panel', timeout=10000)

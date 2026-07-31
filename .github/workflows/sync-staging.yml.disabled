@@ -1,0 +1,34 @@
+# ── DISABLED 2026-06-23 ─────────────────────────────────────────────────────
+# Disabled in preparation for the Season 8 migration (7.7 → Casino). The
+# workflow was failing on the latest master push (S7 timer fix) because
+# staging's S8 working tree conflicts with the timer fix.
+#
+# Re-enable after the S8 migration is complete by renaming back to
+# `.github/workflows/sync-staging.yml`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Sync master → staging
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge master into staging
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout staging
+          git merge origin/master --no-edit -m "chore: auto-merge master into staging"
+          git push origin staging

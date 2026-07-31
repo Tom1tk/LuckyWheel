@@ -69,6 +69,14 @@ PRESTIGE_RESET_COLUMNS = (
     'caught_species',
     'fastest_catch_pct',
     'fish_exchange_total',
+    # T224: auto-fisher state. The autofisher_* upgrade itself is removed
+    # from owned_items (T121 — all functional upgrades are dropped on
+    # prestige) but the auto_fish_enabled flag and last_tick were left
+    # intact, leaving players with auto-fish "stuck on" and no way to
+    # disable it (the toggle is only rendered when the upgrade is owned).
+    # Reset these so the player is back to a clean fishing state.
+    'auto_fish_enabled',
+    'auto_fish_last_tick',
     # Build / mode state.
     'equipped_class',
     'active_wheel_mode',

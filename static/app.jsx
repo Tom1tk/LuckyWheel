@@ -980,7 +980,7 @@ function drawWheel(canvas, theme = 'default', wheelMode = 'steady', wheelProbabi
   const segments = [
     { label: winLabel,  color: winSegPalette[0],  bright: winSegPalette[1],  start: origin,                                  span: winSpan  },
     { label: loseLabel, color: loseSegPalette[0], bright: loseSegPalette[1], start: origin + winSpan,                        span: loseSpan },
-    { label: '★',       color: '#4a3800',          bright: '#FFD700',         start: origin + winSpan + loseSpan,             span: jpSpan   },
+    { label: '★',       color: '#003a5c',          bright: '#00BFFF',         start: origin + winSpan + loseSpan,             span: jpSpan   },
   ];
 
   segments.forEach(seg => {
@@ -1124,16 +1124,29 @@ function drawGuardWheel(canvas) {
 
 // ── Number formatter ──────────────────────────────────────────────────────
 function fmt(n) {
-  // T15: Use shared format_wins() from format.js for consistency
+  // T15 + T227: Use shared format_wins() from format.js for consistency.
+  // T227: format_wins now handles the full tier ladder (K, M, B, T,
+  // scientific for 1e15+). The inline fallback is no longer needed —
+  // we just defer to format_wins. If format.js hasn't loaded for
+  // some reason, fall back to a minimal in-line formatter that
+  // mirrors the same tier ladder.
   if (typeof window.format_wins === 'function') return window.format_wins(n);
-  // Fallback if format.js not loaded
-  if (!isFinite(n) || isNaN(n)) return '0';
-  if (n >= 1e15) return n.toExponential(2).replace('e+', 'e');
-  if (n >= 1e12) return parseFloat((n / 1e12).toPrecision(3)) + 'T';
-  if (n >= 1e9)  return parseFloat((n / 1e9) .toPrecision(3)) + 'B';
-  if (n >= 1e6)  return parseFloat((n / 1e6) .toPrecision(3)) + 'M';
-  if (n >= 10e3) return parseFloat((n / 1e3) .toPrecision(3)) + 'K';
-  return String(n);
+  // Fallback (format.js not loaded) — same tier ladder as format_wins:
+  if (n === null || n === undefined) return '0';
+  var num = Number(n);
+  if (isNaN(num)) return '0';
+  if (num === Infinity)  return '∞';
+  if (num === -Infinity) return '-∞';
+  var neg = num < 0;
+  var abs = Math.abs(num);
+  var str;
+  if (abs < 1e3)        str = String(Math.round(abs));
+  else if (abs < 1e6)   str = abs.toFixed(1).replace(/0+$/, '').replace(/\.$/, '') + 'K';
+  else if (abs < 1e9)   str = abs.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'M';
+  else if (abs < 1e12)  str = abs.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'B';
+  else if (abs < 1e15)  str = abs.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'T';
+  else                  str = abs.toExponential(2);
+  return neg ? '-' + str : str;
 }
 
 // ── Hiatus mode — set to false to re-enable the full game ─────────────────
@@ -1287,7 +1300,7 @@ function FishEncyclopedia({ caughtSpecies, onClose }) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onOnboardingAdvance }) {
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onOnboardingAdvance }) {
   const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
@@ -1295,9 +1308,14 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   const [missReason, setMissReason] = useState('late'); // 'late' | 'early'
   const [luckyNextActive, setLuckyNextActive] = useState(fishingLuckyNext || false);
   const [autoCast, setAutoCast]   = useState(false);
-  const [autoFish, setAutoFish]   = useState(false);
+  // T224: initialise autoFish from the server's auto_fish_enabled flag
+  // (passed down via props). If the server says on, we trust it; if the
+  // server says off, we start off. The useEffect below also forces autoFish
+  // off if hasAutoFisher becomes false (e.g. after a prestige that drops
+  // the upgrade).
+  const [autoFish, setAutoFish]   = useState(!!autoFishEnabled);
   const [autoFishPopup, setAutoFishPopup] = useState(null); // { key, type:'hit'|'miss', emoji?, value? }
-  const autoFishRef               = useRef(false);
+  const autoFishRef               = useRef(!!autoFishEnabled);
   const autoCastRef               = useRef(false);
   const phaseRef                  = useRef('idle');
   const biteTimerRef              = useRef(null);
@@ -1318,6 +1336,17 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   useEffect(() => { autoCastRef.current = autoCast;  }, [autoCast]);
   useEffect(() => { phaseRef.current    = phase;     }, [phase]);
   useEffect(() => { setLuckyNextActive(fishingLuckyNext || false); }, [fishingLuckyNext]);
+
+  // T224: if the player lost the autofisher upgrade (e.g. via prestige),
+  // force autoFish off in local state. The toggle is only rendered when
+  // hasAutoFisher is true, so without this the player would be stuck with
+  // autoFish=true (server flag also true) and no way to turn it off — and
+  // the manual-fish UI is hidden when autoFish=true.
+  useEffect(() => {
+    if (autoFish && !hasAutoFisher) {
+      setAutoFish(false);
+    }
+  }, [autoFish, hasAutoFisher]);
 
   const countMiss = useCallback(() => {
     if (!autoCastRef.current) return;
@@ -1833,7 +1862,7 @@ function SeasonWinners({ winners, seasonNumber, extraClass = '' }) {
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo({ seasonName, endsAt }) {
+function SeasonInfo({ seasonName, playerFacingNumber, endsAt }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
@@ -1851,9 +1880,18 @@ function SeasonInfo({ seasonName, endsAt }) {
     return () => clearInterval(id);
   }, [endsAt]);
 
+  // T212: prefer the player-facing number (e.g. "8") over the raw
+  // season_name ("Casino") or season_number ("9") so the widget reads
+  // "Season 8" not "Season Casino" or "Season 9". Fall back to the
+  // legacy prop when the API hasn't been updated (older rows have a
+  // NULL player_facing_number).
+  const displayNumber = playerFacingNumber != null
+    ? playerFacingNumber
+    : seasonName;
+
   return (
     <div className="season-info">
-      <span>Season {seasonName} ends:</span>
+      <span>Season {displayNumber} ends:</span>
       {timeLeft && <span className="season-countdown">{timeLeft}</span>}
     </div>
   );
@@ -1952,7 +1990,7 @@ function HiatusWheel() {
       const res = await apiGame('/api/spin', { method: 'POST', body: JSON.stringify({ tab_id: tabId.current }) });
       if (!res.ok) {
         spinningRef.current = false; setSpinning(false);
-        if (autoSpinRef.current) setTimeout(spin, 1500);
+        if (autoSpinRef.current) setTimeout(spin, 250);
         return;
       }
       const data = res.data;
@@ -1962,13 +2000,13 @@ function HiatusWheel() {
       rotationRef.current = next;
       setRotation(next);
       setTimeout(() => {
-        if (data.result === 'win') setWins(w => w + 1); else setLosses(l => l + 1);
+        if (data.result === 'win' || data.result === 'jackpot') setWins(w => w + 1); else setLosses(l => l + 1);
         spinningRef.current = false; setSpinning(false);
-        if (autoSpinRef.current) setTimeout(spin, 1500);
+        if (autoSpinRef.current) setTimeout(spin, 250);
       }, SPEED * 1000 + 200);
     } catch {
       spinningRef.current = false; setSpinning(false);
-      if (autoSpinRef.current) setTimeout(spin, 1500);
+      if (autoSpinRef.current) setTimeout(spin, 250);
     }
   }, []);
 
@@ -2443,6 +2481,16 @@ const FISH_SKINS = [
     labels: { idle: 'Greetings, earthling', happy: 'ABDUCTION WIN!', sad: '*returns to home planet*' } },
   { id: 'fish_ufo',      emoji: '🛸', name: 'UFO',            cost: 425000,
     labels: { idle: '*hovering*', happy: 'BEAM UP!', sad: '*crashes*' } },
+  { id: 'fish_dice',     emoji: '🎲', name: 'Lucky Dice',     cost: 600000,
+    labels: { idle: '*rolls*', happy: 'SEVEN SEVEN!', sad: 'Snake eyes...' } },
+  { id: 'fish_joker',    emoji: '🃏', name: 'Joker',          cost: 850000,
+    labels: { idle: 'Up my sleeve~', happy: 'WILD CARD WIN!', sad: 'Folded...' } },
+  { id: 'fish_diamond',  emoji: '💎', name: 'Diamond',        cost: 1200000,
+    labels: { idle: 'Brilliant cut', happy: 'FLAWLESS WIN!', sad: 'Cracked...' } },
+  { id: 'fish_poker',    emoji: '♠️',  name: 'Poker',           cost: 1700000,
+    labels: { idle: 'All in', happy: 'ROYAL FLUSH!', sad: 'Busted...' } },
+  { id: 'fish_slot',     emoji: '🎰', name: 'Slot Machine',   cost: 2400000,
+    labels: { idle: '*spins*', happy: 'JACKPOT!', sad: 'No match...' } },
 ];
 
 const SHOP_SECTIONS = [
@@ -2470,7 +2518,7 @@ const SHOP_SECTIONS = [
     { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
     { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
-    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
+    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Spins automatically at 0% stake — stake slider hides while active', tier: 1 },
   ]},
   { label: '🏅 Season 8: Prestige', items: [
     // T121: prestige_efficiency and prestige_legacy retired. The unlock
@@ -2508,7 +2556,7 @@ const SHOP_SECTIONS = [
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 1000,   desc: 'Blocks one loss per manual trigger. Consumes a guard charge.' },
-    { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Recharges 1 per 50 spins via Regen Shield.', tier: 2 },
+    { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Passively recharges 1 charge every 50 spins.', tier: 2 },
     { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 5000,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
     { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 20000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
   ]},
@@ -2518,19 +2566,12 @@ const SHOP_SECTIONS = [
     { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
     { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
   ]},
-  { label: '⚡ Season 8: Wager System', items: [
-    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake slider (0% safe, 5%-30% at risk)', tier: 1 },
-    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
-    { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
-    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Arm 2x stake for next spin', tier: 3, requires: 'wager_hot_streak' },
-    { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Caps next loss at stake amount', tier: 3, requires: 'wager_unlock' },
-    { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
-    { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
-    { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
-    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Unlocks auto-spin button (100 spins per activation at 0% stake — stake slider hides while active)', tier: 1 },
-  ]},
   { label: '🎣 Season 8: Fishing', items: [
-    { id: 'fish_to_wager',      emoji: '🪙', name: 'Fish-to-Wager',      cost: 5000,   desc: 'Convert caught fish to wager tokens', tier: 1 },
+    // T223: fish_to_wager removed — it was a legacy item that wasn't
+    // supposed to be in the shop. The item still exists in models.SHOP_ITEMS
+    // for the insurance-grant one-time bonus, but it's no longer purchasable
+    // from the shop UI. (Existing players who already own it keep it; new
+    // players won't be able to buy it.)
     { id: 'catch_of_the_day',   emoji: '📅', name: 'Catch of the Day',   cost: 3000,   desc: 'First fish conversion each day worth 5x tokens', tier: 1 },
     { id: 'aquarium',           emoji: '🐠', name: 'Aquarium',           cost: 15000,  desc: 'Each unique species adds +0.1% wheel luck', tier: 2 },
     { id: 'lure_specialization',emoji: '🎯', name: 'Lure Specialization',cost: 10000,  desc: 'Specialized lure techniques', tier: 2, requires: 'fish_to_wager' },
@@ -2619,6 +2660,7 @@ const COSMETIC_IDS = new Set([
   'fish_squid','fish_turtle','fish_crab','fish_lobster','fish_whale',
   'fish_seal','fish_shrimp','fish_coral','fish_mermaid','fish_croc',
   'fish_rocket','fish_comet','fish_saturn','fish_alien','fish_ufo',
+  'fish_dice','fish_joker','fish_diamond','fish_poker','fish_slot',
   'fishsize_small','fishsize_1','fishsize_2','fishsize_3',
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
@@ -3311,6 +3353,7 @@ function WagerPanel({
   onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
   onInsurance, onCancelInsurance, onTogglePayWithTokens,
 }) {
+  if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
   return (
     <div className="season8-wager-panel">
@@ -3405,8 +3448,20 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishClicks, setFishClicks]   = useState(gameState.fish_clicks);
   const [caughtSpecies, setCaughtSpecies]     = useState(gameState.caught_species || []);
   const [fishingLuckyNext, setFishingLuckyNext] = useState(gameState.fishing_lucky_next || false);
+  // T224: server-supplied auto_fish_enabled. The FishingPanel child
+  // syncs from this via the autoFish prop. If the player has
+  // auto_fish_enabled=true in the DB but doesn't own autofisher_1
+  // (e.g. they prestiged with auto-fish on), the child useEffect
+  // forces autoFish off in local state. The /api/auto-fish-enabled
+  // endpoint also forces the flag off server-side.
+  const [autoFishEnabled, setAutoFishEnabled] = useState(!!gameState.auto_fish_enabled);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [bonusEarned, setBonusEarned] = useState(0);
+  // T217: wins breakdown — capture the raw delta and the base multiplier so
+  // the result bubble can show where large wins came from (Base + Streak).
+  const [winsDelta, setWinsDelta]           = useState(0);
+  const [lossesDelta, setLossesDelta]       = useState(0);
+  const [effectiveWinMult, setEffectiveWinMult] = useState(0);
   const [echoTriggered, setEchoTriggered]               = useState(false);
   const [jackpotHit, setJackpotHit]                     = useState(false);
   const [resilienceTriggered, setResilienceTriggered]   = useState(false);
@@ -3740,6 +3795,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         setDoubleDownPending(s.double_down_pending);
         setOwnedItems(s.owned_items);
         if (s.cumulative_wins != null) setCumulativeWins(s.cumulative_wins);
+        // T224: prestige clears auto_fish_enabled (PRESTIGE_RESET_COLUMNS).
+        // The server returns the new value (always false after prestige);
+        // sync the local state so the auto-fish UI is hidden and the
+        // manual-fish UI is shown.
+        if (s.auto_fish_enabled != null) setAutoFishEnabled(s.auto_fish_enabled);
       } else {
         // Server didn't return state (older build) — fall back to the
         // hand-rolled resets. Player will see stale shop "owned" badges
@@ -3843,9 +3903,17 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         cursed_triple: data.cursed_triple ?? false,
         blessed_triple: data.blessed_triple ?? false,
         streak_before: prevStreak, streak_after: data.streak,
-        pending: true,
+        // T220: pending is true only when the dice is buffered (auto-spin
+        // was active at roll time). When applied_immediately=true, the
+        // server already wrote new_streak to the DB, so no "⏳ next spin"
+        // hint is shown.
+        pending: !data.applied_immediately,
       });
-      // Streak is applied by the next /api/tick, not immediately
+      // T220: when the dice was applied immediately (no active auto-spin),
+      // the server already wrote new_streak to the DB. Mirror that into
+      // local state so the StreakPanel updates right away. When buffered,
+      // the next spin's response will update setStreak.
+      if (data.applied_immediately) setStreak(data.streak);
       if (data.dice_charges != null) setDiceCharges(data.dice_charges);
       if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
       setDiceRolledSinceSpin(true);
@@ -3858,6 +3926,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setResult(data.result);
     if (data.wins_delta)   setWins(prev => prev + data.wins_delta);
     if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
+    // T217: capture the raw delta so the result bubble can show the
+    // "+N wins" total + Base/Streak breakdown when bonus_earned > 0.
+    setWinsDelta(data.wins_delta ?? 0);
+    setLossesDelta(data.losses_delta ?? 0);
     setStreak(data.streak);
     setRegenRechargeWins(data.regen_recharge_wins ?? 0);
     if (data.owned_items) {
@@ -3869,7 +3941,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         return spinResult.has('guard') ? [...withoutGuard, 'guard'] : withoutGuard;
       });
     }
-    setBonusEarned(data.bonus_earned);
+    setBonusEarned(data.bonus_earned ?? 0);
+    setEffectiveWinMult(data.effective_win_mult ?? 0);
     setEchoTriggered(!!data.echo_triggered);
     setJackpotHit(!!data.jackpot_hit);
     setResilienceTriggered(!!data.resilience_triggered);
@@ -3907,7 +3980,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
     const cosm = activeCosmeticsRef.current;
     if (!lowSpecRef.current) {
-      if (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) {
+      if (data.result === 'win' || data.result === 'jackpot' || (data.guard_triggered && data.guard_blocked)) {
         setConfetti(true);
       } else if (cosm.includes('party_mode')) {
         setConfetti(true);
@@ -3916,7 +3989,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       confettiTimerRef.current = setTimeout(() => setConfetti(false), 3500);
     }
 
-    const mood = (data.result === 'win' || (data.guard_triggered && data.guard_blocked)) ? 'happy' : 'sad';
+    const mood = (data.result === 'win' || data.result === 'jackpot' || (data.guard_triggered && data.guard_blocked)) ? 'happy' : 'sad';
     setFishMood(mood);
     if (fishTimerRef.current) clearTimeout(fishTimerRef.current);
     fishTimerRef.current = setTimeout(() => setFishMood('idle'), 2500);
@@ -4014,6 +4087,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       if (showResultRef.current) dismissResult();
       setBonusEarned(0); setEchoTriggered(false); setJackpotHit(false);
       setResilienceTriggered(false); setLuckySevenTriggered(false); setFortuneCharmTriggered(false);
+      // T217: clear last-spin delta so the new bubble shows the new total.
+      setWinsDelta(0); setLossesDelta(0); setEffectiveWinMult(0);
 
       setTimeout(() => {
         if (data.guard_triggered) {
@@ -4021,10 +4096,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           guardCompleteRef.current = () => {
             setGuardState(null);
             applySpinResult(data);
+            // T220: dice roll was refunded because the spin lost.
+            if (data.dice_refunded) {
+              showToast(`🎲 Dice refund: -${data.dice_refunded_sum} streak (rolled back)`);
+            }
             scheduleResultDismiss();
           };
         } else {
           applySpinResult(data);
+          // T220: dice roll was refunded because the spin lost.
+          if (data.dice_refunded) {
+            showToast(`🎲 Dice refund: -${data.dice_refunded_sum} streak (rolled back)`);
+          }
           scheduleResultDismiss();
         }
         spinningRef.current = false;
@@ -4040,14 +4123,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T107: auto-spin start/stop handlers. The auto-spin server endpoint
   // runs at 0% stake (no escrow) and prevents DD/insurance; the UI hides
   // the stake slider while active.
+  //
+  // T216: no budget is sent in the start body (the per-activation 100-spin
+  // budget was removed). Auto-spin now runs continuously until the user
+  // explicitly stops it, or the server's heartbeat auto-stop fires (60s of
+  // no /api/tick).
   const handleStartAutoSpin = useCallback(async () => {
     const { ok, data } = await apiGame('/api/auto-spin/start', {
       method: 'POST',
-      body: JSON.stringify({ budget: 100 }),
+      body: '{}',
     });
     if (!ok) { showToast(data?.error || 'Auto-spin start failed'); return; }
     setAutoSpinActive(true);
-    setAutoSpinBudget(data.budget || 100);
   }, [showToast]);
 
   const handleStopAutoSpin = useCallback(async () => {
@@ -4057,7 +4144,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     });
     if (!ok) { showToast(data?.error || 'Auto-spin stop failed'); return; }
     setAutoSpinActive(false);
-    setAutoSpinBudget(0);
   }, [showToast]);
 
   const tick = useCallback(async () => {
@@ -4074,7 +4160,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }
       if (data.auto_spin_active === true) {
         setAutoSpinActive(true);
-        if (data.auto_spin_budget != null) setAutoSpinBudget(data.auto_spin_budget);
       }
 
       if (data.happy_hour != null) setHappyHour(data.happy_hour);
@@ -4210,8 +4295,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [stakeValue, setStakeValue]                 = useState(0);
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
+  // T216: the per-activation 100-spin budget was removed; auto-spin is
+  // simply on/off. The server tracks `auto_spin_since` and auto-stops
+  // after 60s of no /api/tick.
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
-  const [autoSpinBudget, setAutoSpinBudget]         = useState(gameState.auto_spin_budget || 0);
   // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
   // server gates the 3-free-per-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
@@ -4279,8 +4366,23 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       // T114: onboarding modal disabled for S8 launch; do not auto-show.
     }
     // T107: sync auto-spin state from server.
-    if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active);
-    if (gameState.auto_spin_budget != null) setAutoSpinBudget(gameState.auto_spin_budget);
+    // T216: if the server reports auto-spin is active, that means a
+    // previous tab/session left it running. We do NOT resume ticking
+    // on this page load — instead we ask the server to stop, show a
+    // toast so the player understands why their wins look weird, and
+    // clear the local state. They can re-check the box to start a
+    // fresh session.
+    if (gameState.auto_spin_active != null) {
+      if (gameState.auto_spin_active === true) {
+        apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' })
+          .then(() => showToast(
+            'Auto-spin was running on the server — stopped. Click the checkbox to start a new session.'
+          ));
+        setAutoSpinActive(false);
+      } else {
+        setAutoSpinActive(false);
+      }
+    }
     if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
     if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
@@ -4304,6 +4406,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     // `wager_last_stake` is 0-45 in the new system (0 = safe/no-stake).
     if (gameState.wager_last_stake != null) setStakePct(gameState.wager_last_stake);
     if (gameState.max_stake_pct != null) setMaxStakePct(gameState.max_stake_pct);
+    // T224: sync auto-fish state from server. The FishingPanel child
+    // does the heavy lifting (forcing autoFish off when the upgrade
+    // is missing); we just mirror the server flag here.
+    if (gameState.auto_fish_enabled != null) setAutoFishEnabled(gameState.auto_fish_enabled);
   }, []); // eslint-disable-line
 
   // Season 8: community goal background poll (15s interval, respects document.hidden)
@@ -4839,7 +4945,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
-        {season && <SeasonInfo seasonName={season.season_name || season.season_number} endsAt={season.ends_at} />}
+        {season && <SeasonInfo seasonName={season.season_name || season.season_number} playerFacingNumber={season.player_facing_number} endsAt={season.ends_at} />}
       </div>
 
       {showEncyclopedia && (
@@ -4857,6 +4963,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           fishingLuckyNext={fishingLuckyNext}
           ownedItems={ownedItems}
           fishPanelScale={fishPanelScale}
+          autoFishEnabled={autoFishEnabled}
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={refreshBountiesAndGoal}
@@ -4873,6 +4980,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             fishingLuckyNext={fishingLuckyNext}
             ownedItems={ownedItems}
             fishPanelScale={fishPanelScale}
+            autoFishEnabled={autoFishEnabled}
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
             onFishCaught={refreshBountiesAndGoal}
@@ -4883,12 +4991,21 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       {showResult && (
         <div className={`result-banner ${showResult && !hideResult ? 'show' : ''} ${hideResult ? 'hide' : ''}`}>
-          {result === 'win' || (result === 'lose' && shieldFeedback) ? (
-            <div className={`result-text ${result === 'win' ? 'win' : 'win'}`}>
-              {result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️'}
+          {result === 'win' || result === 'jackpot' || (result === 'lose' && shieldFeedback) ? (
+            <div className={`result-text ${result === 'lose' ? 'win' : 'win'}`}>
+              {result === 'jackpot' ? '🎰 JACKPOT! 🎰' : result === 'win' ? '🎰 YOU WIN! 🎰' : '🛡️ BLOCKED! 🛡️'}
             </div>
           ) : (
             <div className="result-text lose">💀 YOU LOSE 💀</div>
+          )}
+          {/* T217: show the wins delta in the bubble so the player can see
+              the total of the spin. For wins this is the "+N wins" line; for
+              losses it's "-N losses" (the loss value is shown on a loss). */}
+          {(result === 'win' || result === 'jackpot') && winsDelta > 0 && (
+            <div className="bonus-line spin-result-total">+{fmt(winsDelta)} wins</div>
+          )}
+          {result === 'lose' && lossesDelta > 0 && (
+            <div className="bonus-line lose-bonus">-{fmt(lossesDelta)} losses</div>
           )}
           {jackpotHit && (
             <div className="bonus-line jackpot-line">🎰 JACKPOT! 25x multiplier applied!</div>
@@ -4910,6 +5027,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           )}
           {bonusEarned < 0 && (
             <div className="bonus-line lose-bonus">💀 Loss Streak +{fmt(Math.abs(bonusEarned))} extra losses!</div>
+          )}
+          {/* T217: streak_bonus breakdown — when the bonus is non-zero, show
+              Base + 🔥 Streak components so the player sees why the win is
+              large. Plain wins (bonus_earned=0) show only the total. */}
+          {(result === 'win' || result === 'jackpot') && bonusEarned > 0 && (
+            <div className="spin-result-detail">
+              Base: {fmt(effectiveWinMult)} · 🔥 Streak: {fmt(streak)} (+{fmt(bonusEarned)})
+            </div>
           )}
           {shieldFeedback && (() => {
             const names  = { regen_shield: 'Regenerating Shield', guard: 'Guard' };
@@ -5010,9 +5135,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           {/* T107: auto-spin as upgrade. Visible only when player owns the
               `auto_spin_unlock` shop item. Checkbox style mirrors the
               pre-S8 auto-spin toggle (`.autospin-row` from Season 5/6/7).
-              Server-side budget of 100 spins; cleared on uncheck. While
-              active, the stake slider below is hidden (auto-spin always
-              uses 0% stake). */}
+              T216: runs continuously (no per-activation budget); cleared
+              on uncheck. While active, the stake slider below is hidden
+              (auto-spin always uses 0% stake). */}
           {ownedItems.includes('auto_spin_unlock') && (
             <label className="autospin-row" style={{ justifyContent: 'center', marginTop: '0.4rem' }}>
               <input

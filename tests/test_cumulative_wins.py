@@ -17,6 +17,20 @@ import types
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
+# ── Stub install/teardown (T242) ────────────────────────────────────────────
+# The `flask_login` setdefault below MUST stay at module load time: the
+# `from models import …` line that follows imports models.py, which
+# executes `from flask_login import UserMixin`. Without a flask_login
+# stub already in sys.modules, the import would load the real
+# flask_login (and transitively real flask) and pollute sys.modules for
+# the whole suite — exactly the leak T242 is trying to fix.
+#
+# Every other stub has been moved to setup_module / teardown_module so
+# they only exist for the duration of THIS file's tests.
+_SENTINEL = object()
+_STUB_PREV = {}
+
+
 def _make_stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
@@ -27,47 +41,17 @@ def _make_stub(name, **attrs):
 _noop = lambda *a, **kw: (lambda f: f)
 
 
-sys.modules.setdefault('flask', _make_stub(
-    'flask',
-    Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
-    jsonify=lambda x: x,
-    request=None,
-))
-
-
 class _UserMixinStub:
     pass
 
 
+# Minimum needed for the module-level `from models import …` below.
 sys.modules.setdefault('flask_login', _make_stub(
     'flask_login',
     current_user=None,
     login_required=lambda f: f,
     UserMixin=_UserMixinStub,
 ))
-_psycopg2_extras_stub = _make_stub(
-    'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
-_psycopg2_stub = _make_stub('psycopg2', extras=_psycopg2_extras_stub)
-sys.modules.setdefault('psycopg2', _psycopg2_stub)
-sys.modules.setdefault('psycopg2.extras', _psycopg2_extras_stub)
-
-
-# Stub game modules to avoid loading them in tests
-sys.modules.setdefault('replays', _make_stub('replays', record_replay=lambda *a, **kw: None))
-sys.modules.setdefault('seasons', _make_stub('seasons', **{'ensure_current_season': lambda *a, **kw: None,
-                                                            'get_season_info': lambda *a, **kw: {},
-                                                            'get_week_number': lambda *a, **kw: 1,
-                                                            'get_active_goal': lambda *a, **kw: (None, None)}))
-sys.modules.setdefault('community_goals', _make_stub('community_goals',
-    **{'increment_goal': lambda *a, **kw: None,
-       'check_goal_completion': lambda *a, **kw: None}))
-sys.modules.setdefault('chat_triggers', _make_stub('chat_triggers',
-    **{'jackpot_msg': lambda *a, **kw: 'JACKPOT',
-       'big_win_msg': lambda *a, **kw: 'BIG WIN',
-       'new_player_msg': lambda *a, **kw: 'NEW'}))
-sys.modules.setdefault('chat', _make_stub('chat',
-    **{'post_system_message': lambda *a, **kw: None,
-       'record_replay': lambda *a, **kw: None}))
 
 
 from models import (
@@ -111,19 +95,51 @@ def test_cumulative_wins_in_state_response():
 
 
 def test_tier_gate_uses_cumulative_wins():
-    """T106: the tier check uses cumulative_wins, not win_count."""
-    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py')) as f:
-        src = f.read()
-    # Find the tier check block. Old: `if gs['win_count'] < threshold:`
-    # New: must reference cumulative_wins in the same check.
-    assert "gs.get('cumulative_wins'" in src, (
-        "tier gate must check gs.get('cumulative_wins', 0)"
+    """T106: the tier check uses cumulative_wins, not win_count.
+
+    T244: the buy logic moved to shop.py — the tier-gate check
+    moved with it. We check both files for the substring and
+    verify the (one) check uses cumulative_wins, not win_count.
+    """
+    repo = os.path.dirname(os.path.dirname(__file__))
+    sources = []
+    for name in ("game.py", "shop.py"):
+        path = os.path.join(repo, name)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            sources.append((name, f.read()))
+    combined = "\n".join(f"# {name}\n{src}" for name, src in sources)
+    # The tier check must reference cumulative_wins. It now lives
+    # in shop.py; before T244 it lived in game.py.
+    assert "gs.get('cumulative_wins'" in combined, (
+        "tier gate must check gs.get('cumulative_wins', 0) "
+        "in game.py or shop.py"
     )
-    # Make sure the old win_count check is NOT in the buy endpoint
-    buy_block = src.split("'Unlocks at")[0:1] + [src.split("'Unlocks at")[1][:500]]
-    # The buy endpoint should not check win_count for tier gating
-    assert 'win_count' not in buy_block[1] or 'cumulative_wins' in buy_block[1], (
-        "tier gate should use cumulative_wins, not win_count"
+    # The old win_count check must not be present in the buy
+    # endpoint. The buy endpoint is shop.buy_core (T244) — the
+    # cumulative_wins check moved with it.  Just check the buy
+    # logic (shop.py) directly.
+    repo = os.path.dirname(os.path.dirname(__file__))
+    with open(os.path.join(repo, 'shop.py')) as f:
+        shop_src = f.read()
+    # The tier check must reference cumulative_wins.  We look
+    # for the full if-block to make sure it's the tier gate and
+    # not a coincidental substring.  shop.py uses double quotes
+    # (T244 moved the code); accept either.
+    assert (
+        "gs.get('cumulative_wins'" in shop_src
+        or 'gs.get("cumulative_wins"' in shop_src
+    ), (
+        "shop.py tier gate must check gs.get('cumulative_wins', 0)"
+    )
+    # The old win_count check must not be in shop.py at all.
+    # win_count is a different column and was the bug T106 fixed.
+    assert (
+        "gs['win_count']" not in shop_src
+        and 'gs["win_count"]' not in shop_src
+    ), (
+        "shop.py must not check gs['win_count'] for tier gating"
     )
 
 
@@ -283,12 +299,13 @@ def test_t106_frontend_uses_cumulative_wins_from_spin():
     )
 
 
-def test_t107_auto_spin_start_ignores_stale_since_with_zero_budget():
-    """T107 follow-up: `auto_spin_since` left over from a prior session with
-    `auto_spin_budget = 0` must NOT block a fresh `/api/auto-spin/start`.
-    The check should mirror `/api/state`'s `auto_spin_active` gate
-    (since-set AND budget > 0). A stale since alone is limbo state, not
-    'already active'."""
+def test_t216_auto_spin_start_uses_only_auto_spin_since():
+    """T216 follow-up: the per-activation `auto_spin_budget` column was
+    dropped. /api/auto-spin/start now uses `auto_spin_since` as the sole
+    'is active' signal (a stale timestamp is treated as active — the
+    heartbeat auto-stop in /api/tick will clear it after 60s of no
+    ticks). The 'already active' check must NOT reference
+    `auto_spin_budget` (the column no longer exists)."""
     with open(os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         'game.py',
@@ -301,18 +318,20 @@ def test_t107_auto_spin_start_ignores_stale_since_with_zero_budget():
     )
     assert start_block, "could not locate /api/auto-spin/start endpoint body"
     body = start_block.group(0)
-    # The "already active" check must inspect BOTH auto_spin_since AND
-    # auto_spin_budget. A bare `if gs['auto_spin_since'] is not None:` is
-    # the bug — rejects fresh starts when stale state is present.
-    assert re.search(
-        r"auto_spin_since.*\bis\s+not\s+None\b.*\bauto_spin_budget\b",
-        body, re.DOTALL,
-    ), (
-        "/api/auto-spin/start must check both auto_spin_since AND "
-        "auto_spin_budget before reporting 'already active'"
+    # The 'already active' check uses only auto_spin_since now.
+    assert 'auto_spin_budget' not in body, (
+        "/api/auto-spin/start still references auto_spin_budget but the "
+        "column was dropped in migration 057 (T216)"
     )
-    assert 'auto_spin_budget' in body, (
-        "/api/auto-spin/start must reference auto_spin_budget in the check"
+    # The check still inspects auto_spin_since (sanity). The actual code
+    # uses `gs.get('auto_spin_since')` (with the get() call), so look
+    # for the close-paren + 'is not None' pattern.
+    assert re.search(
+        r"gs(?:\[[''\"]auto_spin_since['\"]\]|\.get\(['\"]auto_spin_since['\"]\))\s+is\s+not\s+None",
+        body,
+    ), (
+        "/api/auto-spin/start must check auto_spin_since before reporting "
+        "'already active' (T216)"
     )
 
 
@@ -382,3 +401,74 @@ def test_t107_polling_useeffect_after_autospinactive_state():
         f"tick useCallback (line {tick_callback_line}) must be defined before "
         f"polling useEffect (line {polling_effect_line})"
     )
+
+
+# ── Per-test setup / teardown (T242) ────────────────────────────────────────
+# This file does NOT load game.py — its tests are source-string
+# assertions against models.py / static/app.jsx. The remaining stubs
+# (flask, psycopg2, replays, seasons, community_goals, chat_triggers,
+# chat) are installed in setup_module and removed in teardown_module
+# so they don't pollute sys.modules for sibling test files.
+
+def _stub_specs():
+    """Return (name, factory) pairs for the stubs installed during this
+    module's tests. Note: `flask_login` is NOT here — it stays installed
+    at module load (see the comment at the top of the file) because the
+    `from models import …` line requires it."""
+    _psycopg2_extras_stub = _make_stub(
+        'psycopg2.extras', RealDictCursor=type('RealDictCursor', (), {}))
+    return [
+        ('flask', lambda: _make_stub(
+            'flask',
+            Blueprint=lambda *a, **kw: types.SimpleNamespace(route=_noop),
+            jsonify=lambda x: x,
+            request=None,
+        )),
+        ('psycopg2', lambda: _make_stub('psycopg2', extras=_psycopg2_extras_stub)),
+        ('psycopg2.extras', lambda: _psycopg2_extras_stub),
+        ('replays', lambda: _make_stub('replays', record_replay=lambda *a, **kw: None)),
+        ('seasons', lambda: _make_stub('seasons',
+            ensure_current_season=lambda *a, **kw: None,
+            get_season_info=lambda *a, **kw: {},
+            get_latest_winners=lambda *a, **kw: [],
+            advance_season=lambda *a, **kw: None,
+            get_week_number=lambda *a, **kw: 1,
+            get_active_goal=lambda *a, **kw: (None, None),
+        )),
+        ('community_goals', lambda: _make_stub('community_goals',
+            COMMUNITY_GOAL_DEFS={},
+            increment_goal=lambda *a, **kw: None,
+            check_goal_completion=lambda *a, **kw: None,
+            get_active_goal=lambda *a, **kw: (None, None),
+            get_player_contribution=lambda *a, **kw: 0,
+        )),
+        ('chat_triggers', lambda: _make_stub('chat_triggers',
+            jackpot_msg=lambda *a, **kw: 'JACKPOT',
+            big_win_msg=lambda *a, **kw: 'BIG WIN',
+            new_player_msg=lambda *a, **kw: 'NEW',
+        )),
+        ('chat', lambda: _make_stub('chat',
+            post_system_message=lambda *a, **kw: None,
+            record_replay=lambda *a, **kw: None,
+        )),
+    ]
+
+
+def setup_module(module):
+    """Install the per-test stubs (everything except flask_login, which
+    is needed at module load for `from models import …`)."""
+    for name, factory in _stub_specs():
+        _STUB_PREV[name] = sys.modules.get(name, _SENTINEL)
+        sys.modules[name] = factory()
+
+
+def teardown_module(module):
+    """Restore sys.modules — drop the stubs we installed, leave the
+    flask_login stub (installed at module load) and any other modules
+    another test file's setup_module may have placed."""
+    for name, prev in _STUB_PREV.items():
+        if prev is _SENTINEL:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
+    _STUB_PREV.clear()

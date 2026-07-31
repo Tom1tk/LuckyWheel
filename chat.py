@@ -41,6 +41,15 @@ def _build_chat_query(args):
 
     args: dict-like with optional 'before' (id cursor) and 'limit' keys.
     Returns (sql, params), or None if 'before' is present but not a valid int.
+
+    T241 follow-up: filter out test-user chat. The /api/leaderboard hides
+    test users via `WHERE u.ip_address <> '127.0.0.1'` on a JOIN. chat_messages
+    has no FK to users (system messages have user_id IS NULL) and the test
+    pollution is in the *text* of system messages, not a JOINable row. The
+    fix: store the originating user's IP on each chat_messages row, and
+    filter on it here. NULL means "no originating user" (e.g. server-side
+    events like singularity fills) — those pass through; their text never
+    references a specific user.
     """
     try:
         limit = int(args.get('limit', CHAT_PAGE_SIZE))
@@ -58,6 +67,7 @@ def _build_chat_query(args):
             'SELECT id, username, message, created_at, message_type '
             'FROM chat_messages '
             'WHERE id < %s '
+            '  AND (ip_address IS NULL OR ip_address <> \'127.0.0.1\') '
             'ORDER BY id DESC '
             'LIMIT %s',
             (before_id, limit),
@@ -65,6 +75,7 @@ def _build_chat_query(args):
     return (
         'SELECT id, username, message, created_at, message_type '
         'FROM chat_messages '
+        'WHERE ip_address IS NULL OR ip_address <> \'127.0.0.1\' '
         'ORDER BY id DESC '
         'LIMIT %s',
         (limit,),
@@ -204,9 +215,29 @@ def post_chat():
             }), 429
 
         with conn.cursor() as cur:
+            # T241 follow-up: capture the poster's IP so the chat feed
+            # can filter out test-user messages (T231-T240 batch left
+            # both /api/leaderboard and /api/chat polluted with t\d+
+            # test users). The IP is read from the users table (the
+            # authoritative source — the request's source IP can
+            # differ if there's a proxy).
             cur.execute(
-                'INSERT INTO chat_messages (user_id, username, message, message_type) VALUES (%s, %s, %s, %s)',
-                (current_user.id, current_user.username, message, 'user'),
+                'SELECT ip_address FROM users WHERE id = %s',
+                (current_user.id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                poster_ip = None
+            elif isinstance(row, tuple):
+                poster_ip = row[0]
+            elif isinstance(row, dict):
+                poster_ip = row.get('ip_address')
+            else:
+                poster_ip = None
+
+            cur.execute(
+                'INSERT INTO chat_messages (user_id, username, message, message_type, ip_address) VALUES (%s, %s, %s, %s, %s)',
+                (current_user.id, current_user.username, message, 'user', poster_ip),
             )
             # Trim to MAX_CHAT_MESSAGES most recent messages
             cur.execute(
@@ -226,6 +257,25 @@ SYSTEM_MESSAGE_THROTTLE_SECS = 30
 # under gunicorn's multiple workers is an acceptable tradeoff against adding a
 # new DB table just for a 30s cooldown.
 _system_message_last_posted: dict = {}
+
+
+# T209: event_kinds whose auto-posted system messages get per-user dedup
+# (the user's previous message of the same kind is deleted before the new
+# one is inserted). First-spin is intentionally NOT in this set — it's a
+# historical record the operator wants preserved.
+#
+# T222: prestige is now deduped. The player only sees their LATEST
+# prestige level in chat; older messages for the same player are removed
+# when they re-prestige. This keeps the channel uncluttered for players
+# who prestige many times.
+DEDUP_EVENT_KINDS = frozenset({
+    'big_win',           # covers regular big wins (jackpots no longer post)
+    'hot_streak',        # wager-streak milestone
+    'goal_milestone_25',
+    'goal_milestone_50',
+    'goal_milestone_75',
+    'prestige',          # T222: per-user dedup; show only latest level
+})
 
 
 def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None):
@@ -258,6 +308,96 @@ def post_system_message(conn, message: str, message_type: str = 'system', event_
         # Trim to MAX_CHAT_MESSAGES most recent (system messages share the table with
         # player chat; post_chat() already does this for its own inserts,
         # but a quiet stretch of system-only activity skipped this entirely).
+        cur.execute(
+            f'''DELETE FROM chat_messages
+               WHERE id NOT IN (
+                   SELECT id FROM chat_messages ORDER BY id DESC LIMIT {MAX_CHAT_MESSAGES}
+               )'''
+        )
+
+
+def post_dedup_system_message(conn, message, user_id, event_kind, *, message_type='system'):
+    """Insert a per-user system message with dedup of the user's previous one.
+
+    T209: auto-posted system messages (big_win, hot_streak,
+    goal_milestone_*) accumulate over time and crowd the chat. For these
+    event_kinds (the DEDUP_EVENT_KINDS set) we look up the user's most
+    recent chat message with the same event_kind + message_type, delete
+    it, then insert the new one — so the user always sees at most one
+    message of each dedup-eligible event_kind.
+
+    For event_kinds NOT in DEDUP_EVENT_KINDS (e.g. first_spin), this
+    falls through to post_system_message unchanged. That way future
+    system messages that should be preserved can opt in by simply not
+    being in the dedup set.
+
+    The 30s per-event_kind throttle from post_system_message is bypassed
+    for dedup-eligible kinds (the per-user dedup itself caps the rate);
+    non-dedup kinds still get the throttle. Must be called within an
+    existing db_connection() context — caller manages commit/rollback.
+    """
+    if not message:
+        return
+    if event_kind not in DEDUP_EVENT_KINDS:
+        return post_system_message(
+            conn, message, message_type=message_type, event_kind=event_kind,
+        )
+
+    message = message[:MAX_MSG_LEN]
+    with conn.cursor() as cur:
+        # T241 follow-up: capture the originating user's IP so the chat
+        # feed can filter out test-user system messages (the 106
+        # '🎉 t239s... first spin!' rows that piled up during the
+        # T231-T240 audit are an example). We look up the user_id's IP
+        # here so the SELECT filter is uniform for user messages AND
+        # system messages — no text regex needed.
+        cur.execute(
+            'SELECT ip_address FROM users WHERE id = %s',
+            (user_id,),
+        )
+        user_row = cur.fetchone()
+        if user_row is None:
+            user_ip = None
+        elif isinstance(user_row, tuple):
+            user_ip = user_row[0]
+        elif isinstance(user_row, dict):
+            # The fake cursors in the test suite (test_community_goals,
+            # test_chat_dedup) don't always populate 'ip_address' on
+            # their dict-shaped fetchone results. Fall back to None
+            # rather than KeyError — production code will always
+            # return the 'ip_address' column.
+            user_ip = user_row.get('ip_address')
+        else:
+            user_ip = None
+
+        # Find the user's most recent chat message with the same event_kind
+        # and message_type. message_type='system' matches auto-posted system
+        # messages; user messages (message_type='user') are never affected
+        # because they have event_kind=NULL and don't match event_kind IN (...) here.
+        cur.execute(
+            '''SELECT id FROM chat_messages
+               WHERE user_id = %s
+                 AND event_kind = %s
+                 AND message_type = %s
+               ORDER BY id DESC
+               LIMIT 1''',
+            (user_id, event_kind, message_type),
+        )
+        row = cur.fetchone()
+        if row is not None:
+            # Row can be a tuple (default cursor) or a dict (RealDictCursor).
+            prev_id = row[0] if isinstance(row, tuple) else row['id']
+            cur.execute(
+                'DELETE FROM chat_messages WHERE id = %s',
+                (prev_id,),
+            )
+        cur.execute(
+            '''INSERT INTO chat_messages
+                  (user_id, username, message, message_type, event_kind, ip_address)
+               VALUES (%s, 'SYSTEM', %s, %s, %s, %s)''',
+            (user_id, message, message_type, event_kind, user_ip),
+        )
+        # Trim to MAX_CHAT_MESSAGES most recent (same trim post_system_message does).
         cur.execute(
             f'''DELETE FROM chat_messages
                WHERE id NOT IN (

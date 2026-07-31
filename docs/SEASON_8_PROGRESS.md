@@ -212,12 +212,28 @@
 | T39 | Vintage theme | DONE | 2026-06-17 | 4fd789c | styles.css |
 | T40 | Migration 036 + bounty system | DONE | 2026-06-17 | 217b717/2e9631e | bounties.py, game.py |
 | T41 | Bounty panel UI | DONE | 2026-06-17 | 4fd789c | app.jsx |
+| T219 | Jackpot: counted as regular win, no special cased path | DONE | 2026-06-27 | 97db73d | game.py — removed jackpot_code/was_jackpot special case; jackpot lands as plain win in `resolve_spin` |
+| T220 | Dice: refund consume on next spin | DONE | 2026-06-27 | 3cbf563 | wagers.py, game.py — charge-on-resolve; refund stake on loss |
+| T221 | Chat: jackpot messages gone | DONE | 2026-06-27 | 3cbf563 | chat_triggers.py — removed `jackpot_msg` + `JACKPOT_MSG_ALWAYS`; deleted 2 historical jackpot chat lines (migration 064) |
+| T222 | Chat: prestige dedup (latest only) | DONE | 2026-06-27 | bde6e62 | chat_triggers.py — `post_dedup_system_message` per-player; migration 065 collapses 5 historical prestige messages → 1 per player |
+| T223 | Shop: remove `fish_to_wager` entry + duplicate wager section | DONE | 2026-06-27 | fce662d | app.jsx — dropped orphaned item; consolidated wager UI into the existing functional column |
+| T224 | Auto-fish stuck after prestige — unstick existing + reset on prestige | DONE | 2026-06-27 | e3fb42b | game.py — auto-fish flag now reset in prestige handler; migration 066 cleared stuck flags for 1 affected player |
+| T225 | DB: widen win-amount columns to BIGINT | DONE | 2026-06-27 | 09a1c7a | migration 067 — BIGINT (was INTEGER); one production spin had crossed the 2.1B boundary |
+| T226 | DB: widen to NUMERIC (unlimited) | DONE | 2026-06-27 | 97db73d | migration 068 — NUMERIC (was BIGINT); required for dylan's 1e+20 win and the tier-ladder UI |
+| T227 | UI: tier notation across the board (K/M/B/T + scientific) | DONE | 2026-06-27 | 97db73d | static/js/format.js — 1-decimal K, 2-decimal M/B/T, scientific for 1e15+; also fixed `maxStat` overflow that was rendering 1.5e308 |
+| T228 | Docs: 27 Jun 2026 bugfix patch notes (T219–T227) | DONE | 2026-06-27 | 51b7351 | PATCH_NOTES.md |
+| T229 | Chat: reformat win numbers using T227 tier ladder | DONE | 2026-06-27 | 0c5c4a8 + ca75d41 | format_wins.py (Python port), chat_triggers.py, migration 069; 18 parity tests; follow-up commit fixed 2 late dylan messages + btrim bug + updated 8 tests |
+| T230 | Chat: merge double-down + big-win into one message | DONE | 2026-06-27 | 92b701a | chat_triggers.py (`double_down_win_msg` now takes `mode`), game.py (`_maybe_announce_big_win` got `skip_message` kwarg), migration 070 deletes 8 historical standalone double-down messages; chat 25 → 17 system messages |
 
 ---
 
 ## Commit History
 
 | Commit | Date | Description |
+| 92b701a | 2026-06-27 | T230 — merge double-down + big-win into one chat message |
+| ca75d41 | 2026-06-27 | T229 follow-up — reformat 2 late dylan messages + fix btrim bug + update 8 tests |
+| 0c5c4a8 | 2026-06-27 | T229 — reformat chat win numbers using T227 tier ladder |
+| 51b7351 | 2026-06-27 | T228 — 27 Jun 2026 bugfix patch notes (T219–T227) |
 | 76ab25a | 2026-06-18 | Season 8 backend gap fixes (wager/bank, double-down, auto_spin_budget, fish-to-wager, community goals, system messages) |
 | c4f479c | 2026-06-18 | fix: db connection pool hygiene + prestige endpoint argument mismatches |
 | 47d6332 | 2026-06-18 | fix: connection-use-after-return in /api/state, chat system message FK violation (migration 043) |
@@ -239,6 +255,7 @@
 | 2026-06-18 ~00:50 | Main | Frontend complete, app.jsx builds, 59 tests passing. |
 | 2026-06-18 ~01:00 | Main | Backend gap fixes: T08 wager/bank, T18 auto_spin_budget, T25 fish-to-wager, T28 community goal hooks, T35 system messages. All 41 tickets DONE. |
 | 2026-06-18 ~09:00 | Main | Staging server restarted with Season 8 code. Found and fixed 4 bugs: (1) db.py pool hygiene — stale transaction state caused login failures; (2) /api/state connection-use-after-return — bounty/goal calls used conn after context manager returned it to pool, caused hangs; (3) prestige endpoint argument mismatches — can_prestige/get_prestige_threshold/get_legacy_keep_count called with wrong arg types; (4) chat system message FK violation — post_system_message inserted user_id=NULL but chat_messages.user_id had NOT NULL + FK constraint. Migration 043 drops constraints. Commits c4f479c, 47d6332. Staging server verified: all endpoints return 200. |
+| 2026-06-27 (all day) | Main | Post-release batch: 12 operator-reported bug tickets (T219–T230) closed in 4 commits. See "Post-release batch (2026-06-27)" below. All pushed to `origin/master` (92b701a is HEAD). |
 
 ---
 
@@ -1136,3 +1153,83 @@ the literal string 'all-or-nothing' that test_dd_button_label_warns_all_or_nothi
 
 **Merges:** clean (no conflicts). Pushed to `origin/staging`
 at commit 81223dc.
+
+---
+
+## Post-release batch (2026-06-27)
+
+Twelve operator-reported bug tickets that came in after the 2026-06-27
+S8 launch, all closed in 4 commits. Unlike the pre-release batch
+(which used parallel sub-agents in separate worktrees), this batch
+was a single sequential run on `master` because each ticket was a
+small focused change and the operator wanted them rolled out together
+as one player-facing "27 Jun 2026 — Bugfixes" patch note (T228).
+
+| # | Ticket | Status | Commit | Tests |
+|---|--------|--------|--------|-------|
+| T219 | Jackpot → plain win (no special path) | [x] | 97db73d | covered by existing spin tests |
+| T220 | Dice consume-on-resolve (refund on loss) | [x] | 3cbf563 | 3 |
+| T221 | Jackpot chat messages gone | [x] | 3cbf563 | 1 (rewrite) + 1 new |
+| T222 | Prestige chat dedup per player | [x] | bde6e62 | 4 |
+| T223 | Shop: fish_to_wager removed + wager UI consolidated | [x] | fce662d | 2 |
+| T224 | Auto-fish stuck after prestige | [x] | e3fb42b | 3 |
+| T225 | BIGINT widening for win columns | [x] | 09a1c7a | 2 |
+| T226 | NUMERIC widening for win columns | [x] | 97db73d | 1 |
+| T227 | Tier ladder (K/M/B/T + scientific) across UI | [x] | 97db73d | 4 |
+| T228 | 27 Jun 2026 bugfix patch notes | [x] | 51b7351 | n/a |
+| T229 | Reformat chat win numbers via tier ladder | [x] | 0c5c4a8 + ca75d41 | 18 + 8 updates |
+| T230 | Merge double-down + big-win into one chat message | [x] | 92b701a | 4 new + 3 updates |
+
+**Driver: dylan.** Most of T219–T227 were triggered by a single
+session on 2026-06-27 where dylan landed: (1) a jackpot that was
+wrongly treated as a special case and crashed the special-case
+branch; (2) a dice wager that consumed the charge on a loss; (3)
+multiple double-down big wins that posted two chat lines for the
+same win. These triggered the cascade of fixes. T225 and T226
+(dylan's wins hit 2.1B and then 9.2e18 in the same session) were
+caught by the chat formatter and the spin-amount column. T227's
+tier ladder is the single source of truth for the new display
+contract (K = 1 decimal, M/B/T = 2 decimals, scientific for 1e15+).
+
+**Number-format work (T226 + T227) was coupled.** Widening the
+columns to NUMERIC was required before the tier ladder UI was
+honest, and the tier ladder UI was the whole point of the widening.
+Combined commit `97db73d` carries both — splitting them would
+have shipped a half-finished feature.
+
+**Chat dedup (T222, T229, T230) is the thematic arc of the batch.**
+T222 made prestige announcements per-player-dedup; T229 reformatted
+the existing 9 system messages using T227's tier ladder (and
+caught 2 late dylan messages + a btrim bug in the follow-up
+commit); T230 merged the double-down + big-win announcements into
+one message (deleting the 8 historical standalone double-down
+lines via migration 070). Final state: chat went from 25 noisy
+system messages to 17 clean ones, with no duplicate info per spin.
+
+**Migrations applied to `wheeldb` (live):**
+
+| # | Purpose | Status |
+|---|---------|--------|
+| 064 | Delete 2 jackpot chat messages | applied |
+| 065 | Collapse 5 historical prestige messages → 1 per player | applied |
+| 066 | Clear stuck auto-fish flag for 1 player | applied |
+| 067 | Widen win-amount columns BIGINT | applied |
+| 068 | Widen win-amount columns NUMERIC (unlimited) | applied |
+| 069 | Reformat 9 system-message win numbers via tier ladder | applied (idempotent on re-run) |
+| 070 | Delete 8 standalone double-down chat messages | applied (idempotent on re-run) |
+
+**Final chat state after the batch:** 17 system messages across 5
+players (dylan 4, chudwigvanbetahoven 4, worm67 4, tom7 4, f22 1),
+zero duplicates per player, all formatted with the tier ladder.
+
+**Test results:** 635 passing (up from 359 at pre-release).
+Pre-existing 16 failures in `test_mobile_*` (all e2e/Playwright)
+are unrelated — they pass in isolation and fail in combined runs
+due to the `sys.modules.setdefault` stub-leak issue documented in
+the test setup.
+
+**Pushed:** `92b701a` on `master` (commit chain 51b7351 → 0c5c4a8
+→ ca75d41 → 92b701a). Player-facing summary in `PATCH_NOTES.md`
+under "27 Jun 2026 — Bugfixes & Quality of Life", "27 Jun 2026
+(later) — Chat Numbers Reformatted", and "27 Jun 2026 (later) —
+Double-Down Chat Merge".
