@@ -143,7 +143,7 @@ It is posted via the existing system-message path, which has a per-worker thrott
   - Sea-glass accent `#7fd1c7`, sand text accents `#f2e3c6`.
 - **Wheel.** Sea-glass teal / sand / coral (`#ff7f6e`) segments. The jackpot keeps the blue the user picked.
 - **No new background script.** The S9 Arcade assets are scrapped.
-- Mockup: `docs/img/s9-tides-mockup.png` (CSS mockup, see §7 RV-09 for the real build).
+- Mockup: `docs/img/s9-tides-mockup.png` — v2, the real `page-season9` theme on staging (retired panels hidden). Concept: the wheel is the moon over a night sea; its light lays a glitter path on the water; lighthouse, sea-glass/coral buoys and a lantern-lit fishing boat; keeps the series frame (struck-through "Lucky" title gag → "Tide", gold rim, bulbs, WINS/LOSSES boxes, gradient screen border).
 
 ## 6. Friction fixes
 

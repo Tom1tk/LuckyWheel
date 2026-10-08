@@ -3845,6 +3845,43 @@ body.page-season8 .casino-title {
 body.page-season8 .dice-panel-label { color: #45E27A; }
 body.page-season8 .dice-panel-desc  { color: #138C42; }
 
+/* ── Season 9: Tides — sea-glass (wins) / coral (losses) on a night sea ──── */
+/* The wheel is the moon: static/js/tides-bg.js lays its light on the water.
+   The gradient is the fallback if the canvas fails to load. */
+body.page-season9 {
+  background: linear-gradient(180deg, #040a18 0%, #0d2742 58%, #0a2438 60%, #030c17 100%);
+  --p:        #3FD6C6;
+  --p-lt:     #8FF0E4;
+  --p-md:     #1FA9A0;
+  --p-dk:     #0F7C78;
+  --p-xs:     #0B5856;
+  --p-2x:     #063A3A;
+  --p-rgb:    63, 214, 198;
+  --p-dk-rgb: 15, 124, 120;
+  --s:        #FF7F6E;
+  --s-lt:     #FFA597;
+  --s-rgb:    255, 127, 110;
+  --bg:       #040a18;
+}
+body.page-season9::before { border-image: linear-gradient(90deg, #3FD6C6, #F2E3C6, #FF7F6E, #F2E3C6, #3FD6C6) 1; }
+body.page-season9 .casino-title { color: #F2E3C6; }
+body.page-season9 .title-lucky { color: #F2E3C6; }
+body.page-season9 .title-endless { color: #3FD6C6; text-shadow: 0 0 8px #3FD6C6, 0 0 22px #1FA9A0; }
+body.page-season9 .subtitle { color: #FF7F6E; }
+body.page-season9 .wheel-wrapper::before {
+  box-shadow: 0 0 34px 14px rgba(63,214,198,0.42), 0 0 90px 30px rgba(242,227,198,0.10), inset 0 0 20px rgba(63,214,198,0.1);
+}
+body.page-season9 .pointer { border-top-color: #F2E3C6; filter: drop-shadow(0 0 10px #3FD6C6) drop-shadow(0 0 22px #FF7F6E); }
+body.page-season9 .center-hub { background: radial-gradient(circle, #8FF0E4, #0F7C78); border-color: #F2E3C6; box-shadow: 0 0 20px #3FD6C6, 0 0 45px rgba(242,227,198,0.5); }
+body.page-season9 .bulb:nth-child(odd)  { background: #3FD6C6; box-shadow: 0 0 8px #3FD6C6; }
+body.page-season9 .bulb:nth-child(even) { background: #FF7F6E; box-shadow: 0 0 8px #FF7F6E; }
+body.page-season9 .result-text.win { color: #8FF0E4; border-color: #3FD6C6; text-shadow: 0 0 20px #3FD6C6, 0 0 50px #1FA9A0; box-shadow: 0 0 40px #3FD6C6, inset 0 0 20px rgba(63,214,198,0.1); }
+body.page-season9 .score-box.wins-box { border-color: #3FD6C6; background: rgba(63,214,198,0.08); box-shadow: 0 0 16px rgba(63,214,198,0.2); }
+body.page-season9 .score-box.wins-box .score-label { color: #8FF0E4; }
+body.page-season9 .score-box.wins-box .score-value { color: #8FF0E4; text-shadow: 0 0 12px #3FD6C6; }
+body.page-season9 .dice-panel-label { color: #8FF0E4; }
+body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
+
 /* ── Hiatus Screen ────────────────────────────────────────────────────────── */
 .hiatus-screen {
   min-height: 100vh;
