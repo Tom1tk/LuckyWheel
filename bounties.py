@@ -39,13 +39,6 @@ BOUNTY_DEFS = [
         'reward_tokens': 100,
     },
     {
-        'id': 'bounty_prestige',
-        'description': 'Prestige once',
-        'metric': 'prestige_today',
-        'target': 1,
-        'reward_tokens': 100,
-    },
-    {
         'id': 'bounty_mirror',
         'description': 'Win 3 mirror-mode doubles',
         'metric': 'mirror_wins_today',

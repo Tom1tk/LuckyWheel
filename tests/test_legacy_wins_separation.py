@@ -21,7 +21,6 @@ synthetic user_season_history row + game_state row, apply the
 migration, verify the result, and let the fixture roll back — so
 on-disk state is unchanged after the suite.
 """
-import os
 import re
 import sys
 import importlib.util
@@ -37,7 +36,6 @@ STAGING_ENV = Path('/home/user/wheel-app-staging/.env')
 
 MIGRATION_PATH = REPO_ROOT / 'migrations' / '059_legacy_wins_remove_s77_carryover.sql'
 SEASONS_PY_PATH = REPO_ROOT / 'seasons.py'
-JSX_PATH = REPO_ROOT / 'static' / 'app.jsx'
 
 
 # ── Source-level plumbing ───────────────────────────────────────────────────
@@ -315,20 +313,6 @@ def test_seasons_py_rollover_sql_uses_legacy_wins_equals_zero():
     assert re.search(r'legacy_wins\s*=\s*0\b', update_sql), (
         f"advance_season()'s UPDATE game_state must contain "
         f"`legacy_wins = 0` (reset at rollover).\nCaptured SQL:\n{update_sql}"
-    )
-
-
-def test_panel_format_unchanged():
-    """The prestige panel's `legacy-badge` JSX is unchanged by T218 —
-    T218 only changes the data behind the badge. The format stays
-    `Legacy: {fmt(legacyWins)} wins` (no `Legacy (S8):` prefix; that
-    was the optional cosmetic from the ticket's §C and is NOT
-    required)."""
-    jsx = _read(JSX_PATH)
-    assert 'legacy-badge' in jsx, "legacy-badge element must still exist"
-    assert 'legacyWins > 0' in jsx, "legacy-badge must still gate on legacyWins > 0"
-    assert re.search(r'Legacy:\s*\{fmt\(legacyWins\)\}\s*wins', jsx), (
-        "legacy-badge format must remain `Legacy: {fmt(legacyWins)} wins`"
     )
 
 

@@ -60,12 +60,12 @@ def test_leaderboard_excludes_localhost_users():
 
 
 def test_leaderboard_preserves_prior_filter():
-    """T121's wins/prestige predicate must still be present
-    (the test-user filter is additive, not a replacement)."""
+    """The wins > 0 predicate and wins ordering must still be present
+    (the test-user filter is additive, not a replacement). RV-06 dropped
+    the prestige predicate and ordering."""
     block = _leaderboard_select_block()
     assert 'wins > 0' in block, "T121 wins > 0 filter regressed"
-    assert 'prestige_level > 0' in block, "T121 prestige_level > 0 filter regressed"
-    assert 'ORDER BY gs.prestige_level DESC' in block, "T121 ORDER BY regressed"
+    assert 'ORDER BY gs.wins DESC' in block, "leaderboard ORDER BY must rank by wins"
 
 
 def test_season_top3_excludes_localhost_users():

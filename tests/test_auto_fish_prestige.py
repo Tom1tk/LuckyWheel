@@ -11,16 +11,13 @@ they prestiged. After prestige:
     they also couldn't fish manually
 
 Fix:
-  1. auto_fish_enabled + auto_fish_last_tick are in PRESTIGE_RESET_COLUMNS
-  2. _prestige_default returns False / None for the two new columns
-  3. /api/state response includes auto_fish_enabled so the client can
+  1. /api/state response includes auto_fish_enabled so the client can
      stay in sync
-  4. /api/prestige POST response includes the new (cleared) value
-  5. /api/auto-fish-enabled defensively forces the flag off if the
+  2. /api/auto-fish-enabled defensively forces the flag off if the
      player doesn't own an autofisher upgrade
-  6. The JSX FishingPanel forces local autoFish=false when the upgrade
+  3. The JSX FishingPanel forces local autoFish=false when the upgrade
      is missing (defence in depth, even if the server-side fixes fail)
-  7. Migration 066 backfills any existing stuck players
+  4. Migration 066 backfills any existing stuck players
 
 These tests pin all of the above so the bug doesn't regress.
 """
@@ -33,68 +30,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 ROOT    = os.path.dirname(os.path.dirname(__file__))
 APP_JSX = os.path.join(ROOT, 'static', 'app.jsx')
 GAME_PY = os.path.join(ROOT, 'game.py')
-PRESTIGE_PY = os.path.join(ROOT, 'prestige.py')
 MIG_066 = os.path.join(ROOT, 'migrations', '066_clear_stuck_auto_fish.sql')
 
 
 def _read(path):
     with open(path) as f:
         return f.read()
-
-
-# ── PRESTIGE_RESET_COLUMNS includes the new columns ───────────────────────
-
-def test_prestige_reset_columns_includes_auto_fish_enabled():
-    """T224: auto_fish_enabled must be in PRESTIGE_RESET_COLUMNS so it
-    gets reset on every prestige."""
-    from prestige import PRESTIGE_RESET_COLUMNS
-    assert 'auto_fish_enabled' in PRESTIGE_RESET_COLUMNS, (
-        "auto_fish_enabled must be in PRESTIGE_RESET_COLUMNS (T224)"
-    )
-
-
-def test_prestige_reset_columns_includes_auto_fish_last_tick():
-    """T224: auto_fish_last_tick must be in PRESTIGE_RESET_COLUMNS so
-    the stale timestamp doesn't drive an immediate catch-up fish on the
-    player's first spin post-prestige."""
-    from prestige import PRESTIGE_RESET_COLUMNS
-    assert 'auto_fish_last_tick' in PRESTIGE_RESET_COLUMNS, (
-        "auto_fish_last_tick must be in PRESTIGE_RESET_COLUMNS (T224)"
-    )
-
-
-# ── _prestige_default returns the right values ────────────────────────────
-
-def test_prestige_default_auto_fish_enabled_false():
-    """T224: _prestige_default('auto_fish_enabled') must return False
-    so the column is cleared on prestige."""
-    src = _read(GAME_PY)
-    # The function groups columns that reset to False in a tuple
-    # followed by a `return False`. The auto_fish_enabled literal must
-    # appear in that tuple, with the matching `return False` within
-    # the same group. Search with [\\s\\S] to span newlines.
-    assert re.search(
-        r"if\s+col\s+in\s+\([\s\S]*?'auto_fish_enabled'[\s\S]*?\)\s*:\s*\n\s*return\s+False",
-        src,
-    ), (
-        "_prestige_default must return False for auto_fish_enabled "
-        "(T224: clear on prestige)"
-    )
-
-
-def test_prestige_default_auto_fish_last_tick_none():
-    """T224: _prestige_default('auto_fish_last_tick') must return None
-    so the timestamp is cleared on prestige."""
-    src = _read(GAME_PY)
-    # The function groups columns that reset to None in a tuple
-    # followed by a `return None`. Same multi-line pattern.
-    assert re.search(
-        r"if\s+col\s+in\s+\([\s\S]*?'auto_fish_last_tick'[\s\S]*?\)\s*:\s*\n\s*return\s+None",
-        src,
-    ), (
-        "_prestige_default must return None for auto_fish_last_tick "
-        "(T224: clear on prestige)"
-    )
 
 
 # ── /api/state response includes auto_fish_enabled ────────────────────────
@@ -114,26 +55,6 @@ def test_state_response_includes_auto_fish_enabled():
     ), (
         "the /api/state response must include "
         "'auto_fish_enabled': bool(gs.get('auto_fish_enabled', False))"
-    )
-
-
-# ── /api/prestige POST response includes the cleared value ────────────────
-
-def test_prestige_post_response_includes_auto_fish_enabled():
-    """T224: the prestige POST response must include the new
-    auto_fish_enabled value (always False after prestige) so the client
-    can clear its local state immediately, without waiting for the
-    next /api/state poll."""
-    src = _read(GAME_PY)
-    # The prestige POST response includes the state object; within
-    # that object, auto_fish_enabled should be set from the freshly
-    # loaded game state (fresh.get('auto_fish_enabled')).
-    assert re.search(
-        r"auto_fish_enabled['\"]\s*:\s*bool\(fresh\.get\(['\"]auto_fish_enabled['\"]",
-        src,
-    ), (
-        "the prestige POST response must include the post-prestige "
-        "auto_fish_enabled value from the freshly loaded game state"
     )
 
 
@@ -263,19 +184,4 @@ def test_jsx_state_poll_syncs_autofish_enabled():
     ), (
         "the /api/state sync useEffect must call setAutoFishEnabled "
         "when gameState.auto_fish_enabled is non-null (T224)"
-    )
-
-
-def test_jsx_prestige_response_syncs_autofish_enabled():
-    """T224: the prestige POST response handler must call
-    setAutoFishEnabled(s.auto_fish_enabled) so the UI clears the
-    auto-fish state immediately after a successful prestige, without
-    waiting for a /api/state poll."""
-    src = _read(APP_JSX)
-    assert re.search(
-        r"s\.auto_fish_enabled\s*!=\s*null\s*\)\s*setAutoFishEnabled",
-        src,
-    ), (
-        "the prestige response handler must sync auto_fish_enabled "
-        "into local state (T224)"
     )

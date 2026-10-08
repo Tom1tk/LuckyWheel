@@ -258,47 +258,6 @@ def test_prestige_in_dedup_event_kinds():
     )
 
 
-def test_prestige_post_uses_dedup_call():
-    """T222: /api/prestige posts via post_dedup_system_message (per-user)."""
-    src = _read(GAME_PY)
-    # Find the prestige post block. It should call post_dedup_system_message
-    # with the user's id and event_kind='prestige'. The call is multi-line
-    # so use [\s\S] to match across newlines.
-    assert re.search(
-        r"post_dedup_system_message\(",
-        src,
-    ), "game.py must use post_dedup_system_message for the prestige post"
-    # And the call must include 'prestige' as the event_kind.
-    assert re.search(
-        r"post_dedup_system_message\([\s\S]*?event_kind\s*=\s*['\"]prestige['\"]",
-        src,
-    ), (
-        "the prestige post must use event_kind='prestige' so the dedup "
-        "SELECT (per user_id + event_kind) finds the right prior message"
-    )
-
-
-def test_prestige_post_passes_user_id():
-    """T222: the prestige dedup call passes current_user.id (not NULL).
-
-    Without user_id, the dedup falls into the NULL-user_id bucket and
-    groups all NULL-user_id system messages together (which is what
-    caused the dylan L1-L5 issue — the migration fixed those, but new
-    posts must use a proper user_id).
-    """
-    src = _read(GAME_PY)
-    # The post_dedup_system_message call near the prestige_msg must
-    # include current_user.id. Search for the block.
-    block = re.search(
-        r"chat_triggers\.prestige_msg\([^)]+\),\s*\n\s*current_user\.id,",
-        src,
-    )
-    assert block, (
-        "the prestige post_dedup_system_message call must pass "
-        "current_user.id as the user_id"
-    )
-
-
 def test_migration_064_exists_and_keeps_latest_per_user():
     """Migration 064: keeps only the latest prestige message per user."""
     assert os.path.exists(os.path.join(ROOT, 'migrations', '064_prestige_per_user_dedup.sql')), (

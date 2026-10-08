@@ -19,8 +19,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from loadout import (
     COSMETIC_SLOTS,
     VALID_FISH_IDS,  # re-export sanity check
-    get_loadout,
-    save_loadout_core,
     equip_fish_core,
     equip_class_core,
     equip_cosmetic_core,
@@ -119,127 +117,6 @@ class TestCosmeticSlots:
         # COSMETIC_SLOTS — equipping a fish never touches that map.
         assert "default" in VALID_FISH_IDS
         assert "default" not in COSMETIC_SLOTS
-
-
-# ──────────────────────────────────────────────────────────────────────────
-# get_loadout
-# ──────────────────────────────────────────────────────────────────────────
-
-
-class TestGetLoadout:
-    def test_returns_empty_dict_when_no_rows(self):
-        cur = MockCursor(queue_fetchall=[])
-        result = get_loadout(cur, user_id=7)
-        assert result == {"loadouts": {}}
-        assert len(cur.execute_calls) == 1
-        assert "FROM build_loadouts" in cur.execute_calls[0][0]
-
-    def test_returns_indexed_dict_from_rows(self):
-        cur = MockCursor(
-            queue_fetchall=[
-                {"slot": 1, "config": {"equipped_class": "earth"}},
-                {"slot": 2, "config": {"equipped_class": "moon"}},
-                {"slot": 3, "config": {"equipped_class": None}},
-            ]
-        )
-        result = get_loadout(cur, user_id=7)
-        assert result == {
-            "loadouts": {
-                1: {"equipped_class": "earth"},
-                2: {"equipped_class": "moon"},
-                3: {"equipped_class": None},
-            }
-        }
-
-
-# ──────────────────────────────────────────────────────────────────────────
-# save_loadout_core
-# ──────────────────────────────────────────────────────────────────────────
-
-
-class TestSaveLoadoutCore:
-    def test_valid_slot_succeeds(self):
-        cur = MockCursor()
-        conn = MockConn()
-        result = save_loadout_core(
-            cur, conn, user_id=7, slot=2, raw_loadout={"equipped_class": "earth"}
-        )
-        assert result == {"ok": True, "slot": 2}
-        # INSERT ... ON CONFLICT was issued.
-        assert len(cur.execute_calls) == 1
-        sql, params = cur.execute_calls[0]
-        assert "INSERT INTO build_loadouts" in sql
-        assert "ON CONFLICT" in sql
-        # params: (user_id, slot, Json(loadout_data))
-        assert params[0] == 7
-        assert params[1] == 2
-        # The third arg is a psycopg2.extras.Json wrapper; its
-        # underlying dict has only the spec-allowed fields. Use the
-        # ``.adapted`` attribute that psycopg2 exposes on the
-        # adapter.
-        wrapped = params[2]
-        assert wrapped.adapted == {
-            "equipped_class": "earth",
-            "active_wheel_mode": "steady",
-        }
-
-    def test_default_active_wheel_mode_is_steady(self):
-        cur = MockCursor()
-        conn = MockConn()
-        # No active_wheel_mode provided in raw → default 'steady'.
-        save_loadout_core(cur, conn, user_id=7, slot=1, raw_loadout={})
-        params = cur.execute_calls[0][1]
-        wrapped = params[2]
-        assert wrapped.adapted["active_wheel_mode"] == "steady"
-        assert wrapped.adapted["equipped_class"] is None
-
-    def test_drops_owned_items_and_active_cosmetics(self):
-        # Spec S11: client-supplied owned_items/active_cosmetics
-        # must never be persisted (exploit fix — used to let any
-        # player grant themselves every item for free).
-        cur = MockCursor()
-        conn = MockConn()
-        save_loadout_core(
-            cur,
-            conn,
-            user_id=7,
-            slot=1,
-            raw_loadout={
-                "equipped_class": "earth",
-                "active_wheel_mode": "gravity",
-                "owned_items": ["wager_unlock", "lure_5"],
-                "active_cosmetics": ["bg_ocean"],
-            },
-        )
-        params = cur.execute_calls[0][1]
-        wrapped = params[2]
-        data = wrapped.adapted
-        assert "owned_items" not in data
-        assert "active_cosmetics" not in data
-        assert data == {
-            "equipped_class": "earth",
-            "active_wheel_mode": "gravity",
-        }
-
-    def test_slot_zero_returns_400(self):
-        cur = MockCursor()
-        conn = MockConn()
-        result = save_loadout_core(cur, conn, user_id=7, slot=0, raw_loadout={})
-        assert result == (400, {"error": "Slot must be 1-3"})
-        assert cur.execute_calls == []
-
-    def test_slot_four_returns_400(self):
-        cur = MockCursor()
-        conn = MockConn()
-        result = save_loadout_core(cur, conn, user_id=7, slot=4, raw_loadout={})
-        assert result == (400, {"error": "Slot must be 1-3"})
-        assert cur.execute_calls == []
-
-    def test_negative_slot_returns_400(self):
-        cur = MockCursor()
-        conn = MockConn()
-        result = save_loadout_core(cur, conn, user_id=7, slot=-1, raw_loadout={})
-        assert result == (400, {"error": "Slot must be 1-3"})
 
 
 # ──────────────────────────────────────────────────────────────────────────

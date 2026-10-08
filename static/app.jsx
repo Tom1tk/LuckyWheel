@@ -1321,7 +1321,7 @@ function FishEncyclopedia({ caughtSpecies, onClose }) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onOnboardingAdvance }) {
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught }) {
   const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
@@ -1332,8 +1332,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   // T224: initialise autoFish from the server's auto_fish_enabled flag
   // (passed down via props). If the server says on, we trust it; if the
   // server says off, we start off. The useEffect below also forces autoFish
-  // off if hasAutoFisher becomes false (e.g. after a prestige that drops
-  // the upgrade).
+  // off if hasAutoFisher becomes false.
   const [autoFish, setAutoFish]   = useState(!!autoFishEnabled);
   const [autoFishPopup, setAutoFishPopup] = useState(null); // { key, type:'hit'|'miss', emoji?, value? }
   const autoFishRef               = useRef(!!autoFishEnabled);
@@ -1358,7 +1357,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
   useEffect(() => { phaseRef.current    = phase;     }, [phase]);
   useEffect(() => { setLuckyNextActive(fishingLuckyNext || false); }, [fishingLuckyNext]);
 
-  // T224: if the player lost the autofisher upgrade (e.g. via prestige),
+  // T224: if the player lost the autofisher upgrade,
   // force autoFish off in local state. The toggle is only rendered when
   // hasAutoFisher is true, so without this the player would be stuck with
   // autoFish=true (server flag also true) and no way to turn it off — and
@@ -1523,7 +1522,6 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
       setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled, preciseMult: data.precise_bonus ? data.precise_mult : null, precisePct: data.precise_pct != null ? data.precise_pct : null });
       onFishBucksUpdate(data.fish_clicks);
       if (data.first_catch) onCaughtSpeciesUpdate(data.species);
-      if (data.onboarding_advance && onOnboardingAdvance) onOnboardingAdvance();
       if (onFishCaught) onFishCaught();
       setLuckyNextActive(!!data.lucky_next_active);
       setPhase('success');
@@ -2167,10 +2165,6 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
             <span className="lb-wins-h">W</span>
-            {/* T121 follow-up: replaced WP/BP columns with a single
-                Prestige column (Win Power / Bonus Power infinite
-                upgrades were retired). */}
-            <span className="lb-prestige-h" title="Prestige level">★</span>
             <span className="lb-streak-h">🔥</span>
           </div>
           {rows.map((r, i) => (
@@ -2178,7 +2172,6 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
               <span className="lb-wins">{fmt(r.wins)}</span>
-              <span className="lb-prestige">{r.prestige_level > 0 ? `Lv${r.prestige_level}` : '—'}</span>
               <span className={`lb-streak ${infernoClass(r.streak)}`}>
                 {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
               </span>
@@ -2530,7 +2523,7 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_2', emoji: '⭐', name: 'Bonus Power II', cost: 900,   desc: '4× streak bonuses', requires: 'bonusmult_1' },
     { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
-  { label: '⚡ Season 8: Wager System', items: [
+  { label: '⚡ Wager System', items: [
     { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake slider (0% safe, 5%-30% at risk)', tier: 1 },
     { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
     { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
@@ -2540,11 +2533,6 @@ const SHOP_SECTIONS = [
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
     { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
     { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Spins automatically at 0% stake — stake slider hides while active', tier: 1 },
-  ]},
-  { label: '🏅 Season 8: Prestige', items: [
-    // T121: prestige_efficiency and prestige_legacy retired. The unlock
-    // now triggers the atomic /api/prestige flow after a confirmation modal.
-    { id: 'prestige_unlock',     emoji: '🏅', name: 'Prestige Unlock',     cost: 1000000, desc: 'Unlocks prestige reset (permanent +2% per level)', tier: 3 },
   ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
@@ -2594,7 +2582,6 @@ const SHOP_SECTIONS = [
     // from the shop UI. (Existing players who already own it keep it; new
     // players won't be able to buy it.)
     { id: 'catch_of_the_day',   emoji: '📅', name: 'Catch of the Day',   cost: 3000,   desc: 'First fish conversion each day worth 5x tokens', tier: 1 },
-    { id: 'aquarium',           emoji: '🐠', name: 'Aquarium',           cost: 15000,  desc: 'Each unique species adds +0.1% wheel luck', tier: 2 },
     { id: 'lure_specialization',emoji: '🎯', name: 'Lure Specialization',cost: 10000,  desc: 'Specialized lure techniques', tier: 2, requires: 'fish_to_wager' },
   ]},
   { label: '🎡 Wheel Theme', items: [
@@ -2707,14 +2694,10 @@ function computeFishExchangeRate(total) {
 // ── Shop components ────────────────────────────────────────────────────────
 const CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
 
-const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, onEquipClass, isSkin, isSingularity, isCosmetic, isClass, isClassEquipped, infLevel, displayCost, procStreak }) {
+const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, canAfford, onBuy, onEquip, onEquipCosmetic, onEquipClass, isSkin, isCosmetic, isClass, isClassEquipped, infLevel, displayCost, procStreak }) {
   const isInfinite = !!item.infinite;
-  // T121 follow-up: use displayCost (the parent's override) for all
-  // items, not just infinite ones. The parent sets displayCost to the
-  // scaled prestige threshold for prestige_unlock, the infinite cost for
-  // infinite upgrades, or item.cost as the default. Previously this
-  // component used item.cost for non-infinite items, which ignored the
-  // prestige override and showed a hardcoded 1M.
+  // displayCost is the parent's override: the infinite cost for infinite
+  // upgrades, or item.cost by default.
   const cost = displayCost != null ? displayCost : item.cost;
 
   let actionEl;
@@ -2747,7 +2730,6 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
       >Buy</button>
     );
   }
-  const extraClass = isSingularity && !owned ? 'singularity-item' : '';
   const infDesc = isInfinite && infLevel != null
     ? (() => {
         const cfg = INF_UPGRADE_CFG[item.id];
@@ -2768,7 +2750,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
       })()
     : item.desc;
   return (
-    <div className={`shop-item ${!isInfinite && owned ? (equipped || active ? 'equipped' : 'owned') : ''} ${extraClass}`}>
+    <div className={`shop-item ${!isInfinite && owned ? (equipped || active ? 'equipped' : 'owned') : ''}`}>
       <span className="shop-item-emoji">{item.emoji}</span>
       <div className="shop-item-info">
         <div className="shop-item-name">{item.name}</div>
@@ -2787,18 +2769,7 @@ const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Tr
 // values (1000 / 10000) to match the new metric scale.
 const TIER_THRESHOLDS = { 2: 10000, 3: 100000 };
 
-// T111/T121: prestige threshold scales by 1.05× per level (T111). The
-// server is the source of truth — `gameState.next_prestige_threshold`
-// carries the live value. These constants are the client-side fallback
-// for the very first render before the next_threshold is in state.
-const PRESTIGE_BASE_THRESHOLD = 1000000;
-const PRESTIGE_LEVEL_MULTIPLIER = 1.05;
-const PRESTIGE_MAX_LEVEL = 20;
-function clientPrestigeThreshold(level) {
-  return Math.round(PRESTIGE_BASE_THRESHOLD * Math.pow(PRESTIGE_LEVEL_MULTIPLIER, level));
-}
-
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, cumulativeWins, caughtSpecies, procStreak, prestigeLevel, nextPrestigeThreshold }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, cumulativeWins, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -2841,18 +2812,8 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
         const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
         const atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
-        // T121: prestige_unlock is special. After the first prestige, the
-        // item is in owned_items, but the player can still buy it again
-        // to prestige to the next level (cost = scaled threshold, not 1M).
-        // We override owned/displayCost here so the shop always shows the
-        // action button until the player hits MAX_PRESTIGE_LEVEL.
-        const isPrestige = item.id === 'prestige_unlock';
-        const prestigeAtMax = isPrestige && (prestigeLevel || 0) >= PRESTIGE_MAX_LEVEL;
-        const prestigeOwnedButCanBuy = isPrestige && ownedItems.includes('prestige_unlock') && !prestigeAtMax;
-        const itemOwned = !item.infinite && ownedItems.includes(item.id) && !prestigeOwnedButCanBuy;
-        const displayCost = isPrestige
-          ? (prestigeAtMax ? 0 : (nextPrestigeThreshold || clientPrestigeThreshold(prestigeLevel || 0)))
-          : (item.infinite ? infCost(item.id, infLevel) : item.cost);
+        const itemOwned = !item.infinite && ownedItems.includes(item.id);
+        const displayCost = item.infinite ? infCost(item.id, infLevel) : item.cost;
         const currency = getItemCurrency(item.id);
         const balance = currency === 'wins' ? wins : currency === 'losses' ? losses : fishClicks;
 
@@ -2895,14 +2856,13 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         return (
           <ShopItem key={item.id} item={item}
             isSkin={false}
-            isSingularity={item.id === 'singularity'}
             isCosmetic={isCosmetic}
             isClass={isClass}
             isClassEquipped={isClassEquipped}
             owned={itemOwned}
             equipped={false}
             active={isCosmetic && activeCosmetics.includes(item.id)}
-            canAfford={!atMaxLevel && !prestigeAtMax && balance >= displayCost}
+            canAfford={!atMaxLevel && balance >= displayCost}
             infLevel={infLevel}
             displayCost={atMaxLevel ? 0 : displayCost}
             procStreak={procStreak}
@@ -3241,16 +3201,6 @@ const WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. 
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
-function PrestigePanel({ ownedItems, prestigeLevel, legacyWins }) {
-  if (!ownedItems.includes('prestige_unlock')) return null;
-  return (
-    <div className="season8-prestige-panel">
-      <div className="prestige-badge" title="Each level adds +2% to your win payout (e.g. level 5 = 1.10x, level 20 = 1.40x). Doesn't affect losses or jackpots.">Prestige Lv.{prestigeLevel} (+{prestigeLevel * 2}% win mult)</div>
-      {legacyWins > 0 && <div className="legacy-badge">Legacy: {fmt(legacyWins)} wins</div>}
-    </div>
-  );
-}
-
 function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
   if (insuranceFreeClaimedToday) return null;
   return (
@@ -3288,46 +3238,6 @@ function BountiesPanel({ bounties, onClaim }) {
   );
 }
 
-function AquariumPanel({ ownedItems, aquariumSpecies, insuranceTokens }) {
-  if (!ownedItems.includes('aquarium')) return null;
-  return (
-    <div className="season8-aquarium-panel">
-      <div className="aquarium-header">
-        <span>
-          🐠 Aquarium
-          <span className="aquarium-info-icon" data-tooltip="Each unique fish species you catch adds +0.1% to your base win chance.">?</span>
-        </span>
-        <span className="aquarium-luck">+{(aquariumSpecies.length * 0.1).toFixed(1)}%</span>
-      </div>
-      <div className="aquarium-grid">
-        {aquariumSpecies.map(s => (
-          <div key={s} className="aquarium-species" title={s}>{s}</div>
-        ))}
-      </div>
-      {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
-        <div className="wager-tokens">🪙 {fmt(insuranceTokens)} tokens</div>
-      )}
-    </div>
-  );
-}
-
-function LoadoutPanel({ ownedItems, equippedClass, activeWheelMode, onSave, onApply }) {
-  if (ownedItems.length === 0) return null;
-  return (
-    <div className="season8-loadout-panel">
-      <div className="loadout-label">⚙️ Loadouts</div>
-      <div className="loadout-slots">
-        {[1, 2, 3].map(slot => (
-          <div key={slot} className="loadout-slot">
-            <button className="loadout-save-btn" onClick={() => onSave(slot, { equipped_class: equippedClass, active_wheel_mode: activeWheelMode })}>Save {slot}</button>
-            <button className="loadout-apply-btn" onClick={() => onApply(slot)}>Equip {slot}</button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function CommunityGoalPanel({ communityGoal }) {
   if (!communityGoal) return null;
   return (
@@ -3337,33 +3247,6 @@ function CommunityGoalPanel({ communityGoal }) {
         <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
       </div>
       <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
-    </div>
-  );
-}
-
-function SingularityPanel({ singularity, fishClicks, onContribute }) {
-  if (!singularity) return null;
-  return (
-    <div className="meta-goal-row">
-      <div className="singularity-label-row">
-        <span className="singularity-label">🌀 Singularity</span>
-        {!singularity.filled && (
-          <span className="singularity-buttons">
-            <button
-              onClick={() => onContribute(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}
-              disabled={fishClicks < 1}
-            >+{fmt(Math.min(fishClicks, Math.floor(singularity.target * 0.1)))}</button>
-            <button
-              onClick={() => onContribute(fishClicks)}
-              disabled={fishClicks < 1}
-            >All</button>
-          </span>
-        )}
-      </div>
-      <div className="singularity-progress-bar">
-        <div className="singularity-progress-fill" style={{ width: `${Math.min(100, (singularity.total_contributed / singularity.target) * 100)}%` }} />
-      </div>
-      <div className="singularity-progress-text">{fmt(singularity.total_contributed)} / {fmt(singularity.target)}{singularity.fill_count > 0 ? ` · Convergences: ${singularity.fill_count}` : ''}</div>
     </div>
   );
 }
@@ -3472,8 +3355,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [fishingLuckyNext, setFishingLuckyNext] = useState(gameState.fishing_lucky_next || false);
   // T224: server-supplied auto_fish_enabled. The FishingPanel child
   // syncs from this via the autoFish prop. If the player has
-  // auto_fish_enabled=true in the DB but doesn't own autofisher_1
-  // (e.g. they prestiged with auto-fish on), the child useEffect
+  // auto_fish_enabled=true in the DB but doesn't own autofisher_1,
+  // the child useEffect
   // forces autoFish off in local state. The /api/auto-fish-enabled
   // endpoint also forces the flag off server-side.
   const [autoFishEnabled, setAutoFishEnabled] = useState(!!gameState.auto_fish_enabled);
@@ -3701,18 +3584,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.dice_last_recharge) setDiceLastRecharge(gs.data.dice_last_recharge);
           setDiceRolledSinceSpin(gs.data.dice_rolled_since_spin ?? false);
           // Season 8 state sync
-          if (gs.data.prestige_level != null) setPrestigeLevel(gs.data.prestige_level);
-          if (gs.data.legacy_wins != null) setLegacyWins(gs.data.legacy_wins);
-          if (gs.data.onboarding_step != null) setOnboardingStep(gs.data.onboarding_step);
           if (gs.data.wager_streak != null) setWagerStreak(gs.data.wager_streak);
           if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
           if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
           if (gs.data.insurance_tokens != null) setInsuranceTokens(gs.data.insurance_tokens);
-          if (gs.data.aquarium_species != null) setAquariumSpecies(gs.data.aquarium_species);
           if (gs.data.guard_charges != null) setGuardCharges(gs.data.guard_charges);
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
           if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
-          if (gs.data.singularity != null) setSingularity(gs.data.singularity);
           // T80: sync wheelProbabilities + gravity drift from the new state.
           if (gs.data.wheel_probabilities != null) setWheelProbabilities(gs.data.wheel_probabilities);
           if (gs.data.gravity_drift != null) setGravityDrift(gs.data.gravity_drift);
@@ -3756,17 +3634,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [season]);
 
   const handleBuy = useCallback(async (id) => {
-    // T121: intercept the prestige_unlock buy and open the confirmation
-    // modal first. The actual /api/prestige call happens on confirm (one
-    // atomic buy+reset). The shop buy never reaches /api/buy for this id.
-    if (id === 'prestige_unlock') {
-      const alreadyOwned = ownedItems.includes('prestige_unlock');
-      // First-time prestige: 1M deduction. Subsequent: free (the cost
-      // comes from the level-scaled threshold already in wins).
-      setPrestigeBuyCost(alreadyOwned ? 0 : 1_000_000);
-      setShowPrestigeBuyConfirm(true);
-      return;
-    }
     const { ok, data } = await apiGame('/api/buy', {
       method: 'POST',
       body: JSON.stringify({ item_id: id }),
@@ -3784,68 +3651,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     } else {
       showToast(data.error || 'Purchase failed');
     }
-  }, [showToast, ownedItems]);
-
-  // T121: confirm the shop-triggered prestige. The server deducts the
-  // 1M cost (if not yet owned) and resets state in a single transaction,
-  // then returns the post-reset state in the response. We use that
-  // state to refresh all relevant React fields (PRESTIGE_RESET_COLUMNS
-  // strips every functional upgrade — owned_items is rewritten, so
-  // the shop's "owned" badges need a real update, not a hard refresh).
-  const handleConfirmPrestigeBuy = useCallback(async () => {
-    setShowPrestigeBuyConfirm(false);
-    const { ok, data } = await apiGame('/api/prestige', { method: 'POST', body: JSON.stringify({}) });
-    if (ok) {
-      setPrestigeLevel(data.prestige_level);
-      setPrestigeCount(data.prestige_count);
-      setLegacyWins(data.legacy_wins);
-      // T121 follow-up: refresh the next-threshold synchronously from
-      // the response so the shop's prestige price updates immediately
-      // (was: wait for refreshPrestigeInfo's GET roundtrip → flash of
-      // stale 1M).
-      if (data.next_threshold !== undefined) {
-        setNextPrestigeThreshold(data.next_threshold);
-      }
-      if (data.state) {
-        const s = data.state;
-        setWins(s.wins);
-        setLosses(s.losses);
-        setStreak(s.streak);
-        setSpinCount(s.spin_count);
-        setWagerStreak(s.wager_streak);
-        setWagerLastStake(s.wager_last_stake);
-        setInsuranceTokens(s.insurance_tokens);
-        setInsuranceCharges(s.insurance_charges);
-        setInsuranceArmed(s.insurance_armed);
-        setDoubleDownPending(s.double_down_pending);
-        setOwnedItems(s.owned_items);
-        if (s.cumulative_wins != null) setCumulativeWins(s.cumulative_wins);
-        // T224: prestige clears auto_fish_enabled (PRESTIGE_RESET_COLUMNS).
-        // The server returns the new value (always false after prestige);
-        // sync the local state so the auto-fish UI is hidden and the
-        // manual-fish UI is shown.
-        if (s.auto_fish_enabled != null) setAutoFishEnabled(s.auto_fish_enabled);
-      } else {
-        // Server didn't return state (older build) — fall back to the
-        // hand-rolled resets. Player will see stale shop "owned" badges
-        // until a hard refresh.
-        setWins(0);
-        setLosses(0);
-        setStreak(0);
-        setSpinCount(0);
-        setWagerStreak(0);
-        setWagerLastStake(0);
-        if (!ownedItems.includes('prestige_unlock')) {
-          setOwnedItems(prev => [...prev, 'prestige_unlock']);
-        }
-      }
-      showToast(` Prestiged to Level ${data.prestige_level}!`);
-      refreshBountiesAndGoal();
-      refreshPrestigeInfo();
-    } else {
-      showToast(data.error || 'Prestige failed');
-    }
-  }, [showToast, ownedItems]);
+  }, [showToast]);
 
   const handleEquip = useCallback(async (id) => {
     const { ok, data } = await apiGame('/api/equip', {
@@ -3987,9 +3793,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     // Season 8: update wager state from spin result
     if (data.wager_streak != null) setWagerStreak(data.wager_streak);
     if (data.stake != null) setWagerLastStake(data.stake);
-    if (data.onboarding_advance) {
-      setOnboardingStep(prev => Math.min(prev + 1, 5));
-    }
     // Season 8: refresh bounties & community goal after every spin
     refreshBountiesAndGoal();
     // Season 8: update community goal from state poll
@@ -4280,13 +4083,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   };
 
   // ── Season 8 state ─────────────────────────────────────────────────────────
-  const [prestigeLevel, setPrestigeLevel]           = useState(gameState.prestige_level || 0);
-  const [prestigeCount, setPrestigeCount]           = useState(gameState.prestige_count || 0);
-  const [legacyWins, setLegacyWins]                 = useState(gameState.legacy_wins || 0);
-  // T111: server-computed next-level threshold (scales with prestigeLevel).
-  // null when at MAX_PRESTIGE_LEVEL or before the first /api/prestige fetch.
-  const [nextPrestigeThreshold, setNextPrestigeThreshold] = useState(null);
-  const [onboardingStep, setOnboardingStep]         = useState(gameState.onboarding_step || 0);
   const [wagerStreak, setWagerStreak]               = useState(gameState.wager_streak || 0);
   const [wagerLastStake, setWagerLastStake]         = useState(gameState.wager_last_stake ?? 0);
   const [doubleDownPending, setDoubleDownPending]   = useState(gameState.double_down_pending || false);
@@ -4303,12 +4099,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // itself but kept in state for UI badges / debug.
   const [gravityDrift, setGravityDrift]             = useState(gameState.gravity_drift || 0);
   const [insuranceTokens, setInsuranceTokens]     = useState(gameState.insurance_tokens || 0);
-  const [aquariumSpecies, setAquariumSpecies]       = useState(gameState.aquarium_species || []);
   const [cosmeticFragments, setCosmeticFragments]   = useState(gameState.cosmetic_fragments || 0);
   const [guardCharges, setGuardCharges]             = useState(gameState.guard_charges || 0);
   const [bounties, setBounties]                     = useState(gameState.bounties || []);
   const [communityGoal, setCommunityGoal]           = useState(gameState.community_goal || null);
-  const [singularity, setSingularity]               = useState(gameState.singularity || null);
   // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
   // the safe "no risk" position and is valid — use ?? 0 not || 1.
   const [stakePct, setStakePct]                     = useState(gameState.wager_last_stake ?? 0);
@@ -4355,12 +4149,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     const id = setInterval(tick, 3000);
     return () => clearInterval(id);
   }, [autoSpinActive, tick]);
-  // T121: prestige now triggers from the shop buy of prestige_unlock, with
-  // a patch-notes-style confirmation modal shown first. The side-panel
-  // Prestige button is gone — the buy is intercepted and the modal opens.
-  const [showPrestigeBuyConfirm, setShowPrestigeBuyConfirm] = useState(false);
-  const [prestigeBuyCost, setPrestigeBuyCost]               = useState(1_000_000);
-  const [showOnboarding, setShowOnboarding]         = useState(false);  // T114: disabled for S8 launch
 
   const refreshBountiesAndGoal = useCallback(async () => {
     const [bountyRes, goalRes] = await Promise.all([
@@ -4381,15 +4169,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // Season 8: sync state from /api/state poll (season change handler already updates most state)
   // This runs on mount and when gameState changes
   useEffect(() => {
-    if (gameState.prestige_level != null) setPrestigeLevel(gameState.prestige_level);
-    if (gameState.prestige_count != null) setPrestigeCount(gameState.prestige_count);
-    if (gameState.legacy_wins != null) setLegacyWins(gameState.legacy_wins);
     // T106: tier-gating metric
     if (gameState.cumulative_wins != null) setCumulativeWins(gameState.cumulative_wins);
-    if (gameState.onboarding_step != null) {
-      setOnboardingStep(gameState.onboarding_step);
-      // T114: onboarding modal disabled for S8 launch; do not auto-show.
-    }
     // T107: sync auto-spin state from server.
     // T216: if the server reports auto-spin is active, that means a
     // previous tab/session left it running. We do NOT resume ticking
@@ -4418,12 +4199,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.active_wheel_mode != null) setActiveWheelMode(gameState.active_wheel_mode);
     if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
     if (gameState.insurance_tokens != null) setInsuranceTokens(gameState.insurance_tokens);
-    if (gameState.aquarium_species != null) setAquariumSpecies(gameState.aquarium_species);
     if (gameState.cosmetic_fragments != null) setCosmeticFragments(gameState.cosmetic_fragments);
     if (gameState.guard_charges != null) setGuardCharges(gameState.guard_charges);
     if (gameState.bounties != null) setBounties(gameState.bounties);
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
-    if (gameState.singularity != null) setSingularity(gameState.singularity);
     // T80: server-provided wheel probabilities + gravity drift.
     if (gameState.wheel_probabilities != null) setWheelProbabilities(gameState.wheel_probabilities);
     if (gameState.gravity_drift != null) setGravityDrift(gameState.gravity_drift);
@@ -4572,29 +4351,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast, activeWheelMode, wagerStreak, insuranceArmed, doubleDownPending, gravityDrift]);
 
-  // T121: prestige no longer has its own button — buying prestige_unlock
-  // from the shop opens the confirmation modal; confirm calls /api/prestige
-  // atomically (see handleConfirmPrestigeBuy above). We keep
-  // refreshPrestigeInfo so the prestige level / threshold badge stays live
-  // after the atomic reset.
-
-  // T111: fetch the level-scaled prestige threshold. The server is the source
-  // of truth (PRESTIGE_LEVEL_MULTIPLIER lives in prestige.py), so the button's
-  // disabled state always matches the cost the POST endpoint will enforce.
-  const refreshPrestigeInfo = useCallback(async () => {
-    const { ok, data } = await apiGame('/api/prestige', { method: 'GET' });
-    if (ok) {
-      setNextPrestigeThreshold(data.next_threshold);
-      setPrestigeLevel(data.prestige_level);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (ownedItems.includes('prestige_unlock')) {
-      refreshPrestigeInfo();
-    }
-  }, [ownedItems, prestigeLevel, refreshPrestigeInfo]);
-
   // Season 8: handle guard activation
   const handleGuardActivate = useCallback(async () => {
     const { ok, data } = await apiGame('/api/guard', { method: 'POST', body: JSON.stringify({}) });
@@ -4616,19 +4372,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       showToast('Bounty claimed!');
     } else {
       showToast(data.error || 'Claim failed');
-    }
-  }, [showToast]);
-
-  // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
-  const handleSingularityContribute = useCallback(async (amount) => {
-    const { ok, data } = await apiGame('/api/singularity/contribute', { method: 'POST', body: JSON.stringify({ amount }) });
-    if (ok) {
-      const actual = data.contributed ?? amount;
-      setFishClicks(prev => prev - actual);
-      setSingularity(prev => ({ ...prev, total_contributed: data.total_contributed, filled: data.filled }));
-      showToast(`Contributed ${fmt(actual)} fish to Singularity`);
-    } else {
-      showToast(data.error || 'Contribution failed');
     }
   }, [showToast]);
 
@@ -4698,25 +4441,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     }
   }, [showToast]);
 
-  // Season 8: handle loadout save
-  const handleLoadoutSave = useCallback(async (slot, loadout) => {
-    const { ok } = await apiGame('/api/loadout', { method: 'POST', body: JSON.stringify({ slot, loadout }) });
-    if (ok) showToast(`Loadout ${slot} saved`);
-    else showToast('Save failed');
-  }, [showToast]);
-
-  // Season 8: handle loadout apply
-  const handleLoadoutApply = useCallback(async (slot) => {
-    const { ok, data } = await apiGame('/api/loadout/apply', { method: 'POST', body: JSON.stringify({ slot }) });
-    if (ok) {
-      setEquippedClass(data.equipped_class);
-      setActiveWheelMode(data.active_wheel_mode);
-      showToast(`Loadout ${slot} applied`);
-    } else {
-      showToast(data.error || 'Apply failed');
-    }
-  }, [showToast]);
-
   // T202: bank wager hot-streak wins (was inline in the wager panel JSX;
   // extracted so WagerPanel can be a function component).
   const handleBankWager = useCallback(async () => {
@@ -4755,55 +4479,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     return () => window.removeEventListener('keydown', handler);
   }, [ownedItems, handleStakeChange, handleManualSpin]);
 
-  // Position coach-mark near the target element
-  useEffect(() => {
-    if (!showOnboarding || onboardingStep >= 4) return;
-    const targetSelectors = ['.wheel-wrapper', '.wager-stake-control', '.fishing-panel', '.season8-bounties-panel'];
-    const selector = targetSelectors[onboardingStep];
-    const target = document.querySelector(selector);
-    const coach = document.querySelector('.coach-mark');
-    if (!target || !coach) return;
-
-    const targetRect = target.getBoundingClientRect();
-    let top = targetRect.top + window.scrollY;
-    let left = targetRect.right + 10;
-
-    if (left + 300 > window.innerWidth) {
-      left = targetRect.left;
-      top = targetRect.bottom + 10;
-    }
-
-    coach.style.top = `${top}px`;
-    coach.style.left = `${left}px`;
-  }, [showOnboarding, onboardingStep]);
-
-  useEffect(() => {
-    if (!showOnboarding || onboardingStep >= 4) return;
-    const handleMove = () => {
-      const targetSelectors = ['.wheel-wrapper', '.wager-stake-control', '.fishing-panel', '.season8-bounties-panel'];
-      const selector = targetSelectors[onboardingStep];
-      const target = document.querySelector(selector);
-      const coach = document.querySelector('.coach-mark');
-      if (!target || !coach) return;
-      const targetRect = target.getBoundingClientRect();
-      let top = targetRect.top + window.scrollY;
-      let left = targetRect.right + 10;
-      if (left + 300 > window.innerWidth) {
-        left = targetRect.left;
-        top = targetRect.bottom + 10;
-      }
-      coach.style.top = `${top}px`;
-      coach.style.left = `${left}px`;
-    };
-
-    window.addEventListener('scroll', handleMove, { passive: true });
-    window.addEventListener('resize', handleMove, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleMove);
-      window.removeEventListener('resize', handleMove);
-    };
-  }, [showOnboarding, onboardingStep]);
-
   const hasGuard = ownedItems.includes('guard');
   const hasRegen = ownedItems.includes('regen_shield');
 
@@ -4835,79 +4510,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <div className="aria-live-region" aria-live="polite" aria-atomic="true">
         {result === 'win' ? 'Win' : result === 'lose' ? 'Loss' : result === 'jackpot' ? 'Jackpot!' : ''}
       </div>
-
-      {/* Season 8: Non-blocking onboarding coach-mark */}
-      {showOnboarding && onboardingStep < 4 && (
-        <div className="coach-mark" data-step={onboardingStep}>
-          <div className="coach-mark-content">
-            <span className="coach-mark-text">{
-              onboardingStep === 0 ? '🎡 Spin the wheel to get started!' :
-              onboardingStep === 1 ? '🎯 Try setting a wager stake!' :
-              onboardingStep === 2 ? '🎣 Catch a fish!' :
-              '📋 Check your bounties!'
-            }</span>
-            <div className="coach-mark-actions">
-              <button className="coach-mark-dismiss" onClick={() => setShowOnboarding(false)}>✕</button>
-            </div>
-          </div>
-          <div className="coach-mark-arrow" />
-        </div>
-      )}
-
-      {/* T121: shop-triggered prestige confirmation modal. Patch-notes-style
-          card with title, body, and Confirm/Cancel. Confirm calls
-          /api/prestige atomically (see handleConfirmPrestigeBuy). */}
-      {showPrestigeBuyConfirm && (
-        <div className="stats-overlay" onClick={() => setShowPrestigeBuyConfirm(false)}>
-          <div className="patch-notes-card prestige-confirm-card"
-               onClick={e => e.stopPropagation()}
-               style={{ maxWidth: '460px' }}>
-            <div className="stats-title">⚠️ Prestige Reset</div>
-            <button className="stats-close-btn"
-                    onClick={() => setShowPrestigeBuyConfirm(false)}>✕</button>
-            <div className="patch-notes-body" style={{ padding: '8px 0' }}>
-              <p style={{ color: '#ccc', lineHeight: 1.6, fontSize: '0.82rem' }}>
-                Prestige will <strong style={{ color: '#ff8866' }}>reset your wins, losses,
-                streak, and all non-cosmetic upgrades</strong> to zero. In return, your
-                <strong style={{ color: 'var(--p)' }}> prestige level goes up by 1</strong>,
-                granting a permanent <strong style={{ color: 'var(--p)' }}>+2% to your
-                win payout</strong>.
-              </p>
-              <p style={{ color: '#aaa', lineHeight: 1.6, fontSize: '0.78rem' }}>
-                Each level compounds: level 5 = 1.10× wins, level 20 = 1.40× wins (max).
-                Higher levels cost more wins to achieve (threshold scales by 1.05× per
-                level). Your <strong style={{ color: '#44ddff' }}>cosmetics, aquarium
-                species, and legacy wins are preserved</strong>.
-              </p>
-              {prestigeBuyCost > 0 && (
-                <p style={{ color: '#ffd700', fontSize: '0.75rem' }}>
-                  Cost: {fmt(prestigeBuyCost)} wins (first prestige only).
-                </p>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center',
-                          marginTop: '16px' }}>
-              <button className="prestige-confirm-btn"
-                      onClick={handleConfirmPrestigeBuy}
-                      data-testid="prestige-confirm"
-                      style={{ background: 'linear-gradient(135deg, #ff8866, #ff4444)',
-                               color: '#fff', padding: '10px 24px', border: 'none',
-                               borderRadius: '5px', cursor: 'pointer', fontFamily: 'inherit',
-                               fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
-                Confirm Prestige
-              </button>
-              <button onClick={() => setShowPrestigeBuyConfirm(false)}
-                      data-testid="prestige-cancel"
-                      style={{ background: 'rgba(255,255,255,0.1)', color: '#ccc',
-                               padding: '10px 24px', border: '1px solid #555',
-                               borderRadius: '5px', cursor: 'pointer', fontFamily: 'inherit',
-                               fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase' }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Confetti active={confetti} count={confettiCount} />
       {wormholeActive && (
@@ -4997,7 +4599,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={refreshBountiesAndGoal}
-          onOnboardingAdvance={() => setOnboardingStep(prev => Math.min(prev + 1, 5))}
         />
       )}
 
@@ -5014,7 +4615,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
             onFishCaught={refreshBountiesAndGoal}
-            onOnboardingAdvance={() => setOnboardingStep(prev => Math.min(prev + 1, 5))}
           />
         </div>
       )}
@@ -5318,11 +4918,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {/* T202: S8 panel components (extracted from inline JSX for
                   reuse in the mobile drawer; desktop rendering is
                   pixel-identical to pre-T202). */}
-              <PrestigePanel
-                ownedItems={ownedItems}
-                prestigeLevel={prestigeLevel}
-                legacyWins={legacyWins}
-              />
               <FreeTokensPanel
                 insuranceFreeClaimedToday={insuranceFreeClaimedToday}
                 onClaim={handleClaimFreeTokens}
@@ -5330,18 +4925,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               <BountiesPanel
                 bounties={bounties}
                 onClaim={handleBountyClaim}
-              />
-              <AquariumPanel
-                ownedItems={ownedItems}
-                aquariumSpecies={aquariumSpecies}
-                insuranceTokens={insuranceTokens}
-              />
-              <LoadoutPanel
-                ownedItems={ownedItems}
-                equippedClass={equippedClass}
-                activeWheelMode={activeWheelMode}
-                onSave={handleLoadoutSave}
-                onApply={handleLoadoutApply}
               />
             </div>
           )}
@@ -5366,26 +4949,17 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             cumulativeWins={cumulativeWins}
             caughtSpecies={caughtSpecies}
             procStreak={procStreak}
-            prestigeLevel={prestigeLevel}
-            nextPrestigeThreshold={nextPrestigeThreshold}
           />
         </div>
       </div>
 
       <div className="bottom-left-stack">
-        {/* T202: Community goal + Singularity — extracted into components
-            so the same JSX renders in the desktop bottom-left-stack (this
-            block, unchanged visually) AND in the mobile drawer's
-            Community tab. */}
-        {!isMobile && (communityGoal || singularity) && (
+        {/* T202: Community goal panel — extracted into a component so the
+            same JSX renders in the desktop bottom-left-stack (this block)
+            AND in the mobile drawer. */}
+        {!isMobile && communityGoal && (
           <div className="season8-meta-panel mini-panel">
             <CommunityGoalPanel communityGoal={communityGoal} />
-            {communityGoal && singularity && <div className="meta-divider" />}
-            <SingularityPanel
-              singularity={singularity}
-              fishClicks={fishClicks}
-              onContribute={handleSingularityContribute}
-            />
           </div>
         )}
         <div className="fish-counter">
@@ -5405,8 +4979,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
 
       {/* T204/T205: mobile drawer — single long scrollable column containing
-          all S8 sub-menus (Prestige, Free Tokens, Bounties, Aquarium,
-          Loadout, Community + Singularity). No tabs — operator wants
+          all S8 sub-menus (Free Tokens, Bounties, Community). No tabs — operator wants
           all sub-menus visible at once like the desktop sidebar. T205
           dropped the header/close button — open/close is via the 🎒
           toolbar icon only. The drawer is closed by default (transform:
@@ -5414,11 +4987,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       {isMobile && (
         <div className={`mobile-drawer${mobileDrawerOpen ? ' mobile-drawer-open' : ''}`}>
           <div className="mobile-drawer-section">
-            <PrestigePanel
-              ownedItems={ownedItems}
-              prestigeLevel={prestigeLevel}
-              legacyWins={legacyWins}
-            />
             <FreeTokensPanel
               insuranceFreeClaimedToday={insuranceFreeClaimedToday}
               onClaim={handleClaimFreeTokens}
@@ -5427,26 +4995,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               bounties={bounties}
               onClaim={handleBountyClaim}
             />
-            <AquariumPanel
-              ownedItems={ownedItems}
-              aquariumSpecies={aquariumSpecies}
-              insuranceTokens={insuranceTokens}
-            />
-            <LoadoutPanel
-              ownedItems={ownedItems}
-              equippedClass={equippedClass}
-              activeWheelMode={activeWheelMode}
-              onSave={handleLoadoutSave}
-              onApply={handleLoadoutApply}
-            />
             <div className="season8-meta-panel">
               <CommunityGoalPanel communityGoal={communityGoal} />
-              {communityGoal && singularity && <div className="meta-divider" />}
-              <SingularityPanel
-                singularity={singularity}
-                fishClicks={fishClicks}
-                onContribute={handleSingularityContribute}
-              />
             </div>
           </div>
         </div>

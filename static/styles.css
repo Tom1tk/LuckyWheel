@@ -608,79 +608,6 @@ body::before {
 }
 
 /* ── Fish ─────────────────────────────────────────────────────────────── */
-.fish-panel {
-  position: fixed;
-  left: 40px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  z-index: 102;
-}
-
-.fish-body {
-  line-height: 1;
-  display: block;
-  animation: fishBob 2.4s ease-in-out infinite;
-  transition: filter 0.4s;
-}
-
-@keyframes fishBob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%       { transform: translateY(-12px) rotate(3deg); }
-}
-
-.fish-body.happy { animation: fishHappy 0.7s ease-out forwards; }
-
-@keyframes fishHappy {
-  0%   { transform: translateY(0) rotate(0deg) scaleX(1); }
-  20%  { transform: translateY(-40px) rotate(20deg) scaleX(1.1); }
-  40%  { transform: translateY(-60px) rotate(-15deg) scaleX(-1.1); }
-  60%  { transform: translateY(-30px) rotate(10deg) scaleX(1); }
-  80%  { transform: translateY(-10px) rotate(-5deg); }
-  100% { transform: translateY(0) rotate(0deg); }
-}
-
-.fish-body.sad { animation: fishSad 1.2s ease-out forwards; }
-
-@keyframes fishSad {
-  0%   { transform: translateY(0) rotate(0deg); }
-  30%  { transform: translateY(30px) rotate(-20deg); }
-  60%  { transform: translateY(20px) rotate(10deg); }
-  100% { transform: translateY(0) rotate(-5deg); }
-}
-
-.fish-body.spinning-fish {
-  animation: fishSpin 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  cursor: wait;
-}
-
-@keyframes fishSpin {
-  0%   { transform: rotate(0deg)   scale(1); }
-  50%  { transform: rotate(180deg) scale(1.2); }
-  100% { transform: rotate(360deg) scale(1); }
-}
-
-.fish-panel { cursor: default; z-index: 102; }
-.fish-body  { position: relative; z-index: 1; }
-.fish-label { position: relative; z-index: 1; }
-
-/* Ambient aura — small blurred blob, radiates outward with no hard edge */
-.fish-aura {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
-  transition: opacity 1.2s ease, filter 1.2s ease;
-}
-
 
 /* Fish click counter */
 .fish-counter {
@@ -702,19 +629,6 @@ body::before {
   color: #888;
   text-shadow: 0 0 6px rgba(255,255,255,0.1);
 }
-
-.fish-label {
-  font-size: 0.75rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  text-align: center;
-  opacity: 0.7;
-  margin-top: 6px;
-}
-
-.fish-label.happy { color: #FFD700; }
-.fish-label.sad   { color: var(--s-lt); }
-.fish-label.idle  { color: #888; }
 
 /* ── Fishing Panel (Cast & Reel minigame) ─────────────────────────────── */
 .fishing-panel {
@@ -1488,22 +1402,6 @@ body::before {
 .shop-item.owned    { border-color: rgba(var(--p-rgb),0.4); background: rgba(var(--p-rgb),0.07); }
 .shop-item.equipped { border-color: var(--p); background: rgba(var(--p-rgb),0.12); box-shadow: 0 0 8px rgba(var(--p-rgb),0.2); }
 
-/* Singularity card */
-.shop-item.singularity-item {
-  border-color: transparent;
-  background: rgba(40,20,200,0.1);
-  animation: singularityBorder 3s linear infinite;
-}
-@keyframes singularityBorder {
-  0%   { box-shadow: 0 0 8px 2px #FF0000, inset 0 0 4px rgba(255,0,0,0.1); border-color: #FF0000; }
-  16%  { box-shadow: 0 0 8px 2px #FF8C00, inset 0 0 4px rgba(255,140,0,0.1); border-color: #FF8C00; }
-  33%  { box-shadow: 0 0 8px 2px #FFD700, inset 0 0 4px rgba(255,215,0,0.1); border-color: #FFD700; }
-  50%  { box-shadow: 0 0 8px 2px var(--p-lt), inset 0 0 4px rgba(0,255,136,0.1); border-color: var(--p-lt); }
-  66%  { box-shadow: 0 0 8px 2px var(--p), inset 0 0 4px rgba(var(--p-rgb),0.1); border-color: var(--p); }
-  83%  { box-shadow: 0 0 8px 2px #CC00FF, inset 0 0 4px rgba(204,0,255,0.1); border-color: #CC00FF; }
-  100% { box-shadow: 0 0 8px 2px #FF0000, inset 0 0 4px rgba(255,0,0,0.1); border-color: #FF0000; }
-}
-
 .shop-item-emoji { font-size: 1.2rem; line-height: 1; flex-shrink: 0; }
 
 .shop-item-info { flex: 1; min-width: 0; }
@@ -1621,45 +1519,6 @@ body::before {
 body.bg-ocean   { background: transparent; }
 body.bg-royal   { background: radial-gradient(ellipse at center, #1a0033 0%, #0a0018 70%); }
 body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #150000 70%); }
-
-/* ── Fish trail effects ────────────────────────────────────────────────── */
-.trail-sparkle .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, sparkleAura 1.2s ease-in-out infinite alternate;
-}
-@keyframes sparkleAura {
-  from { filter: drop-shadow(0 0 6px rgba(255,215,0,0.4)); }
-  to   { filter: drop-shadow(0 0 22px #FFD700) drop-shadow(0 0 40px #FFF8); }
-}
-.trail-fire .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, fireAura 0.5s ease-in-out infinite alternate;
-}
-@keyframes fireAura {
-  from { filter: drop-shadow(0 0 12px #FF4500) drop-shadow(0 0 24px #FF8C00); }
-  to   { filter: drop-shadow(0 0 30px var(--s)) drop-shadow(0 0 60px #FF2200); }
-}
-.trail-rainbow .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, rainbowAura 2s linear infinite;
-}
-@keyframes rainbowAura {
-  0%   { filter: drop-shadow(0 0 16px #FF0000); }
-  16%  { filter: drop-shadow(0 0 16px #FF8C00); }
-  33%  { filter: drop-shadow(0 0 16px #FFD700); }
-  50%  { filter: drop-shadow(0 0 16px var(--p-lt)); }
-  66%  { filter: drop-shadow(0 0 16px var(--p)); }
-  83%  { filter: drop-shadow(0 0 16px #CC00FF); }
-  100% { filter: drop-shadow(0 0 16px #FF0000); }
-}
-
-/* Interaction animations always override trail effects */
-[class*="trail-"] .fish-body.spinning-fish,
-.fish-body.spinning-fish {
-  animation: fishSpin 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  cursor: wait;
-}
-[class*="trail-"] .fish-body.happy,
-.fish-body.happy { animation: fishHappy 0.7s ease-out forwards; }
-[class*="trail-"] .fish-body.sad,
-.fish-body.sad   { animation: fishSad 1.2s ease-out forwards; }
 
 /* ── Auth Page ─────────────────────────────────────────────────────────── */
 .auth-overlay {
@@ -2377,16 +2236,6 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   line-height: 1.4;
 }
 
-/* ── Leaderboard Prestige column (T121: replaced WP/BP) ───────────────── */
-.lb-prestige-h, .lb-prestige {
-  font-size: 0.65rem;
-  text-align: right;
-  width: 26px;
-  flex-shrink: 0;
-}
-.lb-prestige-h { color: #555; font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase; }
-.lb-prestige  { color: var(--p, #c084fc); font-weight: 700; }
-
 /* ── Toast notification ────────────────────────────────────────────────── */
 .toast-notification {
   position: fixed;
@@ -2528,7 +2377,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   .game-right-body { transform: none !important; }
 
   /* Fish/fishing panels — always hidden on mobile (rendered inside mobile-fish-panel instead) */
-  .fish-panel, .fishing-panel { display: none; }
+  .fishing-panel { display: none; }
 
   /* Mobile fish panel — overlay card with fishing panel + community pot */
   .mobile-fish-panel.mobile-visible {
@@ -2548,7 +2397,6 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
     gap: 12px;
   }
   /* Reset fixed positioning inside the overlay card */
-  .mobile-fish-panel .fish-panel,
   .mobile-fish-panel .fishing-panel {
     position: relative !important;
     left: auto !important;
@@ -2957,37 +2805,8 @@ body.bg-abyss  { background: radial-gradient(ellipse at center, #050508 0%, #010
 body.bg-cosmic { background: radial-gradient(ellipse at center, #0d0520 0%, #040010 70%); }
 
 /* ── New trail effects ──────────────────────────────────────────────────── */
-.trail-frost .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, frostAura 1s ease-in-out infinite alternate;
-}
-@keyframes frostAura {
-  from { filter: drop-shadow(0 0 10px #DD88FF) drop-shadow(0 0 20px #8800CC); }
-  to   { filter: drop-shadow(0 0 28px #EEAAFF) drop-shadow(0 0 55px var(--p)); }
-}
-
-.trail-thunder .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, thunderAura 0.8s ease-in-out infinite alternate;
-}
-@keyframes thunderAura {
-  from { filter: drop-shadow(0 0 14px #FFEE00) drop-shadow(0 0 30px #FF9900); }
-  to   { filter: drop-shadow(0 0 35px #FFFFFF) drop-shadow(0 0 70px #FFDD00); }
-}
-
-.trail-galaxy .fish-body {
-  animation: fishBob 2.4s ease-in-out infinite, galaxyAura 3s linear infinite;
-}
-@keyframes galaxyAura {
-  0%   { filter: drop-shadow(0 0 18px #8800FF); }
-  25%  { filter: drop-shadow(0 0 18px #4400FF); }
-  50%  { filter: drop-shadow(0 0 18px #00FFCC); }
-  75%  { filter: drop-shadow(0 0 18px #FF0088); }
-  100% { filter: drop-shadow(0 0 18px #8800FF); }
-}
 
 /* Override interactions for new trails */
-[class*="trail-"] .fish-body.spinning-fish { animation: fishSpin 0.6s cubic-bezier(0.34, 1.2, 0.64, 1) forwards; cursor: wait; }
-[class*="trail-"] .fish-body.happy { animation: fishHappy 0.7s ease-out forwards; }
-[class*="trail-"] .fish-body.sad   { animation: fishSad 1.2s ease-out forwards; }
 
 /* ── Guard overlay ──────────────────────────────────────────────────────── */
 .guard-overlay {
@@ -3201,16 +3020,12 @@ body.page-season1 .mobile-toolbar-btn.active { color: #FFD700; border-color: #FF
 .low-spec .pointer                    { animation: none; }
 .low-spec .spin-prompt                { animation: none; opacity: 1; transform: none; }
 .low-spec .bulb                       { animation: none; opacity: 0.55; will-change: auto; }
-.low-spec .fish-body                  { animation: none; }
 .low-spec .streak-fire                { animation: none; }
 .low-spec [class*="streak-inferno-"]  { text-shadow: none; font-size: 0.6rem; }
-.low-spec .shop-item.singularity-item { animation: none; box-shadow: 0 0 8px 2px #CC00FF; border-color: #CC00FF; }
 
 /* Kill all trail filter animations */
-.low-spec [class*="trail-"] .fish-body { animation: none; filter: none; }
 
 /* Remove the 600px blur aura */
-.low-spec .fish-aura                  { display: none; }
 
 /* Remove the triple box-shadow glow ring around the wheel */
 .low-spec .wheel-wrapper::before      { box-shadow: none; }
@@ -3684,8 +3499,6 @@ body.page-season5 .lucky-seven-pip { border-color: rgba(0,229,255,0.5); }
 body.page-season5 .lucky-seven-pip.filled { background: #00E5FF; border-color: #80F2FF; box-shadow: 0 0 6px rgba(0,229,255,0.7); }
 /* Bonus lines */
 body.page-season5 .bonus-line.lose-bonus { color: #FF6B6B; text-shadow: 0 0 12px #FF6B6B; }
-/* Fish sad label */
-body.page-season5 .fish-label.sad { color: #FF6B6B; }
 /* Autospin checked label */
 body.page-season5 .autospin-row input:checked ~ .autospin-label { text-shadow: 0 0 14px #00E5FF; }
 /* Season winners title */
@@ -4404,121 +4217,6 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
   to   { box-shadow: 0 0 14px rgba(255,215,0,0.9); }
 }
 
-@keyframes s8-fade-in {
-  from { opacity: 0; transform: scale(0.97); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-/* ── Season 8: modals (onboarding, prestige confirm, legacy boards) ───────── */
-.onboarding-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.78);
-  z-index: 300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: s8-fade-in 0.2s ease;
-}
-
-.onboarding-modal {
-  background: rgba(2,5,22,0.98);
-  border: 1px solid var(--p-dk);
-  border-radius: 12px;
-  padding: 28px 32px;
-  max-width: 460px;
-  width: 90vw;
-  box-shadow: 0 0 50px rgba(var(--p-rgb),0.22), 0 12px 40px rgba(0,0,0,0.85);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  animation: s8-fade-in 0.2s ease;
-}
-
-.onboarding-modal h3 {
-  font-size: 1.2rem;
-  color: var(--p);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  text-shadow: 0 0 14px var(--p);
-}
-
-.onboarding-modal p {
-  font-size: 0.85rem;
-  color: #aaa;
-  letter-spacing: 1px;
-  line-height: 1.55;
-}
-
-.onboarding-modal button {
-  background: linear-gradient(135deg, var(--p-xs), var(--p));
-  border: none;
-  color: #fff;
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.85rem;
-  letter-spacing: 2px;
-  padding: 9px 26px;
-  border-radius: 5px;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: opacity 0.15s;
-}
-.onboarding-modal button:hover { opacity: 0.85; }
-
-.onboarding-modal table th,
-.onboarding-modal table td {
-  padding: 4px 8px;
-  font-size: 0.8rem;
-  color: #ccc;
-}
-.onboarding-modal table th { color: var(--p-lt); font-size: 0.75rem; letter-spacing: 1px; }
-
-/* ── Season 8: Coach-mark onboarding ── */
-.coach-mark {
-  position: fixed;
-  z-index: 1000;
-  pointer-events: none;
-}
-.coach-mark-content {
-  background: #0d0d1a;
-  border: 1px solid var(--p);
-  border-radius: 8px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  pointer-events: auto;
-  max-width: 280px;
-}
-.coach-mark-text {
-  color: #eee;
-  font-size: 14px;
-  line-height: 1.4;
-}
-.coach-mark-actions {
-  flex-shrink: 0;
-}
-.coach-mark-dismiss {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-.coach-mark-dismiss:hover {
-  color: #eee;
-}
-.coach-mark-arrow {
-  width: 0;
-  height: 0;
-  border: 8px solid transparent;
-  position: absolute;
-}
-
 /* ── Season 8: wager panel (vertical column, left of wheel) ─────────────── */
 .season8-wager-panel {
   position: absolute;
@@ -4824,49 +4522,6 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
   font-family: 'Oswald', sans-serif;
 }
 
-/* ── Season 8: prestige panel (in sidebar) ───────────────────────────────── */
-.season8-prestige-panel {
-  padding: 7px 10px;
-  background: rgba(5,4,22,0.88);
-  border: 1px solid rgba(255,215,0,0.22);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.prestige-badge {
-  font-size: 0.65rem;
-  color: #ffd700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  text-shadow: 0 0 6px rgba(255,215,0,0.45);
-}
-
-.legacy-badge {
-  font-size: 0.58rem;
-  color: #888;
-  letter-spacing: 0.5px;
-}
-
-.prestige-btn {
-  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.18));
-  border: 1px solid rgba(255,215,0,0.6);
-  color: #ffd700;
-  font-size: 0.62rem;
-  letter-spacing: 1px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  text-transform: uppercase;
-  font-family: inherit;
-  transition: background 0.15s;
-  align-self: flex-start;
-}
-.prestige-btn:hover:not(:disabled) { background: rgba(255,215,0,0.22); }
-.prestige-btn:disabled { opacity: 0.35; cursor: default; }
-
 /* ── Season 8: guard charges (inside shield-indicator) ───────────────────── */
 .guard-charges {
   font-size: 0.65rem;
@@ -5079,157 +4734,6 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
   letter-spacing: 0.4px;
 }
 
-.singularity-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.singularity-label {
-  font-size: 0.62rem;
-  color: #aa66ff;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
-.singularity-progress-bar {
-  height: 3px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-top: 1px;
-}
-
-.singularity-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #5511bb, #aa44ff);
-  border-radius: 2px;
-  transition: width 0.6s ease;
-  min-width: 2px;
-}
-
-.singularity-progress-text {
-  font-size: 0.54rem;
-  color: #555;
-  letter-spacing: 0.4px;
-}
-
-.singularity-buttons {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.singularity-buttons button {
-  background: none;
-  border: 1px solid rgba(120,60,200,0.45);
-  color: #aa66ff;
-  font-size: 0.55rem;
-  letter-spacing: 1px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  cursor: pointer;
-  text-transform: uppercase;
-  font-family: inherit;
-  transition: background 0.15s;
-}
-.singularity-buttons button:hover:not(:disabled) { background: rgba(120,60,200,0.12); }
-.singularity-buttons button:disabled { opacity: 0.35; cursor: default; }
-
-/* ── Season 8: aquarium panel (in sidebar) ───────────────────────────────── */
-.season8-aquarium-panel {
-  padding: 7px 10px;
-  background: rgba(0,8,18,0.88);
-  border: 1px solid rgba(0,150,200,0.22);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-  color: #e0e0e0;
-}
-
-.aquarium-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.aquarium-header > span:first-child {
-  font-size: 0.62rem;
-  color: #44aacc;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
-.aquarium-luck {
-  font-size: 0.6rem;
-  color: #44dd88;
-  letter-spacing: 0.5px;
-}
-
-.aquarium-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1px;
-  max-height: 48px;
-  overflow: hidden;
-  color: #e0e0e0;
-}
-
-.aquarium-species {
-  font-size: 0.88rem;
-  line-height: 1.2;
-  color: #e0e0e0;
-}
-
-.aquarium-info-icon {
-  display: inline-block;
-  position: relative;
-  margin-left: 6px;
-  width: 14px;
-  height: 14px;
-  line-height: 14px;
-  text-align: center;
-  font-size: 0.7rem;
-  color: #44aacc;
-  background: rgba(68,170,204,0.15);
-  border: 1px solid rgba(68,170,204,0.4);
-  border-radius: 50%;
-  cursor: help;
-}
-.aquarium-info-icon:hover {
-  border-color: #44aacc;
-  color: #88ddff;
-}
-.aquarium-info-icon[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: #0d0d1a;
-  color: #eee;
-  border: 1px solid #44aacc;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 0.65rem;
-  line-height: 1.5;
-  white-space: normal;
-  max-width: 220px;
-  width: max-content;
-  pointer-events: none;
-  z-index: 999;
-  letter-spacing: 0.3px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-
-.wager-tokens {
-  font-size: 0.6rem;
-  color: #ffd700;
-  letter-spacing: 0.5px;
-}
-
 /* T110: wager-tokens balance + pay-with-tokens toggle inside the wager panel. */
 .wager-tokens-balance {
   font-size: 0.7rem;
@@ -5256,54 +4760,6 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
 .wager-pay-tokens-toggle:hover {
   color: #fff3a0;
 }
-
-/* ── Season 8: loadout panel (in sidebar) ────────────────────────────────── */
-.season8-loadout-panel {
-  padding: 7px 10px;
-  background: rgba(5,5,25,0.88);
-  border: 1px solid rgba(var(--p-rgb),0.14);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex-shrink: 0;
-}
-
-.loadout-label {
-  font-size: 0.62rem;
-  color: #777;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
-.loadout-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.loadout-slot {
-  display: flex;
-  gap: 3px;
-}
-
-.loadout-save-btn,
-.loadout-apply-btn {
-  flex: 1;
-  background: none;
-  border: 1px solid rgba(var(--p-rgb),0.2);
-  color: #666;
-  font-size: 0.58rem;
-  letter-spacing: 0.5px;
-  padding: 3px 4px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: inherit;
-  text-transform: uppercase;
-  transition: color 0.15s, border-color 0.15s;
-}
-.loadout-save-btn:hover { color: var(--p-lt); border-color: rgba(var(--p-rgb),0.45); }
-.loadout-apply-btn:hover { color: #44dd88; border-color: rgba(68,221,136,0.45); }
 
 /* ── Season 8: chat system & replay messages ─────────────────────────────── */
 .chat-msg-system {

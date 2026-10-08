@@ -56,16 +56,16 @@ def test_fish_to_wager_still_in_jsx_for_other_logic():
     )
 
 
-# ── T223: only one 'Season 8: Wager System' section ───────────────────────
+# ── T223: only one '⚡ Wager System' section ──────────────────────────────
 
 def test_only_one_wager_system_section():
-    """T223: the 'Season 8: Wager System' section must appear exactly
+    """T223: the '⚡ Wager System' section must appear exactly
     once in the shop. The lower duplicate (below 'Special Upgrades')
     was removed."""
     jsx = _read(APP_JSX)
-    matches = re.findall(r"label:\s*['\"]⚡\s*Season 8:\s*Wager System['\"]", jsx)
+    matches = re.findall(r"label:\s*['\"]⚡\s*Wager System['\"]", jsx)
     assert len(matches) == 1, (
-        f"expected exactly 1 'Season 8: Wager System' section, found {len(matches)}"
+        f"expected exactly 1 '⚡ Wager System' section, found {len(matches)}"
     )
 
 
