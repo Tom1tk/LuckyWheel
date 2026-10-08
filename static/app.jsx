@@ -964,6 +964,7 @@ const WHEEL_MODE_DRAW = {
   inverted:    { win_pct: 35, lose_pct: 60, jackpot_pct: 5 },
   gravity:     { win_pct: 55, lose_pct: 40, jackpot_pct: 5 },
   mirror:      { win_pct: 65, lose_pct: 30, jackpot_pct: 5 },
+  long_shot:   { win_pct: 20, lose_pct: 60, jackpot_pct: 20 },
   singularity: { win_pct: 75, lose_pct: 10, jackpot_pct: 15 },
 };
 
@@ -5016,6 +5017,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   onTogglePayWithTokens={setPayWithTokens}
                 />
               )}
+              {/* On mobile the balance flows here; fixed bottom-left it covered the stake panel. */}
+              <div className="fish-counter">
+                <span className="fish-counter-label">Balance</span>
+                <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>
+              </div>
             </div>
           )}
 
@@ -5125,10 +5131,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <CommunityGoalPanel communityGoal={communityGoal} />
           </div></div>
         )}
-        <div className="fish-counter">
-          <span className="fish-counter-label">Balance</span>
-          <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>
-        </div>
+        {!isMobile && (
+          <div className="fish-counter">
+            <span className="fish-counter-label">Balance</span>
+            <span className="fish-counter-value">{getFishData(equippedFish).emoji} × {fmt(fishClicks)}</span>
+          </div>
+        )}
         <Leaderboard
           currentUser={username}
           extraClass={isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : ''}

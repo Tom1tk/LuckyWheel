@@ -1596,6 +1596,11 @@ var WHEEL_MODE_DRAW = {
     lose_pct: 30,
     jackpot_pct: 5
   },
+  long_shot: {
+    win_pct: 20,
+    lose_pct: 60,
+    jackpot_pct: 20
+  },
   singularity: {
     win_pct: 75,
     lose_pct: 10,
@@ -8277,7 +8282,13 @@ function GameApp(_ref35) {
     onInsurance: handleInsurance,
     onCancelInsurance: handleCancelInsurance,
     onTogglePayWithTokens: setPayWithTokens
-  })), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "fish-counter"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "fish-counter-label"
+  }, "Balance"), /*#__PURE__*/React.createElement("span", {
+    className: "fish-counter-value"
+  }, getFishData(equippedFish).emoji, " \xD7 ", fmt(fishClicks)))), /*#__PURE__*/React.createElement("div", {
     className: "bulbs"
   }, Array.from({
     length: 16
@@ -8370,7 +8381,7 @@ function GameApp(_ref35) {
     className: "season8-meta-panel mini-panel"
   }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
     communityGoal: communityGoal
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))), !isMobile && /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"
