@@ -2058,12 +2058,10 @@ function HiatusWheel() {
   );
 }
 
+const PANEL_LABELS = { fish: '🎣 Fishing', bounties: '📋 Bounties', dice: '🎲 Dice Roll', goal: '🌍 Community Goal' };
+
 function HiatusScreen({ season, username, onLogout }) {
   const winners = season && season.latest_winners;
-
-  useEffect(() => {
-    apiFetch('/api/register-season', { method: 'POST' }).catch(() => {});
-  }, []);
 
   return (
     <div className="hiatus-screen">
@@ -3622,10 +3620,50 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     drawWheel(canvas, wheelTheme, activeWheelMode, null);
   }, [wheelTheme, activeWheelMode]);
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
+  const showToast = useCallback((msg, variant = '') => {
+    setToast({ msg, variant });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  // RV-07: side panels unlock as a player gets going. Once unlocked a panel stays,
+  // because spin_count resets every tide.
+  const [seenPanels, setSeenPanels] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('tidesSeenPanels')) || []; } catch (e) { return []; }
+  });
+  const [freshPanels, setFreshPanels] = useState([]);
+  const panelsReadyRef = useRef(false);
+  const unlocked = {
+    fish:     spinCount >= 10 || fishClicks > 0 || seenPanels.includes('fish'),
+    bounties: spinCount >= 25 || seenPanels.includes('bounties'),
+    dice:     streak >= 3 || seenPanels.includes('dice'),
+    goal:     spinCount >= 50 || seenPanels.includes('goal'),
+  };
+  const unlockedKey = Object.keys(unlocked).filter(k => unlocked[k]).join(',');
+  useEffect(() => {
+    const added = Object.keys(unlocked).filter(k => unlocked[k] && !seenPanels.includes(k));
+    const firstRun = !panelsReadyRef.current;
+    panelsReadyRef.current = true;
+    if (!added.length) return;
+    const next = [...seenPanels, ...added];
+    setSeenPanels(next);
+    try { localStorage.setItem('tidesSeenPanels', JSON.stringify(next)); } catch (e) {}
+    if (firstRun) return; // panels already open on load are not news
+    setFreshPanels(added);
+    showToast(`✨ New: ${added.map(k => PANEL_LABELS[k]).join(' · ')}`, 'new');
+    const t = setTimeout(() => setFreshPanels([]), 5000);
+    return () => clearTimeout(t);
+  }, [unlockedKey]); // eslint-disable-line
+  const gateClass = k => `tides-gate${freshPanels.includes(k) ? ' tides-new' : ''}`;
+
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  useEffect(() => {
+    if (!season || !(season.player_facing_number >= 9)) return;
+    try { if (!localStorage.getItem('whatsNewSeen_s9')) setShowWhatsNew(true); } catch (e) {}
+  }, [season ? season.player_facing_number : null]); // eslint-disable-line
+  const dismissWhatsNew = useCallback(() => {
+    setShowWhatsNew(false);
+    try { localStorage.setItem('whatsNewSeen_s9', '1'); } catch (e) {}
   }, []);
 
   const handleClosePatchNotes = useCallback(() => {
@@ -4492,7 +4530,18 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     <div className={lowSpec ? 'low-spec' : ''}>
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
       <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
-      {toast && <div className="toast-notification">{toast}</div>}
+      {toast && <div className={`toast-notification${toast.variant ? ` toast-notification--${toast.variant}` : ''}`}>{toast.msg}</div>}
+      {showWhatsNew && !showPatchNotes && (
+        <div className="whats-new-card" role="dialog" aria-label="What's new in Season 9">
+          <div className="whats-new-title">🌊 What's new in Season 9</div>
+          <ul className="whats-new-list">
+            <li>Every Friday the tide turns: wins reset, medals are forever.</li>
+            <li>Auto-spin is free and keeps going while you're away (up to 24 h).</li>
+            <li>Your fish collection carries over.</li>
+          </ul>
+          <button className="whats-new-btn" onClick={dismissWhatsNew}>Got it</button>
+        </div>
+      )}
       {happyHour && !happyHourDismissed && (
         <div className="happy-hour-banner">
           ⭐ Happy Hour! 9–10pm — 2× pot contributions · boosted legendary fish ⭐
@@ -4587,7 +4636,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         />
       )}
 
-      {!isMobile && (
+      {!isMobile && unlocked.fish && (
+        <div className={gateClass('fish')}>
         <FishingPanel
           fishClicks={fishClicks}
           fishData={getFishData(equippedFish)}
@@ -4600,9 +4650,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={refreshBountiesAndGoal}
         />
+        </div>
       )}
 
-      {isMobile && (
+      {isMobile && unlocked.fish && (
         <div className={`mobile-fish-panel${mobilePanel === 'fish' ? ' mobile-visible' : ''}`}>
           <FishingPanel
             fishClicks={fishClicks}
@@ -4811,7 +4862,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   not possible to see or use except from its title." */}
               <div className="mobile-streak-dice-row">
                 <StreakPanel streak={streak} bonusmultLevel={0} />
-                <DicePanel
+                {unlocked.dice && <div className={gateClass('dice')}><DicePanel
                   streak={streak}
                   onRoll={handleDiceRoll}
                   rolling={diceRolling}
@@ -4823,7 +4874,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   diceLastRecharge={diceLastRecharge}
                   hasDiceExtra={ownedItems.includes('dice_extra')}
                   rolledSinceSpin={diceRolledSinceSpin}
-                />
+                /></div>}
               </div>
 
               {/* T202: wager panel relocated below the wheel on mobile so
@@ -4901,7 +4952,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 <LuckySevenCounter spinCount={spinCount} />
               )}
               <StreakPanel streak={streak} bonusmultLevel={0} />
-              <DicePanel
+              {unlocked.dice && <div className={gateClass('dice')}><DicePanel
                 streak={streak}
                 onRoll={handleDiceRoll}
                 rolling={diceRolling}
@@ -4913,7 +4964,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 diceLastRecharge={diceLastRecharge}
                 hasDiceExtra={ownedItems.includes('dice_extra')}
                 rolledSinceSpin={diceRolledSinceSpin}
-              />
+              /></div>}
 
               {/* T202: S8 panel components (extracted from inline JSX for
                   reuse in the mobile drawer; desktop rendering is
@@ -4922,10 +4973,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 insuranceFreeClaimedToday={insuranceFreeClaimedToday}
                 onClaim={handleClaimFreeTokens}
               />
-              <BountiesPanel
+              {unlocked.bounties && <div className={gateClass('bounties')}><BountiesPanel
                 bounties={bounties}
                 onClaim={handleBountyClaim}
-              />
+              /></div>}
             </div>
           )}
 
@@ -4957,10 +5008,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         {/* T202: Community goal panel — extracted into a component so the
             same JSX renders in the desktop bottom-left-stack (this block)
             AND in the mobile drawer. */}
-        {!isMobile && communityGoal && (
-          <div className="season8-meta-panel mini-panel">
+        {!isMobile && communityGoal && unlocked.goal && (
+          <div className={gateClass('goal')}><div className="season8-meta-panel mini-panel">
             <CommunityGoalPanel communityGoal={communityGoal} />
-          </div>
+          </div></div>
         )}
         <div className="fish-counter">
           <span className="fish-counter-label">Balance</span>
@@ -4991,13 +5042,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               insuranceFreeClaimedToday={insuranceFreeClaimedToday}
               onClaim={handleClaimFreeTokens}
             />
-            <BountiesPanel
+            {unlocked.bounties && <div className={gateClass('bounties')}><BountiesPanel
               bounties={bounties}
               onClaim={handleBountyClaim}
-            />
-            <div className="season8-meta-panel">
+            /></div>}
+            {unlocked.goal && <div className={gateClass('goal')}><div className="season8-meta-panel">
               <CommunityGoalPanel communityGoal={communityGoal} />
-            </div>
+            </div></div>}
           </div>
         </div>
       )}
@@ -5013,11 +5064,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onClick={() => toggleMobilePanel('leaderboard')}
           title="Leaderboard"
         >🏆</button>
-        <button
-          className={`mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}`}
+        {unlocked.fish && <button
+          className={`mobile-toolbar-btn${mobilePanel === 'fish' ? ' active' : ''}${freshPanels.includes('fish') ? ' tides-new' : ''}`}
           onClick={() => toggleMobilePanel('fish')}
           title="Fishing"
-        >🎣</button>
+        >🎣</button>}
         <button
           className={`mobile-toolbar-btn${mobilePanel === 'chat' ? ' active' : ''}`}
           onClick={() => toggleMobilePanel('chat')}

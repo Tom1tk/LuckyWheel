@@ -186,6 +186,10 @@ def _open_mobile_page(fixture_dict, width, height):
     server_url = fixture_dict['server_url']
     page = context.new_page()
     page.set_viewport_size({'width': width, 'height': height})
+    # RV-07 hides side panels until a player unlocks them; these layout tests want them all.
+    page.add_init_script(
+        "localStorage.setItem('tidesSeenPanels', JSON.stringify(['fish','bounties','dice','goal']))"
+    )
     page.goto(server_url + '/')
     page.wait_for_load_state('domcontentloaded')
     # Give React a moment to hydrate and call /api/state.

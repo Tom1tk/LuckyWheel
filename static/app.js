@@ -3248,16 +3248,17 @@ function HiatusWheel() {
     }
   }), /*#__PURE__*/React.createElement("span", null, "Auto Spin")));
 }
+var PANEL_LABELS = {
+  fish: '🎣 Fishing',
+  bounties: '📋 Bounties',
+  dice: '🎲 Dice Roll',
+  goal: '🌍 Community Goal'
+};
 function HiatusScreen(_ref20) {
   var season = _ref20.season,
     username = _ref20.username,
     onLogout = _ref20.onLogout;
   var winners = season && season.latest_winners;
-  useEffect(function () {
-    apiFetch('/api/register-season', {
-      method: 'POST'
-    })["catch"](function () {});
-  }, []);
   return /*#__PURE__*/React.createElement("div", {
     className: "hiatus-screen"
   }, /*#__PURE__*/React.createElement("div", {
@@ -6159,11 +6160,85 @@ function GameApp(_ref33) {
     drawWheel(canvas, wheelTheme, activeWheelMode, null);
   }, [wheelTheme, activeWheelMode]);
   var showToast = useCallback(function (msg) {
-    setToast(msg);
+    var variant = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+    setToast({
+      msg: msg,
+      variant: variant
+    });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(function () {
       return setToast(null);
     }, 3000);
+  }, []);
+
+  // RV-07: side panels unlock as a player gets going. Once unlocked a panel stays,
+  // because spin_count resets every tide.
+  var _useState201 = useState(function () {
+      try {
+        return JSON.parse(localStorage.getItem('tidesSeenPanels')) || [];
+      } catch (e) {
+        return [];
+      }
+    }),
+    _useState202 = _slicedToArray(_useState201, 2),
+    seenPanels = _useState202[0],
+    setSeenPanels = _useState202[1];
+  var _useState203 = useState([]),
+    _useState204 = _slicedToArray(_useState203, 2),
+    freshPanels = _useState204[0],
+    setFreshPanels = _useState204[1];
+  var panelsReadyRef = useRef(false);
+  var unlocked = {
+    fish: spinCount >= 10 || fishClicks > 0 || seenPanels.includes('fish'),
+    bounties: spinCount >= 25 || seenPanels.includes('bounties'),
+    dice: streak >= 3 || seenPanels.includes('dice'),
+    goal: spinCount >= 50 || seenPanels.includes('goal')
+  };
+  var unlockedKey = Object.keys(unlocked).filter(function (k) {
+    return unlocked[k];
+  }).join(',');
+  useEffect(function () {
+    var added = Object.keys(unlocked).filter(function (k) {
+      return unlocked[k] && !seenPanels.includes(k);
+    });
+    var firstRun = !panelsReadyRef.current;
+    panelsReadyRef.current = true;
+    if (!added.length) return;
+    var next = [].concat(_toConsumableArray(seenPanels), _toConsumableArray(added));
+    setSeenPanels(next);
+    try {
+      localStorage.setItem('tidesSeenPanels', JSON.stringify(next));
+    } catch (e) {}
+    if (firstRun) return; // panels already open on load are not news
+    setFreshPanels(added);
+    showToast("\u2728 New: ".concat(added.map(function (k) {
+      return PANEL_LABELS[k];
+    }).join(' · ')), 'new');
+    var t = setTimeout(function () {
+      return setFreshPanels([]);
+    }, 5000);
+    return function () {
+      return clearTimeout(t);
+    };
+  }, [unlockedKey]); // eslint-disable-line
+  var gateClass = function gateClass(k) {
+    return "tides-gate".concat(freshPanels.includes(k) ? ' tides-new' : '');
+  };
+  var _useState205 = useState(false),
+    _useState206 = _slicedToArray(_useState205, 2),
+    showWhatsNew = _useState206[0],
+    setShowWhatsNew = _useState206[1];
+  useEffect(function () {
+    if (!season || !(season.player_facing_number >= 9)) return;
+    try {
+      if (!localStorage.getItem('whatsNewSeen_s9')) setShowWhatsNew(true);
+    } catch (e) {}
+  }, [season ? season.player_facing_number : null]); // eslint-disable-line
+  var dismissWhatsNew = useCallback(function () {
+    setShowWhatsNew(false);
+    try {
+      localStorage.setItem('whatsNewSeen_s9', '1');
+    } catch (e) {}
   }, []);
   var handleClosePatchNotes = useCallback(function () {
     setShowPatchNotes(false);
@@ -6899,118 +6974,118 @@ function GameApp(_ref33) {
   }();
 
   // ── Season 8 state ─────────────────────────────────────────────────────────
-  var _useState201 = useState(gameState.wager_streak || 0),
-    _useState202 = _slicedToArray(_useState201, 2),
-    wagerStreak = _useState202[0],
-    setWagerStreak = _useState202[1];
-  var _useState203 = useState((_gameState$wager_last2 = gameState.wager_last_stake) !== null && _gameState$wager_last2 !== void 0 ? _gameState$wager_last2 : 0),
-    _useState204 = _slicedToArray(_useState203, 2),
-    wagerLastStake = _useState204[0],
-    setWagerLastStake = _useState204[1];
-  var _useState205 = useState(gameState.double_down_pending || false),
-    _useState206 = _slicedToArray(_useState205, 2),
-    doubleDownPending = _useState206[0],
-    setDoubleDownPending = _useState206[1];
-  var _useState207 = useState(gameState.wager_banked_wins || 0),
+  var _useState207 = useState(gameState.wager_streak || 0),
     _useState208 = _slicedToArray(_useState207, 2),
-    wagerBankedWins = _useState208[0],
-    setWagerBankedWins = _useState208[1];
-  var _useState209 = useState(gameState.wager_last_win_amount || 0),
+    wagerStreak = _useState208[0],
+    setWagerStreak = _useState208[1];
+  var _useState209 = useState((_gameState$wager_last2 = gameState.wager_last_stake) !== null && _gameState$wager_last2 !== void 0 ? _gameState$wager_last2 : 0),
     _useState210 = _slicedToArray(_useState209, 2),
-    wagerLastWinAmount = _useState210[0],
-    setWagerLastWinAmount = _useState210[1];
-  var _useState211 = useState(gameState.insurance_charges || 0),
+    wagerLastStake = _useState210[0],
+    setWagerLastStake = _useState210[1];
+  var _useState211 = useState(gameState.double_down_pending || false),
     _useState212 = _slicedToArray(_useState211, 2),
-    insuranceCharges = _useState212[0],
-    setInsuranceCharges = _useState212[1];
-  var _useState213 = useState(gameState.insurance_armed || false),
+    doubleDownPending = _useState212[0],
+    setDoubleDownPending = _useState212[1];
+  var _useState213 = useState(gameState.wager_banked_wins || 0),
     _useState214 = _slicedToArray(_useState213, 2),
-    insuranceArmed = _useState214[0],
-    setInsuranceArmed = _useState214[1];
-  var _useState215 = useState(gameState.active_wheel_mode || 'steady'),
+    wagerBankedWins = _useState214[0],
+    setWagerBankedWins = _useState214[1];
+  var _useState215 = useState(gameState.wager_last_win_amount || 0),
     _useState216 = _slicedToArray(_useState215, 2),
-    activeWheelMode = _useState216[0],
-    setActiveWheelMode = _useState216[1];
-  var _useState217 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    wagerLastWinAmount = _useState216[0],
+    setWagerLastWinAmount = _useState216[1];
+  var _useState217 = useState(gameState.insurance_charges || 0),
     _useState218 = _slicedToArray(_useState217, 2),
-    availableWheelModes = _useState218[0],
-    setAvailableWheelModes = _useState218[1];
+    insuranceCharges = _useState218[0],
+    setInsuranceCharges = _useState218[1];
+  var _useState219 = useState(gameState.insurance_armed || false),
+    _useState220 = _slicedToArray(_useState219, 2),
+    insuranceArmed = _useState220[0],
+    setInsuranceArmed = _useState220[1];
+  var _useState221 = useState(gameState.active_wheel_mode || 'steady'),
+    _useState222 = _slicedToArray(_useState221, 2),
+    activeWheelMode = _useState222[0],
+    setActiveWheelMode = _useState222[1];
+  var _useState223 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
+    _useState224 = _slicedToArray(_useState223, 2),
+    availableWheelModes = _useState224[0],
+    setAvailableWheelModes = _useState224[1];
   // T80: server-provided wheel probabilities (drift-adjusted for gravity,
   // static for other modes). null → fall back to WHEEL_MODE_DRAW.
-  var _useState219 = useState(gameState.wheel_probabilities || null),
-    _useState220 = _slicedToArray(_useState219, 2),
-    wheelProbabilities = _useState220[0],
-    setWheelProbabilities = _useState220[1];
+  var _useState225 = useState(gameState.wheel_probabilities || null),
+    _useState226 = _slicedToArray(_useState225, 2),
+    wheelProbabilities = _useState226[0],
+    setWheelProbabilities = _useState226[1];
   // T80: gravity drift echoed by the server; not consumed by the wheel
   // itself but kept in state for UI badges / debug.
-  var _useState221 = useState(gameState.gravity_drift || 0),
-    _useState222 = _slicedToArray(_useState221, 2),
-    gravityDrift = _useState222[0],
-    setGravityDrift = _useState222[1];
-  var _useState223 = useState(gameState.insurance_tokens || 0),
-    _useState224 = _slicedToArray(_useState223, 2),
-    insuranceTokens = _useState224[0],
-    setInsuranceTokens = _useState224[1];
-  var _useState225 = useState(gameState.cosmetic_fragments || 0),
-    _useState226 = _slicedToArray(_useState225, 2),
-    cosmeticFragments = _useState226[0],
-    setCosmeticFragments = _useState226[1];
-  var _useState227 = useState(gameState.guard_charges || 0),
+  var _useState227 = useState(gameState.gravity_drift || 0),
     _useState228 = _slicedToArray(_useState227, 2),
-    guardCharges = _useState228[0],
-    setGuardCharges = _useState228[1];
-  var _useState229 = useState(gameState.bounties || []),
+    gravityDrift = _useState228[0],
+    setGravityDrift = _useState228[1];
+  var _useState229 = useState(gameState.insurance_tokens || 0),
     _useState230 = _slicedToArray(_useState229, 2),
-    bounties = _useState230[0],
-    setBounties = _useState230[1];
-  var _useState231 = useState(gameState.community_goal || null),
+    insuranceTokens = _useState230[0],
+    setInsuranceTokens = _useState230[1];
+  var _useState231 = useState(gameState.cosmetic_fragments || 0),
     _useState232 = _slicedToArray(_useState231, 2),
-    communityGoal = _useState232[0],
-    setCommunityGoal = _useState232[1];
+    cosmeticFragments = _useState232[0],
+    setCosmeticFragments = _useState232[1];
+  var _useState233 = useState(gameState.guard_charges || 0),
+    _useState234 = _slicedToArray(_useState233, 2),
+    guardCharges = _useState234[0],
+    setGuardCharges = _useState234[1];
+  var _useState235 = useState(gameState.bounties || []),
+    _useState236 = _slicedToArray(_useState235, 2),
+    bounties = _useState236[0],
+    setBounties = _useState236[1];
+  var _useState237 = useState(gameState.community_goal || null),
+    _useState238 = _slicedToArray(_useState237, 2),
+    communityGoal = _useState238[0],
+    setCommunityGoal = _useState238[1];
   // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
   // the safe "no risk" position and is valid — use ?? 0 not || 1.
-  var _useState233 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
-    _useState234 = _slicedToArray(_useState233, 2),
-    stakePct = _useState234[0],
-    setStakePct = _useState234[1];
+  var _useState239 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
+    _useState240 = _slicedToArray(_useState239, 2),
+    stakePct = _useState240[0],
+    setStakePct = _useState240[1];
   // T102: max stake percentage for this player (30 base, 35/40/45 with
   // stake extension items). Used to size the slider's max attribute.
-  var _useState235 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
-    _useState236 = _slicedToArray(_useState235, 2),
-    maxStakePct = _useState236[0],
-    setMaxStakePct = _useState236[1];
+  var _useState241 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
+    _useState242 = _slicedToArray(_useState241, 2),
+    maxStakePct = _useState242[0],
+    setMaxStakePct = _useState242[1];
   // T102+T105: live display of the stake amount (wins escrowed on next
   // spin). Recomputed on stake/wins/losses change and after each spin.
-  var _useState237 = useState(0),
-    _useState238 = _slicedToArray(_useState237, 2),
-    stakeValue = _useState238[0],
-    setStakeValue = _useState238[1];
+  var _useState243 = useState(0),
+    _useState244 = _slicedToArray(_useState243, 2),
+    stakeValue = _useState244[0],
+    setStakeValue = _useState244[1];
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   // T216: the per-activation 100-spin budget was removed; auto-spin is
   // simply on/off. The server tracks `auto_spin_since` and auto-stops
   // after 60s of no /api/tick.
-  var _useState239 = useState(gameState.auto_spin_active || false),
-    _useState240 = _slicedToArray(_useState239, 2),
-    autoSpinActive = _useState240[0],
-    setAutoSpinActive = _useState240[1];
+  var _useState245 = useState(gameState.auto_spin_active || false),
+    _useState246 = _slicedToArray(_useState245, 2),
+    autoSpinActive = _useState246[0],
+    setAutoSpinActive = _useState246[1];
   // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
   // server gates the 3-free-per-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
-  var _useState241 = useState(gameState.insurance_free_claimed_date || null),
-    _useState242 = _slicedToArray(_useState241, 2),
-    insuranceFreeClaimedDate = _useState242[0],
-    setInsuranceFreeClaimedDate = _useState242[1];
+  var _useState247 = useState(gameState.insurance_free_claimed_date || null),
+    _useState248 = _slicedToArray(_useState247, 2),
+    insuranceFreeClaimedDate = _useState248[0],
+    setInsuranceFreeClaimedDate = _useState248[1];
   var todayStr = new Date().toISOString().slice(0, 10);
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
   // wager-stale pattern as stakeRef).
-  var _useState243 = useState(false),
-    _useState244 = _slicedToArray(_useState243, 2),
-    payWithTokens = _useState244[0],
-    setPayWithTokens = _useState244[1];
+  var _useState249 = useState(false),
+    _useState250 = _slicedToArray(_useState249, 2),
+    payWithTokens = _useState250[0],
+    setPayWithTokens = _useState250[1];
   var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
@@ -7629,8 +7704,19 @@ function GameApp(_ref33) {
     open: showPatchNotes,
     onClose: handleClosePatchNotes
   }), toast && /*#__PURE__*/React.createElement("div", {
-    className: "toast-notification"
-  }, toast), happyHour && !happyHourDismissed && /*#__PURE__*/React.createElement("div", {
+    className: "toast-notification".concat(toast.variant ? " toast-notification--".concat(toast.variant) : '')
+  }, toast.msg), showWhatsNew && !showPatchNotes && /*#__PURE__*/React.createElement("div", {
+    className: "whats-new-card",
+    role: "dialog",
+    "aria-label": "What's new in Season 9"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "whats-new-title"
+  }, "\uD83C\uDF0A What's new in Season 9"), /*#__PURE__*/React.createElement("ul", {
+    className: "whats-new-list"
+  }, /*#__PURE__*/React.createElement("li", null, "Every Friday the tide turns: wins reset, medals are forever."), /*#__PURE__*/React.createElement("li", null, "Auto-spin is free and keeps going while you're away (up to 24 h)."), /*#__PURE__*/React.createElement("li", null, "Your fish collection carries over.")), /*#__PURE__*/React.createElement("button", {
+    className: "whats-new-btn",
+    onClick: dismissWhatsNew
+  }, "Got it")), happyHour && !happyHourDismissed && /*#__PURE__*/React.createElement("div", {
     className: "happy-hour-banner"
   }, "\u2B50 Happy Hour! 9\u201310pm \u2014 2\xD7 pot contributions \xB7 boosted legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
     className: "happy-hour-banner-close",
@@ -7764,7 +7850,9 @@ function GameApp(_ref33) {
     onClose: function onClose() {
       return setShowEncyclopedia(false);
     }
-  }), !isMobile && /*#__PURE__*/React.createElement(FishingPanel, {
+  }), !isMobile && unlocked.fish && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('fish')
+  }, /*#__PURE__*/React.createElement(FishingPanel, {
     fishClicks: fishClicks,
     fishData: getFishData(equippedFish),
     caughtSpecies: caughtSpecies,
@@ -7781,7 +7869,7 @@ function GameApp(_ref33) {
       });
     },
     onFishCaught: refreshBountiesAndGoal
-  }), isMobile && /*#__PURE__*/React.createElement("div", {
+  })), isMobile && unlocked.fish && /*#__PURE__*/React.createElement("div", {
     className: "mobile-fish-panel".concat(mobilePanel === 'fish' ? ' mobile-visible' : '')
   }, /*#__PURE__*/React.createElement(FishingPanel, {
     fishClicks: fishClicks,
@@ -7960,7 +8048,9 @@ function GameApp(_ref33) {
   }, /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
-  }), /*#__PURE__*/React.createElement(DicePanel, {
+  }), unlocked.dice && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('dice')
+  }, /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,
     onRoll: handleDiceRoll,
     rolling: diceRolling,
@@ -7972,7 +8062,7 @@ function GameApp(_ref33) {
     diceLastRecharge: diceLastRecharge,
     hasDiceExtra: ownedItems.includes('dice_extra'),
     rolledSinceSpin: diceRolledSinceSpin
-  })), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
+  }))), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
     ownedItems: ownedItems,
     stakePct: stakePct,
     stakeValue: stakeValue,
@@ -8036,7 +8126,9 @@ function GameApp(_ref33) {
   }), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
-  }), /*#__PURE__*/React.createElement(DicePanel, {
+  }), unlocked.dice && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('dice')
+  }, /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,
     onRoll: handleDiceRoll,
     rolling: diceRolling,
@@ -8048,13 +8140,15 @@ function GameApp(_ref33) {
     diceLastRecharge: diceLastRecharge,
     hasDiceExtra: ownedItems.includes('dice_extra'),
     rolledSinceSpin: diceRolledSinceSpin
-  }), /*#__PURE__*/React.createElement(FreeTokensPanel, {
+  })), /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
     onClaim: handleClaimFreeTokens
-  }), /*#__PURE__*/React.createElement(BountiesPanel, {
+  }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('bounties')
+  }, /*#__PURE__*/React.createElement(BountiesPanel, {
     bounties: bounties,
     onClaim: handleBountyClaim
-  })), /*#__PURE__*/React.createElement(ShopPanel, {
+  }))), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
     losses: losses,
@@ -8076,11 +8170,13 @@ function GameApp(_ref33) {
     procStreak: procStreak
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
-  }, !isMobile && communityGoal && /*#__PURE__*/React.createElement("div", {
+  }, !isMobile && communityGoal && unlocked.goal && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('goal')
+  }, /*#__PURE__*/React.createElement("div", {
     className: "season8-meta-panel mini-panel"
   }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
     communityGoal: communityGoal
-  })), /*#__PURE__*/React.createElement("div", {
+  }))), /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"
@@ -8104,14 +8200,18 @@ function GameApp(_ref33) {
   }, /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
     onClaim: handleClaimFreeTokens
-  }), /*#__PURE__*/React.createElement(BountiesPanel, {
+  }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('bounties')
+  }, /*#__PURE__*/React.createElement(BountiesPanel, {
     bounties: bounties,
     onClaim: handleBountyClaim
-  }), /*#__PURE__*/React.createElement("div", {
+  })), unlocked.goal && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('goal')
+  }, /*#__PURE__*/React.createElement("div", {
     className: "season8-meta-panel"
   }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
     communityGoal: communityGoal
-  })))), /*#__PURE__*/React.createElement("div", {
+  }))))), /*#__PURE__*/React.createElement("div", {
     className: "mobile-toolbar"
   }, /*#__PURE__*/React.createElement("button", {
     className: "mobile-toolbar-btn".concat(mobilePanel === 'shop' ? ' active' : ''),
@@ -8125,8 +8225,8 @@ function GameApp(_ref33) {
       return toggleMobilePanel('leaderboard');
     },
     title: "Leaderboard"
-  }, "\uD83C\uDFC6"), /*#__PURE__*/React.createElement("button", {
-    className: "mobile-toolbar-btn".concat(mobilePanel === 'fish' ? ' active' : ''),
+  }, "\uD83C\uDFC6"), unlocked.fish && /*#__PURE__*/React.createElement("button", {
+    className: "mobile-toolbar-btn".concat(mobilePanel === 'fish' ? ' active' : '').concat(freshPanels.includes('fish') ? ' tides-new' : ''),
     onClick: function onClick() {
       return toggleMobilePanel('fish');
     },
@@ -8156,18 +8256,18 @@ function GameApp(_ref33) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState245 = useState(undefined),
-    _useState246 = _slicedToArray(_useState245, 2),
-    user = _useState246[0],
-    setUser = _useState246[1];
-  var _useState247 = useState(null),
-    _useState248 = _slicedToArray(_useState247, 2),
-    gameState = _useState248[0],
-    setGameState = _useState248[1];
-  var _useState249 = useState(''),
-    _useState250 = _slicedToArray(_useState249, 2),
-    sessionMsg = _useState250[0],
-    setSessionMsg = _useState250[1];
+  var _useState251 = useState(undefined),
+    _useState252 = _slicedToArray(_useState251, 2),
+    user = _useState252[0],
+    setUser = _useState252[1];
+  var _useState253 = useState(null),
+    _useState254 = _slicedToArray(_useState253, 2),
+    gameState = _useState254[0],
+    setGameState = _useState254[1];
+  var _useState255 = useState(''),
+    _useState256 = _slicedToArray(_useState255, 2),
+    sessionMsg = _useState256[0],
+    setSessionMsg = _useState256[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee33() {
       var _yield$apiFetch2, ok, data, gs;
