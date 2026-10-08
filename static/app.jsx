@@ -3112,7 +3112,8 @@ function PatchNotesPanel({ open, onClose }) {
   const [md, setMd] = useState(null);
   useEffect(() => {
     if (!open || md !== null) return;
-    apiFetch('/api/patch-notes').then(r => { if (r.ok) setMd(r.data.content); });
+    // The card already has a title, so drop the file's own '# Patch Notes' heading.
+    apiFetch('/api/patch-notes').then(r => { if (r.ok) setMd(r.data.content.replace(/^# .*\n/, '')); });
   }, [open]);
   if (!open) return null;
   const html = md != null ? window.DOMPurify.sanitize(window.marked.parse(md)) : null;

@@ -5318,8 +5318,9 @@ function PatchNotesPanel(_ref28) {
     setMd = _useState74[1];
   useEffect(function () {
     if (!open || md !== null) return;
+    // The card already has a title, so drop the file's own '# Patch Notes' heading.
     apiFetch('/api/patch-notes').then(function (r) {
-      if (r.ok) setMd(r.data.content);
+      if (r.ok) setMd(r.data.content.replace(/^# .*\n/, ''));
     });
   }, [open]);
   if (!open) return null;

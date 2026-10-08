@@ -1254,6 +1254,14 @@ body::before {
   opacity: 0.85;
 }
 
+/* These lines hang below the banner over the spin prompt; back them so the two never mix. */
+.result-banner .bonus-line,
+.result-banner .spin-result-detail {
+  background: rgba(0, 0, 0, 0.78);
+  padding: 2px 14px;
+  border-radius: 6px;
+}
+
 @keyframes bonusPop {
   from { transform: scale(0); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
@@ -2413,6 +2421,13 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
     z-index: auto !important;
     display: flex !important;
     width: 100% !important;
+  }
+  /* Beside the panel it would sit off-screen; stack it below instead */
+  .mobile-fish-panel .catch-side-info {
+    position: static;
+    transform: none;
+    width: auto;
+    align-items: center;
   }
   /* Community pot inside mobile fish panel — stacked layout */
   .mobile-fish-panel .community-pot-bar {
@@ -4577,7 +4592,7 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 40px; /* the pointer pokes 28px above the wheel and bounces 6px higher */
     margin-top: 16px;
   }
   .season8-wager-panel {
