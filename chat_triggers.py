@@ -50,5 +50,12 @@ def new_player_msg(username: str) -> str:
     return f'🎉 {username} spun the wheel for the first time! Welcome to the Tides!'
 
 
+def tide_turned_msg(ended_label: str, podium: list, next_label: str) -> str:
+    # ponytail: three 32-char names push this past chat.MAX_MSG_LEN (150) and the tail gets cut.
+    medals = ' · '.join(f'{m} {name}' for m, name in zip(('🥇', '🥈', '🥉'), podium))
+    middle = f' {medals} —' if medals else ' —'
+    return f'🌊 Tide {ended_label} has turned!{middle} Tide {next_label} starts now. Good luck!'
+
+
 def goal_milestone_msg(pct: int, current: int, target: int) -> str:
     return f'Community goal at {pct}%: {current} / {target}'

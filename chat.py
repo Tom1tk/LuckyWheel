@@ -278,7 +278,8 @@ DEDUP_EVENT_KINDS = frozenset({
 })
 
 
-def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None):
+def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None,
+                        throttle: bool = True):
     """Insert a system message into chat (user_id=NULL, username='SYSTEM').
 
     Throttled to at most one message per SYSTEM_MESSAGE_THROTTLE_SECS per
@@ -289,14 +290,17 @@ def post_system_message(conn, message: str, message_type: str = 'system', event_
     Used by Season 8 features: bounty completions, singularity fills,
     prestige announcements, jackpots. Must be called within an existing
     db_connection() context — caller manages commit/rollback.
+    throttle=False is for once-a-week messages (the tide rollover) that must
+    never be dropped.
     """
     if not message:
         return
     kind = event_kind or message_type
     now = time.monotonic()
-    if now - _system_message_last_posted.get(kind, 0.0) < SYSTEM_MESSAGE_THROTTLE_SECS:
-        return
-    _system_message_last_posted[kind] = now
+    if throttle:
+        if now - _system_message_last_posted.get(kind, 0.0) < SYSTEM_MESSAGE_THROTTLE_SECS:
+            return
+        _system_message_last_posted[kind] = now
 
     message = message[:MAX_MSG_LEN]
     with conn.cursor() as cur:

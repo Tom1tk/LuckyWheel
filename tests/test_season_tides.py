@@ -308,3 +308,59 @@ def test_rollover_keeps_running_auto_spin_and_leaves_stopped_alone(conn):
 
     assert _state(conn, running)['auto_spin_since'] > datetime(2026, 1, 2, tzinfo=timezone.utc)
     assert _state(conn, stopped)['auto_spin_since'] is None
+
+
+# ── RV-05: rollover chat message + weekly goal ───────────────────────────────
+
+def _podium_users(conn, wins_list):
+    """Zero every player's wins (rolled back), then seed real-IP users with these wins."""
+    with conn.cursor() as cur:
+        cur.execute('UPDATE game_state SET wins = 0')
+    names = []
+    for wins in wins_list:
+        uid = _make_user(conn)
+        with conn.cursor() as cur:
+            cur.execute('UPDATE game_state SET wins = %s WHERE user_id = %s', (wins, uid))
+            cur.execute('SELECT username FROM users WHERE id = %s', (uid,))
+            names.append(cur.fetchone()[0])
+    return names
+
+
+def _tide_messages(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT message FROM chat_messages WHERE message LIKE '🌊 Tide %' ORDER BY id")
+        return [r[0] for r in cur.fetchall()]
+
+
+def test_tide_rollover_posts_podium_message_every_time(conn):
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+    first, second, third = _podium_users(conn, [300, 200, 100])
+    before = len(_tide_messages(conn))
+
+    seasons.advance_season(conn)
+    seasons.advance_season(conn)  # within the 30 s throttle window: must still post
+
+    msgs = _tide_messages(conn)[before:]
+    assert msgs[0] == (f'🌊 Tide 9.1 has turned! 🥇 {first} · 🥈 {second} · 🥉 {third}'
+                       ' — Tide 9.2 starts now. Good luck!')
+    assert msgs[1] == '🌊 Tide 9.2 has turned! — Tide 9.3 starts now. Good luck!'
+
+
+def test_launch_from_whole_season_posts_no_tide_message(conn):
+    _seed_season(conn, pfn=8, sub=None, name='Casino')
+    before = len(_tide_messages(conn))
+
+    seasons.advance_season(conn, 9, 'Tides', 1)
+
+    assert len(_tide_messages(conn)) == before
+
+
+def test_rollover_starts_a_goal_for_the_new_tide(conn):
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    with conn.cursor() as cur:
+        cur.execute('SELECT COUNT(*) FROM community_goals WHERE season_number = %s',
+                    (TEST_SEASON + 1,))
+        assert cur.fetchone()[0] == 1

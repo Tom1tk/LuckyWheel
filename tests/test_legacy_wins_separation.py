@@ -297,7 +297,13 @@ def test_seasons_py_rollover_sql_uses_legacy_wins_equals_zero():
         def commit(self): pass
 
     fake = _FakeConn()
-    seasons.advance_season(fake)
+    # The fake cursor can't serve the goal lookup; only the game_state SQL matters here.
+    real_goal = seasons.community_goals.start_weekly_goal
+    seasons.community_goals.start_weekly_goal = lambda c: None
+    try:
+        seasons.advance_season(fake)
+    finally:
+        seasons.community_goals.start_weekly_goal = real_goal
 
     update_sql = None
     for sql in fake._cur.sql_log:
