@@ -354,3 +354,22 @@ def test_state_exposes_charts_and_surge(user, db_url):
     assert body['charts']['alloc'] == {'rich_waters': 2}
     assert body['charts']['surge_mult'] == 50 and body['charts']['points'] == 10
     assert body['surge_spins'] == 7
+
+
+def test_pending_double_down_without_open_water_needs_no_chip(user, db_url, force_random):  # noqa: F811
+    client, username = user
+    _set(db_url, username, double_down_pending=True, wager_last_win_amount=50)
+    with force_random(_ROLL_WIN):
+        status, body = _post_spin(client, _read_csrf(client))
+    assert status == 200, body
+
+
+def test_rechart_drops_armed_double_down_insurance_and_class(user, db_url):
+    client, username = user
+    full = {'open_water': 1, 'loaded_dice': 1, 'safety_line': 1, 'treasure': 1,
+            'third_die': 1, 'double_or_nothing': 1}
+    assert _chart(client, full)[0] == 200
+    _set(db_url, username, double_down_pending=True, insurance_armed=True, equipped_class='star')
+    assert _chart(client, {'open_water': 1})[0] == 200
+    gs = _get(db_url, username)
+    assert not gs['double_down_pending'] and not gs['insurance_armed'] and gs['equipped_class'] is None
