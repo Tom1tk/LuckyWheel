@@ -1977,7 +1977,7 @@ function HallOfFamePanel({ open, onClose }) {
     });
   }, [open]);
   if (!open) return null;
-  const tideName = t => t.label.includes('.') ? `Tide ${t.label}` : `Season ${t.label}`;
+  const tideName = t => t.label.includes('.') && parseInt(t.label, 10) >= 9 ? `Tide ${t.label}` : `Season ${t.label}`;
   const endedOn = t => t.ended_at
     ? new Date(t.ended_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
@@ -2001,7 +2001,7 @@ function HallOfFamePanel({ open, onClose }) {
                   ))}
                 </div>
               )}
-            <div className="stats-section-title hof-tides-title">Past tides</div>
+            <div className="stats-section-title hof-tides-title">History</div>
             {hof.tides.length === 0
               ? <div className="hof-empty">No tides have turned yet.</div>
               : hof.tides.map(t => (
