@@ -92,11 +92,12 @@ A panel appearing for the first time gets a one-shot "New!" pulse. That is all t
 | prestige (retired anyway), legacy_wins | `cumulative_wins` (already persists; tier gating) | unchanged |
 | community goal progress (new goal set each tide) | chat, account | — |
 
-- **Cosmetic** means `ITEM_CURRENCY[item] == 'losses'`, the existing split in `models.py`. The reset becomes `owned_items = (cosmetics owned) ∪ {season theme, auto_spin_unlock}`, and `active_cosmetics` is kept where still owned.
+- **Cosmetic** means `ITEM_CURRENCY[item] == 'losses'`, the existing split in `models.py` (`models.py:342`, everything not in `_FUNCTIONAL_SHOP_ITEMS`, fish skins included). `equipped_fish` is kept if its skin is still owned. The reset becomes `owned_items = (cosmetics owned) ∪ {season theme, auto_spin_unlock}`, and `active_cosmetics` is kept where still owned.
 - `caught_species` is removed from the reset list.
 
 ### 3.3 Hall of Fame
 
+- Medals count **S9 tides only** (`season_log.label LIKE '9.%'`). Older seasons appear in the tide list as history but award no medals.
 - `GET /api/hall-of-fame` returns two things:
   - `{tides: [{label, name, ended_at, podium: [{position, username, wins}]}], medals: [{username, gold, silver, bronze}]}`, newest first.
   - Real users only. The podium is already filtered at snapshot time.
@@ -114,7 +115,7 @@ It is posted via the existing system-message path, which has a per-worker thrott
 
 - **Season config** (`season_config.py`, a plain dict, no new dependency) holds `theme_item`, `name`, community-pot reset values, and the weekly community-goal set. `seasons.py` reads it instead of the hardcoded `'page_season8'`, `'Casino'` and `40000`. This removes the S8 launch-bug class.
 - **`bin/rollover.sh`** is run by `wheel-rollover.timer` (`OnCalendar=Fri 21:00 Europe/London`, `Persistent=true`) → `wheel-rollover.service` (oneshot, as `user`). It runs these steps:
-  1. **Idempotency.** If `season_log` already has a row whose `ended_at` falls within the last 6 days, exit 0 with "already rolled this week".
+  1. **Idempotency.** `advance_season` sets `ends_at` to the **next Friday 21:00 Europe/London** (not now+7d), so the launch tide simply runs until the first Friday. The job no-ops (exit 0, "tide not due") unless the current `ends_at <= now()`. A second run in the same week is therefore a no-op, and `Persistent=true` catches up after downtime.
   2. `bin/clone-prod-to.sh wheel_rollover_rehearsal`.
   3. `bin/advance_tide.py --db wheel_rollover_rehearsal` (asserts `current_database()`).
   4. `bin/post_rollover_check.py --db wheel_rollover_rehearsal`. Any failure means abort.
@@ -177,7 +178,7 @@ It is posted via the existing system-message path, which has a per-worker thrott
 | RV-07 | Progressive disclosure + "What's new" card | `app.jsx`, `styles.css` | Playwright: fresh user sees only wheel/scoreboard/leaderboard/shop/chat; after 10 spins fishing appears; card dismiss persists (localStorage, try/catch) | sub | FE serial #2 |
 | RV-08 | Tide banner + Hall of Fame panel; fix the `test_mobile_e2e` fixture (register a throwaway user instead of `testing7`) | `app.jsx`, `styles.css`, `tests/test_mobile_e2e.py` | banner shows "Season 9 · Tide N" + countdown; HoF panel lists tides/medals; the 12 mobile_e2e errors become passes or real failures | sub | FE serial #3 |
 | RV-09 | Tides page + wheel theme | `styles.css`, `app.jsx` (theme map), `models.py` (`page_season9`) | `page_season9` in SHOP_ITEMS; screenshot desktop + mobile reviewed by orch; reduced-motion disables waves | sub, orch review | FE serial #4 |
-| RV-10 | Rollover automation | `bin/rollover.sh`, `bin/advance_tide.py`, `bin/post_rollover_check.py`, `deploy/wheel-rollover.{service,timer}` | on two clones: run 1 advances + checks green; run 2 same week is a no-op; an injected check failure leaves the "prod" clone untouched and writes the marker; `systemd-analyze calendar` shows the next Friday 21:00 | sub, orch audit | ops |
+| RV-10 | Rollover automation (incl. `ends_at` = next Fri 21:00 London) | `bin/rollover.sh`, `bin/advance_tide.py`, `bin/post_rollover_check.py`, `deploy/wheel-rollover.{service,timer}` | on two clones: run with `ends_at` in the past advances + checks green; immediate re-run is a no-op ("tide not due"); `ends_at` after a Wednesday launch is that Friday 21:00 London; an injected check failure leaves the "prod" clone untouched and writes the marker; `systemd-analyze calendar` shows the next Friday 21:00 | sub, orch audit | ops |
 | RV-11 | 429/423 messages, tab takeover, bite-poll limit | `app.jsx`, `game.py`, `extensions.py` | unit test on the limit string; Playwright: two contexts → second gets the "Play here" banner and can take over | sub | FE serial #5 |
 | RV-12 | Patch notes for S9 + README season text draft | `patch_notes` source, docs | the patch notes endpoint returns the S9 entry | orch | docs |
 
