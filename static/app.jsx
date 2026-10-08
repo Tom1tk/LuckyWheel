@@ -2575,7 +2575,7 @@ const SHOP_SECTIONS = [
     { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
     { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
   ]},
-  { label: '🎣 Season 8: Fishing', items: [
+  { label: '🎣 Fishing', items: [
     // T223: fish_to_wager removed — it was a legacy item that wasn't
     // supposed to be in the shop. The item still exists in models.SHOP_ITEMS
     // for the insurance-grant one-time bonus, but it's no longer purchasable
