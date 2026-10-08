@@ -3106,7 +3106,7 @@ function HallOfFamePanel(_ref20) {
   }, [open]);
   if (!open) return null;
   var tideName = function tideName(t) {
-    return t.label.includes('.') ? "Tide ".concat(t.label) : "Season ".concat(t.label);
+    return t.label.includes('.') && parseInt(t.label, 10) >= 9 ? "Tide ".concat(t.label) : "Season ".concat(t.label);
   };
   var endedOn = function endedOn(t) {
     return t.ended_at ? new Date(t.ended_at).toLocaleDateString('en-GB', {
@@ -3151,7 +3151,7 @@ function HallOfFamePanel(_ref20) {
     }, m.username), /*#__PURE__*/React.createElement("span", null, m.gold), /*#__PURE__*/React.createElement("span", null, m.silver), /*#__PURE__*/React.createElement("span", null, m.bronze));
   })), /*#__PURE__*/React.createElement("div", {
     className: "stats-section-title hof-tides-title"
-  }, "Past tides"), hof.tides.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "History"), hof.tides.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "hof-empty"
   }, "No tides have turned yet.") : hof.tides.map(function (t) {
     return /*#__PURE__*/React.createElement("div", {
