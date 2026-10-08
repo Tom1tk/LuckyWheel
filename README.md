@@ -1,5 +1,7 @@
 # Lucky Wheel 🎰
 
+![Every season of Lucky Wheel, from the prototype to Season 8](docs/img/hero.gif)
+
 A casino-style spinning wheel game with a fish mascot, streaks, and a full upgrade shop — running on a Python/Flask backend with PostgreSQL persistence and user authentication.
 
 📋 **[Patch Notes](https://github.com/Tom1tk/fishspin/wiki/Patch-Notes)**
