@@ -15,6 +15,8 @@ from wheel_modes import get_week_number
 
 # per_player_cap is target / 5: five players at cap fill a goal exactly, and
 # no single player can give more than 20% of it.
+# goal_species100 retired for S9: caught species persist across tides, so
+# first catches dry up and the goal becomes unfillable.
 COMMUNITY_GOAL_DEFS = [
     {
         'goal_id': 'goal_fish5000',
@@ -40,15 +42,6 @@ COMMUNITY_GOAL_DEFS = [
         'target': 25_000,
         'per_player_cap': 5_000,
         'metric': 'wins_wagered',
-        'reward_tokens': 500,
-        'reward_fragments': 1,
-    },
-    {
-        'goal_id': 'goal_species100',
-        'description': 'Catch 100 unique species server-wide',
-        'target': 100,
-        'per_player_cap': 20,
-        'metric': 'unique_species',
         'reward_tokens': 500,
         'reward_fragments': 1,
     },
@@ -113,9 +106,11 @@ def get_active_goal(conn, season_number, week_number):
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
+            # Keyed on the tide (season_number) alone: a Fri-Fri tide spans an
+            # ISO-week Monday, and that must not rotate the goal mid-tide.
             '''SELECT * FROM community_goals
-               WHERE season_number = %s AND week_number = %s''',
-            (season_number, week_number),
+               WHERE season_number = %s ORDER BY id DESC LIMIT 1''',
+            (season_number,),
         )
         row = cur.fetchone()
 
@@ -130,9 +125,8 @@ def get_active_goal(conn, season_number, week_number):
 def _tide_key(conn):
     """Return (season_number, ISO week) for the goal row a rollover creates.
 
-    ponytail: week_number is the ISO week, the same key get_active_goal uses,
-    so a tide that spans a Monday gets a new goal on Monday too. Upgrade by
-    keying on the tide itself once seasons has a sub_number (RV-01).
+    Each tide bumps season_number, so the goal is per tide; week_number is
+    only stored to satisfy the (season_number, week_number) unique key.
     """
     with conn.cursor() as cur:
         cur.execute('SELECT season_number FROM seasons ORDER BY id LIMIT 1')
