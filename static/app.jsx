@@ -4332,23 +4332,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     // T106: tier-gating metric
     if (gameState.cumulative_wins != null) setCumulativeWins(gameState.cumulative_wins);
     // T107: sync auto-spin state from server.
-    // T216: if the server reports auto-spin is active, that means a
-    // previous tab/session left it running. We do NOT resume ticking
-    // on this page load — instead we ask the server to stop, show a
-    // toast so the player understands why their wins look weird, and
-    // clear the local state. They can re-check the box to start a
-    // fresh session.
-    if (gameState.auto_spin_active != null) {
-      if (gameState.auto_spin_active === true) {
-        apiGame('/api/auto-spin/stop', { method: 'POST', body: '{}' })
-          .then(() => showToast(
-            'Auto-spin was running on the server — stopped. Click the checkbox to start a new session.'
-          ));
-        setAutoSpinActive(false);
-      } else {
-        setAutoSpinActive(false);
-      }
-    }
+    // S9: auto-spin keeps running server-side while the player is away, so a
+    // fresh page load resumes it; the first tick reports the catch-up summary.
+    if (gameState.auto_spin_active != null) setAutoSpinActive(gameState.auto_spin_active === true);
     if (gameState.wager_streak != null) setWagerStreak(gameState.wager_streak);
     if (gameState.wager_last_stake != null) setWagerLastStake(gameState.wager_last_stake);
     if (gameState.double_down_pending != null) setDoubleDownPending(gameState.double_down_pending);
