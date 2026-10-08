@@ -47,6 +47,7 @@ OUT="$(python3 "$APP_DIR/bin/advance_tide.py" --db "$PROD_DB" --check-only 2>&1)
 echo "$OUT"
 case "$rc" in
     0) echo "nothing to do: no tide due"; exit 0 ;;
+    2) echo "no-op: season is not a tide (season launch is manual)"; exit 0 ;;
     10) ;;
     *) fail "tide check exited $rc" ;;
 esac
