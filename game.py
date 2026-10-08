@@ -1565,6 +1565,7 @@ def tab_heartbeat():
     tab_id = (request.json or {}).get('tab_id', '')
     if not tab_id:
         return jsonify({'ok': False}), 400
+    takeover = (request.json or {}).get('takeover') is True
 
     TAB_LOCK_TIMEOUT = 30
     try:
@@ -1586,7 +1587,7 @@ def tab_heartbeat():
             last_seen = _aware(last_seen)
 
             stale = (last_seen is None or (now - last_seen).total_seconds() >= TAB_LOCK_TIMEOUT)
-            can_claim = not stored or stored == tab_id or stale
+            can_claim = takeover or not stored or stored == tab_id or stale
 
             if can_claim:
                 with conn.cursor() as cur:
@@ -2216,7 +2217,7 @@ def cast_line():
 
 @game_bp.route('/api/bite-poll', methods=['POST'])
 @login_required
-@limiter.limit('4 per second')
+@limiter.limit('8 per second')
 def bite_poll():
     err = require_json()
     if err:
