@@ -25,7 +25,7 @@ import logging
 import random
 from datetime import timezone, timedelta
 
-from models import DICE_RECHARGE_SECONDS, dice_max_charges
+from models import DICE_RECHARGE_SECONDS, dice_max_charges, dice_recharge_seconds
 
 log = logging.getLogger('wheel')
 
@@ -38,17 +38,17 @@ def _aware(dt_val):
     return dt_val
 
 
-def _recharge_dice(charges, last_recharge, max_charges, now_utc):
+def _recharge_dice(charges, last_recharge, max_charges, now_utc, interval=DICE_RECHARGE_SECONDS):
     """Recharge dice charges based on elapsed time. Returns
     ``(charges, last_recharge)``.
 
     Mirrors the behavior of the original ``game.py:80`` helper.
     """
     last_recharge = _aware(last_recharge)
-    elapsed = int((now_utc - last_recharge).total_seconds() // DICE_RECHARGE_SECONDS)
+    elapsed = int((now_utc - last_recharge).total_seconds() // interval)
     if elapsed > 0 and charges < max_charges:
         charges = min(charges + elapsed, max_charges)
-        last_recharge = last_recharge + timedelta(seconds=DICE_RECHARGE_SECONDS * elapsed)
+        last_recharge = last_recharge + timedelta(seconds=interval * elapsed)
     return charges, last_recharge
 
 
@@ -88,11 +88,14 @@ def roll_dice_core(
     auto_spin_active = gs.get('auto_spin_since') is not None
 
     # Recharge first so a player who waited long enough can roll.
-    max_charges = dice_max_charges(owned)
+    alloc = gs.get('talent_alloc') or {}
+    if alloc.get('spring_tide'):
+        return {'ok': False, 'status': 403, 'error': 'Spring Tide: no dice'}
+    max_charges = dice_max_charges(owned, alloc)
     dice_charges = min(int(gs['dice_charges']), max_charges)  # cap stale over-limit
     last_recharge = _aware(gs['dice_last_recharge'])
     dice_charges, last_recharge = _recharge_dice(
-        dice_charges, last_recharge, max_charges, now_utc
+        dice_charges, last_recharge, max_charges, now_utc, dice_recharge_seconds(alloc)
     )
 
     # Precondition checks (unchanged from the original handler).

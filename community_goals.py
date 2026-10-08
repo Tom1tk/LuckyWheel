@@ -24,7 +24,7 @@ COMMUNITY_GOAL_DEFS = [
         'target': 1500,
         'per_player_cap': 300,
         'metric': 'fish_caught',
-        'reward_tokens': 500,
+        'reward_tokens': 10,
         'reward_fragments': 1,
     },
     {
@@ -33,7 +33,7 @@ COMMUNITY_GOAL_DEFS = [
         'target': 100,
         'per_player_cap': 20,
         'metric': 'jackpots_landed',
-        'reward_tokens': 500,
+        'reward_tokens': 10,
         'reward_fragments': 1,
     },
     {
@@ -42,7 +42,7 @@ COMMUNITY_GOAL_DEFS = [
         'target': 25_000,
         'per_player_cap': 5_000,
         'metric': 'wins_wagered',
-        'reward_tokens': 500,
+        'reward_tokens': 10,
         'reward_fragments': 1,
     },
 ]
@@ -255,7 +255,7 @@ def check_goal_completion(conn, goal_id):
         # Find the goal definition for reward info
         goal_def = next((g for g in COMMUNITY_GOAL_DEFS if g['goal_id'] == goal_id), None)
         if goal_def:
-            tokens_per_player = goal_def.get('reward_tokens', 500)
+            tokens_per_player = goal_def.get('reward_tokens', 10)
             fragments_per_player = goal_def.get('reward_fragments', 1)
 
             # Distribute rewards to all contributors

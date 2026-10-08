@@ -583,59 +583,14 @@ def _buy_gs(**overrides):
     return gs
 
 
-def test_initial_purchase_grants_5():
-    """T119 AC#9: buying fish_to_wager increments insurance_tokens by 5
-    on the first purchase (gated on insurance_unlock_grant_given=FALSE)."""
-    gs = _buy_gs(
-        insurance_unlock_grant_given=False,
-        insurance_tokens=0,
-    )
-    conn, result = _drive_buy(gs, item_id='fish_to_wager')
-    assert isinstance(result, dict), (
-        f"expected dict response, got {type(result).__name__}: {result!r}"
-    )
-    # The buy succeeded (item is now in owned_items).
-    assert 'fish_to_wager' in result['owned_items']
-    # Two UPDATEs: the buy (owned_items + wins deduction) and the
-    # one-time +5 grant (insurance_tokens + insurance_unlock_grant_given).
-    updates = [(sql, params) for sql, params in conn.log
-               if sql.lstrip().upper().startswith('UPDATE')]
-    grant_sqls = [(s, p) for s, p in updates
-                  if 'insurance_tokens' in s and 'insurance_unlock_grant_given' in s]
-    assert len(grant_sqls) == 1, (
-        f"expected exactly 1 grant UPDATE, got {len(grant_sqls)}: {grant_sqls}"
-    )
-    sql, params = grant_sqls[0]
-    assert 'insurance_tokens = insurance_tokens + 5' in sql
-    assert 'insurance_unlock_grant_given = TRUE' in sql
-
-
-def test_initial_purchase_no_double_grant():
-    """T119 AC#9: a second buy of fish_to_wager does NOT grant tokens
-    again. The insurance_unlock_grant_given=TRUE gate prevents the
-    duplicate grant.
-    """
-    # The second buy is a no-op (already owned) per the existing
-    # `if item_id in owned` guard in /api/buy. But the operator's
-    # spec says "admin grants via DB" — simulate that by removing the
-    # item from owned_items but keeping the grant-given flag TRUE.
-    gs = _buy_gs(
-        insurance_unlock_grant_given=True,    # already granted
-        insurance_tokens=5,                   # the prior grant's value
-    )
-    conn, result = _drive_buy(gs, item_id='fish_to_wager')
-    assert isinstance(result, dict), (
-        f"expected dict response, got {type(result).__name__}: {result!r}"
-    )
-    # The buy succeeded (item added) but NO grant UPDATE ran.
-    grant_sqls = [(s, p) for s, p in conn.log
-                  if s.lstrip().upper().startswith('UPDATE')
-                  and 'insurance_tokens' in s
-                  and 'insurance_unlock_grant_given' in s]
-    assert len(grant_sqls) == 0, (
-        f"expected NO grant UPDATE when insurance_unlock_grant_given=TRUE, "
-        f"got {grant_sqls}"
-    )
+def test_fish_to_wager_no_longer_sold():
+    """S9 Charts: fish_to_wager is gear, so /api/buy refuses it and the old
+    one-time +5 token grant can't fire (chips come from the daily claim)."""
+    conn, result = _drive_buy(_buy_gs(insurance_unlock_grant_given=False, insurance_tokens=0))
+    body, status = result
+    assert status == 403
+    assert 'Charts' in body['error']
+    assert not [sql for sql, _ in conn.log if sql.lstrip().upper().startswith('UPDATE')]
 
 
 # ════════════════════════════════════════════════════════════════════════════
