@@ -15,3 +15,13 @@ Evidence per gate. Plan: `docs/WHEEL_REVIVAL_PLAN.md`.
 | 0.7 clone script | done | `bin/clone-prod-to.sh` — tested (2153 = 2153), refuses `wheeldb` |
 
 Prod `users` count is 2153 at G0; 2145 of those are leaked test accounts (removed at launch, §7).
+
+Additional G0 evidence:
+- Positive control: after the post-fix run `wheeldb_test` holds 17 `^t[0-9]` users (integration tests ran, landed in the test DB); prod 2153, staging 0 new.
+- No `load_dotenv(override=True)` anywhere; the server subprocess inherits the pinned URL.
+- Prod write tripwire: `pg_stat_user_tables` ins/upd/del per table saved to `/home/user/backups/prod_pgstat_G0.txt` (postmaster started 2026-08-21 11:42 — counters reset on restart). Diff at every gate; only bot `login_attempts` deltas are acceptable.
+- Stub race (T242 flask stub collection order): not reproduced in either baseline run; no collection errors.
+- `test_mobile_e2e` 12 errors: fixture logs in as a pre-existing account `testing7` that a fresh DB doesn't have (401). Server boot path is fine (drawer tests reach assertions). Fix by registering a throwaway user — folded into RV-08.
+- **Until launch, the leak fix exists only on staging: never run pytest from `/home/user/wheel-app`.** Every subagent brief carries this line.
+
+**G0: PASSED 2026-10-08.**

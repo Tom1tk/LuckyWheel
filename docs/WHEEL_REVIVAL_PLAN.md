@@ -1,6 +1,6 @@
 # Wheel Revival — Master Plan
 
-> **Status:** v2 (2026-10-08). **H1 passed** — decisions locked in §2. Executing autonomously; next human gate is **H2** (playtest).
+> **Status:** v2 (2026-10-08). **H1 passed**, **G0 passed** (see `WHEEL_REVIVAL_PROGRESS.md`). Phase 1 spec + Phase 6 GIFs in progress; next human gate is **H2** (playtest).
 > **Owner:** tom7 (operator). **Orchestrator:** Claude (Opus) — plans, audits, owns judgement.
 > **Implementers:** subagents (Haiku 5.5, xhigh) via the orchestrator rule — scoped briefs, audited diffs.
 > **Repo authority:** `/home/user/wheel-app` (master, live, port 5000, `wheeldb`) is source of truth.
@@ -205,6 +205,7 @@ Lessons from `SEASON_8_LAUNCH_POSTMORTEM.md` are encoded here as hard rules.
 - Full prod backup (`backup-wheeldb.sh`) + verify the dump restores into a clone.
 - Final pre-flight: clone prod → apply migrations → deploy code → rollover → §7.3 checklist on the clone. Must be green within 24h of launch.
 - Write the exact launch + rollback commands into the progress log (no improvising on the night).
+- **Rehearse the whole ordered launch script on the clone, test-account delete included** (also in Phase 3). Gate: `count(username ~ '^t[0-9]') == count(ip_address='127.0.0.1')` (2145 at G0) before the delete, so no real player is matched; no FK errors or orphans afterwards; no test residue in aggregates (community-goal totals, singularity totals, chat, jackpot pool).
 
 ### 7.2 🧑 H3 — Go/no-go (+ README review)
 Orchestrator presents: pre-flight results, backup path, migration list, proposed launch time (default: a Friday 21:00 UK, aligned with the weekly reset), rollback commands, **and the link to the rendered README on branch `readme-revival`**. **User says go.** Outward-facing: affects the friends' accounts and the public repo. Never autonomous.
@@ -311,6 +312,9 @@ For each pinned commit:
 ---
 
 ## 10. Orchestration rules for autonomous execution
+
+- Until the leak fix (`tests/conftest.py` pin) reaches master at launch, **never run pytest from `/home/user/wheel-app`** — its `.env` is prod. Every subagent brief says so.
+- Gate tripwire: diff prod `pg_stat_user_tables` counters against `/home/user/backups/prod_pgstat_G0.txt` (users count alone misses UPDATEs).
 
 - **Agents:** Haiku 5.5 subagents for search, mechanical edits, tests, render runs; orchestrator does design (Phase 1), merges, and every audit. Workflows under 5 agents.
 - **Briefs** are self-contained: goal + why, exact files/functions, constraints (no prod DB, worktree path, collision rule), done-criteria with the verify command, what to return (`file:line`, diff summary, raw test output tail).
