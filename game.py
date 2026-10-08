@@ -3,7 +3,6 @@ import hmac
 import logging
 import os
 import random
-import secrets
 from datetime import timezone, timedelta
 
 import psycopg2.extras
@@ -16,9 +15,10 @@ from models import (REGEN_SHIELD_RECHARGE_WINS,
                     GUARD_CHARGE_RECHARGE_SPINS, GUARD_CHARGE_MAX,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
-                    streak_bonus, DICE_RECHARGE_SECONDS, dice_max_charges,
-                    roll_fish, lure_bite_delay_seconds, fish_value, autofisher_catch_rate,
+                    streak_bonus, dice_max_charges,
+                    roll_fish, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
+                    AUTO_SPIN_OFFLINE_CAP_S,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
                     SINGULARITY_PER_PLAYER_CAP)
@@ -26,14 +26,14 @@ from seasons import ensure_current_season, get_season_info, get_latest_winners, 
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
-                    compute_stake_risk, compute_max_stake_pct, compute_stake_value,
+                    compute_stake_risk, compute_max_stake_pct,
                     HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
                      get_prestige_threshold, filter_kept_items,
                      PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
-from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty, BOUNTY_DEFS
-from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
+from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty
+from community_goals import get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message, post_dedup_system_message
 import chat_triggers
 import dice
@@ -43,7 +43,6 @@ import loadout
 from fish import (
     lure_level, autofisher_level, get_total_fish_clicks,
 )
-from loadout import COSMETIC_SLOTS
 
 
 def is_happy_hour(now_utc=None):
@@ -1606,31 +1605,6 @@ def tab_heartbeat():
         return jsonify({'ok': False}), 500
 
 
-@game_bp.route('/api/register-season', methods=['POST'])
-@login_required
-def register_season():
-    """Mark user as pre-registered for the next season start.
-    Also activates the wheel mid-season if not already started.
-    """
-    try:
-        now_utc = dt.datetime.now(timezone.utc)
-        with db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    '''UPDATE game_state
-                       SET season_registered = TRUE,
-                           auto_spin_since = CASE WHEN auto_spin_since IS NULL THEN %s ELSE auto_spin_since END,
-                           last_spin_at    = CASE WHEN auto_spin_since IS NULL THEN %s ELSE last_spin_at END
-                       WHERE user_id = %s''',
-                    (now_utc, now_utc, current_user.id),
-                )
-            conn.commit()
-        return jsonify({'ok': True})
-    except Exception:
-        log.exception('REGISTER_SEASON_ERROR  user_id=%s', current_user.id)
-        return jsonify({'error': 'Registration failed'}), 500
-
-
 @game_bp.route('/api/tick', methods=['POST'])
 @login_required
 @limiter.limit('30 per minute')
@@ -1649,34 +1623,6 @@ def tick():
                 )
                 pot_row = cur.fetchone()
 
-            # T216: heartbeat auto-stop. If 60s pass without a /api/tick from
-            # this session, the player is presumably tab-closed or the network
-            # dropped. Auto-stop the server-side auto-spin and return
-            # immediately so the next tick from a fresh tab / reload sees a
-            # clean state. 60s = 20 missed ticks at 3s/tick — gives time for
-            # slow networks but catches abandoned tabs within ~1 minute.
-            # See SEASON_8_TICKETS.md T216 for context.
-            if gs.get('auto_spin_since') is not None and gs.get('last_spin_at') is not None:
-                last_tick = _aware(gs['last_spin_at'])
-                stale_seconds = (now_utc - last_tick).total_seconds()
-                if stale_seconds > 60:
-                    log.warning(
-                        'AUTO_SPIN_STALE  user_id=%s  stale=%ds  auto-stopping',
-                        current_user.id, int(stale_seconds),
-                    )
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            'UPDATE game_state SET auto_spin_since = NULL WHERE user_id = %s',
-                            (current_user.id,),
-                        )
-                    conn.commit()
-                    return jsonify({
-                        'spins': [],
-                        'auto_spin_active': False,
-                        'auto_spin_stopped': 'stale',
-                        'elapsed_ms': 0,
-                    })
-
             # T216: only process auto-spin when the player has started it.
             # The per-activation budget column was dropped (see migration 057).
             # Manual spins go through /api/spin directly.
@@ -1688,8 +1634,10 @@ def tick():
 
             last_spin = gs['last_spin_at'] or auto_spin_since
             last_spin = _aware(last_spin)
-            # Never count time before the wheel started this session
-            cursor = max(auto_spin_since, last_spin)
+            # Never count time before the wheel started this session, or more
+            # than AUTO_SPIN_OFFLINE_CAP_S before now (S9 RV-03 offline cap).
+            cursor = max(auto_spin_since, last_spin,
+                         now_utc - timedelta(seconds=AUTO_SPIN_OFFLINE_CAP_S))
 
             elapsed = (now_utc - cursor).total_seconds()
             # T216: only the MAX_SPINS_PER_TICK catch-up cap remains; the
@@ -1964,6 +1912,7 @@ def tick():
             return jsonify({
                 'catch_up':        True,
                 'spins_processed': spins_due,
+                'wins_gained':     current_wins - int(gs['wins']),
                 'elapsed_seconds': elapsed,
                 'state':           final_state,
                 'fish_catchup':    fish_catchup_data,

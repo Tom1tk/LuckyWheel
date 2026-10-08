@@ -48,7 +48,9 @@ def _make_stub(name, **attrs):
     return mod
 
 
-_noop = lambda *a, **kw: (lambda f: f)
+def _noop(*a, **kw):
+    return lambda f: f
+
 
 
 class _StubUser:
@@ -403,33 +405,25 @@ def test_migration_057_exists():
     )
 
 
-# ── Source-level guard: heartbeat threshold = 60s ────────────────────────────
+# ── Source-level guard: the 60s heartbeat auto-stop is gone (S9 RV-03) ──────
 
-def test_tick_heartbeat_threshold_is_60_seconds():
-    """T216: the heartbeat auto-stop must fire after 60s of no /api/tick.
-    The literal `60` (or a named constant) must appear in /api/tick's
-    stale-detection branch, with a comment naming T216."""
+def test_tick_has_no_sixty_second_stale_stop():
+    """S9 RV-03: the T216 60s heartbeat auto-stop is removed. Time away is
+    credited by catch-up (capped at 24 h) instead of stopping the session."""
     game_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py')
     with open(game_path) as f:
         src = f.read()
-    # Locate /api/tick endpoint body
     tick_block = re.search(
         r"@game_bp\.route\('/api/tick'.*?(?=\n@game_bp\.route\()",
         src, re.DOTALL,
     )
     assert tick_block, "could not locate /api/tick endpoint body in game.py"
     body = tick_block.group(0)
-    # The stale-check must compare against 60 (literal or named constant).
-    assert re.search(r'>\s*60\b', body), (
-        "/api/tick must include a `> 60` (or named constant) stale threshold"
+    assert 'auto_spin_stopped' not in body, (
+        "/api/tick must not auto-stop on a stale heartbeat (S9 RV-03)"
     )
-    # The block must mention T216 so the magic number is traceable.
-    assert 'T216' in body, (
-        "/api/tick stale-check must reference ticket T216 in a comment"
-    )
-    # The block must also explain WHY 60s was chosen.
-    assert re.search(r'60s', body), (
-        "/api/tick stale-check must include a comment explaining the 60s choice"
+    assert not re.search(r'>\s*60\b', body), (
+        "/api/tick must not compare staleness against 60s (S9 RV-03)"
     )
 
 
@@ -511,54 +505,90 @@ def test_stop_endpoint_sql_drops_auto_spin_budget():
     )
 
 
-# ── /api/tick: heartbeat auto-stop behavior ────────────────────────────────
+# ── /api/tick: offline catch-up, capped at 24 h (S9 RV-03) ─────────────────
 
-def test_stale_session_auto_stopped():
-    """T216: when a /api/tick arrives >60s after `last_spin_at`, the
-    handler must auto-stop auto-spin, set `auto_spin_since = NULL`, and
-    return `auto_spin_active: false, auto_spin_stopped: 'stale'`."""
+def _win_per_spin(amount):
+    """Fake _resolve_spin that adds `amount` wins per spin, so the catch-up
+    summary's wins_gained is observable (the default fake never adds wins)."""
+    def fake(**kwargs):
+        return (dict(_BASE_NEW_STATE, wins=kwargs['wins'] + amount),
+                _make_events(result='win', wins_delta=amount))
+    return fake
+
+
+def _spins_in(payload):
+    return payload.get('spins_processed', len(payload.get('spins', [])))
+
+
+def _drain_ticks(gs, conn, max_calls=50):
+    """Call /api/tick until nothing is due, as the client would. The fake
+    row is not written back by the cursor, so copy last_spin_at across."""
+    payloads = []
+    for _ in range(max_calls):
+        response = _game.tick()
+        payload = response.json if hasattr(response, 'json') else response
+        payloads.append(payload)
+        gs['last_spin_at'] = conn._cur.state['last_spin_at']
+        if not payload.get('spins') and not payload.get('catch_up'):
+            break
+    return payloads
+
+
+def test_two_hour_gap_catches_up_with_summary():
+    """S9 RV-03: a 2 h gap is credited, not stopped. The tick returns a
+    catch-up summary (spins processed, wins gained) and auto-spin keeps
+    running."""
     now = dt.datetime.now(timezone.utc)
-    last_spin = now - dt.timedelta(seconds=90)
+    gap = dt.timedelta(hours=2)
     gs = _base_gs(
-        auto_spin_since=now - dt.timedelta(seconds=120),
-        last_spin_at=last_spin,
+        auto_spin_since=now - gap - dt.timedelta(seconds=60),
+        last_spin_at=now - gap,
     )
-    events = _make_events()
-    conn = _install_fakes(gs, events, now=now)
+    conn = _install_fakes(gs, _make_events(), now=now)
+    _game._resolve_spin = _win_per_spin(50)
 
-    response = _game.tick()
-    response_payload = response.json if hasattr(response, 'json') else response
+    payloads = _drain_ticks(gs, conn)
 
-    # 1) Response must signal the auto-stop.
-    assert response_payload.get('auto_spin_active') is False, (
-        f"stale /api/tick must return auto_spin_active=False, got: {response_payload}"
+    expected_spins = int(gap.total_seconds() // _game.AUTO_SPIN_INTERVAL_SECONDS)
+    first = payloads[0]
+    assert first.get('catch_up') is True, (
+        f"a 2 h gap must return a catch-up summary, got: {first}"
     )
-    assert response_payload.get('auto_spin_stopped') == 'stale', (
-        f"stale /api/tick must return auto_spin_stopped='stale', got: "
-        f"{response_payload}"
+    assert first['spins_processed'] == expected_spins, first
+    assert first['wins_gained'] == expected_spins * 50, first
+    assert first['state']['auto_spin_active'] is True
+    assert sum(_spins_in(p) for p in payloads) == expected_spins, (
+        f"all 2 h of spins must be credited across successive ticks: {payloads}"
     )
-    # No spins should be returned — the session is stopped, not advanced.
-    assert response_payload.get('spins') == [], (
-        f"stale /api/tick must not return spins, got: {response_payload}"
-    )
-
-    # 2) Server state must have auto_spin_since = NULL.
-    assert conn._cur.state['auto_spin_since'] is None, (
-        f"stale /api/tick must set auto_spin_since=NULL on the server; "
-        f"state was: {conn._cur.state}"
+    assert conn._cur.state['auto_spin_since'] is not None, (
+        "catch-up must not stop auto-spin"
     )
 
-    # 3) The auto-stop UPDATE must appear in the SQL log.
-    auto_stop_ups = [
-        (sql, params) for op, sql, params in conn.log
-        if op == 'UPDATE'
-        and 'auto_spin_since = NULL' in sql
-        and 'where user_id' in sql.lower()
-    ]
-    assert auto_stop_ups, (
-        f"stale /api/tick must execute `UPDATE game_state SET "
-        f"auto_spin_since = NULL`; got log: {[s for _, s, _ in conn.log]}"
+
+def test_thirty_hour_gap_capped_at_24_hours():
+    """S9 RV-03: a 30 h gap credits at most the 24 h offline cap."""
+    now = dt.datetime.now(timezone.utc)
+    gap = dt.timedelta(hours=30)
+    gs = _base_gs(
+        auto_spin_since=now - gap - dt.timedelta(seconds=60),
+        last_spin_at=now - gap,
     )
+    conn = _install_fakes(gs, _make_events(), now=now)
+    _game._resolve_spin = _win_per_spin(50)
+
+    payloads = _drain_ticks(gs, conn)
+
+    cap_s = 24 * 3600  # the spec value, pinned here rather than read from game.py
+    cap_spins = int(cap_s // _game.AUTO_SPIN_INTERVAL_SECONDS)
+    first = payloads[0]
+    assert first.get('catch_up') is True, (
+        f"a 30 h gap must return a catch-up summary, got: {first}"
+    )
+    assert first['spins_processed'] == cap_spins, first
+    assert first['elapsed_seconds'] <= cap_s + 5, (
+        f"elapsed must be capped at 24 h, got: {first['elapsed_seconds']}"
+    )
+    assert sum(_spins_in(p) for p in payloads) == cap_spins
 
 
 def test_fresh_session_keeps_running():
