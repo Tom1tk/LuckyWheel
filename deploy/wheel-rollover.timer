@@ -1,0 +1,10 @@
+[Unit]
+Description=Wheel weekly tide rollover (Fri 21:00 London)
+
+[Timer]
+OnCalendar=Fri *-*-* 21:00:00 Europe/London
+Persistent=true
+Unit=wheel-rollover.service
+
+[Install]
+WantedBy=timers.target
