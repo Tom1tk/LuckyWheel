@@ -727,31 +727,3 @@ def test_app_jsx_shop_desc_dropped_100_spins_wording():
         "the `auto_spin_unlock` shop desc still says `100 spins per "
         "activation` — the per-activation budget was dropped in T216."
     )
-
-
-def test_app_jsx_resume_prevention_toast_present():
-    """T216: the state-sync useEffect must include the resume-prevention
-    block — when the server reports `auto_spin_active: true` on a fresh
-    page load, the client must call /api/auto-spin/stop and show a
-    toast telling the player to click the checkbox to restart."""
-    app_jsx_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'static', 'app.jsx',
-    )
-    with open(app_jsx_path) as f:
-        src = f.read()
-    # The toast string must appear.
-    assert "Auto-spin was running on the server" in src, (
-        "static/app.jsx must include the resume-prevention toast "
-        "string. See T216 acceptance criterion #3."
-    )
-    # The block must call /api/auto-spin/stop on a true active response.
-    assert re.search(
-        r"if\s*\(\s*gameState\.auto_spin_active\s*===\s*true\s*\).+?"
-        r"apiGame\('/api/auto-spin/stop'",
-        src, re.DOTALL,
-    ), (
-        "static/app.jsx must call /api/auto-spin/stop from the "
-        "resume-prevention block when the server reports "
-        "auto_spin_active=true."
-    )

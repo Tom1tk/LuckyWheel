@@ -54,6 +54,11 @@ body {
   overflow: auto;
 }
 
+/* Phones: the rotating wheel canvas's corners overflow sideways and zoom the page out. */
+@media (max-width: 768px) {
+  html, body { overflow-x: clip; }
+}
+
 /* Background themes */
 body.bg-ocean   { background: transparent; }
 body.bg-royal   { background: radial-gradient(ellipse at center, #1a0033 0%, #0a0018 70%); }
