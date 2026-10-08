@@ -601,3 +601,9 @@ def test_claim_button_sends_bounty_id():
     assert body.get('ok') is True
     assert body['rewards']['cosmetic_fragments'] == 0
     assert body['rewards']['tokens'] == 2  # stubbed to position 2 above
+
+
+def test_no_bounty_needs_mirror_mode():
+    """Mirror mode is not in the weekly rotation, so a mirror bounty can never complete."""
+    from bounties import BOUNTY_DEFS
+    assert not any('mirror' in b['id'] for b in BOUNTY_DEFS)

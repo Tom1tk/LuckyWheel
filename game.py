@@ -1406,8 +1406,6 @@ def spin():
             # this is a one-time "reach a streak" achievement, not a 10x counter.
             if events.get('streak', 0) == 10:
                 increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date, amount=10)
-            if events.get('active_wheel_mode') == 'mirror' and events['result'] in ('win', 'jackpot'):
-                increment_bounty(conn, current_user.id, 'bounty_mirror', bounty_date)
             if double_down_active and events['result'] in ('win', 'jackpot'):
                 increment_bounty(conn, current_user.id, 'bounty_double', bounty_date)
             # Season 8: community goal contribution hooks

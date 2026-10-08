@@ -183,3 +183,11 @@ def test_no_min_wins_in_spin_path():
     assert not re.search(r"^\s*wins\s*=\s*min\s*\(\s*wins\s*,", src, re.MULTILINE), (
         "game.py must not call `wins = min(wins, ...)` — the 5M cap is removed"
     )
+
+
+def test_jackpot_multiplier_reaches_spin_and_tick_responses():
+    """The jackpot banner shows the real multiplier (x5 inverted, x25 echo),
+    so the field must survive the shared spin()/tick() response filter."""
+    from game import _events_to_response
+    resp = _events_to_response({'jackpot_hit': True, 'jackpot_multiplier': 5})
+    assert resp['jackpot_multiplier'] == 5
