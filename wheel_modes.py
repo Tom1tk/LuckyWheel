@@ -5,10 +5,11 @@ The mode probabilities replace the old ``secrets.choice(['win', 'lose'])``
 50/50 outcome in ``_resolve_spin()``.
 
 Steady and volatile are always available. One rotating mode (inverted,
-gravity, or long_shot) is available each week based on ISO week number.
+gravity, or long_shot) is available each tide; see get_week_number().
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 
 WHEEL_MODES = {
@@ -106,9 +107,11 @@ def clamp_gravity_drift(drift: int) -> int:
 
 
 def get_week_number(now=None):
-    """Return the ISO week number for the current time (or a given datetime)."""
+    """Return the tide's week number: the ISO week, but starting Friday 21:00
+    London (when the tide turns) instead of Monday, so modes rotate with tides."""
     now = now or datetime.now(timezone.utc)
-    return now.isocalendar().week
+    london = now.astimezone(ZoneInfo('Europe/London')).replace(tzinfo=None)
+    return (london + timedelta(days=2, hours=3)).isocalendar().week
 
 
 def get_rotating_mode(week_number=None):

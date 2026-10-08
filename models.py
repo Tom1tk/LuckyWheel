@@ -163,7 +163,6 @@ SHOP_ITEMS = {
     'trail_6':        {'cost': 70_000,       'requires': 'trail_5'},
     # Protection (Season 8 rework — see spec S7)
     'guard':          {'cost': 1_000,        'requires': None},
-    'guard_charge':   {'cost': 10_000,       'requires': 'guard'},
     'regen_shield':   {'cost': 5_000,        'requires': None},
     # Wheel themes (cosmetic)
     'theme_fire':     {'cost': 250,          'requires': None},
@@ -283,31 +282,6 @@ RETIRED_ITEMS = {
                             'retired_in': 'T121'},
 }
 
-# T106: upgrade tier gating — items not listed here are Tier 1 (always available)
-# Thresholds are based on cumulative_wins (lifetime value of wins gained, T106).
-# Updated from the old win_count (count of winning spins) which was too slow
-# for the manual-wager era.
-UPGRADE_TIER_THRESHOLDS = {2: 10_000, 3: 100_000}
-UPGRADE_TIER_2 = {
-    'regen_shield', 'guard_charge', 'dice_charge_2',
-    'precise_angler_1',
-    'aquarium', 'lure_specialization',
-}
-UPGRADE_TIER_3 = {
-    'fortune_charm', 'lucky_seven', 'win_echo', 'jackpot', 'resilience',
-    'dice_charge_3', 'dice_charge_4', 'dice_extra',
-    'class_earth', 'class_moon', 'class_star',
-    'wager_double_down', 'wager_insurance',
-    'prestige_unlock',
-}
-
-def item_tier(item_id: str) -> int:
-    """Return the tier (1, 2, or 3) required to purchase this item."""
-    if item_id in UPGRADE_TIER_3:
-        return 3
-    if item_id in UPGRADE_TIER_2:
-        return 2
-    return 1
 
 assert not (set(FISH_SKINS) & set(SHOP_ITEMS)), (
     f"FISH_SKINS and SHOP_ITEMS share keys: {set(FISH_SKINS) & set(SHOP_ITEMS)}"
@@ -321,7 +295,7 @@ VALID_FISH_IDS = set(FISH_SKINS.keys()) | {'default'}
 # Functional shop items are the exception; everything else in SHOP_ITEMS is cosmetic.
 # FISH_SKINS are all cosmetic by definition.
 _FUNCTIONAL_SHOP_ITEMS = {
-    'guard', 'guard_charge', 'regen_shield',
+    'guard', 'regen_shield',
     'winmult_1', 'winmult_2', 'winmult_3', 'winmult_4', 'winmult_5', 'winmult_6', 'winmult_7',
     'bonusmult_1', 'bonusmult_2', 'bonusmult_3', 'bonusmult_4', 'bonusmult_5', 'bonusmult_6',
     'fortune_charm', 'lucky_seven', 'win_echo', 'resilience', 'jackpot',
@@ -442,12 +416,6 @@ HAPPY_HOUR_START_UTC = 20
 HAPPY_HOUR_END_UTC   = 21
 
 REGEN_SHIELD_RECHARGE_WINS = 5
-
-# T215: Guard Charge passive regen — 1 charge every N spins.
-# The shop description claims this mechanic exists; previously it did not.
-# Applied in the /api/spin handler after the win/loss resolution.
-GUARD_CHARGE_RECHARGE_SPINS = 50
-GUARD_CHARGE_MAX = 3
 
 DEVICE_COOKIE = 'device_id'
 DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600  # 1 year

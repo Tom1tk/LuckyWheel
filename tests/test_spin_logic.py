@@ -140,13 +140,14 @@ def _base_ctx(**overrides):
 
 # ── Outcome determinism ───────────────────────────────────────────────────────
 
-def test_pot_active_forces_win():
-    """Pot active with 100% win chance always wins."""
+def test_pot_boost_adds_to_mode_odds_and_keeps_jackpots():
+    """A filled pot adds its boost to the mode's odds; it never replaces them
+    (the old flat 55% made Steady worse and switched jackpots off)."""
     state = _base_state()
     ctx = _base_ctx(pot_active=True, pot_win_pct=1.0)
-    for _ in range(20):
-        _, events = _resolve_spin(**state, **ctx)
-        assert events['result'] == 'win'
+    results = {_resolve_spin(**state, **ctx)[1]['result'] for _ in range(500)}
+    assert 'lose' not in results
+    assert 'jackpot' in results
 
 
 def test_lucky_seven_triggers_on_seventh():
@@ -160,15 +161,6 @@ def test_lucky_seven_no_trigger_on_non_seventh():
     state = _base_state(owned=['lucky_seven'], spin_count=6)
     results = [_resolve_spin(**state, **_base_ctx())[1]['lucky_seven_triggered'] for _ in range(30)]
     assert not any(results)
-
-
-def test_pot_active_uses_win_pct():
-    # 100% win chance with pot active
-    state = _base_state()
-    ctx = _base_ctx(pot_active=True, pot_win_pct=1.0)
-    for _ in range(20):
-        _, ev = _resolve_spin(**state, **ctx)
-        assert ev['result'] == 'win'
 
 
 def test_catchup_bonus_removed_in_season_8():

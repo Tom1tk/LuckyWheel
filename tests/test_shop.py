@@ -301,27 +301,11 @@ class TestBuyCoreAllItems:
         result = buy_core(cur, conn, "fish_ufo", 7, gs)
         assert result == (402, {"error": "Insufficient losses"})
 
-    def test_tier2_locked_returns_403(self):
-        # regen_shield is tier 2 (cumulative_wins >= 10,000 required).
-        gs = _base_gs(wins=100000, owned_items=[], cumulative_wins=100)
-        cur = MockCursor()
-        conn = MockConn()
-        result = buy_core(cur, conn, "regen_shield", 7, gs)
-        assert isinstance(result, tuple)
-        status, body = result
-        assert status == 403
-        assert "Unlocks at 10,000 total wins gained" in body["error"]
-
-    def test_tier3_locked_returns_403(self):
-        # fortune_charm is tier 3 (cumulative_wins >= 100,000 required).
-        gs = _base_gs(wins=1000000, owned_items=[], cumulative_wins=50000)
-        cur = MockCursor()
-        conn = MockConn()
-        result = buy_core(cur, conn, "fortune_charm", 7, gs)
-        assert isinstance(result, tuple)
-        status, body = result
-        assert status == 403
-        assert "Unlocks at 100,000 total wins gained" in body["error"]
+    def test_no_lifetime_wins_gate(self):
+        # Upgrades reset every tide, so price is the only gate.
+        gs = _base_gs(wins=100000, owned_items=[], cumulative_wins=0)
+        result = buy_core(MockCursor(), MockConn(), "regen_shield", 7, gs)
+        assert not (isinstance(result, tuple) and result[0] == 403)
 
     def test_master_upgrade_encyclopaedia_locked(self):
         # lure_5 requires all species caught AND requires lure_4.

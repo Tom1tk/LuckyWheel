@@ -48,7 +48,6 @@ SESSION_ROUTES = [
     ('/api/singularity/contribute',      'singularity_contribute'),
     ('/api/loadout',                     'save_loadout'),
     ('/api/loadout/apply',               'apply_loadout'),
-    ('/api/guard',                       'guard_endpoint'),
     ('/api/auto-spin/start',             'auto_spin_start'),
     ('/api/auto-spin/stop',              'auto_spin_stop'),
     ('/api/wheel-mode',                  'set_wheel_mode'),

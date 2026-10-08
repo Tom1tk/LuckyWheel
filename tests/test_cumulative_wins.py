@@ -55,18 +55,8 @@ sys.modules.setdefault('flask_login', _make_stub(
 
 
 from models import (
-    SHOP_ITEMS, UPGRADE_TIER_THRESHOLDS, item_tier,
+    SHOP_ITEMS,
 )
-
-
-def test_cumulative_wins_threshold_values():
-    """T106: thresholds are 10K (tier 2) and 100K (tier 3)."""
-    assert UPGRADE_TIER_THRESHOLDS[2] == 10_000, (
-        f"tier 2 should be 10K lifetime wins gained, got {UPGRADE_TIER_THRESHOLDS[2]}"
-    )
-    assert UPGRADE_TIER_THRESHOLDS[3] == 100_000, (
-        f"tier 3 should be 100K lifetime wins gained, got {UPGRADE_TIER_THRESHOLDS[3]}"
-    )
 
 
 def test_cumulative_wins_in_state_select():
@@ -94,62 +84,12 @@ def test_cumulative_wins_in_state_response():
     assert "'cumulative_wins'" in src, "game.py must surface cumulative_wins in /api/state response"
 
 
-def test_tier_gate_uses_cumulative_wins():
-    """T106: the tier check uses cumulative_wins, not win_count.
-
-    T244: the buy logic moved to shop.py — the tier-gate check
-    moved with it. We check both files for the substring and
-    verify the (one) check uses cumulative_wins, not win_count.
-    """
-    repo = os.path.dirname(os.path.dirname(__file__))
-    sources = []
-    for name in ("game.py", "shop.py"):
-        path = os.path.join(repo, name)
-        if not os.path.exists(path):
-            continue
-        with open(path) as f:
-            sources.append((name, f.read()))
-    combined = "\n".join(f"# {name}\n{src}" for name, src in sources)
-    # The tier check must reference cumulative_wins. It now lives
-    # in shop.py; before T244 it lived in game.py.
-    assert "gs.get('cumulative_wins'" in combined, (
-        "tier gate must check gs.get('cumulative_wins', 0) "
-        "in game.py or shop.py"
-    )
-    # The old win_count check must not be present in the buy
-    # endpoint. The buy endpoint is shop.buy_core (T244) — the
-    # cumulative_wins check moved with it.  Just check the buy
-    # logic (shop.py) directly.
-    repo = os.path.dirname(os.path.dirname(__file__))
-    with open(os.path.join(repo, 'shop.py')) as f:
-        shop_src = f.read()
-    # The tier check must reference cumulative_wins.  We look
-    # for the full if-block to make sure it's the tier gate and
-    # not a coincidental substring.  shop.py uses double quotes
-    # (T244 moved the code); accept either.
-    assert (
-        "gs.get('cumulative_wins'" in shop_src
-        or 'gs.get("cumulative_wins"' in shop_src
-    ), (
-        "shop.py tier gate must check gs.get('cumulative_wins', 0)"
-    )
-    # The old win_count check must not be in shop.py at all.
-    # win_count is a different column and was the bug T106 fixed.
-    assert (
-        "gs['win_count']" not in shop_src
-        and 'gs["win_count"]' not in shop_src
-    ), (
-        "shop.py must not check gs['win_count'] for tier gating"
-    )
-
-
 def test_t107_auto_spin_unlock_in_shop():
     """T107: auto_spin_unlock exists in SHOP_ITEMS at 5,000 wins, Tier 1."""
     assert 'auto_spin_unlock' in SHOP_ITEMS
     item = SHOP_ITEMS['auto_spin_unlock']
     assert item['cost'] == 5_000, f"cost should be 5,000, got {item['cost']}"
     assert item['requires'] is None, "auto_spin_unlock should be Tier 1 (no requires)"
-    assert item_tier('auto_spin_unlock') == 1, "auto_spin_unlock should be Tier 1"
 
 
 def test_t107_auto_spin_start_gated_on_unlock():
@@ -273,29 +213,6 @@ def test_t106_cumulative_wins_echoed_in_tick_response():
     # Catch-up final_state (after the loop)
     assert "'cumulative_wins'" in body, (
         "/api/tick final_state must include 'cumulative_wins' for catch-up updates"
-    )
-
-
-def test_t106_frontend_uses_cumulative_wins_from_spin():
-    """app.jsx must update cumulativeWins state from the spin response (not wait
-    for /api/state). This is what makes the shop tier-locked text update live."""
-    with open(os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'static', 'app.jsx',
-    )) as f:
-        src = f.read()
-    # The apply-spin-result block (or whichever handler processes spin data)
-    # must reference data.cumulative_wins AND setCumulativeWins
-    assert "data.cumulative_wins" in src, (
-        "app.jsx must read data.cumulative_wins from the spin response"
-    )
-    assert "setCumulativeWins" in src, (
-        "app.jsx must call setCumulativeWins to update the state"
-    )
-    # Should NOT have a "refetch on next /api/state" comment (the old broken plan)
-    assert "refetch on next /api/state" not in src, (
-        "the old 'refetch on next /api/state' comment must be removed — the server "
-        "now echoes cumulative_wins directly"
     )
 
 
