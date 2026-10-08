@@ -2,6 +2,54 @@
 
 ---
 
+## Season 9 — Tides
+
+Welcome to Season 9: Tides! 🌊
+
+This season is built around a weekly rhythm. Short races, a long chase, and nothing you can fall hopelessly behind on.
+
+### 🌊 The Tide Turns Every Friday
+
+Season 9 runs in weekly **tides**: Tide 9.1, 9.2, 9.3 and so on. Every **Friday at 21:00 (UK time)** the tide turns:
+
+- **Wins, losses, streaks and functional upgrades reset.** Everyone starts the new tide level.
+- The **top three** of the tide that just ended are posted in chat and saved to the Hall of Fame.
+- A new **community goal** starts.
+
+The banner at the top of the screen shows the current tide, a countdown to the next turn, and last tide's podium.
+
+### 🏛 Hall of Fame and Medals
+
+Finish a tide in the top three and you earn a medal: 🥇 🥈 🥉. **Medals never reset.** They are the long chase of Season 9. Tap the tide banner to open the Hall of Fame, with the medal table and the podium of every past tide.
+
+### 🎨 What You Keep
+
+Your weekly reset only touches the race. These carry over from tide to tide:
+
+- **Cosmetics**: themes, trails, confetti, backgrounds, page themes and fish skins, plus whatever you have equipped.
+- **Your Encyclopaedia**: every species you've caught stays caught.
+- **Medals**, chat, and your account.
+
+### 🔁 Free Auto-Spin, Even While You're Away
+
+Auto-spin is now **free for everyone**: no 5K unlock. It also keeps going when you close the tab. Come back within 24 hours and your missed spins are played out, with a "While you were away" summary.
+
+### 🌅 A Calmer Start
+
+New players no longer get every panel at once. **Fishing** opens at 10 spins (or your first catch), **Bounties** at 25, **Dice** at your first 3-streak, and the **Community Goal** at 50. Once a panel opens it stays open, even after the tide turns.
+
+### 🧹 Retired This Season
+
+To keep the weekly race fair, a few systems built for endless seasons are retired: **Prestige**, **Loadouts**, the **Singularity** and the **Aquarium**. The leaderboard now ranks by wins alone.
+
+### 🛠️ Fixes
+
+- Being rate-limited now says **"Slow down a moment"** instead of a bare "Spin failed".
+- If the wheel is open in two tabs, the paused tab says so and offers a **Play here** button to move over.
+- The leaderboard shows "No wins yet. Spin to take the top spot." right after a reset instead of disappearing.
+
+---
+
 ## 27 Jun 2026 (later) — Double-Down Chat Merge
 
 When a player landed a double-down that was also a big win, chat would show two messages back-to-back — the standalone double-down (🔥 `X won a Nx double-down for M wins!`) and the big-win (💰 `X won M wins in MODE mode!`). Both carried the same win amount, so the player saw a duplicate.
