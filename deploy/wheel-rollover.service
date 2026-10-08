@@ -1,0 +1,8 @@
+[Unit]
+Description=Wheel weekly tide rollover
+
+[Service]
+Type=oneshot
+User=user
+WorkingDirectory=/home/user/wheel-app
+ExecStart=/home/user/wheel-app/bin/rollover.sh

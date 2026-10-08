@@ -8,3 +8,5 @@ gunicorn.pid
 gunicorn-access.log
 gunicorn.log
 static/screenshots/
+logs/
+ROLLOVER_FAILED
