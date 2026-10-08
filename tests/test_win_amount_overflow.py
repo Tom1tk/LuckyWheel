@@ -138,11 +138,10 @@ def test_db_columns_are_numeric():
     """T226 (live check): the win-amount columns must currently be
     numeric in the live DB. If this fails on a fresh install, T225
     and T226 migrations were not applied in order."""
-    env = open('.env').read() if os.path.exists('.env') else ''
-    if 'DATABASE_URL=' not in env:
+    url = os.environ.get('DATABASE_URL')  # pinned to wheeldb_test by conftest
+    if not url:
         return  # no DB, can't check — but the other tests still pin the migration
     import psycopg2
-    url = env.split('DATABASE_URL=')[1].split('\n')[0]
     conn = psycopg2.connect(url)
     cur = conn.cursor()
     cur.execute("""
@@ -174,12 +173,11 @@ def test_spin_succeeds_with_wager_last_win_near_int_max():
     This test is the canary: if it ever fails, dylan (or some other
     player) is about to hit the 500 'spin failed' bug again.
     """
-    env = open('.env').read() if os.path.exists('.env') else ''
-    if 'DATABASE_URL=' not in env:
+    url = os.environ.get('DATABASE_URL')  # pinned to wheeldb_test by conftest
+    if not url:
         return
 
     import psycopg2
-    url = env.split('DATABASE_URL=')[1].split('\n')[0]
     conn = psycopg2.connect(url)
     cur = conn.cursor()
 

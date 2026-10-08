@@ -65,6 +65,18 @@ except ImportError as _exc:
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _TEST_DOTENV = REPO_ROOT / '.env'
 
+# Revival 0.4: several test modules read DATABASE_URL / .env directly, and
+# /home/user/wheel-app/.env is prod -- 2k+ fixture users leaked into wheeldb.
+# conftest loads before any test module, so pin the whole session to
+# wheeldb_test here, whatever DB .env or the caller named. A hook (not
+# import-time code) so test_test_db_safety can reload this module freely.
+def pytest_configure(config):
+    if not os.environ.get('DATABASE_URL') and _TEST_DOTENV.is_file():
+        load_dotenv(_TEST_DOTENV, override=False)
+    if os.environ.get('DATABASE_URL'):
+        from urllib.parse import urlsplit
+        os.environ['DATABASE_URL'] = urlsplit(os.environ['DATABASE_URL'])._replace(path='/wheeldb_test').geturl()
+
 
 def _free_port() -> int:
     """Bind a TCP socket to port 0 to ask the kernel for a free port,
