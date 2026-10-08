@@ -1,6 +1,6 @@
 # Wheel Revival — Master Plan
 
-> **Status:** DRAFT v1 (2026-10-08). Awaiting gate **H1** (user dials in §2 decisions).
+> **Status:** v2 (2026-10-08). **H1 passed** — decisions locked in §2. Executing autonomously; next human gate is **H2** (playtest).
 > **Owner:** tom7 (operator). **Orchestrator:** Claude (Opus) — plans, audits, owns judgement.
 > **Implementers:** subagents (Haiku 5.5, xhigh) via the orchestrator rule — scoped briefs, audited diffs.
 > **Repo authority:** `/home/user/wheel-app` (master, live, port 5000, `wheeldb`) is source of truth.
@@ -10,16 +10,16 @@ Three deliverables:
 
 | Track | Deliverable | Ends at |
 |---|---|---|
-| **A — New Season** | A new season designed, built on staging, play-tested by tom7, launched on prod | Gate H3 → launch + 48h watch |
-| **B — README revival** | GitHub README rebuilt around screenshots of every feature | Gate H4 → merged to master |
-| **C — Season GIF** | Animated GIF of the wheel/page through every season, rebuilt from historical commits | Embedded in README (via B) |
+| **A — Season 9** | An indefinite final season with automatic weekly sub-seasons (9.1, 9.2, …), built on staging, play-tested by tom7, launched on prod | Gate H3 → launch + 48h watch |
+| **B — README revival** | GitHub README rebuilt as a feature tour (latest screenshots/clips, regenerable by one command) + a **Season Museum** | Reviewed at H3, merged at launch |
+| **C — Season GIFs** | A short animated clip of every season *in action*, rebuilt from historical commits; a hero GIF made of those clips | Embedded in README (via B) |
 
 ---
 
 ## 0. How to use this document
 
-- **Sections 1–2** are the thinking: a second opinion on why the game stalled, and the decisions the user must make.
-- **Sections 3–8** are execution: phases, tickets, exit gates. Once §2 is dialled in (H1), the orchestrator runs 3–8 autonomously, stopping **only** at human gates.
+- **Sections 1–2** are the thinking: a second opinion on why the game stalled, and the decisions (now locked).
+- **Sections 3–8** are execution: phases, tickets, exit gates. The orchestrator runs them autonomously, stopping **only** at H2 (playtest) and H3 (launch go/no-go + README review). The user has delegated all creative, design and gameplay decisions to the orchestrator.
 - **Gate types**
   - 🧑 **Human gate (H*)** — stop, report, wait for the user. Never skipped, never self-approved.
   - 🤖 **Auto gate (G*)** — the orchestrator verifies with evidence (command output, screenshots, diffs) and proceeds. A failed auto gate = fix and re-run, or escalate if it fails twice.
@@ -56,75 +56,72 @@ The game doesn't die from math. It dies from **four operational/design patterns*
 3. **Pendulum redesigns.** Ripping out the core loop (auto-spin) to "fix" engagement removed the reason casual friends kept a tab open.
 4. **The race is decided on day one.** It isn't that numbers are *big*, it's that the week's competition is *over* within 24h, leaving 6 days with nothing to chase. (Note: per standing feedback, no new streak-mitigation mechanics are proposed — the fix is in competition *structure*, not spin math.)
 
-### 1.4 What this implies for the new season (recommendation)
+### 1.4 What this implies for Season 9 (adopted)
 
-A **consolidation season**, not a content-dump season:
+A **consolidation season**, not a content-dump season — and the game's last, so it must run itself:
 
-- **R1 — Make cadence automatic.** Scheduled rollover with a safety dry-run, plus a fixed season length. The game should never again silently expire.
-- **R2 — Subtract.** Audit feature usage; *hide or retire* systems nobody used. Reveal remaining systems progressively (unlock-as-you-go), and ship a working onboarding.
-- **R3 — Keep the idle loop.** Auto-spin for everyone + offline catch-up (salvage from S9 — this part of S9 was right).
-- **R4 — Make every day a fresh race.** A **Daily Race** leaderboard (today's net wins, resets 00:00 UTC) alongside the season board, building on daily bounties (the one feature every active player used). A day-one runaway no longer ends the competition for the week. Season podium can be decided by *daily race points*, not by the largest compounded number — the user decides (D4).
-- **R5 — One fresh coat of paint.** One new page theme + wheel theme for "it's new" launch appeal — enough to feel like a launch, small enough to ship.
-- **R6 — Fix friction.** Review rate limits that hit real players (chud's timeout), remove the 2,145 test accounts polluting prod.
+- **R1 — Cadence on autopilot.** Season 9 is indefinite. Every week it rolls into a new **sub-season** (9.1, 9.2, …) with a fresh race and its own podium. A systemd timer drives it; it can never silently expire again.
+- **R2 — Subtract.** Audit feature usage; *hide or retire* systems nobody used. Reveal the rest progressively, and ship working onboarding.
+- **R3 — Keep the idle loop.** Auto-spin for everyone + offline catch-up.
+- **R4 — Every week is a fresh race.** The weekly reset is the answer to "decided on day one": a runaway wins *a week*, not the season. Podium per week = total wins (D4). A **Hall of Fame** lists every sub-season podium.
+- **R5 — One fresh coat of paint.** One new page theme + wheel theme for launch appeal.
+- **R6 — Fix friction.** Review rate limits that hit real players (chud's timeout); remove the 2,145 prod test accounts and close the leak.
 
 ---
 
-## 2. Decisions for the user (Gate H1)
+## 2. Decisions (locked at H1, 2026-10-08)
 
-Each has a recommendation. Reply with the IDs you change; anything not changed is accepted as recommended.
+| ID | Decision | Locked answer |
+|---|---|---|
+| **D1** | Season number & name | Player-facing **9**, new name + theme chosen by the orchestrator in Phase 1 |
+| **D2** | S9 "Arcade" salvage | Orchestrator's call. Default: keep infra + long-lived features; scrap the rest (§2.1) |
+| **D3** | Direction & creative authority | Consolidation season (§1.4). **Orchestrator owns all creative, design and gameplay decisions** — no H1b gate |
+| **D4** | Podium | Total wins, per weekly sub-season |
+| **D5** | Length | **Indefinite** final season, auto-reset **weekly** into sub-seasons 9.1, 9.2, …, each with its own podium |
+| **D6** | Rollover | Automatic (systemd timer, Europe/London) with pre-flight on a prod clone + auto-abort |
+| **D7** | Feature retirement | Orchestrator decides from usage data (Phase 1) |
+| **D8** | Prod test accounts | Delete (after backup), in the launch window; close the leak |
+| **D9** | GIFs | **Clips, not stills**: a short in-action clip per season → hero GIF made of the clips (full page) + wheel-crop strip. Feature sections below use the latest stills/clips |
+| **D10** | Season → commit | Final commit of each season |
+| **D11** | README | Fake seeded users only; plus a **Season Museum**: one section per season explaining what it added, what happened, and how the game grew |
 
-| ID | Decision | Options | Recommendation |
-|---|---|---|---|
-| **D1** | Season number & name | (a) player-facing **9**, new name · (b) keep "Arcade" name/theme · (c) other | **(a)** — S9 never launched, so the next prod season is player-facing 9. Name proposed in Phase 1 (2–3 options with theme mockups). |
-| **D2** | What to salvage from the uncommitted S9 "Arcade" build | see §2.1 table | Salvage infra + auto-spin; drop vault & stake decay; content case-by-case |
-| **D3** | Core direction | (a) consolidation season as per §1.4 · (b) S9 as built · (c) something else | **(a)** |
-| **D4** | How the season podium is decided | (a) season total wins (as today) · (b) **daily race points** (1st=5, 2nd=3, 3rd=1 each day) · (c) both boards, podium = (a) | **(c)** for this season; revisit after |
-| **D5** | Season length | 1 week · 2 weeks · 4 weeks | **2 weeks** — weekly burned content too fast; 4+ is where the group drifted |
-| **D6** | Automatic rollover | (a) cron-scheduled, with pre-flight dry-run on a prod clone + auto-abort · (b) manual (status quo) | **(a)** — reverses `a2bf578`; the reason it was removed (surprise rollovers) is addressed by the pre-flight |
-| **D7** | Feature retirement | Orchestrator proposes a hide/retire list from usage data in Phase 1; user approves in H1b | Approve list in H1b |
-| **D8** | Prod test-account cleanup (2,145 `t…` users, 127.0.0.1, created 27 Jun–31 Jul) | delete · keep | **Delete** (after backup). The leak is still open — T246 didn't stop it (see 0.4) |
-| **D9** | GIF framing | (a) wheel-only crop · (b) full page · (c) both (full page for README hero, wheel crop as a strip) | **(c)** |
-| **D10** | Season → commit rule for the GIF | (a) launch commit · (b) **final commit of the season** (last look before the next launch) | **(b)** |
-| **D11** | README screenshots | seeded fake users only (no real usernames/chat in a public repo) | **Seeded fake users** — not optional, listed for visibility |
+**Default (orchestrator):** the public README/museum never names real players — winners appear as magnitudes and anecdotes ("the S2 winner finished on a 300-digit number"). The repo is **public**.
 
-### 2.1 S9 "Arcade" salvage table (D2)
+### 2.1 S9 "Arcade" salvage (orchestrator's call, refined in Phase 1)
 
-The S9 work is preserved at `/home/user/backups/s9-snapshot-20261008/` (`s9-tracked.patch` + `s9-untracked.tgz` + `BASE_SHA`) and will be committed to a branch `archive/s9-arcade` in Phase 0 before anything touches staging.
+The S9 work is preserved at `/home/user/backups/s9-snapshot-20261008/` (`s9-tracked.patch` + `s9-untracked.tgz` + `BASE_SHA`) and archived to branch `archive/s9-arcade` in Phase 0. Staging then restarts clean from master; salvaged pieces are re-applied as RV tickets.
 
-| S9 item | Kind | Recommendation | Why |
-|---|---|---|---|
-| `advance_season(player_facing_number, name)` override | infra | **Keep** | Needed for any controlled rollover |
-| Theme hardcoded in `seasons.py` (`page_season8` / `page_season9`) | infra bug class | **Replace with a parameter / season config** | Same bug class as the S8 `page_season9` launch bug; recurs every season |
-| `wins_delta` post-cap sync fix | bugfix | Keep *if* vault kept; otherwise moot | — |
-| `make test-db-reset` ownership grant to `wheelapp` | infra | **Keep** | Test suite can't write otherwise |
-| Universal auto-spin + 24h offline catch-up + resume-on-load (T217, mig 076) | gameplay | **Keep** | R3 |
-| Community goal & singularity retunes (mig 074/075) | balance | **Keep** (re-check targets vs 7 players) | Targets were unreachable |
-| Payout vault cap | economy rule | **Drop** | New rule to explain; data doesn't support "big numbers" as the killer |
-| Stake decay | economy rule | **Drop** | Same |
-| Zealot mode (×100) | content | Drop or defer | Another mode on a pile the group didn't explore |
-| Prestige titles | content | Optional (cheap, cosmetic, readable status) | — |
-| Dragonfish | content | Optional (cheap) | — |
-| Arcade page/wheel themes, fish skins, `arcade-bg.js` | content | Depends on D1 | Reuse if the user likes the look; else new theme |
+| S9 item | Call | Why |
+|---|---|---|
+| `advance_season(player_facing_number, name)` override | **Keep** | Needed for controlled rollover |
+| Theme hardcoded in `seasons.py` | **Replace with season config** | S8 launch-bug class |
+| `make test-db-reset` ownership grant | **Keep** | Test suite can't write otherwise |
+| Universal auto-spin + 24h offline catch-up + resume-on-load (mig 076) | **Keep** | R3 |
+| Community goal & singularity retunes (074/075) | **Keep, re-check for ~7 players and a 1-week window** | Targets were unreachable |
+| Vault cap, stake decay, `wins_delta` cap fix | **Scrap** | Extra rules; weekly reset handles runaways |
+| Zealot mode | **Scrap** | More modes on an unexplored pile |
+| Prestige titles, Dragonfish | Decide in Phase 1 (cheap, low-risk) | — |
+| Arcade themes/skins, `arcade-bg.js` | Decide in Phase 1 against the new theme | — |
 
 ---
 
 ## 3. Phase plan overview
 
 ```
-Phase 0  Safety & baseline ............ 🤖 G0         (autonomous, runs now-ish after H1)
-Phase 1  Season design spec ........... 🧑 H1b        (user approves spec + retire list + theme)
+Phase 0  Safety & baseline ............ 🤖 G0
+Phase 1  Season 9 design spec ......... 🤖 G1         (orchestrator decides; spec published, not gated)
 Phase 2  Build on staging ............. 🤖 G2         (subagents, tickets in §5)
 Phase 3  Staging verification ......... 🤖 G3 → 🧑 H2 (tom7 play-tests ~15 min with checklist)
-Phase 4  Launch on prod ............... 🧑 H3 go/no-go → 🤖 G4 post-launch checks → 48h watch
-Phase 5  README revival ............... 🧑 H4         (user reviews rendered README on a branch)
-Phase 6  Season GIF ................... 🤖 G6         (runs in PARALLEL from Phase 0 onwards)
+Phase 5  README + museum (prep) ....... 🤖 G5         (built on branch readme-revival after H2)
+Phase 4  Launch on prod ............... 🧑 H3 go/no-go (+ README review) → 🤖 G4 → 48h watch
+Phase 6  Season clips & GIFs .......... 🤖 G6         (runs in PARALLEL from G0 onwards)
 ```
 
-Parallelism: **Track C (Phase 6) is independent** and starts as soon as G0 passes. Track B (Phase 5) waits on H2 so screenshots show the final season. Track A is serial.
+Parallelism: **Track C (Phase 6) is independent** and starts as soon as G0 passes. Track B (Phase 5) starts after H2 so it shows the final build, and must be ready by H3; the README merges to master in the launch window. Track A is serial.
 
 ---
 
-## 4. Phase 0 — Safety & baseline (autonomous after H1)
+## 4. Phase 0 — Safety & baseline
 
 | # | Task | Done when |
 |---|---|---|
@@ -136,7 +133,7 @@ Parallelism: **Track C (Phase 6) is independent** and starts as soon as G0 passe
 | 0.6 | Housekeeping: update `origin` to `git@github.com:Tom1tk/LuckyWheel.git`; remove stale `/etc/cron.d/hiatus-deploy` (points at a missing script); delete merged local branches `t231…t247`, `t242-chat`. | `git remote -v` shows LuckyWheel; cron file gone; branches gone |
 | 0.7 | Create `bin/clone-prod-to.sh <dbname>`: pg_dump prod → restore into a throwaway DB (via `sudo -u postgres`, since `wheelapp` lacks CREATEDB). Used by Phases 3, 4, 6. | Script restores into `wheeldb_clone_test`; row counts match prod |
 
-**G0 (auto):** all of 0.1–0.7 done with evidence in the progress log. 0.6 cron removal and branch deletion are covered by H1 approval of this plan; the D8 test-account deletion is **not** done here (it's in the launch runbook).
+**G0 (auto):** all of 0.1–0.7 done with evidence in the progress log. 0.6 cron removal and branch deletion were approved at H1; the D8 test-account deletion is **not** done here (it's in the launch runbook).
 
 ---
 
@@ -144,36 +141,36 @@ Parallelism: **Track C (Phase 6) is independent** and starts as soon as G0 passe
 
 ### 5.1 Phase 1 — Season design spec (orchestrator, not delegated)
 
-Output: `docs/SEASON_<N>_SPEC.md` containing:
+Output: `docs/SEASON_9_SPEC.md` (orchestrator decides; G1 = spec complete and self-consistent, every ticket has acceptance tests). Contents:
 
 1. **Feature usage audit** — per system, how many real players touched it in S7/S8 (from `user_season_history`, `game_state`, `bounty_progress`, `build_loadouts`, goal/singularity contributions). → proposed **keep / hide-until-unlocked / retire** list (D7).
 2. **Day-one experience** — exactly what a returning player sees in their first 60 seconds; which panels are visible; the onboarding steps (fix and re-enable the T114-disabled modal, or replace it with 3 inline tips).
-3. **Daily Race** spec — data model (prefer computing from existing per-spin updates; a `daily_race` table keyed `(user_id, race_date)` only if needed), endpoint, UI panel, end-of-day system chat message, podium rule per D4.
-4. **Rollover automation** spec (D6) — season config row (name, pfn, theme id, length) replaces hardcoded values in `seasons.py`; cron entry calls a `bin/rollover.sh` that (1) clones prod, (2) dry-runs `advance_season` on the clone, (3) runs the post-rollover checklist (§7.3) on the clone, (4) only then rolls prod, (5) posts a system chat message. Any failure → abort + leave prod untouched + log.
-5. **Theme** — 2–3 name/theme options with static mockups (screenshots of a CSS prototype), per D1.
+3. **Weekly sub-season model** — how 9.N is represented (reuse `seasons` rows with `player_facing_number=9` + a sub-season number vs. a new column — pick the smallest change that keeps `user_season_history`/`season_snapshots` working); **what resets weekly** (wins/losses/streak/wager state/functional items) vs. **what persists** (cosmetics, encyclopaedia, cumulative/legacy wins, prestige — decided with reasons); the **Hall of Fame** (every sub-season's top 3) endpoint + panel; the rollover system chat message.
+4. **Rollover automation** (D6) — season config replaces hardcoded values in `seasons.py`; a **systemd timer** (`OnCalendar=Fri 21:00 Europe/London`, `Persistent=true`) runs `bin/rollover.sh`, which (1) clones prod, (2) runs the sub-season rollover on the clone, (3) runs the post-rollover checklist (§7.3) on the clone, (4) only then rolls prod, (5) re-runs the checklist on prod, (6) posts a system chat message. Any failure → abort, prod untouched, log + a failure marker the orchestrator/user can see. Idempotent: a second run in the same week is a no-op.
+5. **Theme & name** — the orchestrator picks one, prototyped as a CSS mockup screenshot in the spec.
 6. **Friction fixes** — rate-limit review for `/api/spin` & friends (find what timed chud out); auto-spin defaults.
 7. **Ticket list** — §5.2 skeleton refined into concrete tickets with files, acceptance tests, and owner (subagent vs orchestrator).
 
-**🧑 H1b:** user approves spec, theme choice, and retire list. **Nothing is built before H1b.**
+**🤖 G1:** spec committed to staging; usage audit numbers cited with the queries used; every decision has a one-line why.
 
 ### 5.2 Phase 2 — Build (ticket skeleton, refined in Phase 1)
 
 | Ticket | Scope | Files (expected) | Parallel group |
 |---|---|---|---|
-| RV-01 | Season config: theme/name/length out of `seasons.py` into a config row; migration | `seasons.py`, `migrations/`, `models.py` | backend-1 |
+| RV-01 | Season config: theme/name out of `seasons.py` into config; weekly sub-season model + migration | `seasons.py`, `migrations/`, `models.py` | backend-1 |
 | RV-02 | Salvage infra from `archive/s9-arcade` (pfn/name override, test-db ownership) | `seasons.py`, `Makefile` | backend-1 (after RV-01) |
 | RV-03 | Universal auto-spin + offline catch-up (salvage T217 + mig 076, renumbered) | `game.py`, `auth.py`, `seasons.py`, `app.jsx` | backend-2 → frontend |
 | RV-04 | Community retunes (salvage 074/075, renumbered; targets re-checked for 7 players) | `community_goals.py`, `models.py`, migrations | backend-3 |
-| RV-05 | Daily Race backend (table/endpoint/rollover at 00:00 UTC, system chat) | new `daily_race.py`, `game.py` hook, migration | backend-3 |
+| RV-05 | Hall of Fame backend: per-sub-season podium snapshot + endpoint; rollover system chat | `seasons.py`, `game.py`, migration | backend-1 (after RV-01) |
 | RV-06 | Feature hide/retire per D7 (server flags, not deletion of data) | `models.py`, `game.py`, `app.jsx` | frontend |
 | RV-07 | Onboarding / progressive disclosure | `app.jsx`, `styles.css` | frontend |
-| RV-08 | Daily Race panel + podium display | `app.jsx`, `styles.css` | frontend |
+| RV-08 | Sub-season banner ("Season 9.N — resets in Xd Yh") + Hall of Fame panel | `app.jsx`, `styles.css` | frontend |
 | RV-09 | New page theme + wheel theme (+ background script if any) | `static/`, `models.py` | frontend (theme assets can be parallel) |
-| RV-10 | Rollover automation: `bin/rollover.sh`, cron template, pre-flight checklist script | `bin/`, `seasons.py` | ops |
+| RV-10 | Rollover automation: `bin/rollover.sh`, systemd service + timer units, post-rollover checklist script | `bin/`, `seasons.py` | ops |
 | RV-11 | Rate-limit friction fix | `extensions.py`, `game.py` | backend-2 |
 | RV-12 | PATCH_NOTES + README season section (text only; screenshots in Phase 5) | docs | docs |
 
-**Collision rule:** anything touching `static/app.jsx` / `static/styles.css` runs **serially** (one frontend agent at a time). Backend groups run in parallel only if their file sets are disjoint. Each agent works in its own worktree off `staging`; the orchestrator merges.
+**Collision rule:** anything touching `static/app.jsx` / `static/styles.css` runs **serially** (one frontend agent at a time). Backend groups run in parallel only if their file sets are disjoint. Each agent works in its own worktree off `staging`; the orchestrator merges and **removes the worktree immediately after merge** (no worktree clutter left behind).
 
 **Per-ticket definition of done (G2 applies per ticket):**
 1. New/changed logic has at least one test that fails without the change.
@@ -191,10 +188,10 @@ Output: `docs/SEASON_<N>_SPEC.md` containing:
 | # | Check | Evidence |
 |---|---|---|
 | 3.1 | (Staging DB already dumped in 0.2.) Restore a **fresh prod clone into `wheeldb_staging`** (the old Arcade-rolled staging DB is discarded). Apply all pending migrations. | migrate status = 0 pending |
-| 3.2 | **Rollover dry-run on the clone, using the real prod numbering** (prod is internal 9 / pfn 8 — staging's previous Arcade run used internal 8 / pfn 9, which did *not* exercise prod's path). Run via the RV-10 pre-flight, not by hand. | Post-rollover checklist §7.3 all green |
-| 3.3 | Playwright E2E on staging (desktop 1366×768 + mobile 390×844): register → spin → auto-spin start/stop/resume-after-reload → shop buy → equip theme → fishing cast/reel → bounty view → daily race panel → chat send. | Screenshots + pass log in progress doc |
+| 3.2 | **Launch rollover (S8 → 9.1) and then a weekly rollover (9.1 → 9.2) on the clone, using the real prod numbering** (prod is internal 9 / pfn 8 — staging's previous Arcade run used internal 8 / pfn 9, which did *not* exercise prod's path). Run via the RV-10 pre-flight, not by hand. | Post-rollover checklist §7.3 all green |
+| 3.3 | Playwright E2E on staging (desktop 1366×768 + mobile 390×844): register → spin → auto-spin start/stop/resume-after-reload → shop buy → equip theme → fishing cast/reel → bounty view → sub-season banner + Hall of Fame → chat send. | Screenshots + pass log in progress doc |
 | 3.4 | Console-error sweep: zero uncaught JS errors across the E2E run. | Playwright console log |
-| 3.5 | Write `docs/PLAYTEST_CHECKLIST.md` for tom7 (≤15 min, ~12 checkboxes, plus "anything feel off?" free text). | File exists |
+| 3.5 | Install the timer on **staging** (pointed at `wheeldb_staging`) and let it fire once on a short test schedule; verify. Then write `docs/PLAYTEST_CHECKLIST.md` for tom7 (≤15 min, ~12 checkboxes, plus "anything feel off?" free text). | File exists |
 
 **🤖 G3:** 3.1–3.5 green. → **🧑 H2:** tom7 plays staging (`:5001`) with the checklist. Feedback → fix tickets → re-run G3 → back to H2 until tom7 says go.
 
@@ -209,8 +206,8 @@ Lessons from `SEASON_8_LAUNCH_POSTMORTEM.md` are encoded here as hard rules.
 - Final pre-flight: clone prod → apply migrations → deploy code → rollover → §7.3 checklist on the clone. Must be green within 24h of launch.
 - Write the exact launch + rollback commands into the progress log (no improvising on the night).
 
-### 7.2 🧑 H3 — Go/no-go
-Orchestrator presents: pre-flight results, backup path, migration list, launch time, rollback commands. **User says go.** Outward-facing: affects the friends' accounts. Never autonomous.
+### 7.2 🧑 H3 — Go/no-go (+ README review)
+Orchestrator presents: pre-flight results, backup path, migration list, proposed launch time (default: a Friday 21:00 UK, aligned with the weekly reset), rollback commands, **and the link to the rendered README on branch `readme-revival`**. **User says go.** Outward-facing: affects the friends' accounts and the public repo. Never autonomous.
 
 ### 7.3 Launch (single atomic window — no half-migrated state)
 1. Maintenance flag on (or launch at a quiet hour) → backup.
@@ -222,48 +219,52 @@ Orchestrator presents: pre-flight results, backup path, migration list, launch t
    - `season_snapshots` has the old season's top 3; `user_season_history` rows inserted for every user.
    - `/api/health`, `/api/state`, `/api/season`, `/api/leaderboard`, `/api/chat` OK; chat shows usernames (the S8 bug #2).
    - Playwright smoke on prod with a throwaway account → screenshot → delete that account.
-5. System chat message announcing the season.
+5. Install the prod rollover timer; confirm `systemctl list-timers` shows the next Friday.
+6. Merge `readme-revival` → master, push; confirm images render on GitHub.
+7. System chat message announcing the season.
 
 ### 7.4 🤖 G4 + 48h watch
 - G4 = §7.3 checklist all green. Any red → roll back per the written commands, report to user.
 - 48h: check `journalctl -u wheel-app` for errors and the spin/chat activity twice a day; summary to user at 48h.
-- Write `docs/SEASON_<N>_LAUNCH_REPORT.md`.
+- **First weekly rollover (9.1 → 9.2):** verify the timer fired, checklist green, Hall of Fame updated. This is the real exit gate for Track A.
+- Write `docs/SEASON_9_LAUNCH_REPORT.md`.
 
 ---
 
 ## 8. Phase 5 — README revival (Track B)
 
-### 8.1 Screenshot environment
-- Throwaway DB `wheeldb_readme`, **seeded from scratch only** (schema + migrations + seed script — never a prod clone) with **fake users** (e.g. `reeltime`, `spinwizard`, `koi_pond`, …) and fake chat. **No real usernames or chat ever appear in a committed image** (D11).
-- Run the staging code on port 5099 against that DB; seed state so each feature is visible (shop with items owned, fishing mid-reel, a populated leaderboard, an active daily race, a bounty board, prestige panel, etc.).
+### 8.1 Media environment — regenerable by one command
+- `make readme-media` (script under `tools/readme/`, committed): creates throwaway DB `wheeldb_readme` **seeded from scratch only** (schema + migrations + seed script — never a prod clone) with **fake users** (`reeltime`, `spinwizard`, `koi_pond`, …) and fake chat; boots the current code on port 5099; seeds each feature into a showable state; captures every shot/clip with Playwright; optimises; drops the DB. Re-running it after any future change refreshes every feature image → **sections always show latest**.
+- Same prod-safety guards as §9.2 (explicit DSN, `current_database()` assertion, prod `users` count unchanged).
 
-### 8.2 Shot list (each 1366×768 PNG unless noted, optimised with Pillow, ≤300 KB each)
+### 8.2 Shot list (1366×768 unless noted; stills ≤300 KB, clips ≤1.5 MB)
 
-| # | Shot | Notes |
+| # | Section | Media |
 |---|---|---|
-| 1 | **Hero**: full page, wheel mid-spin | top of README |
-| 2 | Wheel result: WIN + JACKPOT (blue segment) | short animated clip optional |
-| 3 | Shop: upgrades tab + cosmetics tab | 2 images |
-| 4 | Cast & Reel: bite moment + catch popup | |
-| 5 | Fish Encyclopaedia / Aquarium | |
-| 6 | Wager panel: stake, hot streak, bank | |
-| 7 | Wheel modes selector | |
-| 8 | Leaderboard + Daily Race | |
-| 9 | Bounties + community goals | |
-| 10 | Chat with system messages | fake users |
-| 11 | Mobile view (390×844) | side-by-side pair |
-| 12 | Season GIF (from Track C) | "History" section |
+| 1 | **Hero** | Season-history GIF from Track C (full page) |
+| 2 | The wheel | clip: a spin landing on WIN, then JACKPOT (blue) |
+| 3 | Auto-spin & offline catch-up | still: catch-up summary toast |
+| 4 | Shop | stills: upgrades tab + cosmetics tab |
+| 5 | Cast & Reel fishing | clip: cast → bite → reel → catch |
+| 6 | Encyclopaedia / Aquarium | still |
+| 7 | Wagers | still: stake, hot streak, bank |
+| 8 | Wheel modes | still |
+| 9 | Weekly sub-seasons + Hall of Fame | still |
+| 10 | Bounties + community goals | still |
+| 11 | Chat | still (fake users, system messages) |
+| 12 | Mobile | stills: 390×844 pair |
 
-### 8.3 README restructure
-- Hero image + one-line pitch + "Season N is live" badge-style line.
-- **Feature tour**: one short section per screenshot (2–4 lines each) — replace the current 694-line wall with a scannable tour; move deep mechanics to `docs/MECHANICS.md` (nothing deleted, just moved).
-- **Season history** section: the GIF + a table (season, name, dates, signature feature) built from `season_snapshots` / git (no real usernames in the public table unless the user opts in).
-- Tech stack + local dev quickstart (verified: a subagent follows it from a clean clone and it works).
-- Fix links: wiki Patch Notes link and every `fishspin` → `LuckyWheel`.
-- Images live in `docs/img/` (not `static/`, so they aren't served by the app).
+Sections retired in Phase 1 (D7) are not shown.
 
-**🧑 H4:** README pushed to branch `readme-revival`; user reviews the rendered page on GitHub; approve → merge to master + push.
-Auto pre-checks before H4: every image link resolves on the branch (GitHub API), total image weight ≤ 15 MB, no real usernames (grep the alt text + OCR-free check: seeded DB has no real users by construction).
+### 8.3 README structure
+1. Hero GIF + one-line pitch + "Season 9 is live — new race every Friday".
+2. **Feature tour**: one short section per media item (2–4 lines each). The current 694-line wall moves to `docs/MECHANICS.md` (nothing deleted).
+3. **The Season Museum** — one section per season (Prototype → S9), each with: that season's in-action clip (from Track C, wheel crop), name + dates, *what it added*, *what happened* (records as magnitudes, notable events: the S7.7 apology, the S8 launch night, the long hiatus), and *how it shaped what came next*. Sources: `PATCH_NOTES.md`, git history, `docs/` (postmortem, planning docs), `season_snapshots` (magnitudes only). Written by the orchestrator; a subagent fact-checks each claim against its source and returns a source per claim.
+4. Tech stack + local-dev quickstart (verified: a subagent follows it from a clean clone into a scratch dir and it works).
+5. Fix links: wiki Patch Notes link and every `fishspin` → `LuckyWheel`.
+- Media lives in `docs/img/` (not `static/`, so the app doesn't serve it).
+
+**🤖 G5:** branch `readme-revival` pushed; every image link resolves on GitHub (API check); total media ≤ 25 MB; grep for real usernames across README, `docs/MECHANICS.md` and image alt text returns nothing; quickstart verified; museum claims each have a source. → reviewed by the user at **H3**.
 
 ---
 
@@ -283,25 +284,29 @@ Auto pre-checks before H4: every image link resolves on the branch (GitHub API),
 | 7 | S7 Endless | `d8094d3` → `919df43` (wormhole) | 26–30 Apr | |
 | 8 | S7.7 | `6d0bba6` | 9 May | |
 | 9 | S8 Casino | `bebda5d` → `f77fb55` (blue jackpot) | 26 Jun | |
-| 10 | New season | launch commit from Phase 4 | — | added after launch |
+| 10 | S9 (final) | captured from the staging build after H2 via `tools/season-gif` | — | |
 
 Per D10 the pinned commit is the **last commit before the next season's first commit**. Task 6.1 produces the pinned table with one-line justification per row; that table is the contract for rendering.
 
-### 9.2 Render harness (`/home/user/season-gif/` — outside every repo tree; committed to the repo only if the user wants it kept)
+### 9.2 Render harness (`/home/user/season-gif/` — outside every repo tree; the final script is committed to `tools/season-gif/` so the S9 clip can be re-captured later)
 For each pinned commit:
-1. `git archive <sha> | tar -x -C /home/user/season-gif/eras/<n>/` — **not** worktrees (the user just cleaned 18 up), and **never inside a repo tree** (`load_dotenv()` walks up parent dirs and would find the staging `.env`).
+1. `git archive <sha> | tar -x -C /home/user/season-gif/eras/<n>/` — **not** worktrees, and **never inside a repo tree** (`load_dotenv()` walks up parent dirs and would find the staging `.env`).
 2. Shared venv with that era's `requirements.txt` (stable across eras; flask-limiter storage forced to `memory://`).
 3. Throwaway DB `wheelgif_<n>` via `sudo -u postgres createdb -O wheelapp` (`wheelapp` lacks CREATEDB). Load that commit's `schema.sql` then its migrations with its own `migrate.py`. Set `DATABASE_URL` **explicitly** in the env (and an empty `.env` in the era dir).
-4. **Pre-boot guard:** grep the era tree for hardcoded DSNs/defaults (`wheeldb`, `postgresql://`, `DATABASE_URL` fallbacks) and boot-time writers (S7 server-side auto-spin worker, `ensure_current_season`). Patch the extracted copy to the throwaway DSN or abort the era. Then, after boot, **assert the server is connected to `wheelgif_<n>`** before any capture (query `current_database()` via a probe, or check the server log). Abort the era otherwise — this is the guard that protects prod.
-5. Serve on port `5100+n`; fresh Playwright context per era (device-id cookie, rate limits). Register a user, seed the season row / theme so that era's look renders, capture: full page 1280×800 + wheel element crop; optionally a 1.5 s spin as frames.
-6. Tear down: stop server, `dropdb wheelgif_<n>`.
-7. `app.js` is tracked at every Postgres-era commit, so no per-era Babel build. If an era's CDN script URL no longer resolves, pin it to the equivalent unpkg version via a route intercept (logged, not edited in the source).
+4. **Pre-boot guard:** grep the era tree for hardcoded DSNs/defaults (`wheeldb`, `postgresql://`, `DATABASE_URL` fallbacks) and boot-time writers (S7 server-side auto-spin worker, `ensure_current_season`). Patch the extracted copy to the throwaway DSN or abort the era. Then, after boot, **assert the server is connected to `wheelgif_<n>`** before any capture. Abort the era otherwise — this is the guard that protects prod.
+5. Serve on port `5100+n`; fresh Playwright context per era. Register a fake user, seed the season row / theme / a little state (some wins, a streak) so that era's look renders.
+6. **Capture an in-action clip (~4 s)**: trigger a spin and record it via CDP `Page.startScreencast` (or a timed screenshot burst at ~12 fps), 1280×800 full page; the wheel crop is cut from the same frames. Keep raw PNG frames.
+7. Tear down: stop server, `dropdb wheelgif_<n>`.
+8. `app.js` is tracked at every Postgres-era commit, so no per-era Babel build. If an era's CDN script URL no longer resolves, route-intercept it to the equivalent pinned unpkg version (logged, source untouched).
 
 ### 9.3 Assembly
-- Pillow: per frame, caption bar "Season N — Name · Mon YYYY", 1.2 s hold + 0.3 s crossfade, loop forever. Two outputs: `season-history.gif` (full page, ≤ 8 MB, 960px wide) and `season-wheels.gif` (wheel crop, ≤ 3 MB). Also an MP4 via Playwright's bundled ffmpeg if size forces it (GitHub renders both).
-- Contact sheet PNG of all frames for quick review.
+- Pillow, from the raw frames:
+  - **Per-season clip** `docs/img/seasons/s<n>.gif` — wheel crop, ~480 px, ~10 fps, ≤ 1.5 MB, loops. Used in the museum.
+  - **Hero** `docs/img/season-history.gif` — the full-page clips back-to-back, each with a caption bar "Season N — Name · Mon YYYY" and a short crossfade, 960 px wide, ≤ 10 MB (drop fps/colours before dropping seasons).
+  - **Wheel strip** `docs/img/season-wheels.gif` — wheel-crop clips back-to-back, ≤ 4 MB.
+- Contact sheet PNG (one frame per season) for the orchestrator's review.
 
-**🤖 G6:** every map row rendered (or explicitly documented as unrenderable with the reason and a fallback frame), GIFs within size limits, contact sheet reviewed by the orchestrator (each frame visually distinct and matches its era's theme from the patch notes), all `wheelgif_*` DBs dropped, prod `users` count unchanged. GIF goes into Phase 5 → reviewed by the user at H4.
+**🤖 G6:** every map row has a clip (or is documented as unrenderable with the reason and a fallback), GIFs within size limits, contact sheet reviewed by the orchestrator (each frame visually distinct and matches its era's theme from the patch notes), all `wheelgif_*` DBs dropped, prod `users` count unchanged. Media goes into Phase 5 → reviewed by the user at H3.
 
 ---
 
@@ -313,7 +318,7 @@ For each pinned commit:
 - **Safety invariants (checked at every gate):**
   - Nothing writes to `wheeldb` except Phase 4 launch steps after H3 (and 0.6/D8 as specified). Every script that touches a DB prints `current_database()` first.
   - The prod `users` count is recorded at each gate; any unexplained change = stop.
-  - No push to `master` except Phase 4 (after H3) and Phase 5 (after H4). Staging/feature branches pushed after each commit (standing preference).
+  - No push to `master` except in the Phase 4 launch window (after H3), which includes the README merge. Staging/feature branches pushed after each commit (standing preference).
   - No new streak-mitigation mechanics (standing feedback).
 - **Escalate to the user** when: an auto gate fails twice; a decision in §2 turns out to be ambiguous in practice; any step would touch prod data outside the launch runbook; scope grows beyond a ticket.
 - **Progress log** entry per gate: what passed, evidence (commands + key output), next step.
@@ -324,9 +329,9 @@ For each pinned commit:
 
 | Risk | Mitigation |
 |---|---|
-| Group doesn't come back regardless | Launch cadence + Daily Race give recurring reasons; cheap to try. Post-launch report measures it (spins/day, active users/day). |
-| Auto-rollover misfires on prod | Pre-flight on a prod clone, auto-abort, system chat on success only; user can disable the cron with one command (documented). |
+| Group doesn't come back regardless | Weekly sub-seasons + Hall of Fame give a recurring reason; cheap to try. Post-launch report measures it (spins/day, active users/day). |
+| Auto-rollover misfires on prod | Pre-flight on a prod clone, auto-abort, idempotent per week; disable with `systemctl disable --now wheel-rollover.timer` (documented in README ops section). |
 | Old commits won't run (GIF) | Per-era fallback: serve static files only with a stubbed `/api/state` captured from a neighbouring era; documented per frame. |
-| README exposes friends' data | Seeded fake DB by construction; H4 review. |
+| README exposes friends' data | Seeded fake DB by construction; museum uses magnitudes, no usernames; username grep at G5; H3 review. |
 | Subagent edits collide in `app.jsx` | Serial frontend lane; orchestrator merges. |
 | Test-suite noise hides regressions | Baseline file + "no new failures" rule; attempt to fix the race in Phase 0. |
