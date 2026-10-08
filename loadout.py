@@ -13,8 +13,6 @@ Scope of this module:
     (which in turn had moved it from ``game.py`` in T244) so the
     loadout subsystem owns the cosmetic-equip concern. ARCH-06.
   * The bodies of the four loadout route handlers:
-        /api/loadout   GET    get_loadout
-        /api/loadout   POST   save_loadout_core
         /api/equip           equip_fish_core
         /api/equip-class     equip_class_core
         /api/equip-cosmetic  equip_cosmetic_core
@@ -31,7 +29,6 @@ Out of scope:
 
 import logging
 
-import psycopg2.extras
 
 from models import VALID_FISH_IDS
 
@@ -99,60 +96,6 @@ _CLASS_MAP = {
     "class_star": "star",
     None: None,
 }
-
-
-# ── GET /api/loadout ──────────────────────────────────────────────────────
-
-
-def get_loadout(cur, user_id: int) -> dict:
-    """Return the player's saved build loadouts.
-
-    Response body for the GET ``/api/loadout`` route:
-        ``{"loadouts": {<slot>: <config>, ...}}``
-
-    Returns an empty ``loadouts`` dict when the player has no
-    saved loadouts (an empty query is the normal case for new
-    players, not an error).
-    """
-    cur.execute(
-        "SELECT slot, config FROM build_loadouts WHERE user_id = %s ORDER BY slot",
-        (user_id,),
-    )
-    rows = cur.fetchall()
-    return {"loadouts": {row["slot"]: row["config"] for row in rows}}
-
-
-# ── POST /api/loadout ─────────────────────────────────────────────────────
-
-
-def save_loadout_core(
-    cur, conn, user_id: int, slot: int, raw_loadout: dict
-) -> dict | tuple[int, dict]:
-    """Save a build loadout to a slot (1-3).
-
-    Returns the response body on success, or a ``(status, body)``
-    tuple on a rejection. The thin route handler renders that
-    to ``jsonify(...)`` + status code.
-
-    A loadout is ``equipped_class`` + ``active_wheel_mode`` only
-    (spec S11). Client-supplied ``owned_items`` / ``active_cosmetics``
-    are NEVER persisted — that path used to write those straight to
-    ``game_state`` with no validation, letting any player grant
-    themselves every item in the shop for free.
-    """
-    if not (1 <= slot <= 3):
-        return 400, {"error": "Slot must be 1-3"}
-    loadout_data = {
-        "equipped_class": raw_loadout.get("equipped_class"),
-        "active_wheel_mode": raw_loadout.get("active_wheel_mode", "steady"),
-    }
-    cur.execute(
-        """INSERT INTO build_loadouts (user_id, slot, config)
-           VALUES (%s, %s, %s)
-           ON CONFLICT (user_id, slot) DO UPDATE SET config = EXCLUDED.config""",
-        (user_id, slot, psycopg2.extras.Json(loadout_data)),
-    )
-    return {"ok": True, "slot": slot}
 
 
 # ── POST /api/equip (fish) ────────────────────────────────────────────────

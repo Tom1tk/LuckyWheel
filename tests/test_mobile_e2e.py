@@ -154,31 +154,6 @@ def testing7_logged_in(server_url, db_url, playwright_instance):
         conn.close()
 
 
-# ── Aquarium user context (fresh user, grants aquarium) ───────────────────
-
-@pytest.fixture(scope='module')
-def aquarium_logged_in(server_url, db_url, playwright_instance):
-    """Registers a fresh user and grants 'aquarium' + 3 caught species so
-    the .season8-aquarium-panel will render."""
-    username = f't201aq{uuid.uuid4().hex[:8]}'
-    password = 'testpass123'
-    b = playwright_instance.chromium.launch()
-    context = b.new_context()
-    context.add_init_script(_dismiss_patch_notes_init())
-    page = context.new_page()
-    page.goto(server_url + '/')
-    page.wait_for_load_state('domcontentloaded')
-    result = _api_post(page, '/api/register', {'username': username, 'password': password})
-    assert result['ok'] or 'taken' in (result.get('error') or ''), \
-        f'register failed: {result}'
-    _grant_item(db_url, username, 'aquarium', {
-        'caught_species': ['bass', 'trout', 'salmon'],
-    })
-    yield {'context': context, 'browser': b, 'server_url': server_url,
-           'username': username}
-    b.close()
-
-
 # ── Wager user context (fresh user, grants wager_unlock) ──────────────────
 
 @pytest.fixture(scope='module')
@@ -388,19 +363,6 @@ def test_login_form_visible_on_mobile(server_url, playwright_instance):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_prestige_panel_visible_on_mobile_after_t202(testing7_logged_in):
-    """T204: for testing7 (owns prestige_unlock), the .season8-prestige-panel
-    is in the mobile drawer (tab-less long panel). Open the drawer via the
-    6th toolbar button (🎒) and assert the panel exists."""
-    page = _open_mobile_page(testing7_logged_in, 390, 844)
-    try:
-        _open_drawer(page)
-        panel = page.locator('.season8-prestige-panel').first
-        assert panel.count() == 1, '.season8-prestige-panel not in drawer DOM'
-    finally:
-        page.close()
-
-
 def test_free_tokens_section_visible_on_mobile_after_t202(testing7_logged_in):
     """T204: for testing7 (claim date reset to NULL by the fixture), the
     .free-tokens-section is in the mobile drawer (T204 made all sub-menus
@@ -424,31 +386,6 @@ def test_bounties_panel_visible_on_mobile_after_t202(testing7_logged_in):
         _open_drawer(page)
         panel = page.locator('.season8-bounties-panel').first
         assert panel.count() == 1, '.season8-bounties-panel not in drawer DOM'
-    finally:
-        page.close()
-
-
-def test_aquarium_panel_visible_on_mobile_after_t202(aquarium_logged_in):
-    """T204: for a user with 'aquarium' granted via SQL, the
-    .season8-aquarium-panel is in the mobile drawer. Open the drawer,
-    assert the panel exists."""
-    page = _open_mobile_page(aquarium_logged_in, 390, 844)
-    try:
-        _open_drawer(page)
-        panel = page.locator('.season8-aquarium-panel').first
-        assert panel.count() == 1, '.season8-aquarium-panel not in drawer DOM'
-    finally:
-        page.close()
-
-
-def test_loadout_panel_visible_on_mobile_after_t202(testing7_logged_in):
-    """T204: for testing7 (owns page_season8), the .season8-loadout-panel
-    is in the mobile drawer. Open the drawer, assert the panel exists."""
-    page = _open_mobile_page(testing7_logged_in, 390, 844)
-    try:
-        _open_drawer(page)
-        panel = page.locator('.season8-loadout-panel').first
-        assert panel.count() == 1, '.season8-loadout-panel not in drawer DOM'
     finally:
         page.close()
 

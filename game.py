@@ -21,7 +21,7 @@ from models import (REGEN_SHIELD_RECHARGE_WINS,
                     AUTO_SPIN_OFFLINE_CAP_S,
                     AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
-                    SINGULARITY_PER_PLAYER_CAP)
+                    RETIRED_S9_ITEMS)
 from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
@@ -29,9 +29,7 @@ from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_strea
                     compute_stake_risk, compute_max_stake_pct,
                     HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
-from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
-                     get_prestige_threshold, filter_kept_items,
-                     PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
+from prestige import (get_prestige_bonus, get_prestige_threshold, MAX_PRESTIGE_LEVEL)
 from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty
 from community_goals import get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message, post_dedup_system_message
@@ -2002,6 +2000,8 @@ def buy():
 
     data = request.get_json(silent=True) or {}
     item_id = data.get('item_id') or ''
+    if item_id in RETIRED_S9_ITEMS:
+        return jsonify({'error': 'This item was retired in Season 9.'}), 403
 
     try:
         with db_connection() as conn:
@@ -2524,12 +2524,12 @@ def leaderboard():
                 # keeps the leaderboard clean for every viewer, server-side.
                 cur.execute(
                     '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
-                              gs.prestige_level, gs.last_spin_at
+                              gs.last_spin_at
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
-                       WHERE (gs.wins > 0 OR gs.prestige_level > 0)
+                       WHERE gs.wins > 0
                          AND u.ip_address <> '127.0.0.1'
-                       ORDER BY gs.prestige_level DESC, gs.wins DESC
+                       ORDER BY gs.wins DESC
                        LIMIT 10'''
                 )
                 rows = cur.fetchall()
@@ -2545,11 +2545,6 @@ def leaderboard():
                 'losses':          r['losses'],
                 'streak':          r['streak'],
                 'best_streak':     r['best_streak'],
-                # T121 follow-up: replace the retired Win Power / Bonus
-                # Power infinite-upgrade columns with prestige_level.
-                # Both winmult_inf_level and bonusmult_inf_level are
-                # retired (zero on every player since the S8 reset).
-                'prestige_level':  r.get('prestige_level', 0),
                 'active':          bool(active),
             })
         return jsonify(result)
@@ -2863,238 +2858,16 @@ def insurance_claim_free():
                     'insurance_tokens': new_tokens})
 
 
-def _prestige_default(col):
-    """T85: return the appropriate reset value for a column on prestige.
-
-    Most columns zero out; booleans flip to FALSE; timestamps, JSONB and
-    nullable scalars clear to NULL; text arrays empty; the single NOT NULL
-    enum (active_wheel_mode) returns to its declared default.
-    """
-    if col in (
-        'wins', 'losses', 'streak', 'best_streak', 'spin_count', 'win_count',
-        'loss_count',
-        'winmult_inf_level', 'bonusmult_inf_level', 'clickmult_inf_level',
-        'streak_armor_level', 'jackpot_resonance_level', 'echo_amp_level',
-        'proc_streak_level', 'proc_streak', 'lure_mastery_level',
-        'wager_streak', 'wager_last_stake', 'wager_banked_wins',
-        'wager_banked_losses', 'insurance_charges',
-        'wager_last_win_amount',
-        'guard_charges', 'guard_last_regen_spin', 'resilience_last_use_spin',
-        'dice_charges', 'fish_clicks', 'fish_exchange_total',
-        'gravity_drift', 'biggest_win_announced',
-    ):
-        return 0
-    if col in (
-        'double_down_pending', 'insurance_armed',
-        'dice_rolled_since_spin', 'fishing_lucky_next',
-        'auto_fish_enabled',  # T224: clear on prestige
-    ):
-        return False
-    if col == 'active_wheel_mode':
-        return 'steady'
-    if col in (
-        'dice_last_recharge',
-        'fishing_cast_at', 'fishing_bite_at',
-    ):
-        return dt.datetime.now(timezone.utc)
-    if col in (
-        'pending_dice', 'fastest_catch_pct', 'equipped_class', 'bounty_claimed_date',
-        'insurance_free_claimed_date',
-        'auto_fish_last_tick',  # T224: clear on prestige
-    ):
-        return None
-    if col == 'caught_species':
-        return []
-    # Defensive fallback: zero. Should be unreachable because
-    # PRESTIGE_RESET_COLUMNS is the single source of truth.
-    return 0
-
-
 @game_bp.route('/api/prestige', methods=['POST'])
 @login_required
 def prestige_reset():
-    """T121 atomic prestige: deduct 1M wins (if not yet owned), add the
-    unlock, and reset state. All in one transaction.
-
-    Replaces the old two-call flow (/api/buy prestige_unlock then
-    /api/prestige) which had a race window where a buy could succeed
-    and the prestige could fail, leaving the player with 0 wins and
-    the unlock but no prestige applied. The shop now intercepts the
-    buy and routes the user through a confirmation modal which calls
-    this single endpoint.
-
-    T85: resets the full AC#1 scope — every retired / per-season column
-    listed in PRESTIGE_RESET_COLUMNS. Preserves prestige_level (advanced
-    by 1), prestige_count, legacy_wins, active_cosmetics, aquarium_species,
-    cosmetic_fragments, onboarding_step, and insurance_tokens
-    (T119: column renamed from wager_tokens).
-
-    T86: removed by T121 — wins are fully reset to 0 (compute_wins_kept
-    always returns 0). legacy_wins carries the prior total forward.
-    """
-    err = require_json()
-    if err:
-        return err
-    PRESTIGE_COST = 1_000_000
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id, for_update=True)
-            already_owned = 'prestige_unlock' in gs['owned_items']
-            current_wins = int(gs['wins'])
-            current_level = gs.get('prestige_level', 0)
-            if current_level >= MAX_PRESTIGE_LEVEL:
-                return jsonify({'error': 'Already at max prestige'}), 403
-            if already_owned:
-                threshold = get_prestige_threshold(gs['owned_items'], current_level)
-                if current_wins < threshold:
-                    return jsonify({
-                        'error': f'Need {threshold} wins to prestige',
-                        'current_wins': current_wins,
-                        'threshold': threshold,
-                    }), 403
-                cost = 0
-            else:
-                if current_wins < PRESTIGE_COST:
-                    return jsonify({
-                        'error': f'Need {PRESTIGE_COST} wins to prestige',
-                        'current_wins': current_wins,
-                        'threshold': PRESTIGE_COST,
-                    }), 403
-                cost = PRESTIGE_COST
-            new_level = current_level + 1
-            new_prestige_count = gs.get('prestige_count', 0) + 1
-            new_legacy_wins = int(gs.get('legacy_wins', 0)) + current_wins
-            new_wins = 0  # T121: wins are fully reset; legacy_wins carries the total.
-            new_owned_items = filter_kept_items(gs['owned_items'], 0)
-            # prestige_unlock is the permanent gate for prestige — it
-            # must NEVER be removed from owned_items (filter_kept_items
-            # drops functional items at keep_count=0). The first-buy
-            # case grants it here; the subsequent-prestige case
-            # preserves it (it's a functional the player already owns).
-            if 'prestige_unlock' not in new_owned_items:
-                new_owned_items = list(new_owned_items) + ['prestige_unlock']
-            starting_prestige = get_starting_prestige(new_legacy_wins)
-            # T85: one UPDATE per prestige, every reset column cleared.
-            # Preserved columns (per AC#2): prestige_count, legacy_wins,
-            # active_cosmetics, aquarium_species, cosmetic_fragments,
-            # onboarding_step, insurance_tokens. wins is the new 0 (was the
-            # compute_wins_kept result in T86). owned_items is rewritten
-            # to the filtered list — T121 means filter_kept_items(0) drops
-            # all functional upgrades; the only thing re-added is
-            # prestige_unlock itself on the first prestige.
-            reset_sql_parts = [
-                'prestige_level = %s',
-                'prestige_count = %s',
-                'legacy_wins = %s',
-                'wins = %s',
-                'owned_items = %s',
-            ]
-            reset_params = [new_level, new_prestige_count, new_legacy_wins,
-                            new_wins, new_owned_items]
-            for col in PRESTIGE_RESET_COLUMNS:
-                if col == 'wins':
-                    continue  # handled above (set to 0, not the retained value)
-                reset_sql_parts.append(f'{col} = %s')
-                reset_params.append(_prestige_default(col))
-            reset_sql_parts.append('insurance_tokens = insurance_tokens')  # preserve
-            cur.execute(
-                f'''UPDATE game_state
-                    SET {', '.join(reset_sql_parts)}
-                    WHERE user_id = %s''',
-                tuple(reset_params) + (current_user.id,),
-            )
-        # T121 follow-up: reload the post-reset state in the SAME
-        # transaction so the client can refresh the shop's "owned"
-        # badges (PRESTIGE_RESET_COLUMNS strips every functional upgrade
-        # — owned_items is rewritten). Without this the player has to
-        # hard-refresh to see the reset. We read inside this transaction
-        # (before commit) so the post-UPDATE values are visible to the
-        # same connection.
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            fresh = _load_game_state(cur, current_user.id)
-        # T222: prestige messages are per-user deduped — when a player
-        # re-prestiges, their previous prestige message is removed and
-        # the new one is inserted. Each player shows their LATEST level.
-        post_dedup_system_message(
-            conn,
-            chat_triggers.prestige_msg(current_user.username, new_level),
-            current_user.id,
-            event_kind='prestige',
-        )
-        # Bounty tracking
-        bounty_date = dt.datetime.now(timezone.utc).date()
-        increment_bounty(conn, current_user.id, 'bounty_prestige', bounty_date)
-        # Community goal tracking
-        season_info = get_season_info(conn)
-        season_num = season_info.get('season_number', 8) if season_info else 8
-        now_utc = dt.datetime.now(timezone.utc)
-        week_num = get_week_number(now_utc)
-        _, goal_def = get_active_goal(conn, season_num, week_num)
-        if goal_def and goal_def['metric'] == 'prestiges':
-            increment_goal(conn, goal_def['goal_id'], current_user.id, 1)
-            check_goal_completion(conn, goal_def['goal_id'])
-        conn.commit()
-    return jsonify({
-        'prestige_level': new_level,
-        'prestige_count': new_prestige_count,
-        'legacy_wins': new_legacy_wins,
-        'wins_kept': new_wins,
-        'cost': cost,
-        'starting_prestige': starting_prestige,
-        # T121 follow-up: include the level-scaled next threshold so the
-        # client can refresh the shop's prestige price synchronously
-        # (no flash of stale 1M). None at MAX_PRESTIGE_LEVEL.
-        'next_threshold': (
-            get_prestige_threshold(new_owned_items, new_level)
-            if new_level < MAX_PRESTIGE_LEVEL else None
-        ),
-        'state': {
-            'wins': int(fresh['wins']),
-            'losses': int(fresh.get('losses', 0)),
-            'streak': int(fresh.get('streak', 0)),
-            'best_streak': int(fresh.get('best_streak', 0)),
-            'spin_count': int(fresh.get('spin_count', 0)),
-            'win_count': int(fresh.get('win_count', 0)),
-            'loss_count': int(fresh.get('loss_count', 0)),
-            'wager_streak': int(fresh.get('wager_streak', 0)),
-            'wager_last_stake': int(fresh.get('wager_last_stake', 0)),
-            'wager_last_win_amount': int(fresh.get('wager_last_win_amount', 0)),
-            'wager_banked_wins': int(fresh.get('wager_banked_wins', 0)),
-            'wager_banked_losses': int(fresh.get('wager_banked_losses', 0)),
-            'insurance_tokens': int(fresh.get('insurance_tokens', 0)),
-            'insurance_charges': int(fresh.get('insurance_charges', 0)),
-            'insurance_armed': bool(fresh.get('insurance_armed', False)),
-            'double_down_pending': bool(fresh.get('double_down_pending', False)),
-            'owned_items': list(fresh.get('owned_items', [])),
-            'cumulative_wins': int(fresh.get('cumulative_wins', 0)),
-            # T224: auto_fish_enabled is reset on prestige — return the
-            # new (False) value so the client can clear its local state.
-            'auto_fish_enabled': bool(fresh.get('auto_fish_enabled', False)),
-        },
-    })
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/prestige', methods=['GET'])
 @login_required
 def prestige_info():
-    """Get prestige status and requirements."""
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id)
-            level = gs.get('prestige_level', 0)
-            owned = gs.get('owned_items', [])
-            threshold = get_prestige_threshold(owned, level) if level < MAX_PRESTIGE_LEVEL else None
-            can = can_prestige(int(gs['wins']), owned, level)
-    return jsonify({
-        'prestige_level': level,
-        'prestige_count': gs.get('prestige_count', 0),
-        'legacy_wins': int(gs.get('legacy_wins', 0)),
-        'current_wins': int(gs['wins']),
-        'next_threshold': threshold,
-        'can_prestige': can,
-        'max_level': MAX_PRESTIGE_LEVEL,
-        'bonus_pct': get_prestige_bonus(level),
-    })
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/bounties', methods=['GET'])
@@ -3201,163 +2974,31 @@ def community_goal_endpoint():
 @game_bp.route('/api/singularity', methods=['GET'])
 @login_required
 def singularity_status():
-    """Get singularity meter status."""
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
-            row = cur.fetchone()
-    return jsonify({
-        'total_contributed': row['total_contributed'] if row else 0,
-        'target':            row['target'] if row else 100_000_000,
-        'filled':            row['filled'] if row else False,
-        'fill_count':        row['fill_count'] if row else 0,
-    })
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/singularity/contribute', methods=['POST'])
 @login_required
 def singularity_contribute():
-    """Contribute fish_clicks to the singularity meter (per-player capped, per fill cycle)."""
-    err = require_json()
-    if err:
-        return err
-    amount = (request.json or {}).get('amount', 0)
-    try:
-        amount = int(amount)
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid amount'}), 400
-    if amount <= 0:
-        return jsonify({'error': 'Amount must be positive'}), 400
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id, for_update=True)
-            cur.execute('SELECT fill_count FROM singularity_meter WHERE id = 1 FOR UPDATE')
-            meter_row = cur.fetchone()
-            fill_count = meter_row['fill_count'] if meter_row else 0
-
-            cur.execute(
-                '''SELECT contributed FROM singularity_contributions
-                   WHERE user_id = %s AND fill_count = %s''',
-                (current_user.id, fill_count),
-            )
-            contrib_row = cur.fetchone()
-            already = contrib_row['contributed'] if contrib_row else 0
-            remaining_cap = SINGULARITY_PER_PLAYER_CAP - already
-
-            actual_amount = min(amount, int(gs['fish_clicks']), remaining_cap)
-            if actual_amount <= 0:
-                return jsonify({'error': 'Nothing to contribute (insufficient fish or cap reached)'}), 403
-
-            cur.execute(
-                'UPDATE game_state SET fish_clicks = fish_clicks - %s WHERE user_id = %s',
-                (actual_amount, current_user.id),
-            )
-            cur.execute(
-                '''INSERT INTO singularity_contributions (user_id, fill_count, contributed)
-                   VALUES (%s, %s, %s)
-                   ON CONFLICT (user_id, fill_count) DO UPDATE
-                       SET contributed = singularity_contributions.contributed + %s''',
-                (current_user.id, fill_count, actual_amount, actual_amount),
-            )
-            cur.execute(
-                '''UPDATE singularity_meter SET total_contributed = total_contributed + %s,
-                   filled = CASE WHEN total_contributed + %s >= target THEN TRUE ELSE filled END,
-                   filled_at = CASE WHEN total_contributed + %s >= target AND filled_at IS NULL THEN NOW() ELSE filled_at END
-                   WHERE id = 1 RETURNING total_contributed, target, filled''',
-                (actual_amount, actual_amount, actual_amount),
-            )
-            row = cur.fetchone()
-            amount = actual_amount
-            # Season 8: post system message if meter just filled (crossed threshold this contribution)
-            if row['filled'] and (row['total_contributed'] - amount) < row['target']:
-                post_system_message(conn, chat_triggers.singularity_fill_msg(int(row['total_contributed'])),
-                                    'system', event_kind='singularity_fill')
-        conn.commit()
-    return jsonify({
-        'total_contributed': row['total_contributed'],
-        'target': row['target'],
-        'filled': row['filled'],
-        'contributed': amount,
-    })
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/loadout', methods=['GET'])
 @login_required
 def get_loadout():
-    """T245: logic moved to loadout.get_loadout."""
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            result = loadout.get_loadout(cur, current_user.id)
-    return jsonify(result)
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/loadout', methods=['POST'])
 @login_required
 def save_loadout():
-    """T245: logic moved to loadout.save_loadout_core."""
-    err = require_json()
-    if err:
-        return err
-    data = request.json or {}
-    slot = data.get('slot', 1)
-    raw = data.get('loadout', {}) or {}
-    with db_connection() as conn:
-        with conn.cursor() as cur:
-            result = loadout.save_loadout_core(cur, conn, current_user.id, slot, raw)
-        conn.commit()
-    if isinstance(result, tuple):
-        return jsonify(result[1]), result[0]
-    return jsonify(result)
-
-
-_LOADOUT_CLASS_ITEMS = {'earth': 'class_earth', 'moon': 'class_moon', 'star': 'class_star'}
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/loadout/apply', methods=['POST'])
 @login_required
 def apply_loadout():
-    """Apply a saved loadout — sets equipped_class and active_wheel_mode only.
-
-    Re-validates ownership/availability server-side rather than trusting the
-    saved blob; falls back to the player's current value for anything that
-    no longer checks out (e.g. a class they've since lost, a mode that has
-    rotated out of availability).
-    """
-    err = require_json()
-    if err:
-        return err
-    slot = (request.json or {}).get('slot', 1)
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT config FROM build_loadouts WHERE user_id = %s AND slot = %s',
-                        (current_user.id, slot))
-            row = cur.fetchone()
-            if not row:
-                return jsonify({'error': 'No loadout in that slot'}), 404
-            loadout = row['config']
-
-            gs = _load_game_state(cur, current_user.id, for_update=True)
-            owned = list(gs['owned_items'])
-
-            class_value = loadout.get('equipped_class')  # 'earth' | 'moon' | 'star' | None
-            if class_value is None:
-                equipped_value = None
-            elif class_value in _LOADOUT_CLASS_ITEMS and _LOADOUT_CLASS_ITEMS[class_value] in owned:
-                equipped_value = class_value
-            else:
-                equipped_value = gs['equipped_class']
-
-            mode = loadout.get('active_wheel_mode', 'steady')
-            available = get_available_modes(get_week_number())
-            if mode != 'steady' and mode not in available:
-                mode = gs.get('active_wheel_mode') or 'steady'
-
-            cur.execute(
-                '''UPDATE game_state SET equipped_class = %s, active_wheel_mode = %s WHERE user_id = %s''',
-                (equipped_value, mode, current_user.id),
-            )
-        conn.commit()
-    return jsonify({'ok': True, 'equipped_class': equipped_value, 'active_wheel_mode': mode})
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/guard', methods=['POST'])
@@ -3440,16 +3081,7 @@ def auto_spin_stop():
 @game_bp.route('/api/aquarium', methods=['GET'])
 @login_required
 def aquarium_status():
-    """Get aquarium species collection."""
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id)
-    species = list(gs.get('caught_species', []))
-    return jsonify({
-        'species': species,
-        'insurance_tokens': gs.get('insurance_tokens', 0),
-        'luck_bonus': len(species) * 0.001 if 'aquarium' in gs.get('owned_items', []) else 0.0,
-    })
+    return jsonify({'error': 'Retired in Season 9.'}), 410
 
 
 @game_bp.route('/api/wheel-mode', methods=['POST'])

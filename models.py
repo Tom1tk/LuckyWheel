@@ -339,6 +339,9 @@ _FUNCTIONAL_SHOP_ITEMS = {
     'fish_to_wager', 'catch_of_the_day', 'aquarium', 'lure_specialization',
 }
 
+# Season 9: retired from sale. /api/buy returns 403 for these; owned copies are kept.
+RETIRED_S9_ITEMS = frozenset({'prestige_unlock', 'aquarium'})
+
 
 ITEM_CURRENCY = {}
 for _id in ALL_ITEMS:
@@ -358,11 +361,6 @@ INFINITE_UPGRADES = {
         'inf_scale':     1.5,
     },
 }
-
-# Season 8: Singularity meter per-player contribution cap (spec S13).
-# Resets each time the meter fills (tracked per fill_count).
-SINGULARITY_PER_PLAYER_CAP = 25_000_000
-
 
 def inf_upgrade_cost(item_id: str, current_level: int) -> int:
     """Cost to advance from current_level to current_level+1."""

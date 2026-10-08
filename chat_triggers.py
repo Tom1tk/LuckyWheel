@@ -46,16 +46,8 @@ def big_win_msg(username: str, wins_delta: int, mode: str) -> str:
     return f'💰 {username} won {format_wins(wins_delta)} wins in {mode} mode!'
 
 
-def prestige_msg(username: str, level: int) -> str:
-    return f'⭐ {username} reached Prestige Level {level}!'
-
-
 def new_player_msg(username: str) -> str:
     return f'🎉 {username} spun the wheel for the first time! Welcome to Season 8!'
-
-
-def singularity_fill_msg(total: int) -> str:
-    return f'🌀 The Singularity has converged! Total contributed: {total}'
 
 
 def goal_milestone_msg(pct: int, current: int, target: int) -> str:

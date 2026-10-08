@@ -27,19 +27,9 @@ def test_big_win_msg_format():
     assert msg == f'💰 dave won {format_wins(6000)} wins in mirror mode!'
 
 
-def test_prestige_msg_format():
-    msg = chat_triggers.prestige_msg('eve', 3)
-    assert msg == '⭐ eve reached Prestige Level 3!'
-
-
 def test_new_player_msg_format():
     msg = chat_triggers.new_player_msg('frank')
     assert msg == '🎉 frank spun the wheel for the first time! Welcome to Season 8!'
-
-
-def test_singularity_fill_msg_format():
-    msg = chat_triggers.singularity_fill_msg(100000)
-    assert msg == '🌀 The Singularity has converged! Total contributed: 100000'
 
 
 def test_goal_milestone_msg_format():
