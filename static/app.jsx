@@ -1917,6 +1917,106 @@ function SeasonInfo({ seasonName, playerFacingNumber, endsAt }) {
 }
 
 
+// RV-08: "🌊 Season 9 · Tide N — resets Fri 21:00 (countdown)"; the whole strip opens the Hall of Fame.
+function TideBanner({ season, onOpenHof }) {
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    if (!season.ends_at) return;
+    const update = () => {
+      const diff = new Date(season.ends_at) - new Date();
+      if (diff <= 0) { setTimeLeft('turning…'); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setTimeLeft(d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [season.ends_at]);
+
+  const resets = season.ends_at
+    ? new Date(season.ends_at).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+  // Before Tide 2 the previous season is S8, which is not a tide podium.
+  const podium = season.sub_number > 1
+    ? (season.latest_winners || []).filter(w => w.position <= 3 && w.wins > 0)
+    : [];
+  return (
+    <button className="tide-banner" onClick={onOpenHof} title="Hall of Fame">
+      <span className="tide-banner-label">🌊 <span className="tide-banner-full">Season {season.player_facing_number} · Tide {season.sub_number}</span><span className="tide-banner-short">{season.player_facing_number}.{season.sub_number}</span></span>
+      {resets && <span className="tide-banner-resets">resets {resets}</span>}
+      {timeLeft && <span className="season-countdown">{timeLeft}</span>}
+      {podium.length > 0 && (
+        <span className="tide-banner-podium">
+          {podium.map(w => `${MEDALS[w.position - 1]} ${w.username}`).join('  ')}
+        </span>
+      )}
+      <span className="tide-banner-hof">🏛<span className="tide-banner-hof-text"> Hall of Fame</span></span>
+    </button>
+  );
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+function HallOfFamePanel({ open, onClose }) {
+  const [hof, setHof] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    apiFetch('/api/hall-of-fame').then(r => {
+      if (r.ok) setHof(r.data); else setError((r.data && r.data.error) || 'Could not load the Hall of Fame.');
+    });
+  }, [open]);
+  if (!open) return null;
+  const tideName = t => t.label.includes('.') ? `Tide ${t.label}` : `Season ${t.label}`;
+  const endedOn = t => t.ended_at
+    ? new Date(t.ended_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="stats-card hof-card" onClick={e => e.stopPropagation()}>
+        <div className="stats-title">🏛 Hall of Fame</div>
+        <button className="stats-close-btn" onClick={onClose}>✕</button>
+        {error ? <div className="stats-loading">{error}</div> : !hof ? <div className="stats-loading">Loading…</div> : (
+          <div className="hof-body">
+            <div className="stats-section-title">Medals · Season 9</div>
+            {hof.medals.length === 0
+              ? <div className="hof-empty">No medals yet. The first tide turns on Friday.</div>
+              : (
+                <div className="hof-medals">
+                  <div className="hof-medal-row hof-medal-head"><span>Player</span><span>🥇</span><span>🥈</span><span>🥉</span></div>
+                  {hof.medals.map(m => (
+                    <div className="hof-medal-row" key={m.username}>
+                      <span className="hof-name">{m.username}</span><span>{m.gold}</span><span>{m.silver}</span><span>{m.bronze}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            <div className="stats-section-title hof-tides-title">Past tides</div>
+            {hof.tides.length === 0
+              ? <div className="hof-empty">No tides have turned yet.</div>
+              : hof.tides.map(t => (
+                <div className="hof-tide" key={t.label}>
+                  <div className="hof-tide-head"><span className="hof-tide-name">{tideName(t)}</span><span className="hof-tide-date">{endedOn(t)}</span></div>
+                  {t.podium.length === 0
+                    ? <div className="hof-empty">No podium recorded.</div>
+                    : t.podium.map(p => (
+                      <div className="hof-podium-row" key={p.position}>
+                        <span>{MEDALS[p.position - 1] || `#${p.position}`} <span className="hof-name">{p.username}</span></span>
+                        <span className="hof-wins">{fmt(p.wins)}</span>
+                      </div>
+                    ))}
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Hiatus Screen ────────────────────────────────────────────────────────
 function HiatusCountdown() {
   const [timeLeft, setTimeLeft] = useState('');
@@ -2138,8 +2238,6 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
     return () => { clearInterval(id); ctrl.abort(); };
   }, []);
 
-  if (rows.length === 0) return null;
-
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
   const infernoClass = streak => streak > 0 ? `streak-inferno-${Math.min(streak, 10)}` : '';
   const medals = ['🥇', '🥈', '🥉'];
@@ -2165,6 +2263,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
             <span className="lb-wins-h">W</span>
             <span className="lb-streak-h">🔥</span>
           </div>
+          {rows.length === 0 && <div className="lb-winners-empty">No wins yet. Spin to take the top spot.</div>}
           {rows.map((r, i) => (
             <div key={r.username} className={`lb-row${r.active ? '' : ' lb-inactive'}`}>
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
@@ -3359,6 +3458,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // endpoint also forces the flag off server-side.
   const [autoFishEnabled, setAutoFishEnabled] = useState(!!gameState.auto_fish_enabled);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
+  const [showHof, setShowHof] = useState(false);
   const [bonusEarned, setBonusEarned] = useState(0);
   // T217: wins breakdown — capture the raw delta and the base multiplier so
   // the result bubble can show where large wins came from (Base + Streak).
@@ -4530,6 +4630,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     <div className={lowSpec ? 'low-spec' : ''}>
       <StatsPanel open={showStats} onClose={() => setShowStats(false)} />
       <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
+      <HallOfFamePanel open={showHof} onClose={() => setShowHof(false)} />
       {toast && <div className={`toast-notification${toast.variant ? ` toast-notification--${toast.variant}` : ''}`}>{toast.msg}</div>}
       {showWhatsNew && !showPatchNotes && (
         <div className="whats-new-card" role="dialog" aria-label="What's new in Season 9">
@@ -4626,7 +4727,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
-        {season && <SeasonInfo seasonName={season.season_name || season.season_number} playerFacingNumber={season.player_facing_number} endsAt={season.ends_at} />}
+        {season && season.sub_number != null
+          ? <TideBanner season={season} onOpenHof={() => setShowHof(true)} />
+          : season && <SeasonInfo seasonName={season.season_name || season.season_number} playerFacingNumber={season.player_facing_number} endsAt={season.ends_at} />}
       </div>
 
       {showEncyclopedia && (

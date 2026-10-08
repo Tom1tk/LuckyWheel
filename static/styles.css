@@ -3695,6 +3695,69 @@ body.page-season9 .score-box.wins-box .score-value { color: #8FF0E4; text-shadow
 body.page-season9 .dice-panel-label { color: #8FF0E4; }
 body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
 
+/* ── RV-08: Tide banner + Hall of Fame ────────────────────────────────────── */
+.tide-banner {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 12px;
+  background: rgba(var(--p-rgb),0.06);
+  border: 1px solid rgba(var(--p-rgb),0.25);
+  border-radius: 6px;
+  color: var(--p);
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tide-banner:hover { background: rgba(var(--p-rgb),0.14); border-color: rgba(var(--p-rgb),0.5); }
+.tide-banner-label { font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--p-lt); }
+.tide-banner-resets { color: #8aa0ae; }
+.tide-banner-podium,
+.tide-banner-hof { padding-left: 10px; border-left: 1px solid rgba(var(--p-rgb),0.25); }
+.tide-banner-podium { color: #d6e4ec; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.tide-banner-hof { color: var(--p-lt); letter-spacing: 2px; text-transform: uppercase; }
+@media (max-width: 1100px) {
+  .tide-banner-podium, .tide-banner-resets { display: none; }
+}
+.tide-banner-short { display: none; }
+@media (max-width: 768px) {
+  /* The phone user-bar has ~120px left: "🌊 9.2 [6d 23h]", tap for the Hall of Fame. */
+  .tide-banner { gap: 5px; padding: 4px 6px; letter-spacing: 0; }
+  .tide-banner-full, .tide-banner-hof { display: none; }
+  .tide-banner-short { display: inline; }
+}
+
+.hof-card { width: min(520px, 92vw); max-height: 82vh; display: flex; flex-direction: column; }
+.hof-body { overflow-y: auto; padding-right: 4px; }
+.hof-body::-webkit-scrollbar { width: 6px; }
+.hof-body::-webkit-scrollbar-thumb { background: rgba(var(--p-rgb),0.3); border-radius: 3px; }
+.hof-empty { color: #6f8290; font-size: 0.72rem; letter-spacing: 1px; padding: 4px 0 10px; }
+.hof-medals { margin-bottom: 8px; }
+.hof-medal-row {
+  display: grid;
+  grid-template-columns: 1fr 40px 40px 40px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.78rem;
+  color: var(--p);
+}
+.hof-medal-row span:not(:first-child) { text-align: center; }
+.hof-medal-head { color: #6f8290; font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; }
+.hof-name { color: #d6e4ec; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hof-tides-title { margin-top: 18px; }
+.hof-tide { padding: 8px 0 6px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.hof-tide-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.hof-tide-name { color: var(--p-lt); font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; }
+.hof-tide-date { color: #6f8290; font-size: 0.65rem; letter-spacing: 1px; }
+.hof-podium-row { display: flex; justify-content: space-between; gap: 16px; font-size: 0.75rem; padding: 2px 0; }
+.hof-wins { color: var(--s-lt); font-family: 'Courier New', monospace; }
+
 /* ── RV-07: What's new card + newly unlocked panels ───────────────────────── */
 .whats-new-card {
   position: fixed;
