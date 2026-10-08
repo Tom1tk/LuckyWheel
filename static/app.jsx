@@ -1811,14 +1811,14 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
   ));
 
   let disabledReason = '';
-  if (diceCharges < 1) disabledReason = 'No charges';
-  else if (streak < 3) disabledReason = 'Need win streak ≥3';
-  else if (rolledSinceSpin) disabledReason = 'Dice buffered — applies next spin';
+  if (diceCharges < 1) disabledReason = 'Out of charges';
+  else if (streak < 3) disabledReason = 'Win 3 in a row to roll';
+  else if (rolledSinceSpin) disabledReason = 'Rolled: applies on your next spin';
 
   return (
     <div className="dice-panel">
       <span className="dice-panel-label">🎲 Dice Roll</span>
-      <span className="dice-panel-desc" ref={descRef} onMouseEnter={showTip} onMouseLeave={() => setTipVisible(false)}>How it works ⓘ</span>
+      <span className="dice-panel-desc" ref={descRef} onMouseEnter={showTip} onMouseLeave={() => setTipVisible(false)} onClick={() => (tipVisible ? setTipVisible(false) : showTip())}>How it works ⓘ</span>
       {tipVisible && (
         <div className="dice-tooltip" style={{ left: tipPos.left, bottom: tipPos.bottom }}>{DICE_TOOLTIP_TEXT}</div>
       )}
@@ -1864,6 +1864,8 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
       >
         {rolling ? 'Rolling…' : `Roll (${diceCharges}/${maxDiceCharges} charges)`}
       </button>
+      {/* Shown, not just a title: hover tooltips never appear on phones. */}
+      {!canRoll && !rolling && disabledReason && <span className="dice-disabled-reason">{disabledReason}</span>}
     </div>
   );
 }
@@ -4796,10 +4798,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               the total of the spin. For wins this is the "+N wins" line; for
               losses it's "-N losses" (the loss value is shown on a loss). */}
           {(result === 'win' || result === 'jackpot') && winsDelta > 0 && (
-            <div className="bonus-line spin-result-total">+{fmt(winsDelta)} wins</div>
+            <div className="bonus-line spin-result-total">+{fmt(winsDelta)} {Number(winsDelta) === 1 ? 'win' : 'wins'}</div>
           )}
           {result === 'lose' && lossesDelta > 0 && (
-            <div className="bonus-line lose-bonus">-{fmt(lossesDelta)} losses</div>
+            <div className="bonus-line lose-bonus">+{fmt(lossesDelta)} {Number(lossesDelta) === 1 ? 'loss' : 'losses'}</div>
           )}
           {jackpotHit && (
             <div className="bonus-line jackpot-line">🎰 JACKPOT! 25x multiplier applied!</div>

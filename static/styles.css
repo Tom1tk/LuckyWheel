@@ -3717,6 +3717,20 @@ body.page-season9 .score-box.wins-box .score-label { color: #8FF0E4; }
 body.page-season9 .score-box.wins-box .score-value { color: #8FF0E4; text-shadow: 0 0 12px #3FD6C6; }
 body.page-season9 .dice-panel-label { color: #8FF0E4; }
 body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
+/* Dice in tide colours: teal dice, sand pips (the base dice CSS is S8 purple) */
+body.page-season9 .dice-panel { border-top-color: rgba(63,214,198,0.15); }
+body.page-season9 .dice-panel-desc { cursor: pointer; }
+body.page-season9 .dice-tooltip { border-color: #3FD6C6; }
+body.page-season9 .die { background: #06141c; border-color: #3FD6C6; box-shadow: 0 0 10px rgba(63,214,198,0.35), inset 0 0 8px rgba(63,214,198,0.08); }
+body.page-season9 .pip { background: #F2E3C6; box-shadow: 0 0 5px rgba(242,227,198,0.8); }
+body.page-season9 .dice-result-text { color: #8FF0E4; text-shadow: 0 0 8px rgba(63,214,198,0.7); }
+body.page-season9 .dice-recharge-timer { color: #1FA9A0; }
+body.page-season9 .dice-charge-dot { color: rgba(143,240,228,0.2); }
+body.page-season9 .dice-charge-dot.charged { color: #3FD6C6; text-shadow: 0 0 6px #3FD6C6; }
+body.page-season9 .dice-roll-btn { background: linear-gradient(135deg, #0F4A48 0%, #062226 100%); border-color: #3FD6C6; color: #8FF0E4; box-shadow: 0 0 8px rgba(63,214,198,0.2); }
+body.page-season9 .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(63,214,198,0.5); }
+body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3); color: rgba(143,240,228,0.6); }
+.dice-disabled-reason { font-size: 10px; letter-spacing: 0.04em; color: var(--p-lt); opacity: 0.8; text-align: center; }
 
 /* ── RV-08: Tide banner + Hall of Fame ────────────────────────────────────── */
 .tide-banner {
