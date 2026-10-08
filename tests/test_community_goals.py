@@ -159,13 +159,13 @@ def test_increment_goal_emits_expected_op_sequence():
 
 def test_increment_goal_clamps_to_cap():
     """If current+amount > cap, only the delta is added; the UPDATE uses the clamped amount."""
-    cap = community_goals.COMMUNITY_GOAL_DEFS[0]['per_player_cap']  # 500
+    cap = community_goals.COMMUNITY_GOAL_DEFS[0]['per_player_cap']  # Season 9: 300
     conn = _FakeConn()
-    conn.cursor_obj._contributed = 495
-    conn.cursor_obj.queue_fetchone({'contributed': 495, 'current': 0, 'target': cap, 'completed': False})
+    conn.cursor_obj._contributed = cap - 5
+    conn.cursor_obj.queue_fetchone({'contributed': cap - 5, 'current': 0, 'target': cap, 'completed': False})
 
     actual = community_goals.increment_goal(conn, 'goal_fish5000', user_id=1, amount=10)
-    assert actual == 5, f"expected clamp to 5 (500 cap - 495 current), got {actual}"
+    assert actual == 5, f"expected clamp to 5 ({cap} cap - {cap - 5} current), got {actual}"
 
     contrib_update = next(p for s, p in conn.cursor_obj.log
                           if s.strip().upper().startswith('UPDATE')
@@ -224,20 +224,20 @@ def test_sequential_calls_near_cap_never_exceed_cap():
     We simulate that visibility by feeding the second call's SELECT FOR
     UPDATE the post-update state of the first.
     """
-    # Use goal_prestige50 (per_player_cap=10) so the math is obvious.
-    cap = 10
-    # First call: current=8, ask for 6 -> clamps to 2, contrib becomes 10.
+    # Use goal_prestige50 (per_player_cap=5 in Season 9) so the math is obvious.
+    cap = 5
+    # First call: current=3, ask for 6 -> clamps to 2, contrib becomes 5.
     first = _FakeConn()
-    first.cursor_obj._contributed = 8
-    first.cursor_obj.queue_fetchone({'contributed': 8, 'current': 0, 'target': 100, 'completed': False})
+    first.cursor_obj._contributed = 3
+    first.cursor_obj.queue_fetchone({'contributed': 3, 'current': 0, 'target': 100, 'completed': False})
     first_actual = community_goals.increment_goal(first, 'goal_prestige50', user_id=42, amount=6)
     assert first_actual == 2
 
-    # Second call: under the buggy code it would still see 8 and write 6 more
-    # -> 14. Under the fix, the locked row shows 10 -> clamps to 0.
+    # Second call: under the buggy code it would still see 3 and write 6 more
+    # -> 9. Under the fix, the locked row shows 5 -> clamps to 0.
     second = _FakeConn()
-    second.cursor_obj._contributed = 10
-    second.cursor_obj.queue_fetchone({'contributed': 10, 'current': 0, 'target': 100, 'completed': False})
+    second.cursor_obj._contributed = 5
+    second.cursor_obj.queue_fetchone({'contributed': 5, 'current': 0, 'target': 100, 'completed': False})
     second_actual = community_goals.increment_goal(second, 'goal_prestige50', user_id=42, amount=6)
     assert second_actual == 0, (
         f"second call should be clamped to 0 (already at cap), got {second_actual}"

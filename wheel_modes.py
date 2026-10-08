@@ -56,6 +56,15 @@ WHEEL_MODES = {
         'description': 'Most spins lose. Jackpots hit often but pay less.',
         'jackpot_multiplier': 10,
     },
+    'zealot': {
+        # Season 9: fanatic mode. Near-guaranteed wins, and jackpots hit
+        # frequently (8%) and pay huge (×100).
+        'win_pct': 50,
+        'loss_pct': 42,
+        'jackpot_pct': 8,
+        'description': 'Fanatic mode. Jackpots hit often; when they do, they pay huge.',
+        'jackpot_multiplier': 100,
+    },
     'singularity': {
         'win_pct': 75,
         'loss_pct': 10,
@@ -65,8 +74,11 @@ WHEEL_MODES = {
     },
 }
 
-# Modes that rotate weekly (index by week_number % 3)
-_ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
+# Modes that rotate weekly (index by week_number % 5).
+# Season 9: added 'zealot' AND 'mirror' — mirror was defined for Season 8
+# but never placed in the rotation, so the mode (and its daily bounty) were
+# unreachable. The 5-mode cycle makes every rotating mode actually appear.
+_ROTATING_MODES = ['inverted', 'gravity', 'mirror', 'long_shot', 'zealot']
 
 
 # T77: gravity mode drift bounds. After a win/jackpot, drift += 10 (capped
@@ -115,7 +127,7 @@ def get_rotating_mode(week_number=None):
     """Return the rotating mode name for the given (or current) week."""
     if week_number is None:
         week_number = get_week_number()
-    return _ROTATING_MODES[week_number % 3]
+    return _ROTATING_MODES[week_number % len(_ROTATING_MODES)]
 
 
 def get_available_modes(week_number=None):

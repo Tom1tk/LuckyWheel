@@ -85,6 +85,7 @@ COSMETIC_SLOTS = {
     "page_season6": "page_theme",
     "page_season7": "page_theme",
     "page_season8": "page_theme",
+    "page_season9": "page_theme",
     "auto_guard": "auto_guard",
 }
 

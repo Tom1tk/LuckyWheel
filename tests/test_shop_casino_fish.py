@@ -151,17 +151,16 @@ def test_prices_increasing_and_above_ufo():
         prev_cost = cost
 
 
-def test_most_expensive_fish_is_now_fish_slot():
-    """After T213, fish_slot (2,400,000) is the new most-expensive fish.
-
-    Catches regressions where someone re-orders FISH_SKINS by accident.
-    """
+def test_most_expensive_fish_is_now_fish_ghost():
+    """Season 9 added the Arcade fish skins; fish_ghost (6,000,000) is now
+    the most-expensive fish. Catches regressions where someone re-orders
+    FISH_SKINS by accident."""
     most_expensive = max(FISH_SKINS.items(), key=lambda kv: kv[1]['cost'])
-    assert most_expensive[0] == 'fish_slot', (
-        f'expected fish_slot to be the most expensive fish, '
+    assert most_expensive[0] == 'fish_ghost', (
+        f'expected fish_ghost to be the most expensive fish, '
         f'got {most_expensive[0]} at {most_expensive[1]["cost"]:,}'
     )
-    assert most_expensive[1]['cost'] == 2_400_000
+    assert most_expensive[1]['cost'] == 6_000_000
 
 
 # ════════════════════════════════════════════════════════════════════════════

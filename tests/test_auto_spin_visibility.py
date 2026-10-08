@@ -1,17 +1,17 @@
-"""T216: Auto-spin visibility / safety tests.
+"""T216/S9: Auto-spin visibility / safety tests.
 
-Covers the three T216 acceptance criteria that can be verified
-in-process with stubs:
+Covers the T216 acceptance criteria that can be verified in-process
+with stubs, updated for the Season 9 (S9) auto-spin restoration:
 
-  1. No resume on page load — if the server says `auto_spin_active: true`
-     on a fresh state fetch, the client-side handler must clear local
-     state AND call /api/auto-spin/stop so the server's `auto_spin_since`
-     becomes NULL.
-  2. Stale session auto-stop — a /api/tick that arrives >60s after the
+  1. Resume on page load — if the server says `auto_spin_active: true`
+     on a fresh state fetch, the client-side handler must keep local
+     state in sync AND resume ticking (NOT call /api/auto-spin/stop),
+     so the next /api/tick catches up on spins accrued while away.
+  2. Stale session auto-stop — a /api/tick that arrives >24h after the
      last `last_spin_at` must return `auto_spin_active: false,
      auto_spin_stopped: 'stale'` and clear the server's `auto_spin_since`.
   3. Fresh session keeps running — a /api/tick that arrives within the
-     60s window must process spins normally and leave `auto_spin_active`
+     24h window must process spins normally and leave `auto_spin_active`
      true.
   4. The `auto_spin_budget` column must not exist after migration 057.
 
@@ -403,12 +403,12 @@ def test_migration_057_exists():
     )
 
 
-# ── Source-level guard: heartbeat threshold = 60s ────────────────────────────
+# ── Source-level guard: heartbeat threshold = 24h ─────────────────────────────
 
-def test_tick_heartbeat_threshold_is_60_seconds():
-    """T216: the heartbeat auto-stop must fire after 60s of no /api/tick.
-    The literal `60` (or a named constant) must appear in /api/tick's
-    stale-detection branch, with a comment naming T216."""
+def test_tick_heartbeat_threshold_is_24_hours():
+    """T216/S9: the heartbeat auto-stop must fire after 24h of no /api/tick.
+    The literal `86_400` (or a named constant) must appear in /api/tick's
+    stale-detection branch, with a comment naming the S9 offline window."""
     game_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'game.py')
     with open(game_path) as f:
         src = f.read()
@@ -419,17 +419,17 @@ def test_tick_heartbeat_threshold_is_60_seconds():
     )
     assert tick_block, "could not locate /api/tick endpoint body in game.py"
     body = tick_block.group(0)
-    # The stale-check must compare against 60 (literal or named constant).
-    assert re.search(r'>\s*60\b', body), (
-        "/api/tick must include a `> 60` (or named constant) stale threshold"
+    # The stale-check must compare against 24h in seconds (86_400 or 86400).
+    assert re.search(r'>\s*86_?400\b', body), (
+        "/api/tick must include a `> 86_400` (or named constant) stale threshold"
     )
-    # The block must mention T216 so the magic number is traceable.
-    assert 'T216' in body, (
-        "/api/tick stale-check must reference ticket T216 in a comment"
+    # The block must mention T216 or S9 so the magic number is traceable.
+    assert ('T216' in body or 'S9' in body), (
+        "/api/tick stale-check must reference ticket T216 or S9 in a comment"
     )
-    # The block must also explain WHY 60s was chosen.
-    assert re.search(r'60s', body), (
-        "/api/tick stale-check must include a comment explaining the 60s choice"
+    # The block must also explain WHY 24h was chosen.
+    assert re.search(r'24h', body), (
+        "/api/tick stale-check must include a comment explaining the 24h choice"
     )
 
 
@@ -514,13 +514,13 @@ def test_stop_endpoint_sql_drops_auto_spin_budget():
 # ── /api/tick: heartbeat auto-stop behavior ────────────────────────────────
 
 def test_stale_session_auto_stopped():
-    """T216: when a /api/tick arrives >60s after `last_spin_at`, the
+    """T216/S9: when a /api/tick arrives >24h after `last_spin_at`, the
     handler must auto-stop auto-spin, set `auto_spin_since = NULL`, and
     return `auto_spin_active: false, auto_spin_stopped: 'stale'`."""
     now = dt.datetime.now(timezone.utc)
-    last_spin = now - dt.timedelta(seconds=90)
+    last_spin = now - dt.timedelta(seconds=26 * 3600)  # 26h > 24h window
     gs = _base_gs(
-        auto_spin_since=now - dt.timedelta(seconds=120),
+        auto_spin_since=now - dt.timedelta(seconds=26 * 3600),
         last_spin_at=last_spin,
     )
     events = _make_events()
@@ -562,7 +562,7 @@ def test_stale_session_auto_stopped():
 
 
 def test_fresh_session_keeps_running():
-    """T216: a /api/tick that arrives within the 60s window (last_spin_at
+    """T216/S9: a /api/tick that arrives within the 24h window (last_spin_at
     only 5s ago) must process spins normally and leave auto_spin_since
     set."""
     now = dt.datetime.now(timezone.utc)
@@ -699,29 +699,41 @@ def test_app_jsx_shop_desc_dropped_100_spins_wording():
     )
 
 
-def test_app_jsx_resume_prevention_toast_present():
-    """T216: the state-sync useEffect must include the resume-prevention
-    block — when the server reports `auto_spin_active: true` on a fresh
-    page load, the client must call /api/auto-spin/stop and show a
-    toast telling the player to click the checkbox to restart."""
+def test_app_jsx_resumes_session_on_page_load():
+    """S9: the state-sync useEffect must RESUME an active server-side
+    auto-spin session on page load — set autoSpinActive to true and NOT
+    call /api/auto-spin/stop (the S8 resume-prevention behaviour), so the
+    polling effect starts and the first /api/tick catches up on spins
+    accrued while the tab was closed (offline catch-up)."""
     app_jsx_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         'static', 'app.jsx',
     )
     with open(app_jsx_path) as f:
         src = f.read()
-    # The toast string must appear.
-    assert "Auto-spin was running on the server" in src, (
-        "static/app.jsx must include the resume-prevention toast "
-        "string. See T216 acceptance criterion #3."
+    # The S8 resume-prevention toast must be gone (replaced by resume).
+    assert "Auto-spin was running on the server" not in src, (
+        "static/app.jsx must NOT include the S8 resume-prevention toast — "
+        "S9 resumes the session for offline catch-up instead."
     )
-    # The block must call /api/auto-spin/stop on a true active response.
-    assert re.search(
+    # The sync block must not call /api/auto-spin/stop on a true active state.
+    assert not re.search(
         r"if\s*\(\s*gameState\.auto_spin_active\s*===\s*true\s*\).+?"
         r"apiGame\('/api/auto-spin/stop'",
         src, re.DOTALL,
     ), (
-        "static/app.jsx must call /api/auto-spin/stop from the "
-        "resume-prevention block when the server reports "
-        "auto_spin_active=true."
+        "static/app.jsx must not call /api/auto-spin/stop from the "
+        "state-sync block when the server reports auto_spin_active=true — "
+        "S9 resumes the session so offline catch-up can fire."
+    )
+    # The sync block must mirror the server's active flag into local state.
+    assert re.search(
+        r"gameState\.auto_spin_active\s*===\s*true\s*\?\s*true\s*:\s*false",
+        src,
+    ) or re.search(
+        r"setAutoSpinActive\(gameState\.auto_spin_active",
+        src,
+    ), (
+        "static/app.jsx must setAutoSpinActive from gameState.auto_spin_active "
+        "on page load so the polling effect restarts for offline catch-up."
     )

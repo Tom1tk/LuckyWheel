@@ -23,19 +23,78 @@ STAKE_EXTENSION_ITEMS = ('wager_stake_extend_1', 'wager_stake_extend_2', 'wager_
 # stake or above.
 HIGH_STAKE_TOKEN_THRESHOLD = 30
 
+# ── Season 9: stake decay ──────────────────────────────────────────────────────
+# As a player's balance grows, their max stake % decays so the compounding
+# wager engine can't run away (Season 8 postmortem: dylan hit 1e38 wins).
+# The decay is tiered by current wins; each band subtracts from the item-based
+# max (30 base + 5 per extension = 30/35/40/45). A floor of 10% keeps the
+# wager system usable at any balance.
+STAKE_DECAY_TABLE = (
+    (1_000_000,        0),   # < 1M:   no decay
+    (10_000_000,       5),   # 1M-10M:  −5
+    (100_000_000,     10),   # 10M-100M: −10
+    (1_000_000_000,   15),   # 100M-1B: −15
+    (float('inf'),    20),   # >= 1B:   −20 (floor 10)
+)
+STAKE_DECAY_FLOOR = 10
 
-def compute_max_stake_pct(owned_items):
+
+def compute_max_stake_pct(owned_items, wins=0):
     """T102+T104: 30% base + 5% per stake extension item owned (max 45%).
+
+    Season 9 (T4): the item-based max decays as the player's current wins
+    grow (see STAKE_DECAY_TABLE) so runaway compounding is bounded. `wins`
+    defaults to 0 → no decay (preserves the pre-S9 behaviour for callers
+    that don't pass a balance).
 
     Args:
         owned_items: list/iterable of item ids the player owns.
+        wins: current wins balance (0 = no decay).
 
     Returns:
-        int — the max stake percentage this player can set (30, 35, 40, or 45).
+        int — the max stake percentage this player can set (10..45).
     """
     owned = set(owned_items) if owned_items else set()
     extend_count = sum(1 for item in STAKE_EXTENSION_ITEMS if item in owned)
-    return BASE_MAX_STAKE_PCT + (extend_count * STAKE_PCT_STEP)
+    base = BASE_MAX_STAKE_PCT + (extend_count * STAKE_PCT_STEP)
+    try:
+        wins = int(wins)
+    except (TypeError, ValueError):
+        wins = 0
+    if wins <= 0:
+        return base
+    decay = 0
+    for threshold, penalty in STAKE_DECAY_TABLE:
+        if wins < threshold:
+            decay = penalty
+            break
+    else:
+        decay = STAKE_DECAY_TABLE[-1][1]
+    return max(STAKE_DECAY_FLOOR, base - decay)
+
+
+# ── Season 9: vault payout cap ────────────────────────────────────────────────
+# A winning spin's wins_delta is capped once the player holds >= 1M wins.
+# Overflow is NOT lost — it is moved to wager_banked_wins (the "vault") and
+# claimed via the Bank button. This keeps scoreboards readable (Season 8's
+# "pascal win number" problem) without confiscating winnings.
+PAYOUT_CAP_MIN_WINS = 1_000_000
+PAYOUT_CAP_MULT     = 2
+
+
+def compute_payout_cap(pre_spin_wins):
+    """Return the max wins_delta a single winning spin may add.
+
+    Applies once `pre_spin_wins >= PAYOUT_CAP_MIN_WINS`; below that the cap
+    is unlimited (no change to the pre-S9 economy for normal players).
+    """
+    try:
+        pre_spin_wins = int(pre_spin_wins)
+    except (TypeError, ValueError):
+        pre_spin_wins = 0
+    if pre_spin_wins < PAYOUT_CAP_MIN_WINS:
+        return None
+    return max(PAYOUT_CAP_MIN_WINS, pre_spin_wins * PAYOUT_CAP_MULT)
 
 
 def compute_stake_risk(current_amount, stake_pct, max_stake_pct=None):
@@ -175,6 +234,22 @@ if __name__ == '__main__':
     assert compute_max_stake_pct(['wager_stake_extend_1']) == 35
     assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2']) == 40
     assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 45
+    # Season 9: stake decay (wealth-adaptive max stake)
+    assert compute_max_stake_pct([], 0) == 30
+    assert compute_max_stake_pct([], 999_999) == 30          # below 1M: no decay
+    assert compute_max_stake_pct([], 1_000_000) == 25        # 1M-10M: −5
+    assert compute_max_stake_pct([], 10_000_000) == 20       # 10M-100M: −10
+    assert compute_max_stake_pct([], 100_000_000) == 15      # 100M-1B: −15
+    assert compute_max_stake_pct([], 1_000_000_000) == 10    # >= 1B: −20 → floor 10
+    assert compute_max_stake_pct([], 1e40) == 10             # floor holds at any scale
+    assert compute_max_stake_pct(['wager_stake_extend_1'], 1_000_000) == 30
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3'], 1e40) == 25
+    # Season 9: vault payout cap
+    assert compute_payout_cap(0) is None
+    assert compute_payout_cap(999_999) is None               # below 1M: uncapped
+    assert compute_payout_cap(1_000_000) == 2_000_000        # ≥1M → ×2 (never below floor)
+    assert compute_payout_cap(2_000_000) == 4_000_000        # ×2
+    assert compute_payout_cap(1e20) == 2e20
     # validate_stake
     assert validate_stake(10, True, 30) == 10
     assert validate_stake(13, True, 30) == 15  # snap to 5% step

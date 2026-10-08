@@ -16,6 +16,46 @@ after each prestige.
 # Maximum prestige level (hard cap).
 MAX_PRESTIGE_LEVEL = 20
 
+# Season 9: prestige titles — a cosmetic ladder for the level grind. Level 0
+# is "Novice"; level 20 (MAX_PRESTIGE_LEVEL) is "Legend". Titles are shown in
+# the Prestige panel, the leaderboard, and the prestige chat message.
+PRESTIGE_TITLES = {
+    0: 'Novice',
+    1: 'Rookie',
+    2: 'Player',
+    3: 'Regular',
+    4: 'High Roller',
+    5: 'Pro',
+    6: 'Veteran',
+    7: 'Expert',
+    8: 'Champion',
+    9: 'Master',
+    10: 'Grandmaster',
+    11: 'Legend',
+    12: 'Mythic',
+    13: 'Immortal',
+    14: 'Ascended',
+    15: 'Transcendent',
+    16: 'Cosmic',
+    17: 'Galactic',
+    18: 'Stellar',
+    19: 'Arcade God',
+    20: 'Legend',
+}
+
+
+def get_prestige_title(level):
+    """Return the prestige title for a level, clamping to [0, MAX_PRESTIGE_LEVEL]."""
+    try:
+        level = int(level)
+    except (TypeError, ValueError):
+        level = 0
+    if level < 0:
+        level = 0
+    if level > MAX_PRESTIGE_LEVEL:
+        level = MAX_PRESTIGE_LEVEL
+    return PRESTIGE_TITLES[level]
+
 # The win threshold is a fixed 1,000,000. T86 removed efficiency's ability
 # to shorten it; T121 removed efficiency from the shop entirely.
 PRESTIGE_WIN_THRESHOLD = 1_000_000

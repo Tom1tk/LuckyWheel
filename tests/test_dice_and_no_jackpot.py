@@ -288,9 +288,11 @@ def test_prestige_post_passes_user_id():
     """
     src = _read(GAME_PY)
     # The post_dedup_system_message call near the prestige_msg must
-    # include current_user.id. Search for the block.
+    # include current_user.id. Search for the block. Greedy [\s\S]+
+    # backtracks to the prestige_msg call's own closing `)` (there is an
+    # inner `)` in the Season 9 `get_prestige_title(new_level)` arg).
     block = re.search(
-        r"chat_triggers\.prestige_msg\([^)]+\),\s*\n\s*current_user\.id,",
+        r"chat_triggers\.prestige_msg\([\s\S]+\)\s*,\s*\n\s*current_user\.id,",
         src,
     )
     assert block, (

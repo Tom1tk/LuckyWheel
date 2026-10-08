@@ -211,9 +211,9 @@ def teardown_module(module):
 # ── Fixtures ────────────────────────────────────────────────────────────────
 def _base_gs(**overrides):
     """A game_state dict with all columns the tick() path reads."""
-    # T216: use the current wall-clock time as the reference so the
+    # T216/S9: use the current wall-clock time as the reference so the
     # heartbeat auto-stop in /api/tick (which compares `last_spin_at`
-    # against the handler's now_utc with a 60s threshold) treats the
+    # against the handler's now_utc with a 24h threshold) treats the
     # session as fresh. A static 2024-01-01 timestamp would now look
     # years-stale and the heartbeat would auto-stop before the test
     # can run its assertions.
@@ -222,7 +222,7 @@ def _base_gs(**overrides):
     # doesn't fire:
     #   cursor   = max(auto_spin_since, last_spin_at) = auto_spin_since
     #   elapsed  = now_utc - cursor ≈ 5s  ->  spins_due = 1
-    #   stale    = now_utc - last_spin_at ≈ 9s  < 60s  ->  no heartbeat
+    #   stale    = now_utc - last_spin_at ≈ 9s  < 24h  ->  no heartbeat
     last_spin = now - dt.timedelta(seconds=9)
     g = {
         'wins': 0, 'losses': 0, 'streak': 0, 'best_streak': 0,

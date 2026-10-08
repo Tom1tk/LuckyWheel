@@ -46,12 +46,15 @@ def big_win_msg(username: str, wins_delta: int, mode: str) -> str:
     return f'💰 {username} won {format_wins(wins_delta)} wins in {mode} mode!'
 
 
-def prestige_msg(username: str, level: int) -> str:
+def prestige_msg(username: str, level: int, title: str = None) -> str:
+    """Season 9: include the prestige title (e.g. "Pro") in the message."""
+    if title:
+        return f'⭐ {username} reached Prestige Level {level} — {title}!'
     return f'⭐ {username} reached Prestige Level {level}!'
 
 
 def new_player_msg(username: str) -> str:
-    return f'🎉 {username} spun the wheel for the first time! Welcome to Season 8!'
+    return f'🎉 {username} spun the wheel for the first time! Welcome to Season 9!'
 
 
 def singularity_fill_msg(total: int) -> str:

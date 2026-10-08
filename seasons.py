@@ -42,7 +42,7 @@ def ensure_current_season(conn):
     }
 
 
-def advance_season(conn, player_facing_number=None):
+def advance_season(conn, player_facing_number=None, name=None):
     """
     Manually advance the season. Snapshots current standings, resets game_state,
     and bumps season_number + ends_at by 7 days. Commits internally.
@@ -55,6 +55,9 @@ def advance_season(conn, player_facing_number=None):
     admin endpoint can pass an explicit value for sub-seasons (e.g.
     8.1 once the column is widened to NUMERIC) or for any
     non-monotonic transition.
+
+    `name` (Season 9) overrides the season's display name; defaults to
+    the new era name ("Arcade").
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
@@ -84,6 +87,10 @@ def advance_season(conn, player_facing_number=None):
         next_player_facing_number = pfn_base + 1
     else:
         next_player_facing_number = player_facing_number
+
+    # Season 9: the Arcade era. `name` defaults to the era name; the admin
+    # endpoint may override it (e.g. for a mid-season sub-era).
+    new_name = name or 'Arcade'
 
     log.info('SEASON_ROLLOVER_START  season=%s  next_pfn=%s',
              current_number, next_player_facing_number)
@@ -162,8 +169,10 @@ def advance_season(conn, player_facing_number=None):
             )
 
     # Reset all game_state rows; auto-grant the new season's page theme.
+    # Auto-spin unlock is universal (S9) so it's re-granted here too.
     # Registered users start spinning from season start; others must join manually.
-    new_theme = 'page_season8'  # Casino era — sub-seasons 8.1/8.2 share the S8 theme
+    new_theme = 'page_season9'  # Arcade era — sub-seasons 9.1/9.2 share the S9 theme
+    new_owned = [new_theme, 'auto_spin_unlock']
     with conn.cursor() as cur:
         cur.execute(
             """UPDATE game_state SET
@@ -202,13 +211,13 @@ def advance_season(conn, player_facing_number=None):
                    gravity_drift = 0,
                    wager_last_win_amount = 0,
                    biggest_win_announced = 0""",
-            ([new_theme], [new_theme], next_starts, next_starts),
+            ([new_owned], [new_theme], next_starts, next_starts),
         )
 
     with conn.cursor() as cur:
         cur.execute(
             '''UPDATE community_pot SET
-                   total_contributed = 0, target = 40000, filled = false,
+                   total_contributed = 0, target = 5000, filled = false,
                    filled_at = NULL, fib_prev = 0, win_chance_pct = 51.0,
                    last_decay_check = NOW()
                WHERE id = 1''',
@@ -217,11 +226,11 @@ def advance_season(conn, player_facing_number=None):
     with conn.cursor() as cur:
         cur.execute(
             '''UPDATE seasons
-               SET season_number = %s, name = 'Casino',
+               SET season_number = %s, name = %s,
                    player_facing_number = %s,
                    started_at = %s, ends_at = %s
                WHERE id = %s''',
-            (next_number, next_player_facing_number,
+            (next_number, new_name, next_player_facing_number,
              next_starts, next_ends, season_id),
         )
 

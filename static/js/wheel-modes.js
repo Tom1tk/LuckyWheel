@@ -43,6 +43,12 @@
             jackpot_multiplier: 25,
             description: 'Two spins resolve simultaneously; player takes the better result.'
         },
+        zealot: {
+            // Season 9: fanatic mode.
+            win_pct: 50, loss_pct: 42, jackpot_pct: 8,
+            jackpot_multiplier: 100,
+            description: 'Fanatic mode. Jackpots hit often; when they do, they pay huge.'
+        },
         singularity: {
             win_pct: 75, loss_pct: 10, jackpot_pct: 15,
             jackpot_multiplier: 50,
