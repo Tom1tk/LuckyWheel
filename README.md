@@ -4,7 +4,7 @@
 
 A casino-style spinning wheel game with a fish mascot, streaks, and a full upgrade shop — running on a Python/Flask backend with PostgreSQL persistence and user authentication.
 
-📋 **[Patch Notes](https://github.com/Tom1tk/fishspin/wiki/Patch-Notes)**
+📋 **[Patch Notes](https://github.com/Tom1tk/fishspin/wiki/Patch-Notes)** · 🏛 **[Season Museum](docs/SEASON_MUSEUM.md)**: every season, with a clip of each
 
 ## Overview
 
