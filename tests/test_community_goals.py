@@ -17,6 +17,7 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -159,13 +160,13 @@ def test_increment_goal_emits_expected_op_sequence():
 
 def test_increment_goal_clamps_to_cap():
     """If current+amount > cap, only the delta is added; the UPDATE uses the clamped amount."""
-    cap = community_goals.COMMUNITY_GOAL_DEFS[0]['per_player_cap']  # 500
+    cap = community_goals.COMMUNITY_GOAL_DEFS[0]['per_player_cap']
     conn = _FakeConn()
-    conn.cursor_obj._contributed = 495
-    conn.cursor_obj.queue_fetchone({'contributed': 495, 'current': 0, 'target': cap, 'completed': False})
+    conn.cursor_obj._contributed = cap - 5
+    conn.cursor_obj.queue_fetchone({'contributed': cap - 5, 'current': 0, 'target': cap, 'completed': False})
 
     actual = community_goals.increment_goal(conn, 'goal_fish5000', user_id=1, amount=10)
-    assert actual == 5, f"expected clamp to 5 (500 cap - 495 current), got {actual}"
+    assert actual == 5, f"expected clamp to 5 (cap - 5 current), got {actual}"
 
     contrib_update = next(p for s, p in conn.cursor_obj.log
                           if s.strip().upper().startswith('UPDATE')
@@ -224,21 +225,22 @@ def test_sequential_calls_near_cap_never_exceed_cap():
     We simulate that visibility by feeding the second call's SELECT FOR
     UPDATE the post-update state of the first.
     """
-    # Use goal_prestige50 (per_player_cap=10) so the math is obvious.
-    cap = 10
-    # First call: current=8, ask for 6 -> clamps to 2, contrib becomes 10.
+    # Use goal_jackpot500 (per_player_cap=20) so the math is obvious.
+    goal_id = 'goal_jackpot500'
+    cap = next(g['per_player_cap'] for g in community_goals.COMMUNITY_GOAL_DEFS if g['goal_id'] == goal_id)
+    # First call: current=cap-2, ask for 6 -> clamps to 2, contrib becomes cap.
     first = _FakeConn()
-    first.cursor_obj._contributed = 8
-    first.cursor_obj.queue_fetchone({'contributed': 8, 'current': 0, 'target': 100, 'completed': False})
-    first_actual = community_goals.increment_goal(first, 'goal_prestige50', user_id=42, amount=6)
+    first.cursor_obj._contributed = cap - 2
+    first.cursor_obj.queue_fetchone({'contributed': cap - 2, 'current': 0, 'target': 100, 'completed': False})
+    first_actual = community_goals.increment_goal(first, goal_id, user_id=42, amount=6)
     assert first_actual == 2
 
-    # Second call: under the buggy code it would still see 8 and write 6 more
-    # -> 14. Under the fix, the locked row shows 10 -> clamps to 0.
+    # Second call: under the buggy code it would still see cap-2 and write 6
+    # more. Under the fix, the locked row shows cap -> clamps to 0.
     second = _FakeConn()
-    second.cursor_obj._contributed = 10
-    second.cursor_obj.queue_fetchone({'contributed': 10, 'current': 0, 'target': 100, 'completed': False})
-    second_actual = community_goals.increment_goal(second, 'goal_prestige50', user_id=42, amount=6)
+    second.cursor_obj._contributed = cap
+    second.cursor_obj.queue_fetchone({'contributed': cap, 'current': 0, 'target': 100, 'completed': False})
+    second_actual = community_goals.increment_goal(second, goal_id, user_id=42, amount=6)
     assert second_actual == 0, (
         f"second call should be clamped to 0 (already at cap), got {second_actual}"
     )
@@ -457,11 +459,11 @@ def test_concurrent_increment_goal_never_exceeds_cap():
     dsn = os.environ['DATABASE_URL']
 
     user_id = 990001 + (int(time.time()) % 1000)
-    goal_id = 'goal_species100'  # per_player_cap = 15
+    goal_id = 'goal_jackpot500'  # per_player_cap = 20
     cap = next(g['per_player_cap'] for g in community_goals.COMMUNITY_GOAL_DEFS
                if g['goal_id'] == goal_id)
-    amount_each = cap // 2 + 1  # 8; two threads * 8 = 16 > 15
-    expected_total = cap        # 15, the per-player cap
+    amount_each = cap // 2 + 1  # 11; two threads * 11 = 22 > 20
+    expected_total = cap        # 20, the per-player cap
 
     setup = psycopg2.connect(dsn)
     setup.autocommit = True
@@ -495,8 +497,10 @@ def test_concurrent_increment_goal_never_exceeds_cap():
 
     t1 = threading.Thread(target=worker)
     t2 = threading.Thread(target=worker)
-    t1.start(); t2.start()
-    t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
     assert not errors, f"thread errors: {errors}"
     assert len(results) == 2
@@ -528,3 +532,131 @@ def test_concurrent_increment_goal_never_exceeds_cap():
             (user_id,),
         )
     cleanup.close()
+
+
+# ─── 6. RV-04: weekly goal set (retuned targets, prestige retired, rotation) ─
+
+
+_WEEKLY_TARGETS = {
+    'goal_fish5000': 1500,
+    'goal_jackpot500': 100,
+    'goal_wager100k': 25_000,
+}
+MIGRATION_075 = Path(__file__).resolve().parent.parent / 'migrations' / '075_community_goals_weekly.sql'
+
+
+def _def(goal_id):
+    return next(g for g in community_goals.COMMUNITY_GOAL_DEFS if g['goal_id'] == goal_id)
+
+
+def test_defs_have_no_prestige_goal():
+    ids = [g['goal_id'] for g in community_goals.COMMUNITY_GOAL_DEFS]
+    assert 'goal_prestige50' not in ids
+    assert 'goal_species100' not in ids
+    assert sorted(ids) == sorted(_WEEKLY_TARGETS)
+
+
+def test_defs_targets_match_weekly_scale():
+    targets = {g['goal_id']: g['target'] for g in community_goals.COMMUNITY_GOAL_DEFS}
+    assert targets == _WEEKLY_TARGETS
+
+
+def test_defs_descriptions_show_new_targets():
+    assert '1,500' in _def('goal_fish5000')['description']
+    assert '100 jackpots' in _def('goal_jackpot500')['description']
+    assert '25k' in _def('goal_wager100k')['description']
+
+
+def test_per_player_cap_is_one_fifth_of_target():
+    """Five players at cap fill a goal; no one player can give more than 20%."""
+    for g in community_goals.COMMUNITY_GOAL_DEFS:
+        assert g['per_player_cap'] * 5 == g['target'], g['goal_id']
+
+
+def test_get_active_goal_row_keeps_its_own_goal():
+    """An existing row is labelled by its goal_id, not by the week's rotation."""
+    conn = _FakeConn()
+    conn.cursor_obj.queue_fetchone({'id': 1, 'goal_id': 'goal_jackpot500', 'target': 100,
+                                    'current': 0, 'completed': False})
+    row, goal_def = community_goals.get_active_goal(conn, 9, 41)
+    assert goal_def['goal_id'] == 'goal_jackpot500'
+    assert row['id'] == 1
+
+
+def test_get_active_goal_retired_row_is_no_goal():
+    conn = _FakeConn()
+    conn.cursor_obj.queue_fetchone({'id': 2, 'goal_id': 'goal_prestige50', 'target': 50,
+                                    'current': 0, 'completed': False})
+    assert community_goals.get_active_goal(conn, 9, 41) == (None, None)
+
+
+@pytest.mark.skipif(not _db_available(), reason="DATABASE_URL unreachable; skipping integration test")
+def test_start_weekly_goal_activates_one_goal_and_advances_rotation(monkeypatch):
+    """Each call closes the open goal and activates the next def in order.
+
+    Rolled back, so the shared test DB keeps no rows from this test.
+    """
+    ids = [g['goal_id'] for g in community_goals.COMMUNITY_GOAL_DEFS]
+    keys = iter([(9101, 1), (9102, 1)])
+    monkeypatch.setattr(community_goals, '_tide_key', lambda conn: next(keys))
+
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    try:
+        first_row, _ = community_goals.start_weekly_goal(conn)
+        second_row, _ = community_goals.start_weekly_goal(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT goal_id, completed FROM community_goals '
+                'WHERE season_number IN (9101, 9102) ORDER BY id'
+            )
+            rows = cur.fetchall()
+            cur.execute('SELECT count(*) FROM community_goals WHERE NOT completed')
+            open_count = cur.fetchone()[0]
+    finally:
+        conn.rollback()
+        conn.close()
+
+    assert open_count == 1, f"exactly one goal may be open, got {open_count}"
+    assert first_row['goal_id'] in ids
+    assert second_row['goal_id'] == ids[(ids.index(first_row['goal_id']) + 1) % len(ids)]
+    assert rows == [(first_row['goal_id'], True), (second_row['goal_id'], False)]
+
+
+@pytest.mark.skipif(not _db_available(), reason="DATABASE_URL unreachable; skipping integration test")
+def test_migration_075_retunes_open_rows_and_retires_open_prestige():
+    """Runs the migration twice in a rolled-back transaction."""
+    sql = MIGRATION_075.read_text()
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO community_goals (goal_id, season_number, week_number, target) "
+                "VALUES ('goal_fish5000', 9201, 1, 5000), ('goal_prestige50', 9202, 1, 50)"
+            )
+            fish_targets, open_prestige = [], []
+            for _ in range(2):
+                cur.execute(sql)
+                cur.execute("SELECT target FROM community_goals WHERE goal_id = 'goal_fish5000' AND season_number = 9201")
+                fish_targets.append(cur.fetchone()[0])
+                cur.execute("SELECT count(*) FROM community_goals WHERE goal_id = 'goal_prestige50' AND NOT completed")
+                open_prestige.append(cur.fetchone()[0])
+    finally:
+        conn.rollback()
+        conn.close()
+
+    assert fish_targets == [1500, 1500]
+    assert open_prestige == [0, 0]
+
+
+@pytest.mark.skipif(not _db_available(), reason="DATABASE_URL unreachable; skipping integration test")
+def test_goal_does_not_rotate_when_iso_week_changes_mid_tide():
+    """A Fri-Fri tide spans a Monday; the new ISO week must reuse the tide's goal."""
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    try:
+        season = 900000 + (int(time.time()) % 1000)
+        first, _ = community_goals.get_active_goal(conn, season, 41)
+        second, _ = community_goals.get_active_goal(conn, season, 42)
+        assert second['id'] == first['id']
+    finally:
+        conn.rollback()
+        conn.close()
