@@ -71,8 +71,10 @@ _TEST_DOTENV = REPO_ROOT / '.env'
 # wheeldb_test here, whatever DB .env or the caller named. A hook (not
 # import-time code) so test_test_db_safety can reload this module freely.
 def pytest_configure(config):
-    if not os.environ.get('DATABASE_URL') and _TEST_DOTENV.is_file():
-        load_dotenv(_TEST_DOTENV, override=False)
+    if not os.environ.get('DATABASE_URL'):
+        # No repo .env (e.g. an agent worktree): search upward like server.py's
+        # bare load_dotenv() would, so whatever it finds is pinned here first.
+        load_dotenv(_TEST_DOTENV if _TEST_DOTENV.is_file() else None, override=False)
     if os.environ.get('DATABASE_URL'):
         from urllib.parse import urlsplit
         os.environ['DATABASE_URL'] = urlsplit(os.environ['DATABASE_URL'])._replace(path='/wheeldb_test').geturl()
