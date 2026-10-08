@@ -196,20 +196,21 @@ body::before {
   pointer-events: none;
 }
 
-/* Wheel wrapper — dead center of viewport. Wager panel hangs off the LEFT
+/* Wheel wrapper — centred horizontally, 40px above the vertical centre so it
+   clears the spin prompt and mode row below. Wager panel hangs off the LEFT
    via position:absolute so it never pushes the wheel off-center. */
 .wheel-and-wager {
   position: fixed;
   left: 50%;
-  top: 50%;
+  top: calc(50% - 40px);
   transform: translate(-50%, -50%);
   z-index: 50;
 }
 
 .wheel-wrapper {
   position: relative;
-  width: min(560px, calc(100vw - 240px), calc(100vh - 480px));
-  height: min(560px, calc(100vw - 240px), calc(100vh - 480px));
+  width: min(560px, calc(100vw - 240px), calc(100vh - 500px));
+  height: min(560px, calc(100vw - 240px), calc(100vh - 500px));
   cursor: pointer;
 }
 
@@ -289,6 +290,8 @@ body::before {
   align-items: center;
   justify-content: center;
   font-size: 1.4rem;
+  line-height: 1;
+  padding-bottom: 0.2em; /* the ★ glyph sits low in its em box */
 }
 
 /* Spin button / prompt */
@@ -3683,7 +3686,7 @@ body.page-season9 {
 }
 body.page-season9::before { border-image: linear-gradient(90deg, #3FD6C6, #F2E3C6, #FF7F6E, #F2E3C6, #3FD6C6) 1; }
 body.page-season9 .casino-title { color: #F2E3C6; }
-body.page-season9 .title-lucky { color: #F2E3C6; }
+body.page-season9 .title-lucky { color: #F2E3C6; opacity: 0.28; }
 body.page-season9 .title-endless { color: #3FD6C6; text-shadow: 0 0 8px #3FD6C6, 0 0 22px #1FA9A0; }
 body.page-season9 .subtitle { color: #FF7F6E; }
 body.page-season9 .wheel-wrapper::before {
@@ -5198,9 +5201,14 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
     min-height: 26px;  /* was 32px — slimmer on mobile */
     padding: 2px 6px;
     font-size: 0.7rem;
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 1 1 auto;
+    white-space: nowrap;
   }
+  /* Clear the pointer (28px above the wheel, bounces 6px higher) of the subtitle. */
+  .wheel-and-wager { margin-top: 36px; }
+  .casino-container > .spin-prompt { margin-top: 20px; }
+  .mobile-below-wheel .fish-counter { align-self: center; align-items: center; margin-top: 8px; }
+
   .season8-wheel-mode .wheel-mode-label {
     display: block;  /* on its own row at <=768px */
     width: 100%;
