@@ -2899,7 +2899,7 @@ function DicePanel(_ref16) {
     }, "\u25CF");
   });
   var disabledReason = '';
-  if (diceCharges < 1) disabledReason = 'No charges';else if (streak < 3) disabledReason = 'Need win streak ≥3';else if (rolledSinceSpin) disabledReason = 'Dice buffered — applies next spin';
+  if (diceCharges < 1) disabledReason = 'Out of charges';else if (streak < 3) disabledReason = 'Win 3 in a row to roll';else if (rolledSinceSpin) disabledReason = 'Rolled: applies on your next spin';
   return /*#__PURE__*/React.createElement("div", {
     className: "dice-panel"
   }, /*#__PURE__*/React.createElement("span", {
@@ -2910,6 +2910,9 @@ function DicePanel(_ref16) {
     onMouseEnter: showTip,
     onMouseLeave: function onMouseLeave() {
       return setTipVisible(false);
+    },
+    onClick: function onClick() {
+      return tipVisible ? setTipVisible(false) : showTip();
     }
   }, "How it works \u24D8"), tipVisible && /*#__PURE__*/React.createElement("div", {
     className: "dice-tooltip",
@@ -2958,7 +2961,9 @@ function DicePanel(_ref16) {
     onClick: canRoll ? onRoll : undefined,
     disabled: !canRoll,
     title: canRoll ? 'Roll the dice!' : disabledReason
-  }, rolling ? 'Rolling…' : "Roll (".concat(diceCharges, "/").concat(maxDiceCharges, " charges)")));
+  }, rolling ? 'Rolling…' : "Roll (".concat(diceCharges, "/").concat(maxDiceCharges, " charges)")), !canRoll && !rolling && disabledReason && /*#__PURE__*/React.createElement("span", {
+    className: "dice-disabled-reason"
+  }, disabledReason));
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────
@@ -8093,9 +8098,9 @@ function GameApp(_ref35) {
     className: "result-text lose"
   }, "\uD83D\uDC80 YOU LOSE \uD83D\uDC80"), (result === 'win' || result === 'jackpot') && winsDelta > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line spin-result-total"
-  }, "+", fmt(winsDelta), " wins"), result === 'lose' && lossesDelta > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "+", fmt(winsDelta), " ", Number(winsDelta) === 1 ? 'win' : 'wins'), result === 'lose' && lossesDelta > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line lose-bonus"
-  }, "-", fmt(lossesDelta), " losses"), jackpotHit && /*#__PURE__*/React.createElement("div", {
+  }, "+", fmt(lossesDelta), " ", Number(lossesDelta) === 1 ? 'loss' : 'losses'), jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line jackpot-line"
   }, "\uD83C\uDFB0 JACKPOT! 25x multiplier applied!"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line echo-line"
