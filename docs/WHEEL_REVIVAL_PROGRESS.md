@@ -55,3 +55,23 @@ Notes:
 - Handed to RV-07 (frontend): HiatusScreen still calls removed /api/register-season.
 - Design: all visual/creative passes done by the Opus orchestrator, not subagents (user, 2026-10-08). Mockup v1 rejected as too basic; v2 must keep prior seasons' design language.
 - season_log backfill: **migration 076** (this). Map resolved from git history: internal 1–6 = S1–S6; 7 = S7 (24 Apr auto-rollover into the hiatus "Mid-Season 6.7", S7 Endless from 30 Apr, podium = 9 May "correct S7 winners"); 8 = "7.7" (9 May–26 Jun, High Stakes was a mid-season update); internal 9 = S8 Casino, labelled by advance_season at launch. Dates from season_snapshots; tested twice on a staging clone (8 rows, second run no-op), applied to wheeldb_staging. HoF: only labels ≥9 with a dot read "Tide", so 7.7 shows "Season 7.7"; list heading "Past tides" → "History". Suite 836 passed + 5 baseline. **Launch must apply 069–077.** 077 widens user_season_history win columns to NUMERIC: RV-10 rehearsal found advance_season overflowing bigint on a ~1e38 prod player (launch would have aborted); launch S8→9.1 then rehearsed OK on a prod clone with 069–077.
+
+## Phase 3 — Staging rehearsal (G3)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 3.1 re-clone prod → staging, migrate | done | backup `/home/user/backups/wheeldb_staging_pre_phase3.sql.gz`; clone users 2153 = 2153; 069–077 applied cleanly |
+| 3.2 launch + weekly rollover | done | `advance_season(conn, 9, 'Tides', 1)`: S8 → 9.1, wins reset, season_log 9 rows, /api/season + /api/hall-of-fame 200. `bin/rollover.sh` against wheeldb_staging (tide forced due): rehearsal + live 9.1 → 9.2, all checks PASS incl. live_season / live_hall_of_fame (first run of the live checks), exit 0. **Launch decision (H3):** S8 podium would be dylan ~1.04e38 wins (44 losses, the overflow player), then 149, then 62 |
+| 3.3 browser E2E 1366×768 + 390×844 | done | register, What's new, banner, 12 spins, auto-spin start/resume/stop, shop buy, equip theme, Hall of Fame PASS at 1366; banner, spins, auto-spin, HoF PASS at 390; fishing cast → bite → reel PASS at both (orchestrator re-check). Chat: POST 201, but the feed hides localhost-registered posters by design (chat.py), so not checkable from the box. Found + fixed: (a) page load stopped server-side auto-spin (T216 leftover; made "While you were away" unreachable) → 08bfbc0, `tests/test_auto_spin_resume.py` fails before / passes after; (b) phones: the spinning wheel canvas widened the page to ~424 px on 390, zooming out and pushing the countdown off-screen → `overflow-x: clip` ≤768 px, 51cc51a (424 → 390 measured) |
+| 3.4 console errors | done | 0 console errors/warnings, 0 pageerrors, 0 HTTP ≥ 400 across all runs; collectors proven by a probe that triggers each |
+| 3.5 timer on staging | done | `wheel-rollover-staging.{service,timer}` (APP_DIR staging, PROD_DB wheeldb_staging, LIVE_URL :5001, own rehearsal DB, `/home/user/backup-wheeldb-staging.sh`) installed; one-off test schedule fired 17:51 under systemd: 9.2 → 9.3 all PASS, Result=success; test drop-in removed, next run Fri 2026-10-09 21:00 BST. Found + fixed: staging and prod shared one flock file, so at Friday 21:00 one would exit 0 and skip its tide for a week → lock per DB, b35549b |
+
+Staging reset for H2: fresh prod clone, 069–077, launched to 9.1 (users 2153). The staging timer will turn it to 9.2 on Fri 9 Oct 21:00.
+
+Notes for H2/H3:
+- Hall of Fame entries for test users created from localhost are filtered like chat; real players are unaffected.
+- Mobile fishing: the "last catch" chip sits partly off the right edge at 390 px (now clipped, not zoomed).
+- Stale comments describing a 60 s heartbeat auto-stop: game.py ~1039/3079/3093 (code no longer exists).
+- Shop still lists "Auto-Spin Unlock · 5K" (shows ACTIVE).
+
+**G3: PASSED 2026-10-08.** Next: H2, tom7 playtests staging with `docs/PLAYTEST_CHECKLIST.md`.
