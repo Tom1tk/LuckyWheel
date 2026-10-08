@@ -2511,6 +2511,49 @@ def stats():
         return jsonify({'error': 'Failed to load stats'}), 500
 
 
+@game_bp.route('/api/hall-of-fame')
+@limiter.limit('30 per minute')
+def hall_of_fame():
+    """Every ended season/tide newest first with its podium, plus S9 medal counts.
+    Podiums come from season_snapshots, which already excludes test users."""
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    '''SELECT l.season_number, l.label, l.name, l.ended_at,
+                              s.position, s.username, s.wins
+                       FROM season_log l
+                       LEFT JOIN season_snapshots s ON s.season_number = l.season_number
+                       ORDER BY l.season_number DESC, s.position'''
+                )
+                rows = cur.fetchall()
+                cur.execute(
+                    '''SELECT s.username,
+                              COUNT(*) FILTER (WHERE s.position = 1) AS gold,
+                              COUNT(*) FILTER (WHERE s.position = 2) AS silver,
+                              COUNT(*) FILTER (WHERE s.position = 3) AS bronze
+                       FROM season_snapshots s
+                       JOIN season_log l ON l.season_number = s.season_number
+                       WHERE l.label LIKE '9.%%'
+                       GROUP BY s.username
+                       ORDER BY gold DESC, silver DESC, bronze DESC, s.username'''
+                )
+                medals = cur.fetchall()
+        tides = {}
+        for r in rows:
+            t = tides.setdefault(r['season_number'], {
+                'label': r['label'], 'name': r['name'],
+                'ended_at': r['ended_at'].isoformat() if r['ended_at'] else None,
+                'podium': []})
+            if r['position'] is not None:
+                t['podium'].append({'position': r['position'], 'username': r['username'],
+                                    'wins': int(r['wins'])})
+        return jsonify({'tides': list(tides.values()), 'medals': [dict(m) for m in medals]})
+    except Exception:
+        log.exception('HALL_OF_FAME_ERROR')
+        return jsonify({'error': 'Could not load the Hall of Fame.'}), 500
+
+
 @game_bp.route('/api/leaderboard')
 @limiter.limit('30 per minute')
 def leaderboard():

@@ -167,7 +167,13 @@ def _grab_game_state_sql():
         'ends_at': None,
     }
     conn = _FakeConn(fetch_one=fake_season, fetch_all=[])
-    _seasons.advance_season(conn)
+    # The fake cursor can't serve the goal lookup; only the game_state SQL matters here.
+    real_goal = _seasons.community_goals.start_weekly_goal
+    _seasons.community_goals.start_weekly_goal = lambda c: None
+    try:
+        _seasons.advance_season(conn)
+    finally:
+        _seasons.community_goals.start_weekly_goal = real_goal
     for sql in conn._cur.sql_log:
         if re.search(r'UPDATE\s+game_state\b', sql, re.IGNORECASE):
             return sql

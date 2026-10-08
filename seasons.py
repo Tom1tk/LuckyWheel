@@ -4,6 +4,9 @@ from zoneinfo import ZoneInfo
 
 import psycopg2.extras
 
+import chat
+import chat_triggers
+import community_goals
 from models import ITEM_CURRENCY
 from season_config import SEASON_CONFIG
 
@@ -149,7 +152,7 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
             '''SELECT gs.user_id, u.username, gs.wins, gs.losses
                FROM game_state gs
                JOIN users u ON u.id = gs.user_id
-               WHERE u.ip_address <> '127.0.0.1'
+               WHERE u.ip_address <> '127.0.0.1' AND gs.wins > 0  -- no medal for 0 wins
                ORDER BY gs.wins DESC
                LIMIT 3'''
         )
@@ -298,6 +301,17 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
             (next_number, next_name, next_player_facing_number, next_sub_number,
              next_starts, next_ends, season_id),
         )
+
+    community_goals.start_weekly_goal(conn)
+    # Only tide -> tide; a whole-season launch is announced by patch notes instead.
+    if in_tide and next_sub_number is not None:
+        chat.post_system_message(
+            conn,
+            chat_triggers.tide_turned_msg(
+                season_label(season['player_facing_number'], season['sub_number'], current_number),
+                [r['username'] for r in top3],
+                season_label(next_player_facing_number, next_sub_number, next_number)),
+            event_kind='tide_turned', throttle=False)
 
     log.info('SEASON_ROLLOVER_DONE  old_season=%s  new_season=%s  new_pfn=%s',
              current_number, next_number, next_player_facing_number)
