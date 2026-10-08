@@ -651,13 +651,12 @@ def test_state_handler_returns_max_stake_pct():
 
 
 def test_frontend_slider_uses_new_pct_system():
-    """T102: app.jsx slider must use min=0, step=5, max={maxStakePct}."""
+    """T102: stake steps run from 0 to maxStakePct in 5% increments."""
     jsx_src = open(os.path.join(
         os.path.dirname(os.path.dirname(__file__)), 'static', 'app.jsx',
     )).read()
-    assert 'min="0"' in jsx_src, "slider must allow 0% (safe position)"
-    assert 'step="5"' in jsx_src, "slider must step in 5% increments"
-    assert 'max={maxStakePct}' in jsx_src, "slider max must be the player's max"
+    assert 'for (let v = 0; v <= maxStakePct; v += 5)' in jsx_src, (
+        "stake steps must cover 0% to the player's max in 5% steps")
 
 
 def test_frontend_stake_value_display():
@@ -666,7 +665,7 @@ def test_frontend_stake_value_display():
         os.path.dirname(os.path.dirname(__file__)), 'static', 'app.jsx',
     )).read()
     assert 'wager-stake-value' in jsx_src, "must have a stake value display element"
-    assert '🛡️ No stake' in jsx_src, "must show safe state when stakePct=0"
+    assert '"stake-value-safe">No risk' in jsx_src, "must show safe state when stakePct=0"
     # Display should be terse — just the value, not the formula
     assert 'Stake value: {' not in jsx_src, (
         "stake display should not say 'Stake value: {value} (formula)' — "
@@ -676,7 +675,7 @@ def test_frontend_stake_value_display():
 
 
 def test_frontend_wager_tooltip_updated():
-    """T102: WAGER_TOOLTIP must describe the new percentage system + DD no-mitigation."""
+    """T102: the stake explainer must describe the percentage system + DD no-mitigation."""
     jsx_src = open(os.path.join(
         os.path.dirname(os.path.dirname(__file__)), 'static', 'app.jsx',
     )).read()
@@ -685,7 +684,7 @@ def test_frontend_wager_tooltip_updated():
         "WAGER_TOOLTIP must not reference the old 1× multiplier system"
     )
     assert '0%' in jsx_src, "WAGER_TOOLTIP must mention 0% (safe position)"
-    assert 'NO INSURANCE' in jsx_src, "WAGER_TOOLTIP must communicate DD no-mitigation rule"
+    assert 'No insurance or safety net' in jsx_src, "stake explainer must communicate DD no-mitigation rule"
 
 
 def test_dd_button_label_warns_all_or_nothing():
@@ -705,6 +704,7 @@ def test_stylesheet_has_stake_value_classes():
     )).read()
     assert '.wager-stake-value' in css_src
     assert '.stake-value-safe' in css_src
-    assert '.stake-value-normal' in css_src
+    assert '.stake-odds-win' in css_src
+    assert '.stake-odds-lose' in css_src
     assert '.stake-value-inverted' in css_src
     assert '.stake-value-dd' in css_src

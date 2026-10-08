@@ -1,9 +1,8 @@
 """T112: layout audit for the vertical wager panel.
 
 Verifies at 1920x1080 / 1366x768 / 1280x720 that the wager panel
-(.season8-wager-panel) does not overlap the wheel, that the slider thumb
-sits at the BOTTOM when stake=0 and at the TOP when stake=max, and that
-the ?-tooltip trigger sits below the slider.
+(.season8-wager-panel) does not overlap the wheel, that the stake steps
+stack with 0% at the BOTTOM, and that clicking a step selects it.
 """
 import os
 import uuid
@@ -192,55 +191,41 @@ def test_screenshot_clean_layout(logged_in_page):
     page.screenshot(path=os.path.join(screenshot_dir, 't112_1920x1080.png'), full_page=False)
 
 
-def test_slider_thumb_at_bottom_when_stake_zero(logged_in_page):
-    """T112: slider thumb is at the BOTTOM when stake=0."""
-    page = logged_in_page
-    page.set_viewport_size({'width': 1920, 'height': 1080})
-    page.evaluate(
-        '''() => {
-            const s = document.querySelector('.wager-slider');
-            const setter = Object.getOwnPropertyDescriptor(
-                window.HTMLInputElement.prototype, 'value').set;
-            setter.call(s, '0');
-            s.dispatchEvent(new Event('input', {bubbles: true}));
-            s.dispatchEvent(new Event('change', {bubbles: true}));
-        }'''
-    )
-    page.wait_for_timeout(150)
-    box = page.locator('.wager-slider').bounding_box()
-    thumb = page.locator('.wager-slider').evaluate(
-        '''(el) => {
-            const r = el.getBoundingClientRect();
-            return {x: r.x, y: r.y, w: r.width, h: r.height, value: el.value, max: el.max};
-        }'''
-    )
-    assert box is not None and thumb is not None
-    assert thumb['value'] == '0'
-
-
-def test_slider_orientation_is_vertical(logged_in_page):
-    """T112: writing-mode is vertical-lr (slider runs top-to-bottom)."""
+def test_stake_steps_stack_zero_at_bottom(logged_in_page):
+    """Stake steps run bottom (0%) to top (max) on the side panel."""
     page = logged_in_page
     page.set_viewport_size({'width': 1920, 'height': 1080})
     page.wait_for_timeout(150)
-    mode = page.locator('.wager-slider').evaluate(
-        '''(el) => getComputedStyle(el).writingMode'''
-    )
-    assert mode in ('vertical-lr', 'vertical-rl'), (
-        f'slider writing-mode is {mode!r}; expected vertical-lr or vertical-rl'
-    )
+    steps = page.locator('.stake-step')
+    first = steps.first.bounding_box()
+    last = steps.last.bounding_box()
+    assert steps.first.inner_text() == '0%'
+    assert first['y'] > last['y'], '0% step must sit below the max step'
 
 
-def test_tooltip_trigger_sits_below_slider(logged_in_page):
-    """T112: the ?-tooltip trigger is rendered after the slider in the
-    stake control flex column, so it ends up BELOW the slider track."""
+def test_stake_step_click_selects(logged_in_page):
+    """Clicking a step marks it active, fills the steps below it and shows the odds."""
     page = logged_in_page
     page.set_viewport_size({'width': 1920, 'height': 1080})
-    page.wait_for_timeout(150)
-    slider_box = page.locator('.wager-slider').bounding_box()
-    trigger_box = page.locator('.wager-tooltip-trigger').bounding_box()
-    assert slider_box is not None and trigger_box is not None
-    assert trigger_box['y'] >= slider_box['y'] + slider_box['height'] - 2, (
-        f'tooltip trigger (y={trigger_box["y"]:.0f}) is not below slider '
-        f'(bottom={slider_box["y"] + slider_box["height"]:.0f})'
-    )
+    page.locator('.stake-step', has_text='10%').first.click()
+    page.wait_for_timeout(300)
+    assert page.locator('.stake-step.active').inner_text() == '10%'
+    assert page.locator('.stake-step.filled').count() == 3
+    assert page.locator('.stake-step[aria-checked="true"]').count() == 1
+    assert 'Lose' in page.locator('.wager-stake-value').inner_text()
+    page.locator('.stake-step', has_text='0%').first.click()
+    page.wait_for_timeout(300)
+    assert page.locator('.wager-stake-value').inner_text() == 'No risk'
+
+
+def test_stake_info_button_toggles_explainer(logged_in_page):
+    """The ? button opens the explainer on click (works on touch, unlike a hover tooltip)."""
+    page = logged_in_page
+    page.set_viewport_size({'width': 1920, 'height': 1080})
+    btn = page.locator('.stake-info-btn')
+    assert page.locator('.stake-explainer').count() == 0
+    btn.click()
+    assert page.locator('.stake-explainer').is_visible()
+    assert btn.get_attribute('aria-expanded') == 'true'
+    btn.click()
+    assert page.locator('.stake-explainer').count() == 0

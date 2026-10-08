@@ -2631,7 +2631,7 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
   { label: '⚡ Wager System', items: [
-    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Unlocks stake slider (0% safe, 5%-30% at risk)', tier: 1 },
+    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Stake up to 30% of your wins on a spin to win it back double', tier: 1 },
     { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
     { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
     { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Arm 2x stake for next spin', tier: 3, requires: 'wager_hot_streak' },
@@ -3291,18 +3291,6 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
-// WAGER_TOOLTIP moved to module scope (was inside GameApp) so the
-// WagerPanel component can reference it.
-const WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' +
-  'Upgrades extend to 45% max. ' +
-  '0% = no risk, base payout. ' +
-  'Each step risks that percentage of your current wins. ' +
-  'Win → your risk is returned plus the full payout. ' +
-  'Loss → your risk is gone (wins are actually deducted). ' +
-  'Hot Streak: consecutive same-stake wins earn +5% bonus per win (max +50%), bankable at any time. ' +
-  'Safety Net: at 15%+ stake, 25% of lost risk is refunded. ' +
-  'Double-Down: ⚠️ ALL OR NOTHING. Wager your entire last win for a 2× payout. NO INSURANCE, NO SAFETY NET, NO PROTECTIONS. ' +
-  'Insurance: guarantees no loss on next spin (consumes a charge). Does NOT apply to Double-Down.';
 // same JSX renders in BOTH the desktop layout (zero visual change) AND
 // a new mobile drawer with tabs. Each component is a thin wrapper
 // around the same JSX that used to live inline in GameApp — no
@@ -3365,41 +3353,53 @@ function WagerPanel({
   onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
   onInsurance, onCancelInsurance, onTogglePayWithTokens,
 }) {
+  const [infoOpen, setInfoOpen] = useState(false);
   if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
+  const tier = stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless';
+  const ddLive = doubleDownPending && wagerLastWinAmount > 0;
+  const steps = [];
+  for (let v = 0; v <= maxStakePct; v += 5) steps.push(v);
   return (
-    <div className="season8-wager-panel">
-      {!autoSpinActive && <div className="wager-stake-control">
-        <label>Stake</label>
-        <span className={`stake-label ${
-          stakePct === 0 ? 'stake-safe' :
-          stakePct <= 20 ? 'stake-bold' : 'stake-reckless'
-        }`}>{stakePct}%</span>
+    <div className={`season8-wager-panel ${tier}`}>
+      <div className="stake-top">
+        <span className="stake-title">Stake</span>
+        <span className={`stake-pct stake-label ${tier}`}>{stakePct}%</span>
         <div className="wager-stake-value">
-          {doubleDownPending && wagerLastWinAmount > 0 ? (
-            <span className="stake-value-dd">⚡ {fmt(stakeValue)}</span>
+          {ddLive ? (
+            <span className="stake-value-dd">⚡ {fmt(stakeValue)} all or nothing</span>
           ) : stakePct === 0 ? (
-            <span className="stake-value-safe">🛡️ No stake</span>
+            <span className="stake-value-safe">No risk</span>
           ) : activeWheelMode === 'inverted' ? (
-            <span className="stake-value-inverted">💀 {fmt(stakeValue)}</span>
-          ) : (
-            <span className="stake-value-normal">💰 {fmt(stakeValue)}</span>
-          )}
+            <span className="stake-value-inverted">💀 {fmt(stakeValue)} at stake</span>
+          ) : (<>
+            <span className="stake-odds-win">Win +{fmt(stakeValue)}</span>
+            <span className="stake-odds-lose">Lose −{fmt(stakeValue)}</span>
+          </>)}
         </div>
-        <input
-          type="range"
-          min="0"
-          max={maxStakePct}
-          step="5"
-          value={stakePct}
-          onChange={e => onStakeChange(parseInt(e.target.value))}
-          className="wager-slider"
-          disabled={!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted'}
-          title={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? 'Buy wager_unlock (500 wins).' : undefined}
-          style={(!ownedItems.includes('wager_unlock') && activeWheelMode !== 'inverted') ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-        />
-        <span className="wager-tooltip-trigger" data-tooltip={WAGER_TOOLTIP}>?</span>
-      </div>}
+        <button type="button" className="stake-info-btn" aria-expanded={infoOpen}
+          aria-label="How stake works" onClick={() => setInfoOpen(o => !o)}>?</button>
+      </div>
+      <div className="stake-steps" role="radiogroup" aria-label="Stake">
+        {steps.map(v => (
+          <button key={v} type="button" role="radio" aria-checked={v === stakePct}
+            className={`stake-step${v <= stakePct ? ' filled' : ''}${v === stakePct ? ' active' : ''}`}
+            disabled={ddLive} onClick={() => onStakeChange(v)}>{v}%</button>
+        ))}
+      </div>
+      {infoOpen && (
+        <div className="stake-explainer">
+          <p>Stake puts part of your wins on the line each spin.</p>
+          <p><b>Win:</b> you get your stake back plus the same again (plus any streak bonus), instead of the normal win.</p>
+          <p><b>Lose:</b> the stake is gone.</p>
+          <p><b>Jackpot:</b> stake × the mode's jackpot multiplier.</p>
+          <p>0% is a normal, risk-free spin.</p>
+          {ownedItems.includes('wager_safety_net') && <p><b>Safety Net:</b> at 15%+ you get 25% of a lost stake back.</p>}
+          {ownedItems.includes('wager_hot_streak') && <p><b>Hot Streak:</b> wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in.</p>}
+          {ownedItems.includes('wager_double_down') && <p><b>Double Down:</b> bet your whole last win, all or nothing. No insurance or safety net.</p>}
+          {ownedItems.includes('wager_insurance') && <p><b>Insurance:</b> costs 1 token; if your next spin loses, you get the stake back.</p>}
+        </div>
+      )}
       {!autoSpinActive && (<>
       {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
         <div className="wager-hotstreak">🔥 Hot Streak: {wagerStreak} (+{Math.min(wagerStreak * 5, 50)}%)</div>
