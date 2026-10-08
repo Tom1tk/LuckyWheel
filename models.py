@@ -428,8 +428,10 @@ LOCKOUT_RULES = [
 
 # Season 7: server-side auto-spinning
 AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
-MAX_SPINS_PER_TICK         = 100  # Season 8: capped auto-spin (was 100800)
 CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
+AUTO_SPIN_OFFLINE_CAP_S    = 24 * 3600  # S9 RV-03: credit at most 24 h of time away
+# S9 RV-03: one catch-up tick clears the full offline cap (~0.6 s measured)
+MAX_SPINS_PER_TICK         = int(AUTO_SPIN_OFFLINE_CAP_S / AUTO_SPIN_INTERVAL_SECONDS)
 
 # Auto-fish AFK catch-up
 AUTO_FISH_INTERVAL_SECONDS = 6.0   # 1 auto-fish tick every 6 seconds
