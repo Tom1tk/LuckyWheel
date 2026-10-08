@@ -4454,12 +4454,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     // [wheelTheme, activeWheelMode] only — the redraw fires reliably with
     // wheelProbabilities=null and draws the new mode's static fallback.
     setWheelProbabilities(null);
-    // T97 (R2): the redraw useEffect is not firing reliably in this React 18
-    // build when activeWheelMode changes (the active class on the button
-    // updates but the canvas does not). Until that's diagnosed, draw the
-    // wheel synchronously here so the change is visible immediately.
-    // The draw call is idempotent — if the useEffect does fire later it
-    // will redraw the same pixels.
+    // Also draw synchronously so the change shows at once. Idempotent: the
+    // useEffect redraws the same pixels. (A mode that seemed not to redraw was
+    // missing from WHEEL_MODE_DRAW; tests/test_wheel_mode_draw_table.py guards it.)
     if (canvasRef.current) {
       drawWheel(canvasRef.current, wheelThemeRef.current || 'default', mode, null);
     }
