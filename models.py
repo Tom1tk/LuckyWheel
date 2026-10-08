@@ -382,15 +382,24 @@ DICE_RECHARGE_SECONDS = 600   # 10 minutes per charge
 DICE_MAX_CHARGES_BASE = 1     # default max without upgrades
 
 
-def dice_max_charges(owned_items: list) -> int:
-    """Return the maximum dice charges based on owned upgrades."""
+ROGUE_WAVE_EXTRA_CHARGES = 2
+ROGUE_WAVE_RECHARGE_SECONDS = 300
+
+
+def dice_max_charges(owned_items: list, talent_alloc: dict = None) -> int:
+    """Return the maximum dice charges based on owned upgrades (+2 with the Rogue Wave keystone)."""
+    extra = ROGUE_WAVE_EXTRA_CHARGES if (talent_alloc or {}).get('rogue_wave') else 0
     if 'dice_charge_4' in owned_items:
-        return 4
+        return 4 + extra
     if 'dice_charge_3' in owned_items:
-        return 3
+        return 3 + extra
     if 'dice_charge_2' in owned_items:
-        return 2
-    return DICE_MAX_CHARGES_BASE
+        return 2 + extra
+    return DICE_MAX_CHARGES_BASE + extra
+
+
+def dice_recharge_seconds(talent_alloc: dict = None) -> int:
+    return ROGUE_WAVE_RECHARGE_SECONDS if (talent_alloc or {}).get('rogue_wave') else DICE_RECHARGE_SECONDS
 
 
 LOCKOUT_RULES = [
@@ -415,7 +424,7 @@ FISH_CATCHUP_THRESHOLD     = 2     # min missed ticks before catch-up fires
 HAPPY_HOUR_START_UTC = 20
 HAPPY_HOUR_END_UTC   = 21
 
-REGEN_SHIELD_RECHARGE_WINS = 5
+REGEN_SHIELD_RECHARGE_WINS = 25
 
 DEVICE_COOKIE = 'device_id'
 DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600  # 1 year

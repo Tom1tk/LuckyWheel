@@ -471,6 +471,7 @@ def test_wager_stake_escrow_on_loss(game_app, db_url, force_random, shared_user)
     username = shared_user['username']
     csrf = shared_user['csrf']
     _set_owned(db_url, username, ['wager_unlock'])
+    _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username, wins=1000, losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0, wager_banked_wins=0,
@@ -512,6 +513,7 @@ def test_wager_stake_refund_on_win(game_app, db_url, force_random, shared_user):
     username = shared_user['username']
     csrf = shared_user['csrf']
     _set_owned(db_url, username, ['wager_unlock'])
+    _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username, wins=1000, losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0, wager_banked_wins=0,
@@ -540,6 +542,7 @@ def test_wager_stake_persists_across_two_spins(game_app, db_url, force_random, s
     username = shared_user['username']
     csrf = shared_user['csrf']
     _set_owned(db_url, username, ['wager_unlock'])
+    _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username, wins=1000, losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0,
@@ -581,7 +584,7 @@ def test_insurance_armed_fires_on_loss(game_app, db_url, force_random, shared_us
         db_url, username,
         wins=1000, losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0,
-        insurance_armed=True, insurance_tokens=1, insurance_charges=0,
+        insurance_armed=True, insurance_tokens=2, insurance_charges=0,
     )
 
     with force_random(_ROLL_LOSE):
@@ -615,11 +618,11 @@ def test_insurance_armed_fires_on_loss(game_app, db_url, force_random, shared_us
         f"insurance_armed should be FALSE in DB after spin, got "
         f"{gs['insurance_armed']}"
     )
-    # insurance_tokens: the arm path consumed 1 token on arm; the spin
-    # path does NOT consume a token (the arm already did).
+    # insurance_tokens: firing insurance spends nothing (arming already did);
+    # S9: the staked spin itself costs 1 🪙 chip, so 2 → 1.
     assert gs['insurance_tokens'] == 1, (
-        f"insurance_tokens should still be 1 (only consumed on arm, not "
-        f"on spin fire), got {gs['insurance_tokens']}"
+        f"insurance_tokens should be 1 (one chip for the staked spin, none "
+        f"for insurance firing), got {gs['insurance_tokens']}"
     )
 
 
@@ -683,6 +686,7 @@ def test_double_down_uses_last_win_amount(game_app, db_url, force_random, shared
     username = shared_user['username']
     csrf = shared_user['csrf']
     _set_owned(db_url, username, ['wager_unlock', 'wager_double_down'])
+    _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username,
         wins=1000, losses=0, streak=0, spin_count=0,
@@ -751,6 +755,7 @@ def test_hot_streak_banks_wager_banked_wins(game_app, db_url, force_random, shar
     username = shared_user['username']
     csrf = shared_user['csrf']
     _set_owned(db_url, username, ['wager_unlock', 'wager_hot_streak'])
+    _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username,
         wins=10000, losses=0, streak=0, spin_count=0,

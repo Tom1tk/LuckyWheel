@@ -14,7 +14,7 @@ from extensions import limiter, csrf
 from models import (REGEN_SHIELD_RECHARGE_WINS,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
-                    streak_bonus, dice_max_charges,
+                    streak_bonus, dice_max_charges, dice_recharge_seconds,
                     roll_fish, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_SPIN_OFFLINE_CAP_S,
@@ -36,6 +36,7 @@ import chat_triggers
 import dice
 import fish
 import shop
+import talents
 import loadout
 from fish import (
     lure_level, autofisher_level, get_total_fish_clicks,
@@ -76,7 +77,8 @@ _GAME_STATE_SQL = '''
            bounty_claimed_date, biggest_win_announced,
            wager_last_win_amount, wager_banked_losses,
            insurance_free_claimed_date, insurance_unlock_grant_given,
-           gravity_drift
+           gravity_drift,
+           talent_alloc, talent_rechart_date, surge_spins, fish_records
     FROM game_state WHERE user_id = %s
 '''
 
@@ -137,6 +139,10 @@ def _winmult_level(owned: list) -> int:
 # bonus_mult_from_level (removed in the T46 cleanup) used this exact table.
 _BONUS_MULT_TABLE = [1, 2, 4, 8, 15, 35, 70]
 
+# S9 Charts: a staked jackpot pays the stake ×5, not ×25 — ×25 on a 40% stake
+# was the ×1000 tail that let one lucky staker win the tide outright.
+STAKED_JACKPOT_MULT = 5
+
 
 def _bonusmult_level(owned: list) -> int:
     for lvl in range(6, 0, -1):
@@ -166,6 +172,8 @@ def _build_spin_context(gs: dict) -> dict:
     owned = gs.get('owned_items', [])
     base_win_mult = 1 << _winmult_level(owned)            # 1, 2, 4, ..., 128
     base_bonus_mult = _BONUS_MULT_TABLE[_bonusmult_level(owned)]  # 1, 2, 4, 8, 15, 35, 70
+    if talents.keystone(gs.get('talent_alloc')) == 'spring_tide':
+        base_bonus_mult *= 2
 
     return {
         'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),
@@ -177,6 +185,31 @@ def _build_spin_context(gs: dict) -> dict:
         'proc_streak_level':  0,  # frozen
         'aquarium_luck':      aquarium_luck,
         'prestige_bonus':     prestige_bonus,
+    }
+
+
+def _surge_mults(ctx: dict, gs: dict, surge_left: int):
+    """S9 Surge: one banked Surge spin adds (M-1) to both multipliers.
+
+    Returns (win_mult, bonus_mult, spent). Rogue Wave neither earns nor spends Surge.
+    """
+    alloc = gs.get('talent_alloc')
+    if surge_left <= 0 or talents.keystone(alloc) == 'rogue_wave':
+        return ctx['effective_win_mult'], ctx['bonus_mult'], 0
+    extra = talents.surge_mult(alloc) - 1
+    return ctx['effective_win_mult'] + extra, ctx['bonus_mult'] + extra, 1
+
+
+def _charts_payload(gs: dict, now: dt.datetime) -> dict:
+    """S9 Charts summary shared by /api/state and /api/charts."""
+    alloc = gs.get('talent_alloc') or {}
+    return {
+        'alloc':       alloc,
+        'points':      talents.points_total(now),
+        'spent':       sum(alloc.values()),
+        'keystone':    talents.keystone(alloc),
+        'surge_mult':  talents.surge_mult(alloc),
+        'can_rechart': gs.get('talent_rechart_date') != talents.london_date(now),
     }
 
 
@@ -605,6 +638,8 @@ def _resolve_spin(
             regen_recharge_wins -= 1
         jackpot_hit = True
         jackpot_mult = mode.get('jackpot_multiplier', 25)
+        if stake_cost_total > 0:
+            jackpot_mult = min(jackpot_mult, STAKED_JACKPOT_MULT)
         jackpot_multiplier = jackpot_mult
         # T102: payout = stake_wins (the wager) for stake > 0%, base_payout for 0%.
         # The regular win_streak_bonus (bonus_earned) is added to the NET (per user
@@ -656,8 +691,8 @@ def _resolve_spin(
         if jackpot_echo_pending:
             jackpot_echo_triggered = True
             jackpot_hit  = True
-            jackpot_multiplier = 25
-            raw_payout   = net_payout * 25
+            jackpot_multiplier = STAKED_JACKPOT_MULT if stake_cost_total > 0 else 25
+            raw_payout   = net_payout * jackpot_multiplier
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_cost_total
             wins        += direct_wins
@@ -666,8 +701,8 @@ def _resolve_spin(
             bonus_earned = direct_wins + banked_wins - effective_win_mult
         elif 'jackpot' in owned and random.random() < jackpot_chance:
             jackpot_hit  = True
-            jackpot_multiplier = 25
-            raw_payout   = net_payout * 25
+            jackpot_multiplier = STAKED_JACKPOT_MULT if stake_cost_total > 0 else 25
+            raw_payout   = net_payout * jackpot_multiplier
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_cost_total
             wins        += direct_wins
@@ -811,6 +846,7 @@ def _resolve_spin(
         # `wager_tokens` was renamed for T119.
         'tokens_spent':            tokens_spent,
         'insurance_tokens':        insurance_tokens,
+        'staked':                  stake_cost_total > 0,
         'message':                 _build_spin_message(
             result=outcome, wins_delta=wins - original_wins, losses_delta=losses - original_losses,
             is_inverted=(active_wheel_mode == 'inverted'),
@@ -936,7 +972,8 @@ def get_state():
                               active_wheel_mode, insurance_tokens, aquarium_species,
                               cosmetic_fragments, guard_charges,
                               gravity_drift,
-                              auto_fish_enabled, auto_fish_last_tick
+                              auto_fish_enabled, auto_fish_last_tick,
+                              talent_alloc, talent_rechart_date, surge_spins, fish_records
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -976,10 +1013,11 @@ def get_state():
 
         pot_celebrate = _pot_boost_active(pot, now_utc)
         owned_items     = list(gs['owned_items'])
-        max_charges     = dice_max_charges(owned_items)
+        max_charges     = dice_max_charges(owned_items, gs.get('talent_alloc'))
         dice_charges    = min(gs['dice_charges'], max_charges)
         last_recharge   = gs['dice_last_recharge']
-        dice_charges, last_recharge = dice._recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+        dice_charges, last_recharge = dice._recharge_dice(
+            dice_charges, last_recharge, max_charges, now_utc, dice_recharge_seconds(gs.get('talent_alloc')))
 
         # T119: insurance has no recharge. Charges are now derived purely
         # from tokens spent on insurance buys. The old
@@ -1072,6 +1110,9 @@ def get_state():
                 int(gs.get('gravity_drift', 0) or 0),
             ),
             'insurance_tokens':     gs.get('insurance_tokens', 0),
+            'charts':               _charts_payload(gs, now_utc),
+            'surge_spins':          int(gs.get('surge_spins', 0) or 0),
+            'fish_records':         gs.get('fish_records') or {},
             'aquarium_species':     list(gs.get('caught_species', [])),
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
             # T102: max stake percentage for this player (30 base, 35/40/45
@@ -1236,9 +1277,10 @@ def spin():
             dice_charges  = gs['dice_charges']
             last_recharge = gs['dice_last_recharge']
             owned_for_dice = list(gs['owned_items'])
-            max_charges    = dice_max_charges(owned_for_dice)
+            max_charges    = dice_max_charges(owned_for_dice, gs.get('talent_alloc'))
             dice_charges   = min(dice_charges, max_charges)
-            dice_charges, last_recharge = dice._recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+            dice_charges, last_recharge = dice._recharge_dice(
+                dice_charges, last_recharge, max_charges, now_utc, dice_recharge_seconds(gs.get('talent_alloc')))
 
             # T119: insurance has no recharge — charges are derived purely
             # from tokens spent on /api/insurance/buy. Cap is removed; the
@@ -1259,24 +1301,19 @@ def spin():
                 req_stake = 0
             double_down_active = bool(gs.get('double_down_pending', False))
             insurance_active = bool(gs.get('insurance_armed', False))
-
-            # T110: pay_with_tokens opt-in for high-stake spins. The actual
-            # spend is computed inside _resolve_spin (which knows the final
-            # stake_wins); we only validate the request flag here.
-            pay_with_tokens = bool((request.json or {}).get('pay_with_tokens', False))
-            if pay_with_tokens:
-                if req_stake < HIGH_STAKE_TOKEN_THRESHOLD:
-                    return jsonify({
-                        'error': f'Pay-with-tokens requires stake >= {HIGH_STAKE_TOKEN_THRESHOLD}%'
-                    }), 400
-                if double_down_active:
-                    return jsonify({
-                        'error': 'Pay-with-tokens is not compatible with Double-Down'
-                    }), 400
-                if int(gs.get('insurance_tokens', 0)) <= 0:
-                    return jsonify({
-                        'error': 'No insurance tokens to spend'
-                    }), 400
+            alloc = gs.get('talent_alloc') or {}
+            # S9 Charts: Spring Tide can't stake.
+            if talents.keystone(alloc) == 'spring_tide':
+                req_stake = 0
+                double_down_active = False
+            # S9 Charts: tokens no longer cover stakes; a staked spin costs 1 🪙 chip instead.
+            pay_with_tokens = False
+            owns_stake = 'wager_unlock' in gs['owned_items'] or gs.get('active_wheel_mode') == 'inverted'
+            wants_stake = double_down_active or validate_stake(
+                req_stake, owns_stake, compute_max_stake_pct(list(gs['owned_items']))) > 0
+            if wants_stake and int(gs.get('insurance_tokens', 0) or 0) < 1:
+                return jsonify({'error': "Out of 🪙 chips — claim today's 3"}), 400
+            win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, int(gs.get('surge_spins', 0) or 0))
 
             new_spin_count = gs['spin_count'] + 1
 
@@ -1304,8 +1341,8 @@ def spin():
                 spin_count=new_spin_count,
                 active_cosmetics=list(gs['active_cosmetics']),
                 proc_streak=gs['proc_streak'],
-                effective_win_mult=ctx['effective_win_mult'],
-                bonus_mult=ctx['bonus_mult'],
+                effective_win_mult=win_mult,
+                bonus_mult=bonus_mult,
                 jackpot_chance=ctx['jackpot_chance'],
                 echo_chance=ctx['echo_chance'],
                 charm_chance=ctx['charm_chance'],
@@ -1332,6 +1369,8 @@ def spin():
                 insurance_tokens=int(gs.get('insurance_tokens', 0)),
                 pay_with_tokens=pay_with_tokens,
             )
+            chips_after = int(events.get('insurance_tokens', 0)) - (1 if events.get('staked') else 0)
+            surge_after = int(gs.get('surge_spins', 0) or 0) - surge_spent
 
             # T220: loss handler for pending dice. If this spin was a loss
             # AND there was a pending dice roll, revert the streak to the
@@ -1464,6 +1503,7 @@ def spin():
                           biggest_win_announced = %s,
                           gravity_drift = %s,
                           insurance_tokens = %s,
+                          surge_spins = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                        WHERE user_id = %s''',
                      (new_state['wins'], new_state['losses'],
@@ -1482,7 +1522,7 @@ def spin():
                      int(gs.get('insurance_charges', 0) or 0),
                      new_biggest_win_announced,
                      new_state.get('gravity_drift', 0),
-                     int(events.get('insurance_tokens', 0)),
+                     chips_after, surge_after,
                      current_user.id),
                 )
             conn.commit()
@@ -1527,8 +1567,10 @@ def spin():
         resp['wheel_probabilities'] = events.get('wheel_probabilities')
         # T110: surface the post-spend token balance + amount spent so the
         # client can update its display without a /api/state poll.
-        resp['insurance_tokens'] = int(events.get('insurance_tokens', gs.get('insurance_tokens', 0)))
-        resp['tokens_spent'] = int(events.get('tokens_spent', 0))
+        resp['insurance_tokens'] = chips_after
+        resp['tokens_spent'] = 1 if events.get('staked') else 0
+        resp['surge_spins'] = surge_after
+        resp['surge_used'] = bool(surge_spent)
         return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -1663,9 +1705,10 @@ def tick():
             # Dice recharge (computed once per tick from actual elapsed time)
             dice_charges  = gs['dice_charges']
             last_recharge = gs['dice_last_recharge']
-            max_charges = dice_max_charges(owned)
+            max_charges = dice_max_charges(owned, gs.get('talent_alloc'))
             dice_charges = min(dice_charges, max_charges)
-            dice_charges, last_recharge = dice._recharge_dice(dice_charges, last_recharge, max_charges, now_utc)
+            dice_charges, last_recharge = dice._recharge_dice(
+                dice_charges, last_recharge, max_charges, now_utc, dice_recharge_seconds(gs.get('talent_alloc')))
 
             # T220: Apply any pending dice roll before processing spins.
             # The pending dice was either buffered (if auto-spin was active
@@ -1684,8 +1727,11 @@ def tick():
             spin_results = []
             dice_refunded_this_tick = False
 
+            surge_left = int(gs.get('surge_spins', 0) or 0)
             for _ in range(spins_due):
                 new_spin_count += 1
+                win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, surge_left)
+                surge_left -= surge_spent
                 new_state, events = _resolve_spin(
                     owned=owned,
                     streak=streak,
@@ -1697,8 +1743,8 @@ def tick():
                     spin_count=new_spin_count,
                     active_cosmetics=active_cosmetics,
                     proc_streak=current_proc_streak,
-                    effective_win_mult=ctx['effective_win_mult'],
-                    bonus_mult=ctx['bonus_mult'],
+                    effective_win_mult=win_mult,
+                    bonus_mult=bonus_mult,
                     jackpot_chance=ctx['jackpot_chance'],
                     echo_chance=ctx['echo_chance'],
                     charm_chance=ctx['charm_chance'],
@@ -1799,6 +1845,7 @@ def tick():
                            biggest_win_announced = %s,
                            gravity_drift = %s,
                            wager_banked_losses = %s,
+                           surge_spins = %s,
                        dice_rolled_since_spin = FALSE, pending_dice = NULL,
                        last_spin_at = %s
                       WHERE user_id = %s''',
@@ -1812,6 +1859,7 @@ def tick():
                      new_biggest_win_announced,
                      current_gravity_drift,
                      current_wager_banked_losses,
+                     surge_left,
                      new_last_spin,
                      current_user.id),
                 )
@@ -1886,6 +1934,7 @@ def tick():
             'auto_spin_active':      True,
             # T106: cumulative_wins after all processed spins (catch-up summary).
             'cumulative_wins':       new_cumulative_wins,
+            'surge_spins':           surge_left,
         }
 
         if is_catch_up:
@@ -1922,7 +1971,7 @@ def roll_dice():
                 cur.execute(
                     '''SELECT wins, streak, best_streak, owned_items,
                               dice_charges, dice_last_recharge, dice_rolled_since_spin,
-                              auto_spin_since
+                              auto_spin_since, talent_alloc
                        FROM game_state WHERE user_id = %s FOR UPDATE''',
                     (current_user.id,),
                 )
@@ -1984,6 +2033,8 @@ def buy():
     item_id = data.get('item_id') or ''
     if item_id in RETIRED_S9_ITEMS:
         return jsonify({'error': 'This item was retired in Season 9.'}), 403
+    if item_id in talents.CHART_REPLACES:
+        return jsonify({'error': 'Gear comes from Charts now — open 🧭 Charts.'}), 403
 
     try:
         with db_connection() as conn:
@@ -1998,6 +2049,54 @@ def buy():
     except Exception:
         log.exception('BUY_ERROR  user_id=%s  item_id=%s', current_user.id, item_id)
         return jsonify({'error': 'Purchase failed'}), 500
+
+
+@game_bp.route('/api/charts')
+@login_required
+def charts_get():
+    now = dt.datetime.now(timezone.utc)
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('SELECT talent_alloc, talent_rechart_date FROM game_state WHERE user_id = %s',
+                        (current_user.id,))
+            gs = cur.fetchone()
+    return jsonify({**_charts_payload(gs, now), 'trees': talents.TREES, 'talents': talents.catalog(),
+                    'row_gate': talents.ROW_GATE, 'keystone_gate': talents.KEYSTONE_GATE})
+
+
+@game_bp.route('/api/charts', methods=['POST'])
+@login_required
+@limiter.limit('10 per second')
+def charts_set():
+    """Save the player's Chart. Adding points is free; taking any back is a
+    re-chart, allowed once per London day."""
+    err = require_json()
+    if err:
+        return err
+    alloc = (request.get_json(silent=True) or {}).get('alloc')
+    now = dt.datetime.now(timezone.utc)
+    problem = talents.validate(alloc, talents.points_total(now))
+    if problem:
+        return jsonify({'error': problem}), 400
+    alloc = talents.clean(alloc)
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('''SELECT owned_items, talent_alloc, talent_rechart_date
+                           FROM game_state WHERE user_id = %s FOR UPDATE''', (current_user.id,))
+            gs = cur.fetchone()
+            rechart_date = gs['talent_rechart_date']
+            if talents.is_refund(gs['talent_alloc'], alloc):
+                if rechart_date == talents.london_date(now):
+                    return jsonify({'error': 'You can re-chart once a day — come back tomorrow.'}), 409
+                rechart_date = talents.london_date(now)
+            owned = talents.recompute_owned(list(gs['owned_items']), alloc)
+            cur.execute('''UPDATE game_state SET talent_alloc = %s, talent_rechart_date = %s, owned_items = %s
+                           WHERE user_id = %s''',
+                        (psycopg2.extras.Json(alloc), rechart_date, owned, current_user.id))
+        conn.commit()
+    log.info('CHARTS_SET  user_id=%s  alloc=%s', current_user.id, alloc)
+    payload = _charts_payload({'talent_alloc': alloc, 'talent_rechart_date': rechart_date}, now)
+    return jsonify({**payload, 'owned_items': owned, 'max_stake_pct': compute_max_stake_pct(owned)})
 
 
 @game_bp.route('/api/community-pot')

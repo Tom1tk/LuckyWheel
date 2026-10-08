@@ -330,38 +330,12 @@ def test_pay_with_tokens_inverted_mode(monkeypatch):
 # ════════════════════════════════════════════════════════════════════════════
 # game.py — /api/spin handler validation + response shape
 # ════════════════════════════════════════════════════════════════════════════
-def test_spin_handler_validates_pay_with_tokens_low_stake():
-    """T110: /api/spin rejects pay_with_tokens: true with stake < 30."""
+def test_spin_handler_ignores_pay_with_tokens():
+    """S9 Charts: tokens no longer cover stakes (they are stake chips now),
+    so /api/spin forces pay_with_tokens off and charges 1 chip per staked spin."""
     src = _read(GAME_PY_PATH)
-    assert "req_stake < HIGH_STAKE_TOKEN_THRESHOLD" in src, (
-        "spin handler must reject pay_with_tokens when stake is below threshold"
-    )
-    assert "Pay-with-tokens requires stake" in src, (
-        "spin handler must include a clear error message for low-stake rejection"
-    )
-
-
-def test_spin_handler_validates_pay_with_tokens_no_dd():
-    """T110: /api/spin rejects pay_with_tokens when Double-Down is armed."""
-    src = _read(GAME_PY_PATH)
-    assert 'pay_with_tokens' in src and 'double_down_active' in src, (
-        "spin handler must validate the DD-vs-tokens incompatibility"
-    )
-    assert 'Double-Down' in src, (
-        "spin handler must include a clear error message for DD+token incompatibility"
-    )
-
-
-def test_spin_handler_validates_pay_with_tokens_no_balance():
-    """T110/T119: /api/spin rejects pay_with_tokens when token balance is 0.
-    T119 renamed the column/parameter wager_tokens → insurance_tokens."""
-    src = _read(GAME_PY_PATH)
-    assert 'No insurance tokens to spend' in src, (
-        "spin handler must reject pay_with_tokens when balance is 0 (T119 renamed error)"
-    )
-    assert "gs.get('insurance_tokens', 0)) <= 0" in src, (
-        "spin handler must check the current insurance_tokens balance (T119 renamed)"
-    )
+    assert 'pay_with_tokens = False' in src
+    assert "Out of 🪙 chips — claim today's 3" in src
 
 
 def test_spin_handler_passes_pay_with_tokens_to_resolve():

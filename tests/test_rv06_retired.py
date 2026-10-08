@@ -114,7 +114,8 @@ def test_retired_shop_item_returns_403(rv06_client, item_id):
     assert r.get_json() == RETIRED_SHOP_BODY
 
 
-def test_functional_item_still_sells(db_url, rv06_client):
+def test_functional_item_comes_from_charts(db_url, rv06_client):
+    """S9 Charts: gear is no longer sold; it comes from the player's Chart."""
     client, username = rv06_client
     _set_owned(db_url, username, [])
     _set_columns(db_url, username, wins=1000, cumulative_wins=1000)
@@ -123,8 +124,9 @@ def test_functional_item_still_sells(db_url, rv06_client):
         json={'item_id': 'winmult_1'},
         headers={'X-CSRFToken': _read_csrf(client)},
     )
-    assert r.status_code == 200, r.get_json()
-    assert 'winmult_1' in _owned_items(db_url, username)
+    assert r.status_code == 403, r.get_json()
+    assert 'Charts' in r.get_json()['error']
+    assert 'winmult_1' not in _owned_items(db_url, username)
 
 
 def test_leaderboard_ranks_by_wins_without_prestige(game_app, lb_users):  # noqa: F811
