@@ -25,3 +25,12 @@ Additional G0 evidence:
 - **Until launch, the leak fix exists only on staging: never run pytest from `/home/user/wheel-app`.** Every subagent brief carries this line.
 
 **G0: PASSED 2026-10-08.**
+
+## Phase 1 — Spec (G1)
+
+**G1: PASSED 2026-10-08.** `docs/SEASON_9_SPEC.md` (d74a60c, 270a229): usage audit with queries, Season 9 "Tides" (weekly tides 9.N, medals + cosmetics + encyclopaedia persist), tickets RV-01..12 with acceptance tests. Advisor was unavailable; self-review fixed Friday-anchored idempotency and S9-only medals.
+
+## Phase 2 — Build (G2)
+
+| Ticket | Status | Commit | Evidence |
+|---|---|---|---|
