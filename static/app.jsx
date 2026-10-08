@@ -2636,7 +2636,6 @@ const SHOP_SECTIONS = [
     { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
     { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
-    { id: 'auto_spin_unlock',  emoji: '🔁', name: 'Auto-Spin Unlock', cost: 5000,    desc: 'Spins automatically at 0% stake — stake slider hides while active', tier: 1 },
   ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
@@ -4113,9 +4112,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // the stake slider while active.
   //
   // T216: no budget is sent in the start body (the per-activation 100-spin
-  // budget was removed). Auto-spin now runs continuously until the user
-  // explicitly stops it, or the server's heartbeat auto-stop fires (60s of
-  // no /api/tick).
+  // budget was removed). Auto-spin runs until the user stops it, and keeps
+  // running server-side while they are away (S9).
   const handleStartAutoSpin = useCallback(async () => {
     const { ok, data } = await apiGame('/api/auto-spin/start', {
       method: 'POST',
@@ -4275,8 +4273,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   // T216: the per-activation 100-spin budget was removed; auto-spin is
-  // simply on/off. The server tracks `auto_spin_since` and auto-stops
-  // after 60s of no /api/tick.
+  // simply on/off. The server tracks `auto_spin_since`.
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
   // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
   // server gates the 3-free-per-day claim. We surface it as a string
@@ -4930,11 +4927,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             ▶ Click to Spin ◀
           </div>
 
-          {/* T107: auto-spin as upgrade. Visible only when player owns the
-              `auto_spin_unlock` shop item. Checkbox style mirrors the
-              pre-S8 auto-spin toggle (`.autospin-row` from Season 5/6/7).
-              T216: runs continuously (no per-activation budget); cleared
-              on uncheck. While active, the stake slider below is hidden
+          {/* Auto-spin toggle. S9 grants `auto_spin_unlock` to every account.
+              Checkbox style mirrors the pre-S8 `.autospin-row`. Runs until
+              unchecked; while active the stake slider below is hidden
               (auto-spin always uses 0% stake). */}
           {ownedItems.includes('auto_spin_unlock') && (
             <label className="autospin-row" style={{ justifyContent: 'center', marginTop: '0.4rem' }}>

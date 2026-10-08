@@ -1034,9 +1034,8 @@ def get_state():
             ),
             'legacy_wins':          int(gs.get('legacy_wins', 0)),
             'onboarding_step':      gs.get('onboarding_step', 0),
-            # T216: auto-spin is active iff auto_spin_since is set. The
-            # 100-spin budget was removed (see migration 057). Heartbeat
-            # auto-stop (60s of no /api/tick) is enforced in /api/tick.
+            # Auto-spin is active iff auto_spin_since is set. S9: it keeps
+            # running server-side while the player is away.
             'auto_spin_active':     gs.get('auto_spin_since') is not None,
             'cumulative_wins':      int(gs.get('cumulative_wins', 0)),
             'wager_streak':         gs.get('wager_streak', 0),
@@ -3071,14 +3070,10 @@ def guard_endpoint():
 def auto_spin_start():
     """Start server-side auto-spin.
 
-    T107: gated on the `auto_spin_unlock` shop item. The auto-spin UI is
-    hidden in the wager panel for players who haven't bought the upgrade.
-
-    T216: the per-activation 100-spin budget was removed (see migration
-    057). Auto-spin now runs continuously until the user explicitly stops
-    it OR the heartbeat auto-stop in /api/tick fires (60s of no /api/tick
-    from this session). The `budget` request body field is ignored for
-    backward compatibility.
+    Gated on `auto_spin_unlock`, which S9 grants to every account (it is
+    no longer sold). Runs until the player stops it, including while they
+    are away. The `budget` request body field is ignored for backward
+    compatibility.
     """
     err = require_json()
     if err:
@@ -3087,11 +3082,8 @@ def auto_spin_start():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
             if 'auto_spin_unlock' not in (gs.get('owned_items') or []):
-                return jsonify({'error': 'Buy auto_spin_unlock from the shop (5,000 wins)'}), 403
-            # T216: `auto_spin_since` is the sole signal. A stale timestamp
-            # left over from a prior session / tab-closed-but-not-stopped
-            # event still counts as 'active' — the heartbeat auto-stop will
-            # clear it on the next /api/tick if it's actually stale.
+                return jsonify({'error': 'Auto-spin is not unlocked on this account'}), 403
+            # `auto_spin_since` is the sole signal: set means running.
             if gs.get('auto_spin_since') is not None:
                 return jsonify({'error': 'Auto-spin already active'}), 409
             cur.execute(

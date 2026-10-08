@@ -80,11 +80,10 @@ def test_wager_unlock_in_exactly_one_section():
     )
 
 
-def test_auto_spin_unlock_in_exactly_one_section():
-    """T223 sanity: auto_spin_unlock is the last item of the wager
-    section. Before the fix it appeared in both duplicate sections."""
+def test_auto_spin_unlock_not_sold():
+    """S9: every account owns auto_spin_unlock, so the shop no longer lists it
+    and /api/buy refuses it."""
+    from models import RETIRED_S9_ITEMS
     jsx = _read(APP_JSX)
-    matches = re.findall(r"\{ id:\s*'auto_spin_unlock'", jsx)
-    assert len(matches) == 1, (
-        f"auto_spin_unlock shop entry must appear exactly once, found {len(matches)}"
-    )
+    assert not re.findall(r"\{ id:\s*'auto_spin_unlock'", jsx)
+    assert 'auto_spin_unlock' in RETIRED_S9_ITEMS
