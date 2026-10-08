@@ -25,10 +25,12 @@ FISH_CATALOG = {
     'whale':      {'emoji': '🐋', 'name': 'Blue Whale',  'value':  75, 'weight':  0.5, 'tier': 'Legendary'},
     'mermaid':    {'emoji': '🧜', 'name': 'Mermaid',     'value': 120, 'weight':  0.2, 'tier': 'Legendary'},
     'lucky':      {'emoji': '⭐', 'name': 'Lucky Fish',  'value': 100, 'weight':  0.3, 'tier': 'Legendary', 'doubles_next': True},
+    # Season 9: dragonfish — the rarest catch in the Arcade era.
+    'dragonfish': {'emoji': '🐲', 'name': 'Dragonfish',  'value': 150, 'weight': 0.15, 'tier': 'Legendary'},
 }
 
 # Legendary fish never catchable by auto-fish at any level
-_AUTO_FISH_LEGENDARY = frozenset({'whale', 'mermaid', 'lucky'})
+_AUTO_FISH_LEGENDARY = frozenset({'whale', 'mermaid', 'lucky', 'dragonfish'})
 # Rare fish excluded at autofisher levels 1–3; unlocked by autofisher_4 (Master Auto-Fisher)
 _AUTO_FISH_RARE = frozenset({'lobster', 'dolphin', 'shark'})
 # Combined exclusion for levels 1–3
@@ -125,6 +127,10 @@ FISH_SKINS = {
     'fish_diamond':  {'cost': 1_200_000},
     'fish_poker':    {'cost': 1_700_000},
     'fish_slot':     {'cost': 2_400_000},
+    # Season 9: arcade characters top the skin ladder.
+    'fish_joystick': {'cost': 3_000_000},
+    'fish_pixel':    {'cost': 4_500_000},
+    'fish_ghost':    {'cost': 6_000_000},
 }
 
 SHOP_ITEMS = {
@@ -181,6 +187,8 @@ SHOP_ITEMS = {
     'page_season6':   {'cost': 1_000,        'requires': None},
     'page_season7':   {'cost': 1_000,        'requires': None},
     'page_season8':   {'cost': 1_000,        'requires': None},
+    # Season 9: Arcade page theme — auto-granted at rollover.
+    'page_season9':   {'cost': 1_000,        'requires': None},
     'party_mode':     {'cost': 150,          'requires': None},
     'confetti_1':     {'cost': 75,           'requires': None},
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
@@ -251,6 +259,10 @@ SHOP_ITEMS = {
     'theme_frost':   {'cost': 4_000,        'requires': 'theme_ember'},
     'theme_aurora':  {'cost': 12_000,       'requires': 'theme_frost'},
     'theme_vintage': {'cost': 40_000,       'requires': None},
+    # ── Season 9: Arcade wheel themes ─────────────────────────────────────────
+    'theme_arcade':  {'cost': 250,          'requires': None},
+    'theme_pixel':   {'cost': 1_000,        'requires': 'theme_arcade'},
+    'theme_holo':    {'cost': 4_000,        'requires': 'theme_pixel'},
     # ── Season 8: Resilience rework (spec S7) ──────────────────────────────────
     'resilience':    {'cost': 20_000,       'requires': None},
     'jackpot':       {'cost': 3_000_000,    'requires': None},
@@ -360,7 +372,10 @@ INFINITE_UPGRADES = {
 
 # Season 8: Singularity meter per-player contribution cap (spec S13).
 # Resets each time the meter fills (tracked per fill_count).
-SINGULARITY_PER_PLAYER_CAP = 25_000_000
+# Season 8: singularity — server-wide community meter (spec S13).
+# Season 9 retune: target 5M (was 100M) and per-player cap 2M (was 25M) so a
+# handful of active players can actually converge a cycle. See migration 074.
+SINGULARITY_PER_PLAYER_CAP = 2_000_000
 
 
 def inf_upgrade_cost(item_id: str, current_level: int) -> int:
@@ -428,7 +443,7 @@ LOCKOUT_RULES = [
 
 # Season 7: server-side auto-spinning
 AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
-MAX_SPINS_PER_TICK         = 100  # Season 8: capped auto-spin (was 100800)
+MAX_SPINS_PER_TICK         = 201_600  # Season 9: ~1 week catch-up (7d*86400/3s). Was 100 (S8), 100800 (S7)
 CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
 
 # Auto-fish AFK catch-up

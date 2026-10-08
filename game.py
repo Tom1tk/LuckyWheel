@@ -27,10 +27,12 @@ from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
                     compute_stake_risk, compute_max_stake_pct, compute_stake_value,
+                    compute_payout_cap,
                     HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_starting_prestige, can_prestige,
                      get_prestige_threshold, filter_kept_items,
+                     get_prestige_title,
                      PRESTIGE_RESET_COLUMNS, MAX_PRESTIGE_LEVEL)
 from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty, BOUNTY_DEFS
 from community_goals import COMMUNITY_GOAL_DEFS, get_active_goal, increment_goal, check_goal_completion, get_player_contribution
@@ -340,7 +342,10 @@ def _resolve_spin(
     # wager_unlock for stake validation + escrow purposes.
     owns_wager_unlock_eff = True if is_inverted else owns_wager_unlock
     # T102: max stake is 30% base + 5% per stake extension item owned (max 45%).
-    max_stake_pct = compute_max_stake_pct(owned)
+    # Season 9 (T4): the max decays as `wins` grows (stake decay) so the
+    # wager engine can't compound past comprehension. `wins` here is still
+    # the pre-spin balance (the escrow debit happens below).
+    max_stake_pct = compute_max_stake_pct(owned, wins)
     actual_stake = validate_stake(stake_pct, owns_wager_unlock_eff, max_stake_pct)
     owns_hot_streak = 'wager_hot_streak' in owned
     if should_reset_streak(actual_stake, wager_last_stake):
@@ -714,6 +719,27 @@ def _resolve_spin(
 
     new_best_streak = max(best_streak, new_streak) if new_streak > 0 else best_streak
 
+    # Season 9 (T8): vault payout cap. When the player held >= 1M wins before
+    # this spin, a winning spin's wins_delta is capped at
+    # max(1M, pre_spin_wins * 2). Overflow is not lost — it is moved to
+    # wager_banked_wins (the "vault") and claimed via the Bank button. This
+    # keeps scoreboards readable (S8's "pascal win number" problem) without
+    # confiscating winnings. `original_wins` is the pre-spin balance.
+    wins_delta = wins - original_wins
+    vaulted = 0
+    if wins_delta > 0:
+        cap = compute_payout_cap(original_wins)
+        if cap is not None and wins_delta > cap:
+            vaulted = wins_delta - cap
+            wins -= vaulted
+            wager_banked_wins += vaulted
+            # wins_delta must reflect the NET change to wins (post-cap) so the
+            # client's setWins(prev => prev + wins_delta) stays in sync with the
+            # persisted balance (README: "The client adds these to its local
+            # state to avoid race conditions"). The vaulted overflow is reported
+            # separately via the `vaulted` key.
+            wins_delta = wins - original_wins
+
     # T77: compute the wheel_probabilities for the response from the NEW
     # (post-spin) gravity_drift, so the wheel redraws with the new arc
     # spans after each resolve. The segment_angle below still uses the
@@ -765,8 +791,9 @@ def _resolve_spin(
     events = {
         'result':                  outcome,
         'segment_angle':           segment_angle,
-        'wins_delta':              wins - original_wins,
+        'wins_delta':              wins_delta,
         'losses_delta':            losses - original_losses,
+        'vaulted':                 vaulted,
         'streak':                  new_streak,
         'owned_items':             new_owned,
         'regen_recharge_wins':     regen_recharge_wins,
@@ -810,7 +837,7 @@ def _resolve_spin(
         'tokens_spent':            tokens_spent,
         'insurance_tokens':        insurance_tokens,
         'message':                 _build_spin_message(
-            result=outcome, wins_delta=wins - original_wins, losses_delta=losses - original_losses,
+            result=outcome, wins_delta=wins_delta, losses_delta=losses - original_losses,
             is_inverted=(active_wheel_mode == 'inverted'),
             stake=actual_stake, is_mirror=(active_wheel_mode == 'mirror'),
         ),
@@ -855,6 +882,7 @@ _RESPONSE_KEYS = (
     'active_wheel_mode',
     'tokens_spent',
     'insurance_tokens',
+    'vaulted',
     'message',
 )
 
@@ -1030,6 +1058,7 @@ def get_state():
             # Season 8 additions
             'prestige_level':       gs.get('prestige_level', 0),
             'prestige_count':       gs.get('prestige_count', 0),
+            'prestige_title':       get_prestige_title(gs.get('prestige_level', 0)),
             'next_prestige_threshold': (
                 get_prestige_threshold(gs.get('owned_items', []), gs.get('prestige_level', 0))
                 if gs.get('prestige_level', 0) < MAX_PRESTIGE_LEVEL else None
@@ -1074,7 +1103,8 @@ def get_state():
             'guard_charges':        gs.get('guard_charges', 0),
             # T102: max stake percentage for this player (30 base, 35/40/45
             # with stake extension items). Frontend uses this to size the slider.
-            'max_stake_pct':        compute_max_stake_pct(owned_items),
+            # Season 9: stake decay — pass current wins so the decayed max applies.
+            'max_stake_pct':        compute_max_stake_pct(owned_items, gs.get('wins', 0)),
             'bounties':             bounties,
             'community_goal': {
                 'goal_id':     goal_def['goal_id'],
@@ -1087,7 +1117,8 @@ def get_state():
             } if goal_def else None,
             'singularity': {
                 'total_contributed': singularity['total_contributed'] if singularity else 0,
-                'target':            singularity['target'] if singularity else 100_000_000,
+                # Season 9: fallback target matches migration 074 (5M).
+                'target':            singularity['target'] if singularity else 5_000_000,
                 'filled':            singularity['filled'] if singularity else False,
                 'fill_count':        singularity['fill_count'] if singularity else 0,
             } if singularity else None,
@@ -1404,6 +1435,9 @@ def spin():
                 increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date, amount=10)
             if events.get('active_wheel_mode') == 'mirror' and events['result'] in ('win', 'jackpot'):
                 increment_bounty(conn, current_user.id, 'bounty_mirror', bounty_date)
+            # Season 9: zealot jackpots (bounty_zealot).
+            if events.get('active_wheel_mode') == 'zealot' and events.get('jackpot_hit'):
+                increment_bounty(conn, current_user.id, 'bounty_zealot', bounty_date)
             if double_down_active and events['result'] in ('win', 'jackpot'):
                 increment_bounty(conn, current_user.id, 'bounty_double', bounty_date)
             # Season 8: community goal contribution hooks
@@ -1531,8 +1565,11 @@ def spin():
         resp['effective_stake'] = events.get('effective_stake', 0.0)
         resp['wager_last_stake'] = new_state.get('wager_last_stake', 0)
         # T102: max_stake_pct for this player (30-45 with stake extension items).
+        # Season 9: stake decay — pass current wins so the decayed max is used.
         resp['max_stake_pct'] = events.get('max_stake_pct',
-                                            compute_max_stake_pct(list(gs['owned_items'])))
+                                            compute_max_stake_pct(
+                                                list(gs['owned_items']),
+                                                gs.get('wins', 0)))
         resp['onboarding_advance'] = onboarding_advance
         resp['double_down_active'] = double_down_active
         # T119: surface insurance state on spin response. Column renamed
@@ -1649,17 +1686,19 @@ def tick():
                 )
                 pot_row = cur.fetchone()
 
-            # T216: heartbeat auto-stop. If 60s pass without a /api/tick from
-            # this session, the player is presumably tab-closed or the network
-            # dropped. Auto-stop the server-side auto-spin and return
+            # T216/S9: heartbeat auto-stop. If 24h pass without a /api/tick
+            # from this session, the player is presumably tab-closed or the
+            # network dropped. Auto-stop the server-side auto-spin and return
             # immediately so the next tick from a fresh tab / reload sees a
-            # clean state. 60s = 20 missed ticks at 3s/tick — gives time for
-            # slow networks but catches abandoned tabs within ~1 minute.
-            # See SEASON_8_TICKETS.md T216 for context.
+            # clean state. Season 9 restored the S7-style offline catch-up,
+            # so the window is wide: a tab left alone for < 24h resumes and
+            # catches up on its next /api/tick; only sessions idle for a full
+            # day are treated as abandoned. 86400s = 28,800 missed ticks at
+            # 3s/tick. See SEASON_9_TICKETS.md T217 for context.
             if gs.get('auto_spin_since') is not None and gs.get('last_spin_at') is not None:
                 last_tick = _aware(gs['last_spin_at'])
                 stale_seconds = (now_utc - last_tick).total_seconds()
-                if stale_seconds > 60:
+                if stale_seconds > 86_400:
                     log.warning(
                         'AUTO_SPIN_STALE  user_id=%s  stale=%ds  auto-stopping',
                         current_user.id, int(stale_seconds),
@@ -2601,6 +2640,8 @@ def leaderboard():
                 # Both winmult_inf_level and bonusmult_inf_level are
                 # retired (zero on every player since the S8 reset).
                 'prestige_level':  r.get('prestige_level', 0),
+                # Season 9: expose the prestige title for each leaderboard row.
+                'prestige_title':  get_prestige_title(r.get('prestige_level', 0)),
                 'active':          bool(active),
             })
         return jsonify(result)
@@ -2647,7 +2688,11 @@ def get_season():
 @game_bp.route('/api/admin/advance-season', methods=['POST'])
 @csrf.exempt
 def admin_advance_season():
-    """Manually advance the season. Requires X-Admin-Secret header."""
+    """Manually advance the season. Requires X-Admin-Secret header.
+
+    Season 9: accepts an optional JSON body `{ "pfn": 9, "name": "Arcade" }`
+    so an operator can set the player-facing number and era name explicitly.
+    """
     secret = os.environ.get('ADMIN_SECRET', '')
     if not secret:
         log.warning('ADMIN_SECRET not configured — advance-season endpoint is disabled')
@@ -2655,9 +2700,21 @@ def admin_advance_season():
     provided = request.headers.get('X-Admin-Secret', '')
     if not hmac.compare_digest(provided.encode(), secret.encode()):
         return jsonify({'error': 'Forbidden'}), 403
+    body = {}
+    try:
+        body = request.get_json(silent=True) or {}
+    except Exception:
+        body = {}
+    pfn = body.get('pfn')
+    name = body.get('name')
+    if pfn is not None:
+        try:
+            pfn = int(pfn)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'pfn must be an integer'}), 400
     try:
         with db_connection() as conn:
-            advance_season(conn)
+            advance_season(conn, player_facing_number=pfn, name=name or None)
         return jsonify({'ok': True})
     except Exception:
         log.exception('ADMIN_ADVANCE_SEASON_ERROR')
@@ -2732,7 +2789,9 @@ def wager_set_stake():
             gs = _load_game_state(cur, current_user.id, for_update=True)
             owns_unlock = 'wager_unlock' in gs['owned_items']
             # T102: clamp to player's max stake (30 base, up to 45 with items).
-            max_pct = compute_max_stake_pct(list(gs.get('owned_items', [])))
+            # Season 9: stake decay — pass current wins so the decayed max applies.
+            max_pct = compute_max_stake_pct(
+                list(gs.get('owned_items', [])), gs.get('wins', 0))
             actual_stake = validate_stake(stake, owns_unlock, max_pct)
             cur.execute('UPDATE game_state SET wager_last_stake = %s WHERE user_id = %s',
                         (actual_stake, current_user.id))
@@ -3068,7 +3127,11 @@ def prestige_reset():
         # the new one is inserted. Each player shows their LATEST level.
         post_dedup_system_message(
             conn,
-            chat_triggers.prestige_msg(current_user.username, new_level),
+            chat_triggers.prestige_msg(
+                current_user.username,
+                new_level,
+                get_prestige_title(new_level),
+            ),
             current_user.id,
             event_kind='prestige',
         )
@@ -3087,6 +3150,7 @@ def prestige_reset():
         conn.commit()
     return jsonify({
         'prestige_level': new_level,
+        'prestige_title': get_prestige_title(new_level),
         'prestige_count': new_prestige_count,
         'legacy_wins': new_legacy_wins,
         'wins_kept': new_wins,
@@ -3259,7 +3323,7 @@ def singularity_status():
             row = cur.fetchone()
     return jsonify({
         'total_contributed': row['total_contributed'] if row else 0,
-        'target':            row['target'] if row else 100_000_000,
+        'target':            row['target'] if row else 5_000_000,
         'filled':            row['filled'] if row else False,
         'fill_count':        row['fill_count'] if row else 0,
     })
@@ -3441,9 +3505,15 @@ def auto_spin_start():
 
     T216: the per-activation 100-spin budget was removed (see migration
     057). Auto-spin now runs continuously until the user explicitly stops
-    it OR the heartbeat auto-stop in /api/tick fires (60s of no /api/tick
+    it OR the heartbeat auto-stop in /api/tick fires (24h of no /api/tick
     from this session). The `budget` request body field is ignored for
     backward compatibility.
+
+    S9: auto-spin is universal — the `auto_spin_unlock` upgrade is granted
+    to every player (registration, season reset, and migration 076), so
+    this ownership check never fails in practice; it stays as a safety
+    gate. The 24h heartbeat window enables offline catch-up: a player who
+    closes the tab for under a day resumes and catches up on the next tick.
     """
     err = require_json()
     if err:
@@ -3519,15 +3589,16 @@ def set_wheel_mode():
     response = {'ok': True, 'mode': mode}
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT active_wheel_mode, owned_items FROM game_state WHERE user_id = %s',
+            cur.execute('SELECT active_wheel_mode, owned_items, wins FROM game_state WHERE user_id = %s',
                         (current_user.id,))
             row = cur.fetchone()
             current_mode = row['active_wheel_mode'] if row else 'steady'
             # T102: include max_stake_pct so the frontend slider can re-size
             # itself if the player has bought stake extension items since
-            # the last state load.
+            # the last state load. Season 9: stake decay via current wins.
             response['max_stake_pct'] = compute_max_stake_pct(
-                list(row['owned_items']) if row and row.get('owned_items') else []
+                list(row['owned_items']) if row and row.get('owned_items') else [],
+                (row or {}).get('wins', 0),
             )
             if mode != current_mode:
                 # T76: mode change resets state that doesn't carry across modes.

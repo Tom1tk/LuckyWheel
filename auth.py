@@ -115,12 +115,13 @@ def register():
                     (username, pw_hash, ip, device_id),
                 )
                 user_id = cur.fetchone()['id']
-                # Season 8: new players start with the casino page theme owned
-                # and equipped. They can switch to any other theme in the shop.
+                # Season 9: new players start with the arcade page theme owned
+                # and equipped, plus the (universal) auto-spin unlock. They
+                # can switch to any other theme in the shop.
                 # Update this default when the season's default theme changes.
                 cur.execute(
                     "INSERT INTO game_state (user_id, owned_items, active_cosmetics) "
-                    "VALUES (%s, ARRAY['page_season8'], ARRAY['page_season8'])",
+                    "VALUES (%s, ARRAY['page_season9', 'auto_spin_unlock'], ARRAY['page_season9'])",
                     (user_id,),
                 )
 

@@ -2,6 +2,73 @@
 
 ---
 
+## Season 9 — Arcade — 31 Jul 2026
+
+Welcome to Season 9 — Arcade! 🕹️
+
+The casino has closed its doors and a neon arcade has taken over. This season is a fresh start: everyone's balances reset, the page gets a brand-new synthwave look, and a stack of economy changes make the big numbers readable again. Insert coin and play on.
+
+### 🕹️ Arcade Theme
+
+The whole page now looks like an arcade cabinet come to life — a glowing retro sun setting over a neon grid, stars drifting overhead, and the occasional coin sparkle. The Arcade page theme is applied automatically when you log in this season. Prefer something else? You can swap to any other theme from the shop whenever you like.
+
+### 🎡 Zealot — A New Wheel Mode
+
+A new rotating mode joins the lineup: **Zealot**. High risk, sky-high reward — it lands a win or a loss on most spins, but when the jackpot hits it pays **×100**, the biggest single payout the wheel has ever offered.
+
+The weekly rotation is now five modes — **Inverted → Gravity → Mirror → Long Shot → Zealot**. Mirror, which was missing from the rotation last season, is back in regular weekly play.
+
+### 🏦 The Vault — Readable Big Numbers
+
+Last season scores ballooned into the trillions and beyond, and the scoreboard stopped meaning anything. This season, once you hold **1,000,000 wins**, a single winning spin's payout is capped at **2× your current wins**. Nothing is taken from you — the overflow is moved into your **Vault**, and you claim it any time with the **Bank** button, which is now visible whenever you have banked winnings. The scoreboard stays readable, and your winnings stay yours.
+
+### ⚖️ Stake Decay
+
+High rollers see their max stake gradually reduced as their balance grows — up to **−20%** at a billion wins, never going below a **10%** floor. The bigger your bankroll, the more careful the game asks you to be.
+
+### ⚡ Auto-Spin for Everyone + Offline Catch-Up
+
+Auto-spin is no longer a 5,000-win shop upgrade — **every player has it from day one this season**. Just tick the **Auto Spin** box and the wheel keeps spinning at 0% stake (the stake slider hides while it's running, so there's never any risk).
+
+It also finally works when you're *not* looking. Close the tab, go live your life, and when you come back — up to **24 hours later** — the wheel catches up on every spin you missed in a single summary, so your offline time still counts. Sessions idle for a full day stop automatically, and a reload never wipes your running session the way it used to.
+
+### 🐲 Dragonfish
+
+The rarest catch of the arcade era: the **Dragonfish**, worth **150 Fish Bucks** and rarer than any fish that came before it. It's a Legendary-tier catch, and auto-fish can never land one — only a manual reel will do.
+
+### 🎨 New Cosmetics
+
+- **Wheel themes:** Arcade (250), Pixel (1,000 — requires Arcade), Holo (4,000 — requires Pixel).
+- **Fish skins:** Joystick (3M), Pixel (4.5M), Ghost (6M).
+
+### ⭐ Prestige Titles
+
+Prestige now comes with a rank. Each level earns you a new title, from **Novice** (level 0) up through Rookie, Player, Regular, High Roller, Pro, Veteran, Expert, Champion, Master, Grandmaster, Legend, Mythic, Immortal, Ascended, Transcendent, Cosmic, Galactic, Stellar and **Arcade God** (level 19) before the final **Legend** (level 20). Your title shows on your profile, the leaderboard, and in chat when you prestige.
+
+### 🌀 Community Systems Retuned
+
+The server's shared goals were sized for a crowd that no longer shows up. They've been retuned so a handful of active players can actually reach them:
+
+- **Singularity Meter:** target **100M → 5M**, per-player cap **25M → 2M**.
+- **Community goals:** fish 5,000 → 1,500 · jackpots 500 → 100 · prestiges 50 → 20 · wager 100K → 25K.
+
+### 🎯 New Bounty
+
+A new daily bounty joins the rotation: land **2 Zealot jackpots**.
+
+### 🔁 Fresh Start
+
+All wins, losses, streaks and balances reset for the new season. Lifetime stats like `cumulative_wins` carry forward, and everyone receives the new Arcade page theme on their first login.
+
+### 🛠 Under the Hood
+
+- 4 new database migrations (073–076).
+- 9 new test files, 60+ new test cases.
+- Auto-spin restored for all players; offline catch-up cap back to ~1 week, heartbeat auto-stop relaxed from 60s to 24h.
+- Fixed a payout-sync bug where the client scoreboard could drift out of sync with the server after a capped (vaulted) win.
+
+---
+
 ## 27 Jun 2026 (later) — Double-Down Chat Merge
 
 When a player landed a double-down that was also a big win, chat would show two messages back-to-back — the standalone double-down (🔥 `X won a Nx double-down for M wins!`) and the big-win (💰 `X won M wins in MODE mode!`). Both carried the same win amount, so the player saw a duplicate.

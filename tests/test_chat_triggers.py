@@ -28,13 +28,17 @@ def test_big_win_msg_format():
 
 
 def test_prestige_msg_format():
-    msg = chat_triggers.prestige_msg('eve', 3)
-    assert msg == '⭐ eve reached Prestige Level 3!'
+    # Season 9: prestige messages include the level title (e.g. "Pro").
+    msg = chat_triggers.prestige_msg('eve', 3, 'Regular')
+    assert msg == '⭐ eve reached Prestige Level 3 — Regular!'
+    # Backward-compatible without a title.
+    msg2 = chat_triggers.prestige_msg('eve', 3)
+    assert msg2 == '⭐ eve reached Prestige Level 3!'
 
 
 def test_new_player_msg_format():
     msg = chat_triggers.new_player_msg('frank')
-    assert msg == '🎉 frank spun the wheel for the first time! Welcome to Season 8!'
+    assert msg == '🎉 frank spun the wheel for the first time! Welcome to Season 9!'
 
 
 def test_singularity_fill_msg_format():

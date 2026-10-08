@@ -5586,3 +5586,42 @@ body.page-season8 .dice-panel-desc  { color: #138C42; }
     margin-bottom: 8px;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEASON 9 — ARCADE PAGE THEME
+   Neon synthwave. Falls back to a static gradient if the arcade canvas
+   (static/js/arcade-bg.js) fails to load. Mirror of the S8 casino block.
+   ════════════════════════════════════════════════════════════════════════════ */
+body.page-season9 {
+  background: radial-gradient(ellipse 90% 70% at 50% 42%, #1a0a3d 0%, #12062a 55%, #0a0420 100%);
+  --p:        #FF2ED0;
+  --p-lt:     #FF8AE0;
+  --p-md:     #C2189C;
+  --p-dk:     #8E0F72;
+  --p-xs:     #6B0A56;
+  --p-2x:     #470638;
+  --p-rgb:    255, 46, 208;
+  --p-dk-rgb: 142, 15, 114;
+  --s:        #00C8FF;
+  --s-lt:     #6BDFFF;
+  --s-rgb:    0, 200, 255;
+  --bg:       #0a0420;
+}
+body.page-season9 .wheel-wrapper::before {
+  box-shadow: 0 0 30px 12px rgba(255,46,208,0.45), 0 0 70px 25px rgba(0,200,255,0.18), inset 0 0 20px rgba(255,46,208,0.1);
+}
+body.page-season9 .pointer { border-top-color: #FF8AE0; filter: drop-shadow(0 0 10px #FF2ED0) drop-shadow(0 0 22px #00C8FF); }
+body.page-season9 .center-hub { background: radial-gradient(circle, #FF8AE0, #8E0F72); border-color: #FFC1EF; box-shadow: 0 0 20px #FF2ED0, 0 0 45px #00C8FF; }
+body.page-season9 .result-text.win { color: #FF8AE0; border-color: #FF8AE0; text-shadow: 0 0 20px #FF2ED0, 0 0 50px #FF2ED0; box-shadow: 0 0 40px #FF2ED0, inset 0 0 20px rgba(255,46,208,0.1); }
+body.page-season9 .score-box.wins-box { border-color: #FF2ED0; background: rgba(255,46,208,0.08); box-shadow: 0 0 16px rgba(255,46,208,0.2); }
+body.page-season9 .score-box.wins-box .score-label { color: #FF8AE0; }
+body.page-season9 .score-box.wins-box .score-value { color: #FF8AE0; text-shadow: 0 0 12px #FF2ED0; }
+body.page-season9 .casino-title {
+  color: #FF8AE0;
+  text-shadow:
+    0 0 10px #FF8AE0,
+    0 0 30px #FF2ED0,
+    0 0 60px #00C8FF;
+}
+body.page-season9 .dice-panel-label { color: #FF8AE0; }
+body.page-season9 .dice-panel-desc  { color: #C2189C; }

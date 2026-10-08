@@ -229,42 +229,48 @@ def test_long_shot_profile_matches_spec():
 # ════════════════════════════════════════════════════════════════════════════
 # T115 AC#2: _ROTATING_MODES slot layout
 # ════════════════════════════════════════════════════════════════════════════
-def test_rotating_modes_replaces_mirror_with_long_shot():
-    """T115 AC#2: weekly rotation is [inverted, gravity, long_shot].
-    Mirror stays in WHEEL_MODES (T78 backend complete) but is removed from
-    the rotation since the two-wheels frontend is deferred to 8.X.
+def test_rotating_modes_rotation_layout():
+    """Season 9: weekly rotation is 5 modes.
+    [inverted, gravity, mirror, long_shot, zealot]. 'mirror' joins the
+    rotation (S8 left it defined but unreachable — its bounty was never
+    claimable) and 'zealot' is the new S9 fanatic mode.
     """
-    assert _ROTATING_MODES == ['inverted', 'gravity', 'long_shot'], (
-        f"expected ['inverted', 'gravity', 'long_shot'], got {_ROTATING_MODES}"
+    assert _ROTATING_MODES == ['inverted', 'gravity', 'mirror', 'long_shot', 'zealot'], (
+        f"expected 5-mode rotation, got {_ROTATING_MODES}"
     )
-    # Sanity: mirror is still defined as a mode (just not rotating).
-    assert 'mirror' in WHEEL_MODES, "mirror mode entry must still exist in WHEEL_MODES"
+    # Sanity: mirror is a defined mode AND now rotating.
+    assert 'mirror' in WHEEL_MODES, "mirror mode entry must exist in WHEEL_MODES"
+    assert 'mirror' in _ROTATING_MODES, "mirror must be reachable in the rotation"
+    assert 'zealot' in WHEEL_MODES, "zealot mode entry must exist in WHEEL_MODES"
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# T115 AC#3: get_rotating_mode() slot 2
+# T115 AC#3: get_rotating_mode() slot layout
 # ════════════════════════════════════════════════════════════════════════════
-def test_get_rotating_mode_slot_2_returns_long_shot():
-    """T115 AC#3: week_number % 3 == 2 → 'long_shot' (was 'mirror' pre-T115)."""
-    assert get_rotating_mode(week_number=2) == 'long_shot', (
-        f"week_number=2 should yield 'long_shot', got {get_rotating_mode(week_number=2)!r}"
-    )
-    # Cover all three slots to lock in the rotation order.
+def test_get_rotating_mode_slots():
+    """week_number % 5 maps across all five rotating modes, in order."""
     assert get_rotating_mode(week_number=0) == 'inverted'
     assert get_rotating_mode(week_number=1) == 'gravity'
-    assert get_rotating_mode(week_number=2) == 'long_shot'
-    # And one full cycle later, the order is the same.
-    assert get_rotating_mode(week_number=3) == 'inverted'
-    assert get_rotating_mode(week_number=4) == 'gravity'
-    assert get_rotating_mode(week_number=5) == 'long_shot'
+    assert get_rotating_mode(week_number=2) == 'mirror'
+    assert get_rotating_mode(week_number=3) == 'long_shot'
+    assert get_rotating_mode(week_number=4) == 'zealot'
+    # One full cycle later, the order is the same.
+    assert get_rotating_mode(week_number=5) == 'inverted'
+    assert get_rotating_mode(week_number=6) == 'gravity'
+    assert get_rotating_mode(week_number=7) == 'mirror'
+    assert get_rotating_mode(week_number=8) == 'long_shot'
+    assert get_rotating_mode(week_number=9) == 'zealot'
 
 
-def test_get_available_modes_includes_long_shot_in_slot_2():
-    """T115 AC#2/#3: get_available_modes() exposes long_shot on slot-2 weeks
-    (steady + volatile + the rotating mode)."""
-    modes = get_available_modes(week_number=2)
-    assert modes == ['steady', 'volatile', 'long_shot'], (
-        f"slot-2 available modes should be ['steady', 'volatile', 'long_shot'], "
+def test_get_available_modes_includes_rotating_mode():
+    """get_available_modes() exposes steady + volatile + the weekly rotating mode."""
+    for w, mode in [(0, 'inverted'), (2, 'mirror'), (3, 'long_shot'), (4, 'zealot')]:
+        assert get_available_modes(w) == ['steady', 'volatile', mode], (
+            f"week {w} should expose {mode}, got {get_available_modes(w)}"
+        )
+    modes = get_available_modes(week_number=4)
+    assert modes == ['steady', 'volatile', 'zealot'], (
+        f"slot-4 available modes should be ['steady', 'volatile', 'zealot'], "
         f"got {modes}"
     )
 

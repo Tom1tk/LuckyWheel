@@ -53,6 +53,13 @@ BOUNTY_DEFS = [
         'reward_tokens': 100,
     },
     {
+        'id': 'bounty_zealot',
+        'description': 'Land 2 zealot jackpots',
+        'metric': 'zealot_jackpots_today',
+        'target': 2,
+        'reward_tokens': 100,
+    },
+    {
         'id': 'bounty_streak10',
         'description': 'Reach a 10-spin win streak',
         'metric': 'max_streak_today',
