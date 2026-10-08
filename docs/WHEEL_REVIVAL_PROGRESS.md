@@ -34,3 +34,14 @@ Additional G0 evidence:
 
 | Ticket | Status | Commit | Evidence |
 |---|---|---|---|
+| RV-01 season config + tides | merged | 2d01b7e | 48 tides/rollover/season tests pass (DB-backed) |
+| RV-03 universal auto-spin (backend) | merged | 1345936 | 31 auto-spin tests; 5 new fail on pre-change base; 24h catch-up = 28,800 spins in ~0.57s, one tick |
+| RV-04 weekly community goals | merged | 8e195c9 | 23 goal tests; goal keyed on tide (season_number) not ISO week; species goal retired (species persist) |
+
+Suite after RV-01/03/04: 881 passed, same 16 baseline Playwright failures.
+
+Notes:
+- Staging DB carried stale schema_migrations 73-76 from the abandoned July S9 attempt, so new 073-075 were skipped. Re-cloned wheeldb_staging from prod (users 2153 = 2153) and migrated 069-075 cleanly. **Prod is at 068: launch must apply 069-075.**
+- Handed to RV-02: rollover sets auto_spin_since NULL unless season_registered (now never set) → must keep auto-spin running across tides; auth.py registration still grants page_season8 → use SEASON_CONFIG theme.
+- Handed to RV-07 (frontend): HiatusScreen still calls removed /api/register-season.
+- Design: all visual/creative passes done by the Opus orchestrator, not subagents (user, 2026-10-08). Mockup v1 rejected as too basic; v2 must keep prior seasons' design language.
