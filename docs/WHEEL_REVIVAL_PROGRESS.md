@@ -70,8 +70,14 @@ Staging reset for H2: fresh prod clone, 069–077, launched to 9.1 (users 2153).
 
 Notes for H2/H3:
 - Hall of Fame entries for test users created from localhost are filtered like chat; real players are unaffected.
-- Mobile fishing: the "last catch" chip sits partly off the right edge at 390 px (now clipped, not zoomed).
-- Stale comments describing a 60 s heartbeat auto-stop: game.py ~1039/3079/3093 (code no longer exists).
-- Shop still lists "Auto-Spin Unlock · 5K" (shows ACTIVE).
+- ~~Mobile "last catch" chip off-screen~~ fixed e868839. ~~Stale heartbeat comments~~ and ~~Auto-Spin Unlock in the shop~~ fixed aa59a0a.
 
 **G3: PASSED 2026-10-08.** Next: H2, tom7 playtests staging with `docs/PLAYTEST_CHECKLIST.md`.
+
+### H2 round 1 (2026-10-08, tom7 feedback)
+
+- **S8 podium (H3):** keep as is, dylan ~1.04e38 first. Auto-Spin Unlock removed from the shop (aa59a0a).
+- Fixed and checked by Playwright E2E on `claudeqa1`: Long Shot drew the Steady wheel (missing `WHEEL_MODE_DRAW` row; new `tests/test_wheel_mode_draw_table.py`); wheel covered "click to spin" on desktop; hub star sat low; stake slider (set 20% → server 20% → loss took 20%); mobile pointer/subtitle, Long Shot wrapping, balance over stake panel (e92370d). Stake panel under the pointer below 1366 px, mobile catch chip, result lines over the spin prompt, doubled Patch Notes title (e868839).
+- Incident: an earlier reset of testing7 wiped its purchases mid-playtest; `wager_unlock` re-granted, three other items need re-buying. QA now uses `claudeqa1` only.
+- README (readme-revival 1c1a44f): rebuilt hero GIF (≈1 s per season, ends on the banner, per-era wheel and clicker fish), per-season clips, `docs/SEASON_MUSEUM.md`.
+- Known, left as is: the one-off "✨ NEW: …" unlock chip briefly covers WINS/LOSSES; the YOU WIN banner briefly overlaps the shop edge at 1366 px.
