@@ -340,7 +340,7 @@ _FUNCTIONAL_SHOP_ITEMS = {
 }
 
 # Season 9: retired from sale. /api/buy returns 403 for these; owned copies are kept.
-RETIRED_S9_ITEMS = frozenset({'prestige_unlock', 'aquarium'})
+RETIRED_S9_ITEMS = frozenset({'prestige_unlock', 'aquarium', 'auto_spin_unlock'})
 
 
 ITEM_CURRENCY = {}

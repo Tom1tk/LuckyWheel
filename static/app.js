@@ -4335,13 +4335,6 @@ var SHOP_SECTIONS = [{
     desc: 'Raises max stake from 40% to 45%',
     tier: 1,
     requires: 'wager_stake_extend_2'
-  }, {
-    id: 'auto_spin_unlock',
-    emoji: '🔁',
-    name: 'Auto-Spin Unlock',
-    cost: 5000,
-    desc: 'Spins automatically at 0% stake — stake slider hides while active',
-    tier: 1
   }]
 }, {
   label: '🐟 Fishing Panel Size',
@@ -6951,9 +6944,8 @@ function GameApp(_ref35) {
   // the stake slider while active.
   //
   // T216: no budget is sent in the start body (the per-activation 100-spin
-  // budget was removed). Auto-spin now runs continuously until the user
-  // explicitly stops it, or the server's heartbeat auto-stop fires (60s of
-  // no /api/tick).
+  // budget was removed). Auto-spin runs until the user stops it, and keeps
+  // running server-side while they are away (S9).
   var handleStartAutoSpin = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18() {
     var _yield$apiGame11, ok, data;
     return _regenerator().w(function (_context18) {
@@ -7264,8 +7256,7 @@ function GameApp(_ref35) {
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   // T216: the per-activation 100-spin budget was removed; auto-spin is
-  // simply on/off. The server tracks `auto_spin_since` and auto-stops
-  // after 60s of no /api/tick.
+  // simply on/off. The server tracks `auto_spin_since`.
   var _useState255 = useState(gameState.auto_spin_active || false),
     _useState256 = _slicedToArray(_useState255, 2),
     autoSpinActive = _useState256[0],
