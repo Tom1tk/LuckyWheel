@@ -4408,7 +4408,7 @@ var SHOP_SECTIONS = [{
     tier: 3
   }]
 }, {
-  label: '🎣 Season 8: Fishing',
+  label: '🎣 Fishing',
   items: [
   // T223: fish_to_wager removed — it was a legacy item that wasn't
   // supposed to be in the shop. The item still exists in models.SHOP_ITEMS

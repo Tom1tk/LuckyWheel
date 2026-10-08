@@ -29,7 +29,7 @@ def test_big_win_msg_format():
 
 def test_new_player_msg_format():
     msg = chat_triggers.new_player_msg('frank')
-    assert msg == '🎉 frank spun the wheel for the first time! Welcome to Season 8!'
+    assert msg == '🎉 frank spun the wheel for the first time! Welcome to the Tides!'
 
 
 def test_goal_milestone_msg_format():

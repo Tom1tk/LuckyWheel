@@ -47,7 +47,7 @@ def big_win_msg(username: str, wins_delta: int, mode: str) -> str:
 
 
 def new_player_msg(username: str) -> str:
-    return f'🎉 {username} spun the wheel for the first time! Welcome to Season 8!'
+    return f'🎉 {username} spun the wheel for the first time! Welcome to the Tides!'
 
 
 def goal_milestone_msg(pct: int, current: int, target: int) -> str:
