@@ -3,6 +3,7 @@
 # Usage: sudo bin/clone-prod-to.sh <target_db>
 # Runs pg_dump as the postgres superuser (wheelapp lacks CREATEDB).
 # Read-only on prod; refuses to target wheeldb itself.
+# SOURCE_DB=<name> clones that database instead of wheeldb (read-only on the source).
 set -euo pipefail
 
 TARGET="${1:?usage: clone-prod-to.sh <target_db>}"
@@ -11,10 +12,16 @@ if [[ "$TARGET" == "wheeldb" || ! "$TARGET" =~ ^(wheeldb|wheel)_[a-z0-9_]+$ ]]; 
   exit 1
 fi
 
+SOURCE="${SOURCE_DB:-wheeldb}"
+if [[ "$SOURCE" == "$TARGET" ]]; then
+  echo "refusing: source '$SOURCE' is the target" >&2
+  exit 1
+fi
+
 PG="sudo -u postgres"
 $PG dropdb --if-exists "$TARGET"
 $PG createdb -O wheelapp "$TARGET"
-$PG pg_dump --no-owner wheeldb | $PG psql -q -v ON_ERROR_STOP=1 -d "$TARGET" >/dev/null
+$PG pg_dump --no-owner "$SOURCE" |$PG psql -q -v ON_ERROR_STOP=1 -d "$TARGET" >/dev/null
 # Restored objects are owned by postgres; hand them to the app role.
 $PG psql -q -d "$TARGET" -c "REASSIGN OWNED BY postgres TO wheelapp" 2>/dev/null || \
 $PG psql -q -d "$TARGET" <<'SQL'
@@ -28,7 +35,7 @@ DO $$DECLARE r record; BEGIN
 END$$;
 SQL
 
-src=$($PG psql -At -d wheeldb -c "select count(*) from users")
+src=$($PG psql -At -d "$SOURCE" -c "select count(*) from users")
 dst=$($PG psql -At -d "$TARGET" -c "select count(*) from users")
-echo "cloned wheeldb -> $TARGET (users: prod=$src clone=$dst)"
+echo "cloned $SOURCE -> $TARGET (users: source=$src clone=$dst)"
 [[ "$src" == "$dst" ]]
