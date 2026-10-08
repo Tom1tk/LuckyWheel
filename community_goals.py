@@ -1,6 +1,7 @@
 """Season 8 community goals — replaces the community_pot system.
 
-One goal is active per week, selected by ``week_number % len(COMMUNITY_GOAL_DEFS)``.
+One goal is active at a time. Each new row takes the goal after the most
+recent row's goal in COMMUNITY_GOAL_DEFS order (see start_weekly_goal).
 All players contribute; on completion, all participants receive a reward.
 Contribution is capped per player so one whale cannot solo it.
 """
@@ -9,41 +10,35 @@ import psycopg2.extras
 
 import chat
 import chat_triggers
+from wheel_modes import get_week_number
 
 
+# per_player_cap is target / 5: five players at cap fill a goal exactly, and
+# no single player can give more than 20% of it.
 COMMUNITY_GOAL_DEFS = [
     {
         'goal_id': 'goal_fish5000',
-        'description': 'Catch 5,000 fish server-wide',
-        'target': 5000,
-        'per_player_cap': 500,
+        'description': 'Catch 1,500 fish server-wide',
+        'target': 1500,
+        'per_player_cap': 300,
         'metric': 'fish_caught',
         'reward_tokens': 500,
         'reward_fragments': 1,
     },
     {
         'goal_id': 'goal_jackpot500',
-        'description': 'Land 500 jackpots server-wide',
-        'target': 500,
-        'per_player_cap': 50,
+        'description': 'Land 100 jackpots server-wide',
+        'target': 100,
+        'per_player_cap': 20,
         'metric': 'jackpots_landed',
         'reward_tokens': 500,
         'reward_fragments': 1,
     },
     {
-        'goal_id': 'goal_prestige50',
-        'description': 'Prestige 50 times server-wide',
-        'target': 50,
-        'per_player_cap': 10,
-        'metric': 'prestiges',
-        'reward_tokens': 500,
-        'reward_fragments': 1,
-    },
-    {
         'goal_id': 'goal_wager100k',
-        'description': 'Wager 100k wins total server-wide',
-        'target': 100_000,
-        'per_player_cap': 15_000,
+        'description': 'Wager 25k wins total server-wide',
+        'target': 25_000,
+        'per_player_cap': 5_000,
         'metric': 'wins_wagered',
         'reward_tokens': 500,
         'reward_fragments': 1,
@@ -52,7 +47,7 @@ COMMUNITY_GOAL_DEFS = [
         'goal_id': 'goal_species100',
         'description': 'Catch 100 unique species server-wide',
         'target': 100,
-        'per_player_cap': 15,
+        'per_player_cap': 20,
         'metric': 'unique_species',
         'reward_tokens': 500,
         'reward_fragments': 1,
@@ -60,14 +55,62 @@ COMMUNITY_GOAL_DEFS = [
 ]
 
 
-def get_active_goal(conn, season_number, week_number):
-    """Return the active community goal row, creating it if needed.
+def _next_goal_def(conn):
+    """Return the goal after the most recent row's goal, wrapping around the defs.
 
-    The goal is selected by ``week_number % len(COMMUNITY_GOAL_DEFS)``.
+    Falls back to the first def when there are no rows, or when the latest
+    row's goal has been retired from COMMUNITY_GOAL_DEFS.
     """
-    goal_def = COMMUNITY_GOAL_DEFS[week_number % len(COMMUNITY_GOAL_DEFS)]
-    goal_id = goal_def['goal_id']
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute('SELECT goal_id FROM community_goals ORDER BY id DESC LIMIT 1')
+        last = cur.fetchone()
+    goal_ids = [g['goal_id'] for g in COMMUNITY_GOAL_DEFS]
+    if last is None or last['goal_id'] not in goal_ids:
+        return COMMUNITY_GOAL_DEFS[0]
+    return COMMUNITY_GOAL_DEFS[(goal_ids.index(last['goal_id']) + 1) % len(goal_ids)]
 
+
+def _insert_goal_row(conn, goal_def, season_number, week_number):
+    """Insert the (season, week) row for goal_def and make it the only open goal.
+
+    Returns the new row, or None if that (season, week) already has a row.
+    Only a fresh insert closes the other open goals and resets this goal's
+    contributions, so a repeat call for the same week cannot wipe live progress.
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            '''INSERT INTO community_goals (goal_id, season_number, week_number, target)
+               VALUES (%s, %s, %s, %s)
+               ON CONFLICT (season_number, week_number) DO NOTHING
+               RETURNING *''',
+            (goal_def['goal_id'], season_number, week_number, goal_def['target']),
+        )
+        row = cur.fetchone()
+        if row is None:
+            return None
+        # Close the old goals. increment_goal matches on goal_id alone, so an
+        # open old row with the same goal_id would take this goal's contributions.
+        # completed=TRUE with completed_at NULL means "rotated out, not filled".
+        cur.execute(
+            '''UPDATE community_goals SET completed = TRUE
+               WHERE NOT completed AND id <> %s''',
+            (row['id'],),
+        )
+        # Per-player caps are keyed by goal_id only, so progress restarts here.
+        cur.execute(
+            'DELETE FROM community_goal_contributions WHERE goal_id = %s',
+            (goal_def['goal_id'],),
+        )
+    return row
+
+
+def get_active_goal(conn, season_number, week_number):
+    """Return ``(row, goal_def)`` for the (season, week) goal, creating it if needed.
+
+    An existing row keeps its own goal (looked up by goal_id), so changing the
+    defs never relabels a live row. A row whose goal is retired returns
+    ``(None, None)``, which every caller treats as "no goal".
+    """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             '''SELECT * FROM community_goals
@@ -76,16 +119,44 @@ def get_active_goal(conn, season_number, week_number):
         )
         row = cur.fetchone()
 
-        if row is None:
-            cur.execute(
-                '''INSERT INTO community_goals (goal_id, season_number, week_number, target)
-                   VALUES (%s, %s, %s, %s)
-                   ON CONFLICT (season_number, week_number) DO NOTHING
-                   RETURNING *''',
-                (goal_id, season_number, week_number, goal_def['target']),
-            )
-            row = cur.fetchone()
+    if row is None:
+        goal_def = _next_goal_def(conn)
+        return _insert_goal_row(conn, goal_def, season_number, week_number), goal_def
 
+    goal_def = next((g for g in COMMUNITY_GOAL_DEFS if g['goal_id'] == row['goal_id']), None)
+    return (row, goal_def) if goal_def else (None, None)
+
+
+def _tide_key(conn):
+    """Return (season_number, ISO week) for the goal row a rollover creates.
+
+    ponytail: week_number is the ISO week, the same key get_active_goal uses,
+    so a tide that spans a Monday gets a new goal on Monday too. Upgrade by
+    keying on the tide itself once seasons has a sub_number (RV-01).
+    """
+    with conn.cursor() as cur:
+        cur.execute('SELECT season_number FROM seasons ORDER BY id LIMIT 1')
+        row = cur.fetchone()
+    if row is None:
+        raise RuntimeError('no seasons row; cannot activate a community goal')
+    return row[0], get_week_number()
+
+
+def start_weekly_goal(conn):
+    """Close the open community goal and activate the next one in rotation.
+
+    Call from the tide rollover after advance_season() has bumped the season,
+    inside the rollover's transaction. This function does not commit. It is
+    not wired into seasons.py; the orchestrator calls it there.
+
+    Returns (row, goal_def) like get_active_goal. If the new (season, week)
+    already has a row, that row is returned unchanged.
+    """
+    season_number, week_number = _tide_key(conn)
+    goal_def = _next_goal_def(conn)
+    row = _insert_goal_row(conn, goal_def, season_number, week_number)
+    if row is None:
+        return get_active_goal(conn, season_number, week_number)
     return row, goal_def
 
 
