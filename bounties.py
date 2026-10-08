@@ -39,13 +39,6 @@ BOUNTY_DEFS = [
         'reward_tokens': 100,
     },
     {
-        'id': 'bounty_mirror',
-        'description': 'Win 3 mirror-mode doubles',
-        'metric': 'mirror_wins_today',
-        'target': 3,
-        'reward_tokens': 100,
-    },
-    {
         'id': 'bounty_streak10',
         'description': 'Reach a 10-spin win streak',
         'metric': 'max_streak_today',
