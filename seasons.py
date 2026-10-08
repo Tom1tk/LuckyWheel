@@ -1,22 +1,47 @@
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, time, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 import psycopg2.extras
 
+from season_config import SEASON_CONFIG
+
 log = logging.getLogger('wheel')
+
+
+def season_label(player_facing_number, sub_number, season_number):
+    """'9.2' for a tide, '8' for a whole season, the internal number if pfn is NULL."""
+    if player_facing_number is None:
+        return str(season_number)
+    if sub_number is None:
+        return str(player_facing_number)
+    return f'{player_facing_number}.{sub_number}'
+
+
+def next_rollover_after(now):
+    """The first rollover (SEASON_CONFIG weekday and hour, local time) strictly
+    after `now`, as an aware UTC datetime. `now` must be timezone-aware."""
+    tz = ZoneInfo(SEASON_CONFIG['rollover_tz'])
+    local_date = now.astimezone(tz).date()
+    days_ahead = (SEASON_CONFIG['rollover_weekday'] - local_date.weekday()) % 7
+    at = time(SEASON_CONFIG['rollover_hour'])
+    rollover = datetime.combine(local_date + timedelta(days=days_ahead), at, tzinfo=tz)
+    if rollover <= now:
+        rollover = datetime.combine(local_date + timedelta(days=days_ahead + 7), at, tzinfo=tz)
+    return rollover.astimezone(timezone.utc)
 
 
 def ensure_current_season(conn):
     """
     Return current season info. Never auto-advances — call advance_season() explicitly.
 
-    Returns dict: {season_number, player_facing_number, ends_at, season_name}
+    Returns dict: {season_number, player_facing_number, sub_number, season_label, ends_at, season_name}
     T238: also fetches `name` so callers that need both this shape and
     get_season_info's `season_name` field can avoid a second `seasons` read.
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            'SELECT season_number, name, player_facing_number, ends_at '
+            'SELECT season_number, name, player_facing_number, sub_number, ends_at '
             'FROM seasons ORDER BY id LIMIT 1'
         )
         season = cur.fetchone()
@@ -26,6 +51,8 @@ def ensure_current_season(conn):
             'season_number': 1,
             'season_name': '1',
             'player_facing_number': None,
+            'sub_number': None,
+            'season_label': '1',
             'ends_at': None,
         }
 
@@ -38,15 +65,24 @@ def ensure_current_season(conn):
         'season_number': season['season_number'],
         'season_name': season['name'] or str(season['season_number']),
         'player_facing_number': season['player_facing_number'],
+        'sub_number': season['sub_number'],
+        'season_label': season_label(season['player_facing_number'],
+                                     season['sub_number'], season['season_number']),
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
     }
 
 
-def advance_season(conn, player_facing_number=None):
+def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
     """
-    Manually advance the season. Snapshots current standings, resets game_state,
-    and bumps season_number + ends_at by 7 days. Commits internally.
+    Manually advance the season. Snapshots current standings, logs the ending
+    season to season_log, resets game_state, bumps season_number, and sets
+    ends_at to the next rollover. Commits internally.
     Call this explicitly — never called automatically.
+
+    Each None argument defaults as follows:
+      - current row is a tide (sub_number set): pfn stays, sub_number + 1, name stays
+      - otherwise: pfn + 1 (see below), sub_number NULL, name from SEASON_CONFIG
+    Launch: advance_season(conn, 9, 'Tides', 1).
 
     `player_facing_number` (T212) sets the new row's player-facing
     season number. If None, the new row inherits
@@ -58,7 +94,8 @@ def advance_season(conn, player_facing_number=None):
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            'SELECT id, season_number, player_facing_number, started_at, ends_at '
+            'SELECT id, season_number, name, player_facing_number, sub_number, '
+            'started_at, ends_at '
             'FROM seasons ORDER BY id LIMIT 1 FOR UPDATE'
         )
         season = cur.fetchone()
@@ -72,9 +109,14 @@ def advance_season(conn, player_facing_number=None):
     current_number = season['season_number']
     next_number = current_number + 1
     next_starts = now
-    next_ends = now + timedelta(days=7)
+    next_ends = next_rollover_after(now)
+    in_tide = season['sub_number'] is not None
 
-    if player_facing_number is None:
+    if player_facing_number is not None:
+        next_player_facing_number = player_facing_number
+    elif in_tide:
+        next_player_facing_number = season['player_facing_number']
+    else:
         # T212: default to current + 1 so the player-facing number
         # advances monotonically. Legacy rows (player_facing_number
         # IS NULL) fall back to season_number + 1.
@@ -82,8 +124,16 @@ def advance_season(conn, player_facing_number=None):
         if pfn_base is None:
             pfn_base = season['season_number']
         next_player_facing_number = pfn_base + 1
+
+    if sub_number is not None:
+        next_sub_number = sub_number
     else:
-        next_player_facing_number = player_facing_number
+        next_sub_number = season['sub_number'] + 1 if in_tide else None
+
+    if name is not None:
+        next_name = name
+    else:
+        next_name = season['name'] if in_tide else SEASON_CONFIG['name']
 
     log.info('SEASON_ROLLOVER_START  season=%s  next_pfn=%s',
              current_number, next_player_facing_number)
@@ -161,9 +211,20 @@ def advance_season(conn, player_facing_number=None):
                 (pos, row['user_id'], current_number),
             )
 
+    # Permanent label for the ending season.
+    with conn.cursor() as cur:
+        cur.execute(
+            '''INSERT INTO season_log (season_number, label, name, started_at, ended_at)
+               VALUES (%s, %s, %s, %s, %s)
+               ON CONFLICT DO NOTHING''',
+            (current_number,
+             season_label(season['player_facing_number'], season['sub_number'], current_number),
+             season['name'], season['started_at'], now),
+        )
+
     # Reset all game_state rows; auto-grant the new season's page theme.
     # Registered users start spinning from season start; others must join manually.
-    new_theme = 'page_season8'  # Casino era — sub-seasons 8.1/8.2 share the S8 theme
+    new_theme = SEASON_CONFIG['theme_item']
     with conn.cursor() as cur:
         cur.execute(
             """UPDATE game_state SET
@@ -208,20 +269,21 @@ def advance_season(conn, player_facing_number=None):
     with conn.cursor() as cur:
         cur.execute(
             '''UPDATE community_pot SET
-                   total_contributed = 0, target = 40000, filled = false,
+                   total_contributed = 0, target = %s, filled = false,
                    filled_at = NULL, fib_prev = 0, win_chance_pct = 51.0,
                    last_decay_check = NOW()
                WHERE id = 1''',
+            (SEASON_CONFIG['community_pot_target'],),
         )
 
     with conn.cursor() as cur:
         cur.execute(
             '''UPDATE seasons
-               SET season_number = %s, name = 'Casino',
-                   player_facing_number = %s,
+               SET season_number = %s, name = %s,
+                   player_facing_number = %s, sub_number = %s,
                    started_at = %s, ends_at = %s
                WHERE id = %s''',
-            (next_number, next_player_facing_number,
+            (next_number, next_name, next_player_facing_number, next_sub_number,
              next_starts, next_ends, season_id),
         )
 
@@ -242,13 +304,14 @@ def get_season_info(conn):
     """
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            'SELECT season_number, name, player_facing_number, ends_at '
+            'SELECT season_number, name, player_facing_number, sub_number, ends_at '
             'FROM seasons ORDER BY id LIMIT 1'
         )
         season = cur.fetchone()
 
     if season is None:
         return {'season_number': 1, 'season_name': '1', 'player_facing_number': None,
+                'sub_number': None, 'season_label': '1',
                 'ends_at': None, 'latest_winners': []}
 
     prev = season['season_number'] - 1
@@ -277,6 +340,9 @@ def get_season_info(conn):
         'season_number': season['season_number'],
         'season_name':   season['name'] or str(season['season_number']),
         'player_facing_number': season['player_facing_number'],
+        'sub_number': season['sub_number'],
+        'season_label': season_label(season['player_facing_number'],
+                                     season['sub_number'], season['season_number']),
         'ends_at': season['ends_at'].isoformat() if season['ends_at'] else None,
         'latest_winners': latest_winners,
     }

@@ -181,6 +181,7 @@ SHOP_ITEMS = {
     'page_season6':   {'cost': 1_000,        'requires': None},
     'page_season7':   {'cost': 1_000,        'requires': None},
     'page_season8':   {'cost': 1_000,        'requires': None},
+    'page_season9':   {'cost': 1_000,        'requires': None},
     'party_mode':     {'cost': 150,          'requires': None},
     'confetti_1':     {'cost': 75,           'requires': None},
     'confetti_2':     {'cost': 300,          'requires': 'confetti_1'},
