@@ -10,3 +10,4 @@ UPDATE community_goals SET target = 25000 WHERE goal_id = 'goal_wager100k'  AND 
 -- goal_prestige50 is retired. Drop its open row so it cannot stay active.
 -- Completed prestige rows stay as history.
 DELETE FROM community_goals WHERE goal_id = 'goal_prestige50' AND NOT completed;
+DELETE FROM community_goals WHERE goal_id = 'goal_species100' AND NOT completed;
