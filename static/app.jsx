@@ -1725,7 +1725,7 @@ function Die({ value, rolling, landed }) {
 }
 
 const DICE_TOOLTIP_W = 240;
-const DICE_TOOLTIP_TEXT = 'Roll two dice to amplify your win streak. The sum (2–12) is added to your streak. Requires a win streak of 3 or more. ⚠️ Snake eyes (1+1) curses you — losing half your streak! Charges recharge every 10 minutes.';
+const DICE_TOOLTIP_TEXT = 'Needs a win streak of 3+. Roll the dice and their total is added to your streak. Two 6s double it, three 6s triple it. ⚠️ Two 1s halve it, three 1s cut it to a third. One roll per spin; a charge comes back every 10 minutes.';
 
 function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
   const [secsToNext, setSecsToNext] = React.useState(null);
@@ -2634,7 +2634,7 @@ const SHOP_SECTIONS = [
     { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Stake up to 30% of your wins on a spin to win it back double', tier: 1 },
     { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
     { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
-    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Arm 2x stake for next spin', tier: 3, requires: 'wager_hot_streak' },
+    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Bet your whole last win on the next spin: all or nothing', tier: 3, requires: 'wager_hot_streak' },
     { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Caps next loss at stake amount', tier: 3, requires: 'wager_unlock' },
     { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
     { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
@@ -2670,7 +2670,7 @@ const SHOP_SECTIONS = [
     { id: 'precise_angler_3', emoji: '🎯', name: 'Master Angler',         cost: 500000, desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia', requires: 'precise_angler_2', encyclopaediaLocked: true },
   ]},
   { label: '🛡️ Protection', items: [
-    { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 1000,   desc: 'Blocks one loss per manual trigger. Consumes a guard charge.' },
+    { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 1000,   desc: 'Blocks your next loss automatically, then it is used up' },
     { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Passively recharges 1 charge every 50 spins.', tier: 2 },
     { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 5000,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
     { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 20000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
@@ -2731,7 +2731,7 @@ const SHOP_SECTIONS = [
     { id: 'dice_charge_2', emoji: '🎲', name: 'Dice Charge +1', cost: 2000,    desc: 'Max dice charges: 2' },
     { id: 'dice_charge_3', emoji: '🎲', name: 'Dice Charge +2', cost: 15000,   desc: 'Max dice charges: 3', requires: 'dice_charge_2' },
     { id: 'dice_charge_4', emoji: '🎲', name: 'Dice Charge +3', cost: 100000,  desc: 'Max dice charges: 4', requires: 'dice_charge_3' },
-    { id: 'dice_extra',    emoji: '🎰', name: 'Extra Die',      cost: 1000000, desc: 'Roll 3 dice — take the best result', requires: 'dice_charge_3' },
+    { id: 'dice_extra',    emoji: '🎰', name: 'Extra Die',      cost: 1000000, desc: 'Roll 3 dice instead of 2: all three add to your streak', requires: 'dice_charge_3' },
   ]},
 ];
 
@@ -3301,7 +3301,7 @@ function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
   return (
     <div className="free-tokens-section">
       <button className="free-tokens-claim-btn" onClick={onClaim}>
-        🪙 Claim 3 free tokens
+        🪙 Claim 3 free insurance tokens
       </button>
     </div>
   );
@@ -3313,6 +3313,7 @@ function BountiesPanel({ bounties, onClaim }) {
     <div className="season8-bounties-panel">
       <div className="bounties-header">
         <span>📋 Bounties</span>
+        <span className="panel-subtitle">Daily tasks · reset at midnight UTC</span>
       </div>
       {bounties.map(b => (
         <div key={b.bounty_id} className="bounty-card">
@@ -3320,10 +3321,10 @@ function BountiesPanel({ bounties, onClaim }) {
           <div className="bounty-progress-bar">
             <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
           </div>
-          <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)}</div>
+          <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)} · reward {b.position} 🪙</div>
           {b.completed && !b.claimed && (
             <button className="bounty-claim-btn" onClick={() => onClaim(b.bounty_id)}>
-              Claim +{b.position} token{b.position > 1 ? 's' : ''}
+              Claim {b.position} 🪙 token{b.position > 1 ? 's' : ''}
             </button>
           )}
           {b.claimed && <span className="bounty-claimed">✓ +{b.position} claimed</span>}
@@ -3342,6 +3343,7 @@ function CommunityGoalPanel({ communityGoal }) {
         <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
       </div>
       <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
+      <div className="panel-subtitle">Hit it before the tide turns: everyone who helped gets 500 🪙 tokens</div>
     </div>
   );
 }
@@ -3361,7 +3363,7 @@ function WagerPanel({
   const steps = [];
   for (let v = 0; v <= maxStakePct; v += 5) steps.push(v);
   return (
-    <div className={`season8-wager-panel ${tier}`}>
+    <div className={`season8-wager-panel ${tier}${infoOpen ? ' info-open' : ''}`}>
       <div className="stake-top">
         <span className="stake-title">Stake</span>
         <span className={`stake-pct stake-label ${tier}`}>{stakePct}%</span>
@@ -3515,7 +3517,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T204: mobile drawer state — toggles the S8 panel drawer (no tabs;
   // all S8 panels stack inside the drawer as a long scrollable column).
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [showChat, setShowChat] = useState(() => localStorage.getItem('chat_open') !== 'false');
+  // Short screens can't fit chat above the fishing panel, so chat starts closed there until the player opens it.
+  const [showChat, setShowChat] = useState(() => {
+    const saved = localStorage.getItem('chat_open');
+    return saved === null ? window.innerHeight >= 900 : saved !== 'false';
+  });
   const fireMode = 2; // Mix mode
   const [wheelRotation, setWheelRotation] = useState(0);
   const wheelRotationRef = useRef(0);
@@ -3938,7 +3944,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setBonusEarned(data.bonus_earned ?? 0);
     setEffectiveWinMult(data.effective_win_mult ?? 0);
     setEchoTriggered(!!data.echo_triggered);
-    setJackpotHit(!!data.jackpot_hit);
+    setJackpotHit(data.jackpot_hit ? (data.jackpot_multiplier || 25) : false);
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
@@ -4657,7 +4663,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
       {happyHour && !happyHourDismissed && (
         <div className="happy-hour-banner">
-          ⭐ Happy Hour! 9–10pm — 2× pot contributions · boosted legendary fish ⭐
+          ⭐ Happy Hour until {new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: 2× pot contributions · more legendary fish ⭐
           <button className="happy-hour-banner-close" onClick={() => setHappyHourDismissed(true)}>✕</button>
         </div>
       )}
@@ -4804,7 +4810,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="bonus-line lose-bonus">+{fmt(lossesDelta)} {Number(lossesDelta) === 1 ? 'loss' : 'losses'}</div>
           )}
           {jackpotHit && (
-            <div className="bonus-line jackpot-line">🎰 JACKPOT! 25x multiplier applied!</div>
+            <div className="bonus-line jackpot-line">🎰 JACKPOT! ×{jackpotHit} payout!</div>
           )}
           {echoTriggered && !jackpotHit && (
             <div className="bonus-line echo-line">🔊 WIN ECHO! Wins doubled!</div>

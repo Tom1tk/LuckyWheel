@@ -1071,15 +1071,15 @@ def test_jsx_renames_state_variables():
 
 def test_jsx_free_tokens_section():
     """T119 AC#14: the free-tokens section sits ABOVE the bounties
-    panel. Single-row layout: a "Claim 3 free tokens" button when
+    panel. Single-row layout: a "Claim 3 free insurance tokens" button when
     unclaimed; a "Claimed today" indicator after claim.
     """
     jsx = _read(JSX_PATH)
     assert 'free-tokens-section' in jsx, (
         "JSX must include a .free-tokens-section element above the bounties panel"
     )
-    assert 'Claim 3 free tokens' in jsx, (
-        "free-tokens section must show the 'Claim 3 free tokens' button"
+    assert 'Claim 3 free insurance tokens' in jsx, (
+        "free-tokens section must show the 'Claim 3 free insurance tokens' button"
     )
     assert 'claimed today' in jsx.lower() or 'Claimed today' in jsx, (
         "free-tokens section must show a 'claimed today' indicator after claim"
