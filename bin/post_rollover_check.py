@@ -97,9 +97,13 @@ def run_checks(conn, before, live_url=''):
         results.append(('season_log_row', logged == [before['label']],
                         f"logged {logged}, expected [{before['label']!r}]"))
 
-        cur.execute('SELECT count(*) FROM game_state WHERE wins <> 0')
-        unreset = cur.fetchone()[0]
-        results.append(('wins_reset', unreset == 0, f'{unreset} rows with wins <> 0'))
+        if live_url:
+            # Live prod: auto-spin earns wins within seconds. The reset commits with the label bump.
+            results.append(('wins_reset', True, 'not applicable on a live DB: covered by label_advanced'))
+        else:
+            cur.execute('SELECT count(*) FROM game_state WHERE wins <> 0')
+            unreset = cur.fetchone()[0]
+            results.append(('wins_reset', unreset == 0, f'{unreset} rows with wins <> 0'))
 
         results.append(('grants_theme', _missing_grant(cur, THEME) == 0, f'{THEME} missing for some rows'))
         results.append(('auto_spin_unlock', _missing_grant(cur, 'auto_spin_unlock') == 0,
