@@ -963,6 +963,7 @@ def get_state():
                 'season_number': season_info['season_number'],
                 'season_name': season_info['season_name'],
                 'player_facing_number': season_info['player_facing_number'],
+                'sub_number': season_info['sub_number'],
                 'ends_at': season_info['ends_at'],
                 'latest_winners': latest_winners,
             }

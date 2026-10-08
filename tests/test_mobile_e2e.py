@@ -106,52 +106,24 @@ def _dismiss_patch_notes_init():
     return ''.join(parts)
 
 
-# ── testing7 context (pre-existing user, owns prestige_unlock) ─────────────
+# ── testing7 context (fresh throwaway user; name kept for the tests below) ──
 
 @pytest.fixture(scope='module')
 def testing7_logged_in(server_url, db_url, playwright_instance):
-    """Logs in as the pre-existing 'testing7' user (owns prestige_unlock).
-    Also resets insurance_free_claimed_date to NULL so the free-tokens
-    section is eligible to render. Restored on teardown."""
-    conn = psycopg2.connect(db_url)
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT insurance_free_claimed_date FROM game_state "
-                "WHERE user_id = (SELECT id FROM users WHERE username = 'testing7')"
-            )
-            row = cur.fetchone()
-            original_claim_date = row[0] if row else None
-            cur.execute(
-                "UPDATE game_state SET insurance_free_claimed_date = NULL "
-                "WHERE user_id = (SELECT id FROM users WHERE username = 'testing7')"
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
+    """Registers a fresh user. A fresh DB has no pre-existing 'testing7', and a
+    new account already has insurance_free_claimed_date NULL, so the
+    free-tokens section is eligible to render."""
+    username = f't7mob{uuid.uuid4().hex[:8]}'
     b = playwright_instance.chromium.launch()
     context = b.new_context()
     context.add_init_script(_dismiss_patch_notes_init())
     page = context.new_page()
     page.goto(server_url + '/')
     page.wait_for_load_state('domcontentloaded')
-    result = _api_post(page, '/api/login', {'username': 'testing7', 'password': 'pw1234'})
-    assert result['ok'], f'testing7 login failed: {result}'
-    yield {'context': context, 'browser': b, 'server_url': server_url}
+    result = _api_post(page, '/api/register', {'username': username, 'password': 'testpass123'})
+    assert result['ok'], f'register failed: {result}'
+    yield {'context': context, 'browser': b, 'server_url': server_url, 'username': username}
     b.close()
-
-    conn = psycopg2.connect(db_url)
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE game_state SET insurance_free_claimed_date = %s "
-                "WHERE user_id = (SELECT id FROM users WHERE username = 'testing7')",
-                (original_claim_date,),
-            )
-        conn.commit()
-    finally:
-        conn.close()
 
 
 # ── Wager user context (fresh user, grants wager_unlock) ──────────────────
