@@ -81,6 +81,7 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
 
     Each None argument defaults as follows:
       - current row is a tide (sub_number set): pfn stays, sub_number + 1, name stays
+        (an explicit pfn without sub_number starts a whole season: sub_number NULL)
       - otherwise: pfn + 1 (see below), sub_number NULL, name from SEASON_CONFIG
     Launch: advance_season(conn, 9, 'Tides', 1).
 
@@ -128,7 +129,7 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
     if sub_number is not None:
         next_sub_number = sub_number
     else:
-        next_sub_number = season['sub_number'] + 1 if in_tide else None
+        next_sub_number = season['sub_number'] + 1 if in_tide and player_facing_number is None else None
 
     if name is not None:
         next_name = name
