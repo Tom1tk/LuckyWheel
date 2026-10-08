@@ -26,8 +26,6 @@ import os
 import re
 import importlib.util
 
-import pytest
-
 
 # Load the real seasons.py via importlib, bypassing any stub that another
 # test file may have already installed in sys.modules['seasons'] via
@@ -141,11 +139,13 @@ class _CapturingCursor:
         self._params = params
 
     def fetchone(self):
-        if self._fetch_one is None: return None
+        if self._fetch_one is None:
+            return None
         return self._fetch_one
 
     def fetchall(self):
-        if self._fetch_all is None: return []
+        if self._fetch_all is None:
+            return []
         return self._fetch_all
 
 
@@ -160,7 +160,9 @@ def _grab_game_state_sql():
     fake_season = {
         'id': 1,
         'season_number': 7,
+        'name': None,
         'player_facing_number': 7,
+        'sub_number': None,
         'started_at': None,
         'ends_at': None,
     }
