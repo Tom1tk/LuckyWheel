@@ -12,6 +12,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import psycopg2
+import psycopg2.extras
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -252,3 +253,58 @@ def test_season_info_exposes_sub_number_and_label(conn):
     assert current['sub_number'] == 2
     assert current['season_label'] == '9.2'
     assert current['season_name'] == 'Tides'
+
+
+def _set_state(conn, user_id, **cols):
+    sets = ', '.join(f'{k} = %s' for k in cols)
+    with conn.cursor() as cur:
+        cur.execute(f'UPDATE game_state SET {sets} WHERE user_id = %s', (*cols.values(), user_id))
+
+
+def _state(conn, user_id):
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute('SELECT * FROM game_state WHERE user_id = %s', (user_id,))
+        return cur.fetchone()
+
+
+def test_rollover_keeps_cosmetics_and_species_drops_functional(conn):
+    """RV-02: cosmetics, active cosmetics, equipped skin and species persist."""
+    user_id = _make_user(conn)
+    _set_state(conn, user_id,
+               owned_items=['trail_2', 'theme_ice', 'page_season5', 'fish_puffer',
+                            'winmult_3', 'wager_unlock'],
+               active_cosmetics=['trail_2', 'page_season5'],
+               equipped_fish='fish_puffer', caught_species=['cod', 'eel'])
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    gs = _state(conn, user_id)
+    assert set(gs['owned_items']) == {'trail_2', 'theme_ice', 'page_season5', 'fish_puffer',
+                                      'page_season9', 'auto_spin_unlock'}
+    assert gs['active_cosmetics'] == ['trail_2', 'page_season5']  # own page theme kept
+    assert gs['equipped_fish'] == 'fish_puffer'
+    assert sorted(gs['caught_species']) == ['cod', 'eel']
+
+
+def test_rollover_equips_season_theme_when_no_page_theme_active(conn):
+    user_id = _make_user(conn)
+    _set_state(conn, user_id, owned_items=['trail_2', 'winmult_3'],
+               active_cosmetics=['trail_2', 'winmult_3'])
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    assert _state(conn, user_id)['active_cosmetics'] == ['trail_2', 'page_season9']
+
+
+def test_rollover_keeps_running_auto_spin_and_leaves_stopped_alone(conn):
+    running, stopped = _make_user(conn), _make_user(conn)
+    _set_state(conn, running, auto_spin_since=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    _set_state(conn, stopped, auto_spin_since=None)
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    assert _state(conn, running)['auto_spin_since'] > datetime(2026, 1, 2, tzinfo=timezone.utc)
+    assert _state(conn, stopped)['auto_spin_since'] is None

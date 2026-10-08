@@ -14,6 +14,7 @@ from db import db_connection
 from extensions import limiter, login_manager
 from models import DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, User
 from security import check_lockout, clear_attempts, record_attempt, require_json
+from season_config import SEASON_CONFIG
 
 log = logging.getLogger('wheel')
 auth_bp = Blueprint('auth', __name__)
@@ -115,14 +116,13 @@ def register():
                     (username, pw_hash, ip, device_id),
                 )
                 user_id = cur.fetchone()['id']
-                # Season 8: new players start with the casino page theme owned
-                # and equipped. They can switch to any other theme in the shop.
-                # Update this default when the season's default theme changes.
+                # New players start with the season's page theme owned and
+                # equipped. They can switch to any other theme in the shop.
                 # S9 RV-03: auto-spin is free from spin 1, so everyone owns it.
                 cur.execute(
                     "INSERT INTO game_state (user_id, owned_items, active_cosmetics) "
-                    "VALUES (%s, ARRAY['page_season8', 'auto_spin_unlock'], ARRAY['page_season8'])",
-                    (user_id,),
+                    "VALUES (%s, ARRAY[%s, 'auto_spin_unlock'], ARRAY[%s])",
+                    (user_id, SEASON_CONFIG['theme_item'], SEASON_CONFIG['theme_item']),
                 )
 
             issue_session_token(conn, user_id)

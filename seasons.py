@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 import psycopg2.extras
 
+from models import ITEM_CURRENCY
 from season_config import SEASON_CONFIG
 
 log = logging.getLogger('wheel')
@@ -223,16 +224,26 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
              season['name'], season['started_at'], now),
         )
 
-    # Reset all game_state rows; auto-grant the new season's page theme.
-    # Registered users start spinning from season start; others must join manually.
+    # Reset all game_state rows. Cosmetics ('losses' items, fish skins included)
+    # persist across tides; functional items reset. Everyone keeps auto_spin_unlock
+    # and the season theme, and auto-spin that was running keeps running.
     new_theme = SEASON_CONFIG['theme_item']
+    cosmetics = [k for k, v in ITEM_CURRENCY.items() if v == 'losses']
+    always = [new_theme, 'auto_spin_unlock']
     with conn.cursor() as cur:
         cur.execute(
             """UPDATE game_state SET
                    wins = 0, losses = 0, fish_clicks = 0, streak = 0, best_streak = 0,
-                   owned_items = %s, equipped_fish = 'default',
+                   owned_items = ARRAY(SELECT DISTINCT x FROM unnest(owned_items || %(always)s::text[]) x
+                                      WHERE x = ANY(%(cosmetics)s) OR x = ANY(%(always)s)),
+                   equipped_fish = CASE WHEN equipped_fish = ANY(owned_items) AND equipped_fish = ANY(%(cosmetics)s)
+                                        THEN equipped_fish ELSE 'default' END,
                    regen_recharge_wins = 0,
-                   active_cosmetics = %s, spin_count = 0, win_count = 0, loss_count = 0,
+                   active_cosmetics = ARRAY(SELECT x FROM unnest(active_cosmetics) x WHERE x = ANY(%(cosmetics)s))
+                       || CASE WHEN EXISTS (SELECT 1 FROM unnest(active_cosmetics) x
+                                            WHERE x LIKE 'page\\_%%' AND x = ANY(%(cosmetics)s))
+                               THEN '{}'::text[] ELSE %(theme)s::text[] END,
+                   spin_count = 0, win_count = 0, loss_count = 0,
                    total_fish_clicks = 0,
                    winmult_inf_level = 0, bonusmult_inf_level = 0, clickmult_inf_level = 0,
                    streak_armor_level = 0,
@@ -243,10 +254,10 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                    pending_dice = NULL,
                    jackpot_echo_next = FALSE,
                    fishing_cast_at = NULL, fishing_bite_at = NULL,
-                   fishing_lucky_next = FALSE, caught_species = '{}',
+                   fishing_lucky_next = FALSE,
                    fastest_catch_pct = NULL,
-                   auto_spin_since = CASE WHEN season_registered THEN %s ELSE NULL END,
-                   last_spin_at    = CASE WHEN season_registered THEN %s ELSE NULL END,
+                   auto_spin_since = CASE WHEN auto_spin_since IS NOT NULL THEN %(starts)s END,
+                   last_spin_at    = CASE WHEN auto_spin_since IS NOT NULL THEN %(starts)s END,
                    season_registered = FALSE,
                    -- T218: do NOT carry over prior-season wins into S{N}'s legacy_wins.
                    -- legacy_wins is now a per-season prestige counter, reset to 0 at
@@ -264,7 +275,7 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                    gravity_drift = 0,
                    wager_last_win_amount = 0,
                    biggest_win_announced = 0""",
-            ([new_theme], [new_theme], next_starts, next_starts),
+            {'always': always, 'cosmetics': cosmetics, 'theme': [new_theme], 'starts': next_starts},
         )
 
     with conn.cursor() as cur:
