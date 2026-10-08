@@ -162,7 +162,7 @@ def main(argv=None):
         conn.close()
 
     for name, ok, detail in results:
-        print(f'PASS {name} ({detail})' if ok and detail else f'PASS {name}' if ok else f'FAIL {name}: {detail}')
+        print(f'PASS {name}' if ok else f'FAIL {name}: {detail}')
     failed = [name for name, ok, _ in results if not ok]
     return 1 if failed else 0
 
