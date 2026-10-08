@@ -86,7 +86,8 @@
     function headland(t) {
       // Low cliff running in from the left; the lighthouse stands at its tip,
       // in the open water between the left-hand panels and the wheel.
-      const lx = Math.max(70, moonX - moonR * 2.35), base = horizon + 2;
+      // Phones: the wheel fills the width, so tuck the lighthouse against the edge.
+      const lx = moonX - moonR < 60 ? 26 : Math.max(70, moonX - moonR * 2.35), base = horizon + 2;
       ctx.fillStyle = pal.land;
       ctx.beginPath();
       ctx.moveTo(0, base - H * 0.07);
@@ -183,7 +184,7 @@
     }
 
     function boat(t) {
-      const x = moonX + moonR * 1.55, d = 0.2;
+      const x = Math.min(W - 52, moonX + moonR * 1.55), d = 0.2;
       const bob = still ? 0 : Math.sin(t / 900) * 3, tilt = still ? 0 : Math.sin(t / 1100) * 0.04;
       const y = rowY(d) + bob;
       ctx.save(); ctx.translate(x, y); ctx.rotate(tilt);
