@@ -19,7 +19,7 @@ from datetime import date
 BOUNTY_DEFS = [
     {
         'id': 'bounty_wager5',
-        'description': 'Win 5 spins at 5x+ stake',
+        'description': 'Win 5 spins with a 5%+ stake',
         'metric': 'wager_wins_5x',
         'target': 5,
         'reward_tokens': 100,

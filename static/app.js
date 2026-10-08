@@ -2766,7 +2766,7 @@ function Die(_ref13) {
   }));
 }
 var DICE_TOOLTIP_W = 240;
-var DICE_TOOLTIP_TEXT = 'Roll two dice to amplify your win streak. The sum (2–12) is added to your streak. Requires a win streak of 3 or more. ⚠️ Snake eyes (1+1) curses you — losing half your streak! Charges recharge every 10 minutes.';
+var DICE_TOOLTIP_TEXT = 'Needs a win streak of 3+. Roll the dice and their total is added to your streak. Two 6s double it, three 6s triple it. ⚠️ Two 1s halve it, three 1s cut it to a third. One roll per spin; a charge comes back every 10 minutes.';
 function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
   var _React$useState = React.useState(null),
     _React$useState2 = _slicedToArray(_React$useState, 2),
@@ -4310,7 +4310,7 @@ var SHOP_SECTIONS = [{
     emoji: '⚡',
     name: 'Double Down',
     cost: 25000,
-    desc: 'Arm 2x stake for next spin',
+    desc: 'Bet your whole last win on the next spin: all or nothing',
     tier: 3,
     requires: 'wager_hot_streak'
   }, {
@@ -4520,7 +4520,7 @@ var SHOP_SECTIONS = [{
     emoji: '🛡️',
     name: 'Guard',
     cost: 1000,
-    desc: 'Blocks one loss per manual trigger. Consumes a guard charge.'
+    desc: 'Blocks your next loss automatically, then it is used up'
   }, {
     id: 'guard_charge',
     emoji: '🔋',
@@ -4824,7 +4824,7 @@ var SHOP_SECTIONS = [{
     emoji: '🎰',
     name: 'Extra Die',
     cost: 1000000,
-    desc: 'Roll 3 dice — take the best result',
+    desc: 'Roll 3 dice instead of 2: all three add to your streak',
     requires: 'dice_charge_3'
   }]
 }];
@@ -5657,7 +5657,7 @@ function FreeTokensPanel(_ref31) {
   }, /*#__PURE__*/React.createElement("button", {
     className: "free-tokens-claim-btn",
     onClick: onClaim
-  }, "\uD83E\uDE99 Claim 3 free tokens"));
+  }, "\uD83E\uDE99 Claim 3 free insurance tokens"));
 }
 function BountiesPanel(_ref32) {
   var bounties = _ref32.bounties,
@@ -5667,7 +5667,9 @@ function BountiesPanel(_ref32) {
     className: "season8-bounties-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bounties-header"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties")), bounties.map(function (b) {
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties"), /*#__PURE__*/React.createElement("span", {
+    className: "panel-subtitle"
+  }, "Daily tasks \xB7 reset at midnight UTC")), bounties.map(function (b) {
     return /*#__PURE__*/React.createElement("div", {
       key: b.bounty_id,
       className: "bounty-card"
@@ -5682,12 +5684,12 @@ function BountiesPanel(_ref32) {
       }
     })), /*#__PURE__*/React.createElement("div", {
       className: "bounty-progress-text"
-    }, fmt(b.progress), " / ", fmt(b.target)), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
+    }, fmt(b.progress), " / ", fmt(b.target), " \xB7 reward ", b.position, " \uD83E\uDE99"), b.completed && !b.claimed && /*#__PURE__*/React.createElement("button", {
       className: "bounty-claim-btn",
       onClick: function onClick() {
         return onClaim(b.bounty_id);
       }
-    }, "Claim +", b.position, " token", b.position > 1 ? 's' : ''), b.claimed && /*#__PURE__*/React.createElement("span", {
+    }, "Claim ", b.position, " \uD83E\uDE99 token", b.position > 1 ? 's' : ''), b.claimed && /*#__PURE__*/React.createElement("span", {
       className: "bounty-claimed"
     }, "\u2713 +", b.position, " claimed"));
   }));
@@ -5708,7 +5710,9 @@ function CommunityGoalPanel(_ref33) {
     }
   })), /*#__PURE__*/React.createElement("div", {
     className: "goal-progress-text"
-  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution)));
+  }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution)), /*#__PURE__*/React.createElement("div", {
+    className: "panel-subtitle"
+  }, "Hit it before the tide turns: everyone who helped gets 500 \uD83E\uDE99 tokens"));
 }
 function WagerPanel(_ref34) {
   var ownedItems = _ref34.ownedItems,
@@ -5742,7 +5746,7 @@ function WagerPanel(_ref34) {
   var steps = [];
   for (var v = 0; v <= maxStakePct; v += 5) steps.push(v);
   return /*#__PURE__*/React.createElement("div", {
-    className: "season8-wager-panel ".concat(tier)
+    className: "season8-wager-panel ".concat(tier).concat(infoOpen ? ' info-open' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "stake-top"
   }, /*#__PURE__*/React.createElement("span", {
@@ -6086,8 +6090,10 @@ function GameApp(_ref35) {
     _useState204 = _slicedToArray(_useState203, 2),
     mobileDrawerOpen = _useState204[0],
     setMobileDrawerOpen = _useState204[1];
+  // Short screens can't fit chat above the fishing panel, so chat starts closed there until the player opens it.
   var _useState205 = useState(function () {
-      return localStorage.getItem('chat_open') !== 'false';
+      var saved = localStorage.getItem('chat_open');
+      return saved === null ? window.innerHeight >= 900 : saved !== 'false';
     }),
     _useState206 = _slicedToArray(_useState205, 2),
     showChat = _useState206[0],
@@ -6760,7 +6766,7 @@ function GameApp(_ref35) {
     setBonusEarned((_data$bonus_earned = data.bonus_earned) !== null && _data$bonus_earned !== void 0 ? _data$bonus_earned : 0);
     setEffectiveWinMult((_data$effective_win_m = data.effective_win_mult) !== null && _data$effective_win_m !== void 0 ? _data$effective_win_m : 0);
     setEchoTriggered(!!data.echo_triggered);
-    setJackpotHit(!!data.jackpot_hit);
+    setJackpotHit(data.jackpot_hit ? data.jackpot_multiplier || 25 : false);
     setResilienceTriggered(!!data.resilience_triggered);
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
@@ -7933,7 +7939,10 @@ function GameApp(_ref35) {
     onClick: dismissWhatsNew
   }, "Got it")), happyHour && !happyHourDismissed && /*#__PURE__*/React.createElement("div", {
     className: "happy-hour-banner"
-  }, "\u2B50 Happy Hour! 9\u201310pm \u2014 2\xD7 pot contributions \xB7 boosted legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
+  }, "\u2B50 Happy Hour until ", new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  }), ": 2\xD7 pot contributions \xB7 more legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
     className: "happy-hour-banner-close",
     onClick: function onClick() {
       return setHappyHourDismissed(true);
@@ -8120,7 +8129,7 @@ function GameApp(_ref35) {
     className: "bonus-line lose-bonus"
   }, "+", fmt(lossesDelta), " ", Number(lossesDelta) === 1 ? 'loss' : 'losses'), jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line jackpot-line"
-  }, "\uD83C\uDFB0 JACKPOT! 25x multiplier applied!"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDFB0 JACKPOT! \xD7", jackpotHit, " payout!"), echoTriggered && !jackpotHit && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line echo-line"
   }, "\uD83D\uDD0A WIN ECHO! Wins doubled!"), luckySevenTriggered && /*#__PURE__*/React.createElement("div", {
     className: "bonus-line lucky-seven-line"

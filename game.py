@@ -320,6 +320,7 @@ def _resolve_spin(
     guard_blocked           = False
     echo_triggered          = False
     jackpot_hit             = False
+    jackpot_multiplier      = 0  # what the result banner shows on a jackpot
     jackpot_echo_triggered  = False
     resilience_triggered    = False
     fortune_charm_triggered = False
@@ -525,6 +526,7 @@ def _resolve_spin(
             if regen_recharge_wins > 0:
                 regen_recharge_wins -= 1
             jackpot_hit = True
+            jackpot_multiplier = 5
             loss_count = abs(new_streak) if new_streak < 0 else 0
             loss_bonus = streak_bonus(loss_count) * bonus_mult
             base_loss = 1 + loss_bonus
@@ -604,6 +606,7 @@ def _resolve_spin(
             regen_recharge_wins -= 1
         jackpot_hit = True
         jackpot_mult = mode.get('jackpot_multiplier', 25)
+        jackpot_multiplier = jackpot_mult
         # T102: payout = stake_wins (the wager) for stake > 0%, base_payout for 0%.
         # The regular win_streak_bonus (bonus_earned) is added to the NET (per user
         # intent: "applied to the amount that is won/lost AFTER the spin completes").
@@ -654,6 +657,7 @@ def _resolve_spin(
         if jackpot_echo_pending:
             jackpot_echo_triggered = True
             jackpot_hit  = True
+            jackpot_multiplier = 25
             raw_payout   = net_payout * 25
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_cost_total
@@ -663,6 +667,7 @@ def _resolve_spin(
             bonus_earned = direct_wins + banked_wins - effective_win_mult
         elif 'jackpot' in owned and random.random() < jackpot_chance:
             jackpot_hit  = True
+            jackpot_multiplier = 25
             raw_payout   = net_payout * 25
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_cost_total
@@ -776,6 +781,7 @@ def _resolve_spin(
         'effective_win_mult':      effective_win_mult,
         'echo_triggered':          echo_triggered,
         'jackpot_hit':             jackpot_hit,
+        'jackpot_multiplier':      jackpot_multiplier,
         'jackpot_echo_triggered':  jackpot_echo_triggered,
         'jackpot_echo_next':       new_jackpot_echo_next,
         'resilience_triggered':    resilience_triggered,
@@ -831,6 +837,7 @@ _RESPONSE_KEYS = (
     'effective_win_mult',
     'echo_triggered',
     'jackpot_hit',
+    'jackpot_multiplier',
     'jackpot_echo_triggered',
     'jackpot_echo_next',
     'resilience_triggered',

@@ -5222,3 +5222,17 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
     margin-bottom: 8px;
   }
 }
+
+/* Small explanatory line under a panel heading or progress bar. */
+.panel-subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--p-lt);
+  opacity: 0.75;
+  text-transform: none;
+}
+.bounties-header { flex-wrap: wrap; }
+.bounties-header .panel-subtitle { flex-basis: 100%; letter-spacing: 0.04em; }
+.season8-wager-panel.info-open { z-index: 1000; } /* explainer must sit above chat */
