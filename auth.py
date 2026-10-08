@@ -118,9 +118,10 @@ def register():
                 # Season 8: new players start with the casino page theme owned
                 # and equipped. They can switch to any other theme in the shop.
                 # Update this default when the season's default theme changes.
+                # S9 RV-03: auto-spin is free from spin 1, so everyone owns it.
                 cur.execute(
                     "INSERT INTO game_state (user_id, owned_items, active_cosmetics) "
-                    "VALUES (%s, ARRAY['page_season8'], ARRAY['page_season8'])",
+                    "VALUES (%s, ARRAY['page_season8', 'auto_spin_unlock'], ARRAY['page_season8'])",
                     (user_id,),
                 )
 
