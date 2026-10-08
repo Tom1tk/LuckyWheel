@@ -15,7 +15,7 @@ BACKUP_CMD="${BACKUP_CMD-/home/user/backup-wheeldb.sh}"
 FAIL_MARKER="${FAIL_MARKER-$APP_DIR/ROLLOVER_FAILED}"
 POST_CHECK="${POST_CHECK-python3 $APP_DIR/bin/post_rollover_check.py}"
 LOG_DIR="${LOG_DIR-$APP_DIR/logs}"
-LOCK_FILE=/tmp/wheel-rollover.lock
+LOCK_FILE="/tmp/wheel-rollover-$PROD_DB.lock"  # per DB: staging and prod timers fire at the same minute
 STEP="startup"
 
 exec 9>"$LOCK_FILE"
