@@ -496,6 +496,7 @@ class TestReelLine:
         monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
         result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
         assert result["catch_of_day_bonus"] is True
+        assert result["value"] == 5  # minnow 1 x5
         # The "with bonus" UPDATE writes catch_of_the_day_date.
         updates = [
             c
@@ -517,6 +518,21 @@ class TestReelLine:
         monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
         monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
         result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
+        assert result["catch_of_day_bonus"] is False
+        assert result["value"] == 1
+
+    def test_catch_of_day_date_column_blocks_second_bonus(self, monkeypatch):
+        # The DB column is a DATE, not a string.
+        row = self._row(
+            fish_clicks=0,
+            owned_items=["catch_of_the_day"],
+            catch_of_the_day_date=self.NOW.date(),
+            onboarding_step=0,
+        )
+        cur = MockCursor(queue_fetchone=[row])
+        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
+        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
+        result = reel_line(cur, MockConn(), user_id=7, now_utc=self.NOW)
         assert result["catch_of_day_bonus"] is False
 
     def test_suspicious_catch_increments_under_12pct(self, monkeypatch):

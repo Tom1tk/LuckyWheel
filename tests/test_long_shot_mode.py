@@ -328,3 +328,15 @@ def test_long_shot_spin_distribution_within_3_percent():
         f"jackpot_pct {jackpot_pct_actual:.2f}% outside [17, 23] "
         f"(counts: {counts})"
     )
+
+
+def test_week_number_flips_when_the_tide_turns():
+    """Modes rotate at the tide boundary (Fri 21:00 London), not Monday 00:00 UTC."""
+    from datetime import datetime, timezone
+    import wheel_modes
+    before = wheel_modes.get_week_number(datetime(2026, 10, 9, 19, 59, tzinfo=timezone.utc))  # 20:59 BST
+    after = wheel_modes.get_week_number(datetime(2026, 10, 9, 20, 0, tzinfo=timezone.utc))    # 21:00 BST
+    monday = wheel_modes.get_week_number(datetime(2026, 10, 12, 0, 0, tzinfo=timezone.utc))
+    assert (before, after, monday) == (41, 42, 42)
+    winter = wheel_modes.get_week_number(datetime(2026, 11, 6, 21, 0, tzinfo=timezone.utc))   # 21:00 GMT
+    assert winter == wheel_modes.get_week_number(datetime(2026, 11, 6, 20, 59, tzinfo=timezone.utc)) + 1

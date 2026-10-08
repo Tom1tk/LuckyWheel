@@ -4735,22 +4735,6 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   letter-spacing: 1px;
 }
 
-.guard-activate-btn {
-  background: none;
-  border: 1px solid rgba(var(--p-rgb),0.4);
-  color: var(--p-lt);
-  font-size: 0.6rem;
-  letter-spacing: 1px;
-  padding: 2px 7px;
-  border-radius: 3px;
-  cursor: pointer;
-  text-transform: uppercase;
-  font-family: inherit;
-  margin-top: 2px;
-  transition: background 0.15s;
-}
-.guard-activate-btn:hover:not(:disabled) { background: rgba(var(--p-rgb),0.1); }
-.guard-activate-btn:disabled { opacity: 0.3; cursor: default; }
 
 /* ── Season 8: bounties panel (in sidebar) ───────────────────────────────── */
 .season8-bounties-panel {

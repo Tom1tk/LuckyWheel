@@ -986,13 +986,12 @@ function drawWheel(canvas, theme = 'default', wheelMode = 'steady', wheelProbabi
   const losePct = modeConfig.lose_pct;
   const jpPct   = modeConfig.jackpot_pct;
 
-  // T80 (T79 AC#11): in inverted mode the labels swap so the player
-  // visually sees which outcome is the GOOD one. "LOSE" is rendered with
-  // the bright (win-coloured) palette and "WIN" with the dim (lose-coloured)
-  // palette; the arc spans are unchanged.
+  // T80 (T79 AC#11): in inverted mode "LOSE" is the GOOD outcome, so it
+  // gets the bright palette (below). Labels stay truthful: the result banner
+  // says "YOU LOSE" when the LOSE slice lands.
   const isInverted = (wheelMode === 'inverted');
-  const winLabel  = isInverted ? 'LOSE' : 'WIN';
-  const loseLabel = isInverted ? 'WIN'  : 'LOSE';
+  const winLabel  = 'WIN';
+  const loseLabel = 'LOSE';
 
   // Compute arc spans from mode percentages.
   // Segments radiate clockwise from -π/2 (12-o'clock): WIN → LOSE → JACKPOT
@@ -2616,9 +2615,9 @@ const FISH_SKINS = [
 
 const SHOP_SECTIONS = [
   { label: '🪐 Class', classSection: true, items: [
-    { id: 'class_earth', emoji: '🌍', name: 'Earth', cost: 10000000, tier: 3, desc: '+25% to all fish income while equipped' },
-    { id: 'class_moon',  emoji: '🌙', name: 'Moon',  cost: 10000000, tier: 3, desc: '+5% to all proc rates (Jackpot, Win Echo, Fortune Charm) while equipped' },
-    { id: 'class_star',  emoji: '⭐', name: 'Star',  cost: 10000000, tier: 3, desc: '+20% to Win Power payout while equipped' },
+    { id: 'class_earth', emoji: '🌍', name: 'Earth', cost: 10000000, desc: '+25% to all fish income while equipped' },
+    { id: 'class_moon',  emoji: '🌙', name: 'Moon',  cost: 10000000, desc: '+5% to all proc rates (Jackpot, Win Echo, Fortune Charm) while equipped' },
+    { id: 'class_star',  emoji: '⭐', name: 'Star',  cost: 10000000, desc: '+20% to Win Power payout while equipped' },
   ]},
   { label: '💰 Win Power', items: [
     { id: 'winmult_1', emoji: '💰', name: 'Win Power I',  cost: 200,    desc: '+20% win multiplier' },
@@ -2631,14 +2630,14 @@ const SHOP_SECTIONS = [
     { id: 'bonusmult_3', emoji: '⭐', name: 'Bonus Power III',cost: 2800,  desc: '8× streak bonuses', requires: 'bonusmult_2' },
   ]},
   { label: '⚡ Wager System', items: [
-    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Stake up to 30% of your wins on a spin to win it back double', tier: 1 },
-    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', tier: 2, requires: 'wager_unlock' },
-    { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', tier: 2, requires: 'wager_unlock' },
-    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Bet your whole last win on the next spin: all or nothing', tier: 3, requires: 'wager_hot_streak' },
-    { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Caps next loss at stake amount', tier: 3, requires: 'wager_unlock' },
-    { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', tier: 1, requires: 'wager_unlock' },
-    { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', tier: 1, requires: 'wager_stake_extend_1' },
-    { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', tier: 1, requires: 'wager_stake_extend_2' },
+    { id: 'wager_unlock',      emoji: '⚡', name: 'Wager Unlock',      cost: 500,    desc: 'Stake up to 30% of your wins on a spin to win it back double' },
+    { id: 'wager_safety_net',  emoji: '🛡️', name: 'Safety Net',       cost: 2000,   desc: 'Refunds 25% of lost stake at 15%+ stake', requires: 'wager_unlock' },
+    { id: 'wager_hot_streak',  emoji: '🔥', name: 'Hot Streak',       cost: 8000,   desc: '+5% per consecutive same-stake win, cap +50%', requires: 'wager_unlock' },
+    { id: 'wager_double_down', emoji: '⚡', name: 'Double Down',      cost: 25000,  desc: 'Bet your whole last win on the next spin: all or nothing', requires: 'wager_hot_streak' },
+    { id: 'wager_insurance',   emoji: '🛡️', name: 'Insurance',        cost: 50000,  desc: 'Spend 1 🪙 to insure a spin: if it loses, your stake comes back (the loss still counts)', requires: 'wager_unlock' },
+    { id: 'wager_stake_extend_1', emoji: '📈', name: 'Stake Extender I',  cost: 5000,    desc: 'Raises max stake from 30% to 35%', requires: 'wager_unlock' },
+    { id: 'wager_stake_extend_2', emoji: '📈', name: 'Stake Extender II', cost: 15000,   desc: 'Raises max stake from 35% to 40%', requires: 'wager_stake_extend_1' },
+    { id: 'wager_stake_extend_3', emoji: '📈', name: 'Stake Extender III',cost: 40000,   desc: 'Raises max stake from 40% to 45%', requires: 'wager_stake_extend_2' },
   ]},
   { label: '🐟 Fishing Panel Size', items: [
     { id: 'fishsize_small', emoji: '🔍', name: 'Compact',      cost: 1,    desc: 'Fishing panel: 50% size (compact mode)' },
@@ -2665,21 +2664,20 @@ const SHOP_SECTIONS = [
     { id: 'autofisher_2', emoji: '🤖', name: 'Auto-Fisher II', cost: 2000,    desc: 'Auto-Fisher catch rate: 55% — common & uncommon only', requires: 'autofisher_1' },
     { id: 'autofisher_3', emoji: '🤖', name: 'Auto-Fisher III',cost: 12000,   desc: 'Auto-Fisher catch rate: 65% — common & uncommon only', requires: 'autofisher_2' },
     { id: 'autofisher_4', emoji: '🤖', name: 'Master Auto-Fisher', cost: 500000, desc: 'Auto-Fisher catch rate: 75% — now catches rare species too — requires complete Encyclopaedia', requires: 'autofisher_3', encyclopaediaLocked: true },
-    { id: 'precise_angler_1', emoji: '🎯', name: 'Precise Angler',        cost: 50000,  desc: 'Reel within the first 50% of the bite window for 1.2× catch value', tier: 2 },
+    { id: 'precise_angler_1', emoji: '🎯', name: 'Precise Angler',        cost: 50000,  desc: 'Reel within the first 50% of the bite window for 1.2× catch value' },
     { id: 'precise_angler_2', emoji: '🎯', name: 'Precise Angler II',     cost: 100000, desc: 'Also: reel within the first 20% for 1.5× catch value', requires: 'precise_angler_1' },
     { id: 'precise_angler_3', emoji: '🎯', name: 'Master Angler',         cost: 500000, desc: 'Also: reel within the first 15% for 2× catch value — requires complete Encyclopaedia', requires: 'precise_angler_2', encyclopaediaLocked: true },
   ]},
   { label: '🛡️ Protection', items: [
     { id: 'guard',         emoji: '🛡️', name: 'Guard',              cost: 1000,   desc: 'Blocks your next loss automatically, then it is used up' },
-    { id: 'guard_charge',  emoji: '🔋', name: 'Guard Charge',      cost: 10000,  desc: 'Adds a guard charge (max 3). Passively recharges 1 charge every 50 spins.', tier: 2 },
-    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 5000,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.', tier: 2 },
-    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 20000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting', tier: 3 },
+    { id: 'regen_shield',  emoji: '🔄', name: 'Regenerating Shield', cost: 5000,  desc: 'Blocks any loss when charged. Recharges after 5 wins. Never breaks.' },
+    { id: 'resilience',    emoji: '💪', name: 'Resilience',      cost: 20000,  desc: '50% chance: on win streak, a loss only drops streak by 1 instead of resetting' },
   ]},
   { label: '🎲 Special Upgrades', items: [
-    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 1000000,  desc: '25% chance: +25% to streak bonus payout', tier: 3 },
-    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 7000000,  desc: 'Every 7th spin is guaranteed a win', tier: 3 },
-    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win', tier: 3 },
-    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.', tier: 3 },
+    { id: 'fortune_charm', emoji: '🍀', name: 'Fortune Charm',  cost: 1000000,  desc: '25% chance: +25% to streak bonus payout' },
+    { id: 'lucky_seven',   emoji: '7️⃣', name: 'Lucky Seven',    cost: 7000000,  desc: 'Every 7th spin is guaranteed a win' },
+    { id: 'win_echo',      emoji: '🔊', name: 'Win Echo',        cost: 1000000,  desc: '20% chance to double wins earned on any win' },
+    { id: 'jackpot',       emoji: '🎰', name: 'Jackpot',         cost: 3000000,  desc: '1% chance each win to multiply gains by 25x. 5% chance for Jackpot Echo next spin.' },
   ]},
   { label: '🎣 Fishing', items: [
     // T223: fish_to_wager removed — it was a legacy item that wasn't
@@ -2687,8 +2685,7 @@ const SHOP_SECTIONS = [
     // for the insurance-grant one-time bonus, but it's no longer purchasable
     // from the shop UI. (Existing players who already own it keep it; new
     // players won't be able to buy it.)
-    { id: 'catch_of_the_day',   emoji: '📅', name: 'Catch of the Day',   cost: 3000,   desc: 'First fish conversion each day worth 5x tokens', tier: 1 },
-    { id: 'lure_specialization',emoji: '🎯', name: 'Lure Specialization',cost: 10000,  desc: 'Specialized lure techniques', tier: 2, requires: 'fish_to_wager' },
+    { id: 'catch_of_the_day',   emoji: '📅', name: 'Catch of the Day',   cost: 3000,   desc: 'Your first catch each day is worth 5×' },
   ]},
   { label: '🎡 Wheel Theme', items: [
     { id: 'theme_fire',  emoji: '🔥', name: 'Fire Theme',    cost: 250,   desc: 'Infernal wheel colors' },
@@ -2870,12 +2867,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-// T106: tier thresholds are now based on cumulative_wins (lifetime value of
-// wins gained), not win_count (count of winning spins). Updated from the old
-// values (1000 / 10000) to match the new metric scale.
-const TIER_THRESHOLDS = { 2: 10000, 3: 100000 };
-
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, cumulativeWins, caughtSpecies, procStreak }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections, functionalSections } = useMemo(() => {
@@ -2909,12 +2901,6 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
       <div className="shop-section-label">── {section.label} ──</div>
       {section.visibleItems.map(item => {
         const isCosmetic = COSMETIC_SECTION_IDS.has(item.id);
-        const itemTierNum = item.tier || 1;
-        const tierLocked = itemTierNum > 1 && !ownedItems.includes(item.id);
-        const tierThreshold = tierLocked ? TIER_THRESHOLDS[itemTierNum] : null;
-        // T106: gate on cumulative_wins (lifetime value of wins gained), not winCount.
-        const tierUnlocked = !tierLocked || ((cumulativeWins || 0) >= (tierThreshold || 0));
-
         const infLevel = item.infinite ? (infLevels[item.id] || 0) : null;
         const cfg = item.infinite ? INF_UPGRADE_CFG[item.id] : null;
         const atMaxLevel = cfg && cfg.maxLevel != null && infLevel >= cfg.maxLevel;
@@ -2937,21 +2923,6 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
               </div>
               <div className="shop-item-action">
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)' }}>{caught}/{total}</span>
-              </div>
-            </div>
-          );
-        }
-
-        if (tierLocked && !tierUnlocked) {
-          return (
-            <div key={item.id} className="shop-item shop-item--locked">
-              <span className="shop-item-emoji" style={{ opacity: 0.4 }}>{item.emoji}</span>
-              <div className="shop-item-info">
-                <div className="shop-item-name" style={{ opacity: 0.5 }}>{item.name}</div>
-                <div className="shop-item-desc" style={{ opacity: 0.5 }}>🔒 Unlocks at {fmt(tierThreshold)} total wins gained</div>
-              </div>
-              <div className="shop-item-action">
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)' }}>{fmt(cumulativeWins || 0)}/{fmt(tierThreshold)}</span>
               </div>
             </div>
           );
@@ -3300,8 +3271,8 @@ function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
   if (insuranceFreeClaimedToday) return null;
   return (
     <div className="free-tokens-section">
-      <button className="free-tokens-claim-btn" onClick={onClaim}>
-        🪙 Claim 3 free insurance tokens
+      <button className="free-tokens-claim-btn" onClick={onClaim} title="Tokens pay part of a 30% stake (1 🪙 = 1 🏆) or arm Insurance">
+        🪙 Claim 3 free tokens
       </button>
     </div>
   );
@@ -3343,7 +3314,7 @@ function CommunityGoalPanel({ communityGoal }) {
         <div className="goal-progress-fill" style={{ width: `${Math.min(100, (communityGoal.current / communityGoal.target) * 100)}%` }} />
       </div>
       <div className="goal-progress-text">{fmt(communityGoal.current)} / {fmt(communityGoal.target)} · You: {fmt(communityGoal.player_contribution)}</div>
-      <div className="panel-subtitle">Hit it before the tide turns: everyone who helped gets 500 🪙 tokens</div>
+      <div className="panel-subtitle">Before the tide turns: helpers get 500 🪙, then everyone gets +5% win chance for the rest of the tide</div>
     </div>
   );
 }
@@ -3426,18 +3397,18 @@ function WagerPanel({
         )}
       </div>
       </>)}
-      {ownedItems.includes('fish_to_wager') && insuranceTokens > 0 && (
-        <div className="wager-tokens-balance">🪙 {fmt(insuranceTokens)} tokens</div>
+      {insuranceTokens > 0 && (
+        <div className="wager-tokens-balance">🪙 {fmt(insuranceTokens)} tokens{stakePct < 30 ? ' · stake 30% to use them' : ''}</div>
       )}
-      {ownedItems.includes('fish_to_wager') && insuranceTokens > 0
+      {insuranceTokens > 0
         && stakePct >= 30 && !doubleDownPending && (
-        <label className="wager-pay-tokens-toggle" data-tooltip="Pay the stake cost with insurance tokens (1 token = 1 win). Partial spend: any remainder comes from wins.">
+        <label className="wager-pay-tokens-toggle" data-tooltip="Each token covers 1 🏆 of your stake, so a loss costs you less. Win and the full stake comes back as wins.">
           <input
             type="checkbox"
             checked={payWithTokens}
             onChange={e => onTogglePayWithTokens(e.target.checked)}
           />
-          <span>Pay with insurance tokens</span>
+          <span>Pay stake with 🪙 tokens</span>
         </label>
       )}
     </div>
@@ -3503,7 +3474,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [winCount, setWinCount]       = useState(gameState.win_count || 0);
   // T106: cumulative_wins tracks lifetime value of wins gained. Used for
   // tier-2/3 unlock gating (replaces winCount for that purpose).
-  const [cumulativeWins, setCumulativeWins] = useState(gameState.cumulative_wins || 0);
   const [lowSpec, setLowSpec]         = useState(() => gameState.low_spec_mode ?? localStorage.getItem('lowSpecMode') === 'true');
   const [parallaxEnabled, setParallaxEnabled] = useState(() => localStorage.getItem('parallaxEnabled') !== 'false');
   const [shopCollapsed, setShopCollapsed] = useState(false);
@@ -3708,7 +3678,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
           if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
           if (gs.data.insurance_tokens != null) setInsuranceTokens(gs.data.insurance_tokens);
-          if (gs.data.guard_charges != null) setGuardCharges(gs.data.guard_charges);
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
           if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
           // T80: sync wheelProbabilities + gravity drift from the new state.
@@ -3949,10 +3918,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
-    // T106: cumulative_wins is the new tier-gating metric. Server echoes the
-    // new value on every spin/tick so the shop tier-locked text updates live
-    // without waiting for the next /api/state poll.
-    if (data.cumulative_wins != null) setCumulativeWins(data.cumulative_wins);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
@@ -4179,7 +4144,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (data.state.win_count  != null) setWinCount(data.state.win_count);
           if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
           if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
-          if (data.state.cumulative_wins != null) setCumulativeWins(data.state.cumulative_wins);
           setDiceRolledSinceSpin(false);
         }
         const hrs = Math.floor(data.elapsed_seconds / 3600);
@@ -4268,7 +4232,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [gravityDrift, setGravityDrift]             = useState(gameState.gravity_drift || 0);
   const [insuranceTokens, setInsuranceTokens]     = useState(gameState.insurance_tokens || 0);
   const [cosmeticFragments, setCosmeticFragments]   = useState(gameState.cosmetic_fragments || 0);
-  const [guardCharges, setGuardCharges]             = useState(gameState.guard_charges || 0);
   const [bounties, setBounties]                     = useState(gameState.bounties || []);
   const [communityGoal, setCommunityGoal]           = useState(gameState.community_goal || null);
   // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
@@ -4336,8 +4299,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // Season 8: sync state from /api/state poll (season change handler already updates most state)
   // This runs on mount and when gameState changes
   useEffect(() => {
-    // T106: tier-gating metric
-    if (gameState.cumulative_wins != null) setCumulativeWins(gameState.cumulative_wins);
     // T107: sync auto-spin state from server.
     // S9: auto-spin keeps running server-side while the player is away, so a
     // fresh page load resumes it; the first tick reports the catch-up summary.
@@ -4353,7 +4314,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (gameState.available_wheel_modes != null) setAvailableWheelModes(gameState.available_wheel_modes);
     if (gameState.insurance_tokens != null) setInsuranceTokens(gameState.insurance_tokens);
     if (gameState.cosmetic_fragments != null) setCosmeticFragments(gameState.cosmetic_fragments);
-    if (gameState.guard_charges != null) setGuardCharges(gameState.guard_charges);
     if (gameState.bounties != null) setBounties(gameState.bounties);
     if (gameState.community_goal != null) setCommunityGoal(gameState.community_goal);
     // T80: server-provided wheel probabilities + gravity drift.
@@ -4438,7 +4398,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const WHEEL_MODE_INFO = {
     steady:      { label: 'Steady',      desc: '70% win · 28% loss · 2% jackpot (×25). Consistent and predictable.' },
     volatile:    { label: 'Volatile',    desc: '45% win · 50% loss · 5% jackpot (×50). High variance — bigger swings both ways.' },
-    inverted:    { label: 'Inverted',    desc: '60% win · 35% loss · 5% jackpot. Losses still build your streak bonus.' },
+    inverted:    { label: 'Inverted',    desc: 'Flipped week: 60% lose · 35% win · 5% jackpot. LOSE is the good slice here: it pays out 💀 losses, the currency for cosmetics.' },
     gravity:     { label: 'Gravity',     desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.' },
     mirror:      { label: 'Mirror',      desc: '65% win · 30% loss · 5% jackpot. Two spins resolved; the better result wins.' },
     long_shot:   { label: 'Long Shot',   desc: '20% win · 60% loss · 20% jackpot (×10). Most spins lose; jackpots hit often but pay less.' },
@@ -4500,17 +4460,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }
     }
   }, [showToast, activeWheelMode, wagerStreak, insuranceArmed, doubleDownPending, gravityDrift]);
-
-  // Season 8: handle guard activation
-  const handleGuardActivate = useCallback(async () => {
-    const { ok, data } = await apiGame('/api/guard', { method: 'POST', body: JSON.stringify({}) });
-    if (ok) {
-      setGuardCharges(prev => Math.max(0, prev - 1));
-      showToast('🛡️ Guard activated');
-    } else {
-      showToast(data.error || 'Guard failed');
-    }
-  }, [showToast]);
 
   // Season 8: handle bounty claim
   const handleBountyClaim = useCallback(async (bountyId) => {
@@ -4663,7 +4612,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
       {happyHour && !happyHourDismissed && (
         <div className="happy-hour-banner">
-          ⭐ Happy Hour until {new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: 2× pot contributions · more legendary fish ⭐
+          ⭐ Happy Hour until {new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: more legendary fish ⭐
           <button className="happy-hour-banner-close" onClick={() => setHappyHourDismissed(true)}>✕</button>
         </div>
       )}
@@ -5058,14 +5007,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {(hasGuard || hasRegen) && (
                 <div className="shield-indicator">
                   {hasGuard && (
-                    <>
-                      <div className="guard-charges">🛡️ Guard {guardCharges}/3</div>
-                      <button
-                        className="guard-activate-btn"
-                        disabled={guardCharges === 0}
-                        onClick={handleGuardActivate}
-                      >Block</button>
-                    </>
+                    <div className="guard-charges">🛡️ Guard ready</div>
                   )}
                   {hasRegen && (
                     <div>{regenRechargeWins > 0 ? `🔄 ${regenRechargeWins} win${regenRechargeWins !== 1 ? 's' : ''}` : '🔄 ready'}</div>
@@ -5121,7 +5063,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             equippedClass={equippedClass}
             fishExchangeTotal={fishExchangeTotal}
             collapsed={shopCollapsed}
-            cumulativeWins={cumulativeWins}
             caughtSpecies={caughtSpecies}
             procStreak={procStreak}
           />

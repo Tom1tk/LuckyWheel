@@ -47,9 +47,7 @@ from models import (
     INFINITE_UPGRADES,
     ITEM_CURRENCY,
     RETIRED_ITEMS,
-    UPGRADE_TIER_THRESHOLDS,
     inf_upgrade_cost,
-    item_tier,
 )
 
 log = logging.getLogger("wheel")
@@ -275,18 +273,6 @@ def _buy_item(cur, conn, item_id: str, user_id: int, gs: dict) -> dict:
             return 403, {
                 "error": f"Complete your Encyclopaedia first — "
                 f"{missing} species still to catch"
-            }
-
-    # T106: tier gating — check cumulative_wins threshold
-    # (lifetime wins gained).  Tier 1 items are always available.
-    tier = item_tier(item_id)
-    if tier > 1:
-        threshold = UPGRADE_TIER_THRESHOLDS[tier]
-        cumulative = int(gs.get("cumulative_wins", 0))
-        if cumulative < threshold:
-            return 403, {
-                "error": f"Unlocks at {threshold:,} total wins gained "
-                f"(you have {cumulative:,})"
             }
 
     ok, new_wins, new_losses, new_clicks, err = deduct_cost(gs, cost, currency)

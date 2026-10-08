@@ -349,6 +349,14 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
     if first_catch:
         caught_species = caught_species + [species_id]
 
+    # Catch of the Day: the first catch each UTC day is worth 5x.
+    catch_of_day_bonus = (
+        "catch_of_the_day" in owned
+        and str(gs.get("catch_of_the_day_date") or "") != now_utc.date().isoformat()
+    )
+    if catch_of_day_bonus:
+        value *= 5
+
     new_fish_clicks = fish_clicks + value
 
     # Track personal best (lowest = fastest) precise catch percentage
@@ -376,20 +384,6 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                 new_catch_count,
                 new_suspicious,
             )
-
-    # T119: fish catches no longer award insurance_tokens. The
-    # tier-based FISH_TO_WAGER_RATES path is gone — tokens are earned
-    # from the three new sources: 3 free/day claim, 1/2/3 per bounty
-    # (T117), and +5 on the first purchase of fish_to_wager.
-    # catch_of_the_day still tracks its date column (the upgrade
-    # itself is unchanged) but it no longer multiplies any token
-    # award since no tokens are awarded here in the first place.
-    catch_of_day_bonus = False
-    if "catch_of_the_day" in owned:
-        today = now_utc.date().isoformat()
-        last_cotd = gs.get("catch_of_the_day_date") or ""
-        if last_cotd != today:
-            catch_of_day_bonus = True
 
     if catch_of_day_bonus:
         cur.execute(

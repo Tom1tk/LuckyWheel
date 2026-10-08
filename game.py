@@ -12,7 +12,6 @@ from flask_login import current_user, login_required
 from db import db_connection
 from extensions import limiter, csrf
 from models import (REGEN_SHIELD_RECHARGE_WINS,
-                    GUARD_CHARGE_RECHARGE_SPINS, GUARD_CHARGE_MAX,
                     lure_mastery_mult,
                     CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, dice_max_charges,
@@ -285,11 +284,11 @@ def _resolve_spin(
     if 'lucky_seven' in owned and spin_count % 7 == 0:
         outcome = 'win'
         lucky_seven_triggered = True
-    elif pot_active:
-        outcome = 'win' if random.random() < (pot_win_pct + aquarium_luck) else 'lose'
     else:
-        # Mode-based probability roll
-        win_pct = probs['win_pct'] / 100.0 + aquarium_luck
+        # Mode-based probability roll. A filled pot adds its boost over the
+        # 50% baseline to the mode's own odds; jackpots are untouched.
+        pot_boost = max(0.0, pot_win_pct - 0.50) if pot_active else 0.0
+        win_pct = probs['win_pct'] / 100.0 + aquarium_luck + pot_boost
         jackpot_pct = probs['jackpot_pct'] / 100.0
         roll = random.random()
         if roll < jackpot_pct:
@@ -1075,7 +1074,6 @@ def get_state():
             'insurance_tokens':     gs.get('insurance_tokens', 0),
             'aquarium_species':     list(gs.get('caught_species', [])),
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
-            'guard_charges':        gs.get('guard_charges', 0),
             # T102: max stake percentage for this player (30 base, 35/40/45
             # with stake extension items). Frontend uses this to size the slider.
             'max_stake_pct':        compute_max_stake_pct(owned_items),
@@ -1442,23 +1440,6 @@ def spin():
             # Manual spin: add extra full rotations for the wheel animation
             total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
 
-            # T215: Guard Charge passive regen. Every N spins, if the player
-            # owns the guard_charge item and has charges below the cap, grant
-            # one charge. Computed against new_spin_count so the regen fires
-            # on the Nth, 2Nth, 3Nth, ... spin (e.g. spin #50, #100, #150).
-            # Distinct from the Regen Shield item (which blocks losses).
-            prev_guard_charges = int(gs.get('guard_charges', 0) or 0)
-            owns_guard_charge  = 'guard_charge' in gs['owned_items']
-            if (owns_guard_charge
-                    and new_spin_count > 0
-                    and new_spin_count % GUARD_CHARGE_RECHARGE_SPINS == 0
-                    and prev_guard_charges < GUARD_CHARGE_MAX):
-                new_guard_charges = min(GUARD_CHARGE_MAX, prev_guard_charges + 1)
-                log.info('GUARD_CHARGE_REGEN  user_id=%s  spin_count=%s  new_charges=%s',
-                         current_user.id, new_spin_count, new_guard_charges)
-            else:
-                new_guard_charges = prev_guard_charges
-
             with conn.cursor() as cur:
                 cur.execute(
                     '''UPDATE game_state
@@ -1469,7 +1450,6 @@ def spin():
                            fish_clicks = %s, active_cosmetics = %s,
                            dice_charges = %s, dice_last_recharge = %s,
                            jackpot_echo_next = %s, proc_streak = %s,
-                           guard_charges = %s,
                            pending_dice = NULL,
                            dice_rolled_since_spin = FALSE,
                            last_spin_at = NOW(),
@@ -1494,7 +1474,6 @@ def spin():
                       gs['fish_clicks'], new_state['active_cosmetics'],
                       dice_charges, last_recharge,
                       new_state['jackpot_echo_next'], new_state['proc_streak'],
-                      new_guard_charges,
                       req_tab_id or gs['active_tab_id'],
                      new_state.get('wager_streak', 0), new_state.get('wager_last_stake', 1),
                      new_state.get('wager_banked_wins', 0),
@@ -1542,9 +1521,6 @@ def spin():
         # the recharge timestamp key is gone.
         resp['insurance_charges'] = int(gs.get('insurance_charges', 0) or 0)
         resp['insurance_armed'] = False
-        # T215: surface the post-regen guard_charges so the client's UI
-        # updates immediately after the spin (no /api/state poll required).
-        resp['guard_charges'] = new_guard_charges
         # T77: gravity drift + drift-adjusted probabilities on the spin
         # response so the wheel redraws correctly after each resolve.
         resp['gravity_drift'] = new_state.get('gravity_drift', 0)
@@ -3048,26 +3024,6 @@ def save_loadout():
 @login_required
 def apply_loadout():
     return jsonify({'error': 'Retired in Season 9.'}), 410
-
-
-@game_bp.route('/api/guard', methods=['POST'])
-@login_required
-def guard_endpoint():
-    """Manually trigger a guard charge to block a loss. Only if guard_charges > 0."""
-    err = require_json()
-    if err:
-        return err
-    with db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            gs = _load_game_state(cur, current_user.id, for_update=True)
-            if gs.get('guard_charges', 0) <= 0:
-                return jsonify({'error': 'No guard charges'}), 403
-            if 'guard' not in gs['owned_items']:
-                return jsonify({'error': 'Guard not owned'}), 403
-            cur.execute('UPDATE game_state SET guard_charges = guard_charges - 1 WHERE user_id = %s',
-                        (current_user.id,))
-        conn.commit()
-    return jsonify({'ok': True, 'message': 'Guard activated'})
 
 
 @game_bp.route('/api/auto-spin/start', methods=['POST'])

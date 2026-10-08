@@ -1071,15 +1071,15 @@ def test_jsx_renames_state_variables():
 
 def test_jsx_free_tokens_section():
     """T119 AC#14: the free-tokens section sits ABOVE the bounties
-    panel. Single-row layout: a "Claim 3 free insurance tokens" button when
+    panel. Single-row layout: a "Claim 3 free tokens" button when
     unclaimed; a "Claimed today" indicator after claim.
     """
     jsx = _read(JSX_PATH)
     assert 'free-tokens-section' in jsx, (
         "JSX must include a .free-tokens-section element above the bounties panel"
     )
-    assert 'Claim 3 free insurance tokens' in jsx, (
-        "free-tokens section must show the 'Claim 3 free insurance tokens' button"
+    assert 'Claim 3 free tokens' in jsx, (
+        "free-tokens section must show the 'Claim 3 free tokens' button"
     )
     assert 'claimed today' in jsx.lower() or 'Claimed today' in jsx, (
         "free-tokens section must show a 'claimed today' indicator after claim"
@@ -1106,15 +1106,15 @@ def test_pay_with_tokens_renamed():
     insurance tokens" (the old label was ambiguous between the
     insurance/arm economy and the spend economy)."""
     jsx = _read(JSX_PATH)
-    assert 'Pay with insurance tokens' in jsx, (
-        "JSX must include the new 'Pay with insurance tokens' toggle label"
+    assert 'Pay stake with 🪙 tokens' in jsx, (
+        "JSX must include the new 'Pay stake with 🪙 tokens' toggle label"
     )
     # The OLD label (without the "insurance" qualifier) must not be
     # used in the toggle span — but it may appear in the data-tooltip
     # which describes the mechanic. The span text is what the user
     # sees.
     # Find the toggle <span> content.
-    span_idx = jsx.find('Pay with insurance tokens')
+    span_idx = jsx.find('Pay stake with 🪙 tokens')
     assert span_idx != -1
 
 
@@ -1226,6 +1226,6 @@ def test_built_app_js_contains_new_endpoints():
     assert 'free-tokens-section' in bundle, (
         "static/app.js must include the new free-tokens-section class"
     )
-    assert 'Pay with insurance tokens' in bundle, (
+    assert 'Pay stake with ' in bundle, (
         "static/app.js must include the renamed toggle label"
     )
