@@ -248,7 +248,7 @@ def test_seasons_py_rollover_resets_legacy_wins():
     # Pull the UPDATE game_state block (regex is loose because the SQL
     # is wrapped across many lines and there's a trailing comma list).
     m = re.search(
-        r'UPDATE\s+game_state\s+SET(.*?)\s*"""\s*,\s*\(\[',
+        r'UPDATE\s+game_state\s+SET(.*?)\s*"""\s*,\s*[(\[{]',
         src, re.IGNORECASE | re.DOTALL,
     )
     assert m, (
