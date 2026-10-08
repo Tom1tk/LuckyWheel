@@ -12,14 +12,21 @@ async function apiFetch(path, opts = {}) {
   }
   const res = await fetch(path, { headers, ...opts });
   const json = await res.json().catch(() => ({}));
+  // RV-11: flask-limiter's 429 is HTML, so without this callers fall back to "Spin failed".
+  if (res.status === 429 && !json.error) json.error = 'Slow down a moment — try again in a few seconds.';
+  if (res.status === 423) json.error = TAB_PAUSED_MSG;
   return { ok: res.ok, status: res.status, data: json };
 }
+const TAB_PAUSED_MSG = 'The wheel is open in another tab — this tab is paused.';
 
 let _onSessionExpired = null;
 function setSessionExpiredHandler(fn) { _onSessionExpired = fn; }
+let _onTabLocked = null;
+function setTabLockedHandler(fn) { _onTabLocked = fn; }
 function apiGame(path, opts = {}) {
   return apiFetch(path, opts).then(r => {
     if (r.status === 401 && _onSessionExpired) _onSessionExpired();
+    if (r.status === 423 && _onTabLocked) _onTabLocked();
     return r;
   });
 }
@@ -3484,6 +3491,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showStats, setShowStats]     = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [toast, setToast]             = useState(null);
+  const [tabPaused, setTabPaused]     = useState(false);
   const [season, setSeason]           = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 1_000, filled: false, active: false, win_chance_pct: 50.0 });
   const [spinCount, setSpinCount]     = useState(gameState.spin_count || 0);
@@ -3653,6 +3661,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [onSessionExpired]);
 
   useEffect(() => {
+    setTabLockedHandler(() => setTabPaused(true));
+    return () => setTabLockedHandler(null);
+  }, []);
+
+  useEffect(() => {
     const currentNumber = season ? season.season_number : null;
     const id = setInterval(async () => {
       const r = await apiFetch('/api/season');
@@ -3725,6 +3738,15 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
+
+  const handlePlayHere = useCallback(async () => {
+    const r = await apiGame('/api/tab/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({ tab_id: tabIdRef.current, takeover: true }),
+    });
+    if (r.ok && r.data.active) setTabPaused(false);
+    else showToast(r.data?.error || "Couldn't take over. Try again.");
+  }, [showToast]);
 
   // RV-07: side panels unlock as a player gets going. Once unlocked a panel stays,
   // because spin_count resets every tide.
@@ -4011,7 +4033,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         }),
       });
       if (!res.ok) {
-        showToast(res.data?.error || 'Spin failed');
+        if (res.status !== 423) showToast(res.data?.error || 'Spin failed');
         spinningRef.current = false;
         setSpinning(false);
         return;
@@ -4632,6 +4654,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
       <HallOfFamePanel open={showHof} onClose={() => setShowHof(false)} />
       {toast && <div className={`toast-notification${toast.variant ? ` toast-notification--${toast.variant}` : ''}`}>{toast.msg}</div>}
+      {tabPaused && (
+        <div className="tab-paused-banner" role="alert">
+          <span className="tab-paused-text">{TAB_PAUSED_MSG}</span>
+          <button className="whats-new-btn tab-paused-btn" onClick={handlePlayHere}>Play here</button>
+        </div>
+      )}
       {showWhatsNew && !showPatchNotes && (
         <div className="whats-new-card" role="dialog" aria-label="What's new in Season 9">
           <div className="whats-new-title">🌊 What's new in Season 9</div>

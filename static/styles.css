@@ -3758,6 +3758,28 @@ body.page-season9 .dice-panel-desc  { color: #1FA9A0; }
 .hof-podium-row { display: flex; justify-content: space-between; gap: 16px; font-size: 0.75rem; padding: 2px 0; }
 .hof-wins { color: var(--s-lt); font-family: 'Courier New', monospace; }
 
+/* ── RV-11: tab paused banner ──────────────────────────────────────────── */
+.tab-paused-banner {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 260;
+  width: min(520px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(0,3,12,0.95);
+  border: 1px solid rgba(var(--p-rgb),0.45);
+  border-radius: 10px;
+  box-shadow: 0 0 28px rgba(var(--p-rgb),0.22);
+  padding: 12px 16px;
+  font-family: 'Oswald', sans-serif;
+  animation: toastIn 0.3s ease-out;
+}
+.tab-paused-text { flex: 1; color: #d6e4ec; font-size: 0.8rem; letter-spacing: 0.5px; line-height: 1.5; }
+.tab-paused-btn { margin-left: 0; flex-shrink: 0; }
+
 /* ── RV-07: What's new card + newly unlocked panels ───────────────────────── */
 .whats-new-card {
   position: fixed;
