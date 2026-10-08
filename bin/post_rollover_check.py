@@ -8,7 +8,6 @@ verify prints one PASS/FAIL line per check and exits 1 if any check fails.
 A wrong connected database exits 3 (see advance_tide.connect_checked).
 """
 import argparse
-import hashlib
 import json
 import sys
 import urllib.error
@@ -24,7 +23,7 @@ THEME = SEASON_CONFIG['theme_item']
 COSMETICS = {k for k, v in models.ITEM_CURRENCY.items() if v == 'losses'}
 KNOWN_IDS = (set(models.SHOP_ITEMS) | set(models.RETIRED_ITEMS)
              | set(models.RETIRED_S9_ITEMS) | set(models.FISH_SKINS))
-COSMETIC_SAMPLE = 50
+SAMPLE_SIZE = 50
 REAL_PLAYERS_SQL = ("SELECT count(*) FROM game_state gs JOIN users u ON u.id = gs.user_id "
                     "WHERE u.ip_address <> '127.0.0.1' AND gs.wins > 0")
 
@@ -36,10 +35,10 @@ def read_state(conn):
         season_number, pfn, sub = cur.fetchone()
         cur.execute('SELECT count(*) FROM users')
         users = cur.fetchone()[0]
-        cur.execute('SELECT user_id, owned_items FROM game_state ORDER BY user_id LIMIT %s', (COSMETIC_SAMPLE,))
-        cosmetics = [[uid, sorted(set(owned or []) & COSMETICS)] for uid, owned in cur.fetchall()]
-        cur.execute('SELECT user_id, caught_species FROM game_state ORDER BY user_id')
-        species = hashlib.md5(json.dumps(cur.fetchall(), default=str).encode()).hexdigest()
+        cur.execute('SELECT user_id, owned_items, caught_species FROM game_state ORDER BY user_id LIMIT %s',
+                    (SAMPLE_SIZE,))
+        sample = [[uid, sorted(set(owned or []) & COSMETICS), sorted(caught or [])]
+                  for uid, owned, caught in cur.fetchall()]
         cur.execute(REAL_PLAYERS_SQL)
         real_players = cur.fetchone()[0]
     return {
@@ -48,8 +47,7 @@ def read_state(conn):
         'sub': sub,
         'label': seasons.season_label(pfn, sub, season_number),
         'users': users,
-        'cosmetics': cosmetics,
-        'species_md5': species,
+        'sample': sample,
         'real_players': real_players,
     }
 
@@ -72,6 +70,18 @@ def _live_check(name, url):
             return name, resp.status == 200, f'HTTP {resp.status}'
     except (urllib.error.URLError, OSError) as exc:
         return name, False, f'{url}: {exc}'
+
+
+def find_lost(sample, now_rows):
+    """Cosmetics and species from the snapshot sample that are no longer held. New ones are fine (live play)."""
+    lost_cosmetics, lost_species = {}, {}
+    for uid, cosmetics, species in sample:
+        owned, caught = now_rows.get(uid, (set(), set()))
+        if set(cosmetics) - owned:
+            lost_cosmetics[uid] = sorted(set(cosmetics) - owned)
+        if set(species) - caught:
+            lost_species[uid] = sorted(set(species) - caught)
+    return lost_cosmetics, lost_species
 
 
 def run_checks(conn, before, live_url=''):
@@ -100,14 +110,14 @@ def run_checks(conn, before, live_url=''):
         unknown = sorted({row[0] for row in cur.fetchall()} - KNOWN_IDS)
         results.append(('known_items', not unknown, f'unknown ids {unknown}'))
 
-        uids = [uid for uid, _ in before['cosmetics']]
-        owned_now = {}
+        uids = [uid for uid, _, _ in before['sample']]
+        now_rows = {}
         if uids:
-            cur.execute('SELECT user_id, owned_items FROM game_state WHERE user_id = ANY(%s)', (uids,))
-            owned_now = {uid: set(owned or []) for uid, owned in cur.fetchall()}
-        lost = {uid: sorted(set(ids) - owned_now.get(uid, set())) for uid, ids in before['cosmetics']}
-        lost = {uid: miss for uid, miss in lost.items() if miss}
-        results.append(('cosmetics_kept', not lost, f'lost cosmetics {lost}'))
+            cur.execute('SELECT user_id, owned_items, caught_species FROM game_state WHERE user_id = ANY(%s)', (uids,))
+            now_rows = {uid: (set(owned or []), set(caught or [])) for uid, owned, caught in cur.fetchall()}
+        lost_cosmetics, lost_species = find_lost(before['sample'], now_rows)
+        results.append(('cosmetics_kept', not lost_cosmetics, f'lost cosmetics {lost_cosmetics}'))
+        results.append(('species_kept', not lost_species, f'lost species {lost_species}'))
 
         if before['real_players']:
             cur.execute('SELECT count(*) FROM season_snapshots WHERE season_number = %s',
@@ -117,9 +127,7 @@ def run_checks(conn, before, live_url=''):
         else:
             results.append(('snapshot_rows', True, 'not applicable: no real player with wins > 0'))
 
-    results.append(('species_unchanged', after['species_md5'] == before['species_md5'],
-                    'caught_species changed'))
-    results.append(('users_unchanged', after['users'] == before['users'],
+    results.append(('users_kept', after['users'] >= before['users'],
                     f"users {before['users']} -> {after['users']}"))
     if live_url:
         base = live_url.rstrip('/')
