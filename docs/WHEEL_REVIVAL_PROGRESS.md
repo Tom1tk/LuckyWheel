@@ -38,7 +38,7 @@ Additional G0 evidence:
 | RV-03 universal auto-spin (backend) | merged | 1345936 | 31 auto-spin tests; 5 new fail on pre-change base; 24h catch-up = 28,800 spins in ~0.57s, one tick |
 | RV-04 weekly community goals | merged | 8e195c9 | 23 goal tests; goal keyed on tide (season_number) not ISO week; species goal retired (species persist) |
 | RV-02 persist across tides | merged | 3ad1426 | 3 new DB tests (cosmetics/species/skin persist, theme equip, auto-spin carries over); suite 884 passed + baseline 16 |
-| RV-09 Tides page theme | merged (desktop) | 6022025 | built by orchestrator; mockup v2 approved by user 2026-10-08; mobile check pending |
+| RV-09 Tides page theme | merged | 6022025 | built by orchestrator; mockup v2 approved by user 2026-10-08; checked at 390/768/1280/1920 (phones: lighthouse tucked to edge, boat clamped on-screen) |
 
 Suite after RV-01/03/04: 881 passed, same 16 baseline Playwright failures.
 
