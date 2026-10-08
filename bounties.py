@@ -168,21 +168,23 @@ def get_bounty_status(conn, user_id, bounty_date=None):
     return result
 
 
+BOUNTY_SURGE_PER_POSITION = 100
+
+
 def get_claim_rewards_for_bounty(conn, user_id, bounty_date, bounty_id):
     """Return per-bounty claim rewards for the given (user, date, bounty_id).
 
-    Per-bounty semantics (T117): the token amount is the bounty's 1-indexed
+    Per-bounty semantics (T117): the reward scales with the bounty's 1-indexed
     position in the deterministic 3-bounty set returned by get_daily_bounties.
-    Bounty #1 → 1 token, #2 → 2 tokens, #3 → 3 tokens (max 6/day). No
-    cosmetic fragments are awarded (T117 removes the legacy 3/3 fragment
-    bonus — fragments are now earned only via other paths TBD).
+    S9 Charts: bounties pay 🌊 Surge spins (#1 → 100, #2 → 200, #3 → 300), not
+    🪙 chips — chips feed staking, which compounds, so they stay at 3 a day.
     """
     if bounty_date is None:
         bounty_date = date.today()
     selected = get_daily_bounties(user_id, bounty_date)
     for i, b in enumerate(selected, start=1):
         if b['id'] == bounty_id:
-            return {'tokens': i, 'cosmetic_fragments': 0}
+            return {'surge': i * BOUNTY_SURGE_PER_POSITION, 'cosmetic_fragments': 0}
     return None
 
 

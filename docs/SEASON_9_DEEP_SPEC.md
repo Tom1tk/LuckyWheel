@@ -237,6 +237,10 @@ The 13 original ids are kept and are **always available**. New species have a **
 - The race starts level every Friday.
 - The ×1000 staking tail is cut (staked jackpot ×5).
 - Chips are limited to 3 a day plus the goal's reward, about 31 a tide.
+- Bounties pay 🌊 Surge spins (100 / 200 / 300 by position), not chips. Sim: at 52 chips a tide Riptide's median jumps from 1.9e9 to 5.6e10, and at 73 (the old 1/2/3-chip bounties) to 5.9e11. Staking compounds, so chips stay scarce.
+- Arming insurance costs a chip and the staked spin costs another, so an insured spin costs 2.
+- Inverted mode lets anyone stake (losses, not wins) without Open Water; it still costs a chip. Intended: it's the week's wildcard wheel.
+- Charting unequips any class (classes are shop gear no talent grants) and disarms Double Down / insurance whose talent was taken back.
 
 ## 8. Balance (sim, `_resolve_spin` directly, 7 days × 28,800 auto-spins, `REGEN_SHIELD_RECHARGE_WINS=25`)
 

@@ -1309,8 +1309,8 @@ def spin():
             # S9 Charts: tokens no longer cover stakes; a staked spin costs 1 🪙 chip instead.
             pay_with_tokens = False
             owns_stake = 'wager_unlock' in gs['owned_items'] or gs.get('active_wheel_mode') == 'inverted'
-            wants_stake = double_down_active or validate_stake(
-                req_stake, owns_stake, compute_max_stake_pct(list(gs['owned_items']))) > 0
+            wants_stake = owns_stake and (double_down_active or validate_stake(
+                req_stake, owns_stake, compute_max_stake_pct(list(gs['owned_items']))) > 0)
             if wants_stake and int(gs.get('insurance_tokens', 0) or 0) < 1:
                 return jsonify({'error': "Out of 🪙 chips — claim today's 3"}), 400
             win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, int(gs.get('surge_spins', 0) or 0))
@@ -2090,9 +2090,15 @@ def charts_set():
                     return jsonify({'error': 'You can re-chart once a day — come back tomorrow.'}), 409
                 rechart_date = talents.london_date(now)
             owned = talents.recompute_owned(list(gs['owned_items']), alloc)
-            cur.execute('''UPDATE game_state SET talent_alloc = %s, talent_rechart_date = %s, owned_items = %s
+            # A re-chart that drops Double or Nothing / Safety Line also drops what they armed.
+            # Classes are shop gear the Chart never grants, so charting unequips them.
+            cur.execute('''UPDATE game_state SET talent_alloc = %s, talent_rechart_date = %s, owned_items = %s,
+                                  double_down_pending = double_down_pending AND %s,
+                                  insurance_armed = insurance_armed AND %s,
+                                  equipped_class = NULL
                            WHERE user_id = %s''',
-                        (psycopg2.extras.Json(alloc), rechart_date, owned, current_user.id))
+                        (psycopg2.extras.Json(alloc), rechart_date, owned,
+                         'wager_double_down' in owned, 'wager_insurance' in owned, current_user.id))
         conn.commit()
     log.info('CHARTS_SET  user_id=%s  alloc=%s', current_user.id, alloc)
     payload = _charts_payload({'talent_alloc': alloc, 'talent_rechart_date': rechart_date}, now)
@@ -3061,9 +3067,9 @@ def claim_bounty():
                 (current_user.id, bounty_date, bounty_id),
             )
             cur.execute(
-                '''UPDATE game_state SET insurance_tokens = insurance_tokens + %s
+                '''UPDATE game_state SET surge_spins = surge_spins + %s
                    WHERE user_id = %s''',
-                (rewards['tokens'], current_user.id),
+                (rewards['surge'], current_user.id),
             )
         conn.commit()
     return jsonify({'ok': True, 'rewards': rewards})

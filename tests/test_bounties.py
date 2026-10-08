@@ -116,7 +116,7 @@ def _stub_load_game_state(cur, user_id, for_update=False):
 
 
 def _stub_get_claim_rewards_for_bounty(conn, user_id, bounty_date, bounty_id):
-    return {'tokens': 2, 'cosmetic_fragments': 0}
+    return {'surge': 200, 'cosmetic_fragments': 0}
 
 
 # T117: per-bounty claim flow reads a row from `bounty_progress` (via SELECT
@@ -220,7 +220,7 @@ def test_bounty_claim_does_not_post_system_message():
     finally:
         _game.db_connection = original_db
     # Endpoint still returns the per-bounty rewards payload on success.
-    assert result == {'ok': True, 'rewards': {'tokens': 2, 'cosmetic_fragments': 0}}
+    assert result == {'ok': True, 'rewards': {'surge': 200, 'cosmetic_fragments': 0}}
     # Critical assertion: no chat broadcast.
     assert _posted == [], f"Expected no post_system_message calls, got: {_posted}"
 
@@ -411,7 +411,7 @@ def test_payload_uses_bounty_id_key():
 
 
 def test_per_bounty_token_amounts():
-    """T117 AC#2: position 1 → 1 token, #2 → 2, #3 → 3. Max 6/day.
+    """T117 AC#2 / S9: position 1 → 100 Surge spins, #2 → 200, #3 → 300.
 
     Pure-Python test: the function is deterministic for a given (user, date).
     """
@@ -434,21 +434,21 @@ def test_per_bounty_token_amounts():
             _NoOpConn(), user_id, bounty_date, bounty_id,
         )
         assert rewards == {
-            'tokens': expected,
+            'surge': expected * 100,
             'cosmetic_fragments': 0,
         }, (
             f"bounty {bounty_id} (position {expected}) should grant "
-            f"{expected} token(s), got {rewards}"
+            f"{expected * 100} Surge spins, got {rewards}"
         )
 
-    # The "max per day" invariant: claim all three → 6 tokens total.
+    # The "max per day" invariant: claim all three → 600 Surge spins total.
     total = sum(
         bounties.get_claim_rewards_for_bounty(
             _NoOpConn(), user_id, bounty_date, b['id'],
-        )['tokens']
+        )['surge']
         for b in selected
     )
-    assert total == 6, f"max per-day total should be 6 tokens, got {total}"
+    assert total == 600, f"max per-day total should be 600 Surge spins, got {total}"
 
 
 def test_claim_independence():
@@ -485,9 +485,9 @@ def test_claim_independence():
         _NoOpConn(), user_id, bounty_date, selected[2]['id'],
     )
     assert r1 == r1_again, "helper should be a pure function of (user, date, bounty_id)"
-    assert r1['tokens'] == 1
-    assert r2['tokens'] == 2
-    assert r3['tokens'] == 3
+    assert r1['surge'] == 100
+    assert r2['surge'] == 200
+    assert r3['surge'] == 300
 
     # The three ids must be distinct — otherwise the user's "1+2+3" claim
     # rotation collapses to a single reward.
@@ -600,7 +600,7 @@ def test_claim_button_sends_bounty_id():
     assert status == 200, f"valid claim should 200, got status={status} body={body}"
     assert body.get('ok') is True
     assert body['rewards']['cosmetic_fragments'] == 0
-    assert body['rewards']['tokens'] == 2  # stubbed to position 2 above
+    assert body['rewards']['surge'] == 200  # stubbed to position 2 above
 
 
 def test_no_bounty_needs_mirror_mode():
