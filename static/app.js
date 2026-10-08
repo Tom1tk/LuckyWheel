@@ -1479,6 +1479,10 @@ var THEME_COLORS = {
   casino: {
     win: ['#063d1f', '#28e070'],
     lose: ['#4a0808', '#ff4040']
+  },
+  tides: {
+    win: ['#073b3d', '#3fd6c6'],
+    lose: ['#4a1712', '#ff7f6e']
   }
 };
 
@@ -1498,6 +1502,40 @@ function CasinoBackground(_ref3) {
       palette: {
         win: THEME_COLORS.casino.win[1],
         lose: THEME_COLORS.casino.lose[1]
+      }
+    });
+    return function () {
+      return scene && scene.stop();
+    };
+  }, [lowSpec]);
+  return /*#__PURE__*/React.createElement("canvas", {
+    ref: canvasRef,
+    "aria-hidden": "true",
+    style: {
+      width: "100%",
+      height: "100%",
+      display: "block",
+      background: "transparent",
+      pointerEvents: "none"
+    }
+  });
+}
+
+// ── Tides Background (Season 9) ──────────────────────────────────────────────
+// Wrapper around static/js/tides-bg.js (window.createTidesScene); the scene
+// reads the wheel's position so its light falls on the water beneath it.
+function TidesBackground(_ref4) {
+  var _ref4$lowSpec = _ref4.lowSpec,
+    lowSpec = _ref4$lowSpec === void 0 ? false : _ref4$lowSpec;
+  var canvasRef = useRef(null);
+  useEffect(function () {
+    var canvas = canvasRef.current;
+    if (!canvas || !window.createTidesScene) return;
+    var scene = window.createTidesScene(canvas, {
+      lowSpec: lowSpec,
+      palette: {
+        win: THEME_COLORS.tides.win[1],
+        lose: THEME_COLORS.tides.lose[1]
       }
     });
     return function () {
@@ -1780,10 +1818,10 @@ var HIATUS_END = new Date('2026-05-01T23:59:59'); // Next Friday 11:59 pm
 var HIATUS_PAST_SEASON = 6; // season that just ended
 
 // ── Scoreboard ────────────────────────────────────────────────────────────
-var Scoreboard = React.memo(function Scoreboard(_ref4) {
-  var wins = _ref4.wins,
-    losses = _ref4.losses,
-    lastResult = _ref4.lastResult;
+var Scoreboard = React.memo(function Scoreboard(_ref5) {
+  var wins = _ref5.wins,
+    losses = _ref5.losses,
+    lastResult = _ref5.lastResult;
   return /*#__PURE__*/React.createElement("div", {
     className: "scoreboard"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1805,10 +1843,10 @@ var Scoreboard = React.memo(function Scoreboard(_ref4) {
 
 // ── Confetti ──────────────────────────────────────────────────────────────
 var CONFETTI_COLORS = ['#FFD700', '#FF6600', '#FF3333', '#00FF88', '#AA00FF', '#FF00FF', '#FFFFFF'];
-function Confetti(_ref5) {
-  var active = _ref5.active,
-    _ref5$count = _ref5.count,
-    count = _ref5$count === void 0 ? 80 : _ref5$count;
+function Confetti(_ref6) {
+  var active = _ref6.active,
+    _ref6$count = _ref6.count,
+    count = _ref6$count === void 0 ? 80 : _ref6$count;
   var pieces = useMemo(function () {
     if (!active) return [];
     return Array.from({
@@ -1846,13 +1884,13 @@ function Confetti(_ref5) {
 }
 
 // ── Guard Mini-Wheel ──────────────────────────────────────────────────────
-function GuardWheel(_ref6) {
-  var blocked = _ref6.blocked,
-    _ref6$speedMult = _ref6.speedMult,
-    speedMult = _ref6$speedMult === void 0 ? 1.0 : _ref6$speedMult,
-    onComplete = _ref6.onComplete,
-    _ref6$contained = _ref6.contained,
-    contained = _ref6$contained === void 0 ? false : _ref6$contained;
+function GuardWheel(_ref7) {
+  var blocked = _ref7.blocked,
+    _ref7$speedMult = _ref7.speedMult,
+    speedMult = _ref7$speedMult === void 0 ? 1.0 : _ref7$speedMult,
+    onComplete = _ref7.onComplete,
+    _ref7$contained = _ref7.contained,
+    contained = _ref7$contained === void 0 ? false : _ref7$contained;
   var canvasRef = useRef(null);
   var _useState = useState(0),
     _useState2 = _slicedToArray(_useState, 2),
@@ -2000,9 +2038,9 @@ var FISH_CATALOG_CLIENT = [{
 }];
 
 // ── Fish Encyclopaedia ────────────────────────────────────────────────────
-function FishEncyclopedia(_ref7) {
-  var caughtSpecies = _ref7.caughtSpecies,
-    onClose = _ref7.onClose;
+function FishEncyclopedia(_ref8) {
+  var caughtSpecies = _ref8.caughtSpecies,
+    onClose = _ref8.onClose;
   var discovered = new Set(caughtSpecies || []);
   var count = discovered.size;
   var TIER_ORDER = {
@@ -2049,18 +2087,18 @@ function FishEncyclopedia(_ref7) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel(_ref8) {
-  var fishClicks = _ref8.fishClicks,
-    fishData = _ref8.fishData,
-    caughtSpecies = _ref8.caughtSpecies,
-    fishingLuckyNext = _ref8.fishingLuckyNext,
-    ownedItems = _ref8.ownedItems,
-    fishPanelScale = _ref8.fishPanelScale,
-    autoFishEnabled = _ref8.autoFishEnabled,
-    onFishBucksUpdate = _ref8.onFishBucksUpdate,
-    onCaughtSpeciesUpdate = _ref8.onCaughtSpeciesUpdate,
-    onFishCaught = _ref8.onFishCaught,
-    onOnboardingAdvance = _ref8.onOnboardingAdvance;
+function FishingPanel(_ref9) {
+  var fishClicks = _ref9.fishClicks,
+    fishData = _ref9.fishData,
+    caughtSpecies = _ref9.caughtSpecies,
+    fishingLuckyNext = _ref9.fishingLuckyNext,
+    ownedItems = _ref9.ownedItems,
+    fishPanelScale = _ref9.fishPanelScale,
+    autoFishEnabled = _ref9.autoFishEnabled,
+    onFishBucksUpdate = _ref9.onFishBucksUpdate,
+    onCaughtSpeciesUpdate = _ref9.onCaughtSpeciesUpdate,
+    onFishCaught = _ref9.onFishCaught,
+    onOnboardingAdvance = _ref9.onOnboardingAdvance;
   var _useState7 = useState('idle'),
     _useState8 = _slicedToArray(_useState7, 2),
     phase = _useState8[0],
@@ -2115,10 +2153,10 @@ function FishingPanel(_ref8) {
   var autoFishPopupKeyRef = useRef(0);
   var hasAutoCast = ownedItems.includes('auto_cast');
   var hasAutoFisher = ownedItems.includes('autofisher_1');
-  var _ref9 = fishData || {
+  var _ref0 = fishData || {
       emoji: '🐟'
     },
-    fisherEmoji = _ref9.emoji;
+    fisherEmoji = _ref0.emoji;
   var scale = fishPanelScale || 1.0;
   useEffect(function () {
     autoFishRef.current = autoFish;
@@ -2629,8 +2667,8 @@ function FishingPanel(_ref8) {
 }
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────
-var LuckySevenCounter = React.memo(function LuckySevenCounter(_ref1) {
-  var spinCount = _ref1.spinCount;
+var LuckySevenCounter = React.memo(function LuckySevenCounter(_ref10) {
+  var spinCount = _ref10.spinCount;
   var progress = spinCount % 7;
   return /*#__PURE__*/React.createElement("div", {
     className: "lucky-seven-counter"
@@ -2643,8 +2681,8 @@ var LuckySevenCounter = React.memo(function LuckySevenCounter(_ref1) {
     });
   }));
 });
-var ProcStreakCounter = React.memo(function ProcStreakCounter(_ref10) {
-  var streak = _ref10.streak;
+var ProcStreakCounter = React.memo(function ProcStreakCounter(_ref11) {
+  var streak = _ref11.streak;
   if (streak === 0) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "proc-streak-counter"
@@ -2663,9 +2701,9 @@ function bonusMultFromLevel(level) {
   if (level <= 30) return 70 + (level - 6) * 8;
   return 262 + (level - 30) * 5;
 }
-var StreakPanel = React.memo(function StreakPanel(_ref11) {
-  var streak = _ref11.streak,
-    bonusmultLevel = _ref11.bonusmultLevel;
+var StreakPanel = React.memo(function StreakPanel(_ref12) {
+  var streak = _ref12.streak,
+    bonusmultLevel = _ref12.bonusmultLevel;
   if (Math.abs(streak) < 2) return null;
   var isWin = streak > 0;
   var count = Math.abs(streak);
@@ -2694,18 +2732,18 @@ var PIP_LAYOUTS = {
   5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
   6: [[1, 1], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]]
 };
-function Die(_ref12) {
-  var value = _ref12.value,
-    rolling = _ref12.rolling,
-    landed = _ref12.landed;
+function Die(_ref13) {
+  var value = _ref13.value,
+    rolling = _ref13.rolling,
+    landed = _ref13.landed;
   var pips = PIP_LAYOUTS[value] || [];
   var cls = "die".concat(rolling ? ' die-rolling' : '').concat(landed ? ' die-landed' : '');
   return /*#__PURE__*/React.createElement("div", {
     className: cls
-  }, pips.map(function (_ref13, i) {
-    var _ref14 = _slicedToArray(_ref13, 2),
-      row = _ref14[0],
-      col = _ref14[1];
+  }, pips.map(function (_ref14, i) {
+    var _ref15 = _slicedToArray(_ref14, 2),
+      row = _ref15[0],
+      col = _ref15[1];
     return /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "pip",
@@ -2741,18 +2779,18 @@ function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
   }, [diceLastRecharge, diceCharges, maxCharges]);
   return secsToNext;
 }
-function DicePanel(_ref15) {
-  var streak = _ref15.streak,
-    onRoll = _ref15.onRoll,
-    rolling = _ref15.rolling,
-    diceResult = _ref15.diceResult,
-    guardSpinning = _ref15.guardSpinning,
-    lowSpec = _ref15.lowSpec,
-    diceCharges = _ref15.diceCharges,
-    maxDiceCharges = _ref15.maxDiceCharges,
-    diceLastRecharge = _ref15.diceLastRecharge,
-    hasDiceExtra = _ref15.hasDiceExtra,
-    rolledSinceSpin = _ref15.rolledSinceSpin;
+function DicePanel(_ref16) {
+  var streak = _ref16.streak,
+    onRoll = _ref16.onRoll,
+    rolling = _ref16.rolling,
+    diceResult = _ref16.diceResult,
+    guardSpinning = _ref16.guardSpinning,
+    lowSpec = _ref16.lowSpec,
+    diceCharges = _ref16.diceCharges,
+    maxDiceCharges = _ref16.maxDiceCharges,
+    diceLastRecharge = _ref16.diceLastRecharge,
+    hasDiceExtra = _ref16.hasDiceExtra,
+    rolledSinceSpin = _ref16.rolledSinceSpin;
   var _React$useState3 = React.useState(1),
     _React$useState4 = _slicedToArray(_React$useState3, 2),
     animDie1 = _React$useState4[0],
@@ -2913,11 +2951,11 @@ function DicePanel(_ref15) {
 }
 
 // ── Season Winners ────────────────────────────────────────────────────────
-function SeasonWinners(_ref16) {
-  var winners = _ref16.winners,
-    seasonNumber = _ref16.seasonNumber,
-    _ref16$extraClass = _ref16.extraClass,
-    extraClass = _ref16$extraClass === void 0 ? '' : _ref16$extraClass;
+function SeasonWinners(_ref17) {
+  var winners = _ref17.winners,
+    seasonNumber = _ref17.seasonNumber,
+    _ref17$extraClass = _ref17.extraClass,
+    extraClass = _ref17$extraClass === void 0 ? '' : _ref17$extraClass;
   if (!winners || winners.length === 0) return null;
   var medals = ['🥇', '🥈', '🥉'];
   var rankClasses = ['sw-gold', 'sw-silver', 'sw-bronze', 'sw-4th', 'sw-5th'];
@@ -2940,10 +2978,10 @@ function SeasonWinners(_ref16) {
 }
 
 // ── Season Info ───────────────────────────────────────────────────────────
-function SeasonInfo(_ref17) {
-  var seasonName = _ref17.seasonName,
-    playerFacingNumber = _ref17.playerFacingNumber,
-    endsAt = _ref17.endsAt;
+function SeasonInfo(_ref18) {
+  var seasonName = _ref18.seasonName,
+    playerFacingNumber = _ref18.playerFacingNumber,
+    endsAt = _ref18.endsAt;
   var _useState23 = useState(''),
     _useState24 = _slicedToArray(_useState23, 2),
     timeLeft = _useState24[0],
@@ -3213,10 +3251,10 @@ function HiatusWheel() {
     }
   }), /*#__PURE__*/React.createElement("span", null, "Auto Spin")));
 }
-function HiatusScreen(_ref19) {
-  var season = _ref19.season,
-    username = _ref19.username,
-    onLogout = _ref19.onLogout;
+function HiatusScreen(_ref20) {
+  var season = _ref20.season,
+    username = _ref20.username,
+    onLogout = _ref20.onLogout;
   var winners = season && season.latest_winners;
   useEffect(function () {
     apiFetch('/api/register-season', {
@@ -3276,11 +3314,11 @@ function HiatusScreen(_ref19) {
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
-function Leaderboard(_ref20) {
-  var currentUser = _ref20.currentUser,
-    extraClass = _ref20.extraClass,
-    seasonWinners = _ref20.seasonWinners,
-    seasonNumber = _ref20.seasonNumber;
+function Leaderboard(_ref21) {
+  var currentUser = _ref21.currentUser,
+    extraClass = _ref21.extraClass,
+    seasonWinners = _ref21.seasonWinners,
+    seasonNumber = _ref21.seasonNumber;
   var _useState45 = useState([]),
     _useState46 = _slicedToArray(_useState45, 2),
     rows = _useState46[0],
@@ -3396,10 +3434,10 @@ var CHAT_MIN_W = 180,
   CHAT_MIN_H = 150,
   CHAT_MAX_W = 620,
   CHAT_MAX_H = 620;
-function ChatPanel(_ref21) {
-  var _ref21$extraClass = _ref21.extraClass,
-    extraClass = _ref21$extraClass === void 0 ? '' : _ref21$extraClass,
-    onClose = _ref21.onClose;
+function ChatPanel(_ref22) {
+  var _ref22$extraClass = _ref22.extraClass,
+    extraClass = _ref22$extraClass === void 0 ? '' : _ref22$extraClass,
+    onClose = _ref22.onClose;
   var _useState49 = useState([]),
     _useState50 = _slicedToArray(_useState49, 2),
     messages = _useState50[0],
@@ -4613,6 +4651,12 @@ var SHOP_SECTIONS = [{
     name: 'Season 8',
     cost: 1000,
     desc: 'Season 8 page theme — Casino'
+  }, {
+    id: 'page_season9',
+    emoji: '🌊',
+    name: 'Season 9',
+    cost: 1000,
+    desc: 'Season 9 page theme — Tides'
   }]
 }, {
   label: '🎲 Dice Charges',
@@ -4680,10 +4724,10 @@ function getFishData(equippedFish) {
     return s.id === equippedFish;
   }) || DEFAULT_FISH;
 }
-var COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8']);
+var COSMETIC_SECTION_IDS = new Set(['bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'confetti_1', 'confetti_2', 'confetti_3', 'party_mode', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'golden_wheel', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8', 'page_season9']);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
-var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fish_dice', 'fish_joker', 'fish_diamond', 'fish_poker', 'fish_slot', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
+var COSMETIC_IDS = new Set(['fish_tropical', 'fish_puffer', 'fish_octopus', 'fish_shark', 'fish_dolphin', 'fish_squid', 'fish_turtle', 'fish_crab', 'fish_lobster', 'fish_whale', 'fish_seal', 'fish_shrimp', 'fish_coral', 'fish_mermaid', 'fish_croc', 'fish_rocket', 'fish_comet', 'fish_saturn', 'fish_alien', 'fish_ufo', 'fish_dice', 'fish_joker', 'fish_diamond', 'fish_poker', 'fish_slot', 'fishsize_small', 'fishsize_1', 'fishsize_2', 'fishsize_3', 'trail_1', 'trail_2', 'trail_3', 'trail_4', 'trail_5', 'trail_6', 'theme_fire', 'theme_ice', 'theme_neon', 'theme_void', 'theme_gold', 'golden_wheel', 'theme_tidal', 'theme_ember', 'theme_frost', 'theme_aurora', 'theme_vintage', 'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8', 'page_season9', 'party_mode', 'confetti_1', 'confetti_2', 'confetti_3', 'bg_royal', 'bg_inferno', 'bg_forest', 'bg_abyss', 'bg_cosmic']);
 var getItemCurrency = function getItemCurrency(id) {
   if (COSMETIC_IDS.has(id)) return 'losses';
   return 'wins';
@@ -4702,24 +4746,24 @@ function computeFishExchangeRate(total) {
 
 // ── Shop components ────────────────────────────────────────────────────────
 var CLASS_IDS = new Set(['class_earth', 'class_moon', 'class_star']);
-var ShopItem = React.memo(function ShopItem(_ref22) {
-  var item = _ref22.item,
-    owned = _ref22.owned,
-    equipped = _ref22.equipped,
-    active = _ref22.active,
-    canAfford = _ref22.canAfford,
-    onBuy = _ref22.onBuy,
-    onEquip = _ref22.onEquip,
-    onEquipCosmetic = _ref22.onEquipCosmetic,
-    onEquipClass = _ref22.onEquipClass,
-    isSkin = _ref22.isSkin,
-    isSingularity = _ref22.isSingularity,
-    isCosmetic = _ref22.isCosmetic,
-    isClass = _ref22.isClass,
-    isClassEquipped = _ref22.isClassEquipped,
-    infLevel = _ref22.infLevel,
-    displayCost = _ref22.displayCost,
-    procStreak = _ref22.procStreak;
+var ShopItem = React.memo(function ShopItem(_ref23) {
+  var item = _ref23.item,
+    owned = _ref23.owned,
+    equipped = _ref23.equipped,
+    active = _ref23.active,
+    canAfford = _ref23.canAfford,
+    onBuy = _ref23.onBuy,
+    onEquip = _ref23.onEquip,
+    onEquipCosmetic = _ref23.onEquipCosmetic,
+    onEquipClass = _ref23.onEquipClass,
+    isSkin = _ref23.isSkin,
+    isSingularity = _ref23.isSingularity,
+    isCosmetic = _ref23.isCosmetic,
+    isClass = _ref23.isClass,
+    isClassEquipped = _ref23.isClassEquipped,
+    infLevel = _ref23.infLevel,
+    displayCost = _ref23.displayCost,
+    procStreak = _ref23.procStreak;
   var isInfinite = !!item.infinite;
   // T121 follow-up: use displayCost (the parent's override) for all
   // items, not just infinite ones. The parent sets displayCost to the
@@ -4833,28 +4877,28 @@ var PRESTIGE_MAX_LEVEL = 20;
 function clientPrestigeThreshold(level) {
   return Math.round(PRESTIGE_BASE_THRESHOLD * Math.pow(PRESTIGE_LEVEL_MULTIPLIER, level));
 }
-function ShopPanel(_ref23) {
-  var fishClicks = _ref23.fishClicks,
-    wins = _ref23.wins,
-    losses = _ref23.losses,
-    ownedItems = _ref23.ownedItems,
-    equippedFish = _ref23.equippedFish,
-    activeCosmetics = _ref23.activeCosmetics,
-    infLevels = _ref23.infLevels,
-    onBuy = _ref23.onBuy,
-    onEquip = _ref23.onEquip,
-    onEquipCosmetic = _ref23.onEquipCosmetic,
-    onEquipClass = _ref23.onEquipClass,
-    onFishExchange = _ref23.onFishExchange,
-    onWinsExchange = _ref23.onWinsExchange,
-    equippedClass = _ref23.equippedClass,
-    fishExchangeTotal = _ref23.fishExchangeTotal,
-    collapsed = _ref23.collapsed,
-    cumulativeWins = _ref23.cumulativeWins,
-    caughtSpecies = _ref23.caughtSpecies,
-    procStreak = _ref23.procStreak,
-    prestigeLevel = _ref23.prestigeLevel,
-    nextPrestigeThreshold = _ref23.nextPrestigeThreshold;
+function ShopPanel(_ref24) {
+  var fishClicks = _ref24.fishClicks,
+    wins = _ref24.wins,
+    losses = _ref24.losses,
+    ownedItems = _ref24.ownedItems,
+    equippedFish = _ref24.equippedFish,
+    activeCosmetics = _ref24.activeCosmetics,
+    infLevels = _ref24.infLevels,
+    onBuy = _ref24.onBuy,
+    onEquip = _ref24.onEquip,
+    onEquipCosmetic = _ref24.onEquipCosmetic,
+    onEquipClass = _ref24.onEquipClass,
+    onFishExchange = _ref24.onFishExchange,
+    onWinsExchange = _ref24.onWinsExchange,
+    equippedClass = _ref24.equippedClass,
+    fishExchangeTotal = _ref24.fishExchangeTotal,
+    collapsed = _ref24.collapsed,
+    cumulativeWins = _ref24.cumulativeWins,
+    caughtSpecies = _ref24.caughtSpecies,
+    procStreak = _ref24.procStreak,
+    prestigeLevel = _ref24.prestigeLevel,
+    nextPrestigeThreshold = _ref24.nextPrestigeThreshold;
   var _useState63 = useState('functional'),
     _useState64 = _slicedToArray(_useState63, 2),
     activeTab = _useState64[0],
@@ -5098,9 +5142,9 @@ function ShopPanel(_ref23) {
 var PLACE_LABEL = function PLACE_LABEL(pos) {
   return pos === 1 ? '🥇 1st' : pos === 2 ? '🥈 2nd' : pos === 3 ? '🥉 3rd' : null;
 };
-function StatsPanel(_ref24) {
-  var open = _ref24.open,
-    onClose = _ref24.onClose;
+function StatsPanel(_ref25) {
+  var open = _ref25.open,
+    onClose = _ref25.onClose;
   var _useState65 = useState(null),
     _useState66 = _slicedToArray(_useState65, 2),
     stats = _useState66[0],
@@ -5159,9 +5203,9 @@ function StatsPanel(_ref24) {
 }
 
 // ── Patch Notes Panel ──────────────────────────────────────────────────────
-function PatchNotesPanel(_ref25) {
-  var open = _ref25.open,
-    onClose = _ref25.onClose;
+function PatchNotesPanel(_ref26) {
+  var open = _ref26.open,
+    onClose = _ref26.onClose;
   var _useState67 = useState(null),
     _useState68 = _slicedToArray(_useState67, 2),
     md = _useState68[0],
@@ -5200,8 +5244,8 @@ function PatchNotesPanel(_ref25) {
 }
 
 // ── Auth Page ──────────────────────────────────────────────────────────────
-function AuthPage(_ref26) {
-  var onAuth = _ref26.onAuth;
+function AuthPage(_ref27) {
+  var onAuth = _ref27.onAuth;
   var _useState69 = useState('login'),
     _useState70 = _slicedToArray(_useState69, 2),
     mode = _useState70[0],
@@ -5346,10 +5390,10 @@ function fmtCountdown(secs) {
   var s = secs % 60;
   return "".concat(m, ":").concat(String(s).padStart(2, '0'));
 }
-function CommunityPot(_ref27) {
-  var pot = _ref27.pot,
-    fishClicks = _ref27.fishClicks,
-    onContribute = _ref27.onContribute;
+function CommunityPot(_ref28) {
+  var pot = _ref28.pot,
+    fishClicks = _ref28.fishClicks,
+    onContribute = _ref28.onContribute;
   var _useState81 = useState(pot),
     _useState82 = _slicedToArray(_useState81, 2),
     localPot = _useState82[0],
@@ -5495,10 +5539,10 @@ var WAGER_TOOLTIP = 'Stake: 0% (safe) to 30% (max) of your wins, in 5% steps. ' 
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
-function PrestigePanel(_ref28) {
-  var ownedItems = _ref28.ownedItems,
-    prestigeLevel = _ref28.prestigeLevel,
-    legacyWins = _ref28.legacyWins;
+function PrestigePanel(_ref29) {
+  var ownedItems = _ref29.ownedItems,
+    prestigeLevel = _ref29.prestigeLevel,
+    legacyWins = _ref29.legacyWins;
   if (!ownedItems.includes('prestige_unlock')) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "season8-prestige-panel"
@@ -5509,9 +5553,9 @@ function PrestigePanel(_ref28) {
     className: "legacy-badge"
   }, "Legacy: ", fmt(legacyWins), " wins"));
 }
-function FreeTokensPanel(_ref29) {
-  var insuranceFreeClaimedToday = _ref29.insuranceFreeClaimedToday,
-    onClaim = _ref29.onClaim;
+function FreeTokensPanel(_ref30) {
+  var insuranceFreeClaimedToday = _ref30.insuranceFreeClaimedToday,
+    onClaim = _ref30.onClaim;
   if (insuranceFreeClaimedToday) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "free-tokens-section"
@@ -5520,9 +5564,9 @@ function FreeTokensPanel(_ref29) {
     onClick: onClaim
   }, "\uD83E\uDE99 Claim 3 free tokens"));
 }
-function BountiesPanel(_ref30) {
-  var bounties = _ref30.bounties,
-    onClaim = _ref30.onClaim;
+function BountiesPanel(_ref31) {
+  var bounties = _ref31.bounties,
+    onClaim = _ref31.onClaim;
   if (!bounties || bounties.length === 0) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "season8-bounties-panel"
@@ -5553,10 +5597,10 @@ function BountiesPanel(_ref30) {
     }, "\u2713 +", b.position, " claimed"));
   }));
 }
-function AquariumPanel(_ref31) {
-  var ownedItems = _ref31.ownedItems,
-    aquariumSpecies = _ref31.aquariumSpecies,
-    insuranceTokens = _ref31.insuranceTokens;
+function AquariumPanel(_ref32) {
+  var ownedItems = _ref32.ownedItems,
+    aquariumSpecies = _ref32.aquariumSpecies,
+    insuranceTokens = _ref32.insuranceTokens;
   if (!ownedItems.includes('aquarium')) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "season8-aquarium-panel"
@@ -5579,12 +5623,12 @@ function AquariumPanel(_ref31) {
     className: "wager-tokens"
   }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens"));
 }
-function LoadoutPanel(_ref32) {
-  var ownedItems = _ref32.ownedItems,
-    equippedClass = _ref32.equippedClass,
-    activeWheelMode = _ref32.activeWheelMode,
-    onSave = _ref32.onSave,
-    onApply = _ref32.onApply;
+function LoadoutPanel(_ref33) {
+  var ownedItems = _ref33.ownedItems,
+    equippedClass = _ref33.equippedClass,
+    activeWheelMode = _ref33.activeWheelMode,
+    onSave = _ref33.onSave,
+    onApply = _ref33.onApply;
   if (ownedItems.length === 0) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "season8-loadout-panel"
@@ -5612,8 +5656,8 @@ function LoadoutPanel(_ref32) {
     }, "Equip ", slot));
   })));
 }
-function CommunityGoalPanel(_ref33) {
-  var communityGoal = _ref33.communityGoal;
+function CommunityGoalPanel(_ref34) {
+  var communityGoal = _ref34.communityGoal;
   if (!communityGoal) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "meta-goal-row"
@@ -5630,10 +5674,10 @@ function CommunityGoalPanel(_ref33) {
     className: "goal-progress-text"
   }, fmt(communityGoal.current), " / ", fmt(communityGoal.target), " \xB7 You: ", fmt(communityGoal.player_contribution)));
 }
-function SingularityPanel(_ref34) {
-  var singularity = _ref34.singularity,
-    fishClicks = _ref34.fishClicks,
-    onContribute = _ref34.onContribute;
+function SingularityPanel(_ref35) {
+  var singularity = _ref35.singularity,
+    fishClicks = _ref35.fishClicks,
+    onContribute = _ref35.onContribute;
   if (!singularity) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: "meta-goal-row"
@@ -5664,27 +5708,27 @@ function SingularityPanel(_ref34) {
     className: "singularity-progress-text"
   }, fmt(singularity.total_contributed), " / ", fmt(singularity.target), singularity.fill_count > 0 ? " \xB7 Convergences: ".concat(singularity.fill_count) : ''));
 }
-function WagerPanel(_ref35) {
-  var ownedItems = _ref35.ownedItems,
-    stakePct = _ref35.stakePct,
-    stakeValue = _ref35.stakeValue,
-    doubleDownPending = _ref35.doubleDownPending,
-    wagerStreak = _ref35.wagerStreak,
-    wagerBankedWins = _ref35.wagerBankedWins,
-    wagerLastWinAmount = _ref35.wagerLastWinAmount,
-    insuranceTokens = _ref35.insuranceTokens,
-    insuranceArmed = _ref35.insuranceArmed,
-    activeWheelMode = _ref35.activeWheelMode,
-    maxStakePct = _ref35.maxStakePct,
-    autoSpinActive = _ref35.autoSpinActive,
-    payWithTokens = _ref35.payWithTokens,
-    onStakeChange = _ref35.onStakeChange,
-    onBank = _ref35.onBank,
-    onDoubleDown = _ref35.onDoubleDown,
-    onCancelDoubleDown = _ref35.onCancelDoubleDown,
-    onInsurance = _ref35.onInsurance,
-    onCancelInsurance = _ref35.onCancelInsurance,
-    onTogglePayWithTokens = _ref35.onTogglePayWithTokens;
+function WagerPanel(_ref36) {
+  var ownedItems = _ref36.ownedItems,
+    stakePct = _ref36.stakePct,
+    stakeValue = _ref36.stakeValue,
+    doubleDownPending = _ref36.doubleDownPending,
+    wagerStreak = _ref36.wagerStreak,
+    wagerBankedWins = _ref36.wagerBankedWins,
+    wagerLastWinAmount = _ref36.wagerLastWinAmount,
+    insuranceTokens = _ref36.insuranceTokens,
+    insuranceArmed = _ref36.insuranceArmed,
+    activeWheelMode = _ref36.activeWheelMode,
+    maxStakePct = _ref36.maxStakePct,
+    autoSpinActive = _ref36.autoSpinActive,
+    payWithTokens = _ref36.payWithTokens,
+    onStakeChange = _ref36.onStakeChange,
+    onBank = _ref36.onBank,
+    onDoubleDown = _ref36.onDoubleDown,
+    onCancelDoubleDown = _ref36.onCancelDoubleDown,
+    onInsurance = _ref36.onInsurance,
+    onCancelInsurance = _ref36.onCancelInsurance,
+    onTogglePayWithTokens = _ref36.onTogglePayWithTokens;
   if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
   return /*#__PURE__*/React.createElement("div", {
@@ -5758,12 +5802,12 @@ function WagerPanel(_ref35) {
 }
 
 // ── Game App ───────────────────────────────────────────────────────────────
-function GameApp(_ref36) {
+function GameApp(_ref37) {
   var _gameState$dice_charg, _gameState$dice_rolle, _gameState$wager_last, _gameState$wager_last2, _gameState$wager_last3, _gameState$max_stake_;
-  var username = _ref36.username,
-    gameState = _ref36.gameState,
-    onLogout = _ref36.onLogout,
-    onSessionExpired = _ref36.onSessionExpired;
+  var username = _ref37.username,
+    gameState = _ref37.gameState,
+    onLogout = _ref37.onLogout,
+    onSessionExpired = _ref37.onSessionExpired;
   var canvasRef = useRef(null);
   var _useState85 = useState(null),
     _useState86 = _slicedToArray(_useState85, 2),
@@ -6077,6 +6121,7 @@ function GameApp(_ref36) {
     if (activeCosmetics.includes('theme_frost')) return 'frost';
     if (activeCosmetics.includes('theme_ember')) return 'ember';
     if (activeCosmetics.includes('theme_tidal')) return 'tidal';
+    if (activeCosmetics.includes('page_season9')) return 'tides';
     if (activeCosmetics.includes('page_season8')) return 'casino';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
@@ -6102,6 +6147,7 @@ function GameApp(_ref36) {
     return '';
   }, [activeCosmetics]);
   var pageThemeClass = useMemo(function () {
+    if (activeCosmetics.includes('page_season9')) return 'page-season9';
     if (activeCosmetics.includes('page_season8')) return 'page-season8';
     if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
@@ -6114,6 +6160,7 @@ function GameApp(_ref36) {
   }, [activeCosmetics]);
   var wormholeActive = activeCosmetics.includes('page_season7');
   var casinoActive = activeCosmetics.includes('page_season8');
+  var tidesActive = activeCosmetics.includes('page_season9');
   var fishTimerRef = useRef(null);
   var toastTimerRef = useRef(null);
   var confettiTimerRef = useRef(null);
@@ -6169,12 +6216,12 @@ function GameApp(_ref36) {
     }
   }, [lowSpec]);
   useEffect(function () {
-    var show = bgClass === 'bg-ocean' && !wormholeActive && !casinoActive;
+    var show = bgClass === 'bg-ocean' && !wormholeActive && !casinoActive && !tidesActive;
     var iframe = document.getElementById('seabed-bg');
     var overlay = document.getElementById('seabed-overlay');
     if (iframe) iframe.style.display = show ? 'block' : 'none';
     if (overlay) overlay.style.display = show ? 'block' : 'none';
-  }, [bgClass, wormholeActive, casinoActive]);
+  }, [bgClass, wormholeActive, casinoActive, tidesActive]);
   useEffect(function () {
     setSessionExpiredHandler(onSessionExpired);
     return function () {
@@ -6291,7 +6338,7 @@ function GameApp(_ref36) {
     if (season) localStorage.setItem("patchNotesSeen_s".concat(season.season_number), '1');
   }, [season]);
   var handleBuy = useCallback(/*#__PURE__*/function () {
-    var _ref38 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(id) {
+    var _ref39 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(id) {
       var alreadyOwned, _yield$apiGame6, ok, data, _data$regen_recharge_;
       return _regenerator().w(function (_context1) {
         while (1) switch (_context1.n) {
@@ -6340,7 +6387,7 @@ function GameApp(_ref36) {
       }, _callee1);
     }));
     return function (_x6) {
-      return _ref38.apply(this, arguments);
+      return _ref39.apply(this, arguments);
     };
   }(), [showToast, ownedItems]);
 
@@ -6423,7 +6470,7 @@ function GameApp(_ref36) {
     }, _callee10);
   })), [showToast, ownedItems]);
   var handleEquip = useCallback(/*#__PURE__*/function () {
-    var _ref40 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(id) {
+    var _ref41 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(id) {
       var _yield$apiGame8, ok, data;
       return _regenerator().w(function (_context11) {
         while (1) switch (_context11.n) {
@@ -6446,11 +6493,11 @@ function GameApp(_ref36) {
       }, _callee11);
     }));
     return function (_x7) {
-      return _ref40.apply(this, arguments);
+      return _ref41.apply(this, arguments);
     };
   }(), [showToast]);
   var handleEquipCosmetic = useCallback(/*#__PURE__*/function () {
-    var _ref41 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(id) {
+    var _ref42 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(id) {
       var _yield$apiGame9, ok, data;
       return _regenerator().w(function (_context12) {
         while (1) switch (_context12.n) {
@@ -6473,11 +6520,11 @@ function GameApp(_ref36) {
       }, _callee12);
     }));
     return function (_x8) {
-      return _ref41.apply(this, arguments);
+      return _ref42.apply(this, arguments);
     };
   }(), [showToast]);
   var handleEquipClass = useCallback(/*#__PURE__*/function () {
-    var _ref42 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(classItemId) {
+    var _ref43 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(classItemId) {
       var isCurrentlyEquipped, newClassId, _yield$apiGame0, ok, data;
       return _regenerator().w(function (_context13) {
         while (1) switch (_context13.n) {
@@ -6502,11 +6549,11 @@ function GameApp(_ref36) {
       }, _callee13);
     }));
     return function (_x9) {
-      return _ref42.apply(this, arguments);
+      return _ref43.apply(this, arguments);
     };
   }(), [equippedClass, showToast]);
   var handleFishExchange = useCallback(/*#__PURE__*/function () {
-    var _ref43 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(amountType) {
+    var _ref44 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(amountType) {
       var _yield$apiGame1, ok, data;
       return _regenerator().w(function (_context14) {
         while (1) switch (_context14.n) {
@@ -6538,11 +6585,11 @@ function GameApp(_ref36) {
       }, _callee14);
     }));
     return function (_x0) {
-      return _ref43.apply(this, arguments);
+      return _ref44.apply(this, arguments);
     };
   }(), [showToast]);
   var handleWinsExchange = useCallback(/*#__PURE__*/function () {
-    var _ref44 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(amountType) {
+    var _ref45 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(amountType) {
       var _yield$apiGame10, ok, data;
       return _regenerator().w(function (_context15) {
         while (1) switch (_context15.n) {
@@ -6571,7 +6618,7 @@ function GameApp(_ref36) {
       }, _callee15);
     }));
     return function (_x1) {
-      return _ref44.apply(this, arguments);
+      return _ref45.apply(this, arguments);
     };
   }(), [showToast]);
   var handleDiceRoll = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16() {
@@ -7457,7 +7504,7 @@ function GameApp(_ref36) {
 
   // Season 8: handle stake change
   var handleStakeChange = useCallback(/*#__PURE__*/function () {
-    var _ref51 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(newStakePct) {
+    var _ref52 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(newStakePct) {
       return _regenerator().w(function (_context24) {
         while (1) switch (_context24.n) {
           case 0:
@@ -7484,7 +7531,7 @@ function GameApp(_ref36) {
       }, _callee24);
     }));
     return function (_x10) {
-      return _ref51.apply(this, arguments);
+      return _ref52.apply(this, arguments);
     };
   }(), []);
 
@@ -7522,7 +7569,7 @@ function GameApp(_ref36) {
 
   // Season 8: handle wheel mode change
   var handleWheelModeChange = useCallback(/*#__PURE__*/function () {
-    var _ref52 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(mode) {
+    var _ref53 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(mode) {
       var prev, prevStreak, prevInsuranceArmed, prevDoubleDownPending, prevGravityDrift, _yield$apiGame15, ok, data;
       return _regenerator().w(function (_context25) {
         while (1) switch (_context25.n) {
@@ -7597,7 +7644,7 @@ function GameApp(_ref36) {
       }, _callee25);
     }));
     return function (_x11) {
-      return _ref52.apply(this, arguments);
+      return _ref53.apply(this, arguments);
     };
   }(), [showToast, activeWheelMode, wagerStreak, insuranceArmed, doubleDownPending, gravityDrift]);
 
@@ -7669,7 +7716,7 @@ function GameApp(_ref36) {
 
   // Season 8: handle bounty claim
   var handleBountyClaim = useCallback(/*#__PURE__*/function () {
-    var _ref55 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(bountyId) {
+    var _ref56 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(bountyId) {
       var _yield$apiGame18, ok, data, _data$rewards, _data$rewards2;
       return _regenerator().w(function (_context28) {
         while (1) switch (_context28.n) {
@@ -7709,13 +7756,13 @@ function GameApp(_ref36) {
       }, _callee28);
     }));
     return function (_x12) {
-      return _ref55.apply(this, arguments);
+      return _ref56.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle singularity contribution (spec S13: deducts fish_clicks, not wins)
   var handleSingularityContribute = useCallback(/*#__PURE__*/function () {
-    var _ref56 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(amount) {
+    var _ref57 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(amount) {
       var _yield$apiGame19, ok, data, _data$contributed, actual;
       return _regenerator().w(function (_context29) {
         while (1) switch (_context29.n) {
@@ -7752,7 +7799,7 @@ function GameApp(_ref36) {
       }, _callee29);
     }));
     return function (_x13) {
-      return _ref56.apply(this, arguments);
+      return _ref57.apply(this, arguments);
     };
   }(), [showToast]);
 
@@ -7904,7 +7951,7 @@ function GameApp(_ref36) {
 
   // Season 8: handle loadout save
   var handleLoadoutSave = useCallback(/*#__PURE__*/function () {
-    var _ref62 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(slot, loadout) {
+    var _ref63 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35(slot, loadout) {
       var _yield$apiGame25, ok;
       return _regenerator().w(function (_context35) {
         while (1) switch (_context35.n) {
@@ -7927,13 +7974,13 @@ function GameApp(_ref36) {
       }, _callee35);
     }));
     return function (_x14, _x15) {
-      return _ref62.apply(this, arguments);
+      return _ref63.apply(this, arguments);
     };
   }(), [showToast]);
 
   // Season 8: handle loadout apply
   var handleLoadoutApply = useCallback(/*#__PURE__*/function () {
-    var _ref63 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(slot) {
+    var _ref64 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee36(slot) {
       var _yield$apiGame26, ok, data;
       return _regenerator().w(function (_context36) {
         while (1) switch (_context36.n) {
@@ -7962,7 +8009,7 @@ function GameApp(_ref36) {
       }, _callee36);
     }));
     return function (_x16) {
-      return _ref63.apply(this, arguments);
+      return _ref64.apply(this, arguments);
     };
   }(), [showToast]);
 
@@ -8243,6 +8290,15 @@ function GameApp(_ref36) {
     }
   }, /*#__PURE__*/React.createElement(CasinoBackground, {
     lowSpec: lowSpec
+  })), tidesActive && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 0,
+      pointerEvents: 'none'
+    }
+  }, /*#__PURE__*/React.createElement(TidesBackground, {
+    lowSpec: lowSpec
   })), /*#__PURE__*/React.createElement("div", {
     className: "overlay ".concat(showResult ? 'active' : '')
   }), !isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
@@ -8447,9 +8503,9 @@ function GameApp(_ref36) {
     className: "title-lucky"
   }, "Lucky"), /*#__PURE__*/React.createElement("span", {
     className: "title-endless"
-  }, "Casino")), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
+  }, tidesActive ? 'Tide' : 'Casino')), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
-  }, "All or nothing")), /*#__PURE__*/React.createElement("div", {
+  }, tidesActive ? 'The tide turns every Friday' : 'All or nothing')), /*#__PURE__*/React.createElement("div", {
     className: "wheel-and-wager"
   }, !isMobile && ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
     ownedItems: ownedItems,

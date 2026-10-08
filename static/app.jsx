@@ -901,6 +901,7 @@ const THEME_COLORS = {
   night_ocean:     { win: ['#1a0d4d', '#5533FF'], lose: ['#3d0011', '#CC2244'] },
   wormhole:        { win: ['#1a0044', '#BB88FF'], lose: ['#3d0022', '#FF44AA'] },
   casino:          { win: ['#063d1f', '#28e070'], lose: ['#4a0808', '#ff4040'] },
+  tides:           { win: ['#073b3d', '#3fd6c6'], lose: ['#4a1712', '#ff7f6e'] },
 };
 
 // ── Casino Background (Season 8) ─────────────────────────────────────────────
@@ -915,6 +916,26 @@ function CasinoBackground({ lowSpec = false }) {
     const scene = window.createCasinoScene(canvas, {
       lowSpec,
       palette: { win: THEME_COLORS.casino.win[1], lose: THEME_COLORS.casino.lose[1] },
+    });
+    return () => scene && scene.stop();
+  }, [lowSpec]);
+  return (
+    <canvas ref={canvasRef} aria-hidden="true"
+      style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
+  );
+}
+
+// ── Tides Background (Season 9) ──────────────────────────────────────────────
+// Wrapper around static/js/tides-bg.js (window.createTidesScene); the scene
+// reads the wheel's position so its light falls on the water beneath it.
+function TidesBackground({ lowSpec = false }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !window.createTidesScene) return;
+    const scene = window.createTidesScene(canvas, {
+      lowSpec,
+      palette: { win: THEME_COLORS.tides.win[1], lose: THEME_COLORS.tides.lose[1] },
     });
     return () => scene && scene.stop();
   }, [lowSpec]);
@@ -2611,6 +2632,7 @@ const SHOP_SECTIONS = [
     { id: 'page_season6', emoji: '6️⃣', name: 'Season 6', cost: 1000, desc: 'Season 6 page theme — Night Ocean' },
     { id: 'page_season7', emoji: '7️⃣', name: 'Season 7', cost: 1000, desc: 'Season 7 page theme — Wormhole' },
     { id: 'page_season8', emoji: '8️⃣', name: 'Season 8', cost: 1000, desc: 'Season 8 page theme — Casino' },
+    { id: 'page_season9', emoji: '🌊', name: 'Season 9', cost: 1000, desc: 'Season 9 page theme — Tides' },
   ]},
   { label: '🎲 Dice Charges', items: [
     { id: 'dice_charge_2', emoji: '🎲', name: 'Dice Charge +1', cost: 2000,    desc: 'Max dice charges: 2' },
@@ -2651,7 +2673,7 @@ const COSMETIC_SECTION_IDS = new Set([
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold',
   'theme_tidal','theme_ember','theme_frost','theme_aurora','theme_vintage',
   'golden_wheel',
-  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8',
+  'page_season1', 'page_season2', 'page_season3', 'page_season4', 'page_season5', 'page_season6', 'page_season7', 'page_season8', 'page_season9',
 ]);
 
 // Season 3: currency classification (mirrors ITEM_CURRENCY in models.py)
@@ -2665,7 +2687,7 @@ const COSMETIC_IDS = new Set([
   'trail_1','trail_2','trail_3','trail_4','trail_5','trail_6',
   'theme_fire','theme_ice','theme_neon','theme_void','theme_gold','golden_wheel',
   'theme_tidal','theme_ember','theme_frost','theme_aurora','theme_vintage',
-  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','page_season7','page_season8','party_mode','confetti_1','confetti_2','confetti_3',
+  'page_season1','page_season2','page_season3','page_season4','page_season5','page_season6','page_season7','page_season8','page_season9','party_mode','confetti_1','confetti_2','confetti_3',
   'bg_royal','bg_inferno','bg_forest','bg_abyss','bg_cosmic',
 ]);
 const getItemCurrency = id => {
@@ -3554,6 +3576,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_frost')) return 'frost';
     if (activeCosmetics.includes('theme_ember')) return 'ember';
     if (activeCosmetics.includes('theme_tidal')) return 'tidal';
+    if (activeCosmetics.includes('page_season9')) return 'tides';
     if (activeCosmetics.includes('page_season8')) return 'casino';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
@@ -3582,6 +3605,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [activeCosmetics]);
 
   const pageThemeClass = useMemo(() => {
+    if (activeCosmetics.includes('page_season9')) return 'page-season9';
     if (activeCosmetics.includes('page_season8')) return 'page-season8';
     if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
@@ -3595,6 +3619,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   const wormholeActive = activeCosmetics.includes('page_season7');
   const casinoActive   = activeCosmetics.includes('page_season8');
+  const tidesActive    = activeCosmetics.includes('page_season9');
 
   const fishTimerRef       = useRef(null);
   const toastTimerRef      = useRef(null);
@@ -3634,12 +3659,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [lowSpec]);
 
   useEffect(() => {
-    const show = bgClass === 'bg-ocean' && !wormholeActive && !casinoActive;
+    const show = bgClass === 'bg-ocean' && !wormholeActive && !casinoActive && !tidesActive;
     const iframe = document.getElementById('seabed-bg');
     const overlay = document.getElementById('seabed-overlay');
     if (iframe)  iframe.style.display  = show ? 'block' : 'none';
     if (overlay) overlay.style.display = show ? 'block' : 'none';
-  }, [bgClass, wormholeActive, casinoActive]);
+  }, [bgClass, wormholeActive, casinoActive, tidesActive]);
 
   useEffect(() => {
     setSessionExpiredHandler(onSessionExpired);
@@ -4897,6 +4922,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <CasinoBackground lowSpec={lowSpec} />
         </div>
       )}
+      {tidesActive && (
+        <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
+          <TidesBackground lowSpec={lowSpec} />
+        </div>
+      )}
       <div className={`overlay ${showResult ? 'active' : ''}`} />
 
       {!isMobile && guardState && (
@@ -5067,11 +5097,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="casino-title">
               <span className="title-lucky-wrap">
                 <span className="title-lucky">Lucky</span>
-                <span className="title-endless">Casino</span>
+                <span className="title-endless">{tidesActive ? 'Tide' : 'Casino'}</span>
               </span>
               {' '}Wheel
             </div>
-            <div className="subtitle">All or nothing</div>
+            <div className="subtitle">{tidesActive ? 'The tide turns every Friday' : 'All or nothing'}</div>
           </div>
 
           {/* T112: wager panel + wheel are siblings in a flex row so the
