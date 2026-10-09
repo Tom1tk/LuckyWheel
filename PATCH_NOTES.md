@@ -22,7 +22,10 @@ The banner at the top of the screen shows the current tide, a countdown to the n
 
 The functional shop is gone. Gear now comes from **Charts**: three talent trees, and not enough points for all of them.
 
-- You get **4 points** when the tide turns and **one more every day**, up to 10 on the last day. Everyone has the same points on the same day, so joining late never leaves you behind.
+- You start each tide with **1 point** and get **one free point every day**.
+- **Level up** to get more points sooner. Each level costs wins: 1,000 for the first, then ×6 each time (6k, 36k, 216k, …).
+- The cap is **14 points**: enough for one full tree and a splash of another, never all three. Levels reset when the tide turns.
+- The shop now shows your Chart at a glance. Tap it to open the full Charts.
 - **🌊 Swell — ride the streak.** Bigger streak bonuses, win multipliers, Echo and the Breakwater shield. Keystone **Spring Tide** doubles streak bonuses again, but you can't stake or roll dice.
 - **🌀 Riptide — bet the tide.** Staking, dice charges, jackpots, insurance and Double or Nothing. Keystone **Rogue Wave**: dice come back twice as fast and stack two higher, but no Surge for you.
 - **🎣 Angler — read the water.** Bigger Surge, better bait, auto-fishing and a wider sweet zone. Keystone **Deep Sea**: junk and common fish stop biting, rares and legendaries bite three times as often, and bites take longer.

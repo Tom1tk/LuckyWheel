@@ -5315,11 +5315,52 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   .charts-trees { grid-template-columns: 1fr; }
   .charts-card { padding: 22px 14px 16px; }
 }
-.shop-charts-notice {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  margin: 8px 0 14px; padding: 14px 12px; text-align: center;
-  font-size: 0.78rem; color: #cfd8df;
-  border: 1px dashed rgba(var(--p-rgb),0.4); border-radius: 6px;
+.chart-level-badge {
+  font-family: 'Oswald', sans-serif; font-size: 0.72rem; letter-spacing: 1px;
+  padding: 1px 7px; border-radius: 10px; color: #04121a; background: var(--p);
+  box-shadow: 0 0 8px rgba(var(--p-rgb),0.4); white-space: nowrap;
+}
+.chart-level-badge--lg { font-size: 1.1rem; padding: 6px 12px; border-radius: 8px; }
+.chart-xp { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.chart-xp-fill { height: 100%; background: linear-gradient(90deg, var(--p), var(--p-lt)); transition: width 0.3s; }
+.charts-level { display: flex; align-items: center; gap: 14px; margin: -6px 0 14px; }
+.charts-level-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.charts-level-line { font-size: 0.72rem; letter-spacing: 1px; color: #8a9aa8; }
+.charts-level-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.charts-level-next { font-size: 0.75rem; color: #cfd8df; }
+.chart-strip {
+  display: flex; flex-direction: column; gap: 7px; width: 100%; box-sizing: border-box;
+  margin: 8px 0 14px; padding: 10px 12px; text-align: left;
+  font-family: inherit; color: #cfd8df; cursor: pointer;
+  background: rgba(var(--p-rgb),0.04);
+  border: 1px solid rgba(var(--p-rgb),0.35); border-radius: 6px;
+  transition: border-color 0.15s;
+}
+.chart-strip:hover { border-color: var(--p); }
+.chart-strip-head { display: flex; align-items: center; gap: 8px; }
+.chart-strip-title { font-family: 'Oswald', sans-serif; font-size: 0.85rem; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+.chart-strip-meta { flex: 1; font-size: 0.7rem; color: #8a9aa8; }
+.chart-strip-meta--due { color: var(--s); }
+.chart-strip-open { font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; color: var(--p); }
+.chart-strip-tree {
+  --tree: #3FD6C6; --tree-rgb: 63, 214, 198;
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.chart-pip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; font-size: 14px; border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+  filter: grayscale(1); opacity: 0.35;
+}
+.chart-pip.on {
+  filter: none; opacity: 1; border-color: var(--tree); background: rgba(var(--tree-rgb),0.15);
+  box-shadow: 0 0 6px rgba(var(--tree-rgb),0.3);
+}
+.chart-pip.keystone { border-radius: 50%; border-style: double; border-width: 3px; }
+.chart-pip-rank {
+  position: absolute; right: -3px; bottom: -3px; min-width: 11px; height: 11px; padding: 0 1px;
+  font-size: 8px; line-height: 11px; text-align: center; font-weight: 700;
+  color: #04121a; background: var(--tree); border-radius: 6px;
 }
 
 /* ── S9 Fight ──────────────────────────────────────────────────────────── */

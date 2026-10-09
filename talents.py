@@ -13,8 +13,10 @@ from models import ITEM_CURRENCY
 _LONDON = ZoneInfo('Europe/London')
 
 # ── Tuned numbers (balance table: SEASON_9_DEEP_SPEC.md §8) ───────────────
-BASE_POINTS = 4            # day 0 of a tide
-MAX_POINTS = 10            # reached on the tide's last day (day 6)
+START_POINTS = 1           # day 0 of a tide; +1 free each tide day
+MAX_POINTS = 14            # one full tree plus a splash, of 32 ranks
+LEVEL_COST_BASE = 1_000    # wins for the first bought point
+LEVEL_COST_GROWTH = 6      # each bought point costs ×6 the last
 ROW_GATE = {1: 0, 2: 2, 3: 4}   # points already in the tree to unlock a row
 KEYSTONE_GATE = 6
 SURGE_MULT_BY_RICH_WATERS = {0: 5, 1: 25, 2: 50, 3: 100}
@@ -82,6 +84,16 @@ TALENTS = {
     'deep_sea':      {'tree': 'angler', 'row': 'K', 'name': 'Deep Sea', 'grants': [[]],
                       'desc': ['Only the big ones bite — and they take their time']},
 }
+ICONS = {
+    'undertow': '🫧', 'rising_tide': '📈', 'steady_keel': '⚓', 'fortune_charm': '🍀', 'echo': '🔔',
+    'breakwater': '🛡️', 'spring_tide': '🌕',
+    'open_water': '🪙', 'loaded_dice': '🎲', 'deep_water': '🔱', 'treasure': '💎', 'safety_line': '🛟',
+    'third_die': '🎯', 'double_or_nothing': '⚖️', 'rogue_wave': '🌪️',
+    'rich_waters': '🐚', 'better_bait': '🪱', 'deckhand': '⛵', 'steady_hands': '✋', 'auto_cast': '🔁',
+    'old_salt': '🧓', 'deep_sea': '🐋',
+}
+assert ICONS.keys() == TALENTS.keys()
+
 KEYSTONES = frozenset(t for t, d in TALENTS.items() if d['row'] == 'K')
 GRANTABLE = frozenset(i for d in TALENTS.values() for g in d['grants'] for i in g)
 # Gear that a Chart replaces: every wins-priced item except universal auto-spin.
@@ -99,8 +111,13 @@ def tide_day(now: datetime) -> int:
     return (london + timedelta(days=2, hours=3)).weekday()
 
 
-def points_total(now: datetime) -> int:
-    return min(MAX_POINTS, BASE_POINTS + tide_day(now))
+def points_total(now: datetime, bought: int = 0) -> int:
+    return min(MAX_POINTS, START_POINTS + tide_day(now) + bought)
+
+
+def level_cost(bought: int) -> int:
+    """Wins for the next bought point, given how many were bought this tide."""
+    return LEVEL_COST_BASE * LEVEL_COST_GROWTH ** bought
 
 
 def rank(alloc: dict, talent_id: str) -> int:
@@ -182,7 +199,7 @@ def catalog() -> list:
     """Client-facing talent list (the UI renders straight from this)."""
     out = []
     for tid, d in TALENTS.items():
-        out.append({'id': tid, 'tree': d['tree'], 'row': d['row'], 'name': d['name'],
+        out.append({'id': tid, 'tree': d['tree'], 'row': d['row'], 'name': d['name'], 'icon': ICONS[tid],
                     'max_rank': max_rank(tid), 'desc': d['desc'], 'requires': d.get('requires')})
     return out
 

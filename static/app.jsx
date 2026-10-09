@@ -2992,7 +2992,7 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onOpenCharts, equippedClass, fishExchangeTotal, collapsed, caughtSpecies, procStreak }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onOpenCharts, charts, equippedClass, fishExchangeTotal, collapsed, caughtSpecies, procStreak }) {
 
   const { cosmeticSections } = useMemo(() => {
     const cosmetic = [], functional = [];
@@ -3088,10 +3088,7 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
         </div>
       </div>
       <div className="shop-tab-content shop-tab-content--cosmetic">
-        <div className="shop-charts-notice">
-          <div>Gear comes from 🧭 Charts now. The shop sells looks.</div>
-          <button className="charts-btn charts-btn--go" onClick={onOpenCharts}>🧭 Open Charts</button>
-        </div>
+        <ChartStrip charts={charts} wins={wins} onOpen={onOpenCharts} />
         {fishClicks > 0 && (
           <React.Fragment>
             <div className="shop-section-label">── 🔄 Fish Exchange ──</div>
@@ -3214,7 +3211,7 @@ const chartSpent = alloc => Object.values(alloc).reduce((a, b) => a + b, 0);
 // Mirrors talents.validate so locks show before the server says no.
 function chartProblem(alloc, points, def) {
   const byId = Object.fromEntries(def.talents.map(t => [t.id, t]));
-  if (chartSpent(alloc) > points) return 'No points left · a new one every day';
+  if (chartSpent(alloc) > points) return 'No points left · level up or wait a day';
   for (const [id, r] of Object.entries(alloc)) {
     if (!r) continue;
     const t = byId[id];
@@ -3234,12 +3231,53 @@ function chartProblem(alloc, points, def) {
   return null;
 }
 
-function ChartsPanel({ open, charts, onClose, onSaved }) {
+// Wins progress toward the next bought level, 0..1 (full at max level).
+const chartXp = (charts, wins) => (charts.next_cost == null ? 1 : Math.min(1, wins / charts.next_cost));
+
+// Shop's visual-only Chart: level, XP bar and every talent as an icon. Click opens ChartsPanel.
+function ChartStrip({ charts, wins, onOpen }) {
+  const [talentList, setTalentList] = useState(null);
+  useEffect(() => {
+    apiGame('/api/charts').then(r => { if (r.ok) setTalentList(r.data.talents); });
+  }, []);
+  if (!charts) return null;
+  const toPlace = charts.points - charts.spent;
+  return (
+    <button className="chart-strip" onClick={onOpen} aria-label="Open Charts">
+      <div className="chart-strip-head">
+        <span className="chart-strip-title">🧭 Chart</span>
+        <span className="chart-level-badge">Lv {charts.points}</span>
+        <span className={`chart-strip-meta${toPlace > 0 ? ' chart-strip-meta--due' : ''}`}>
+          {toPlace > 0 ? `${toPlace} to place` : charts.next_cost == null ? 'Max level' : `${charts.spent} / ${charts.points} placed`}
+        </span>
+        <span className="chart-strip-open">Open ›</span>
+      </div>
+      <div className="chart-xp"><div className="chart-xp-fill" style={{ width: `${chartXp(charts, wins) * 100}%` }} /></div>
+      {talentList && CHART_TREES.map(tree => (
+        <div key={tree} className={`chart-strip-tree charts-tree--${tree}`}>
+          {talentList.filter(t => t.tree === tree).map(t => {
+            const rank = charts.alloc[t.id] || 0;
+            return (
+              <span key={t.id} className={`chart-pip${rank ? ' on' : ''}${t.row === 'K' ? ' keystone' : ''}`}
+                title={`${t.name} ${rank}/${t.max_rank}`}>
+                {t.icon}
+                {rank > 0 && t.max_rank > 1 && <span className="chart-pip-rank">{rank}</span>}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </button>
+  );
+}
+
+function ChartsPanel({ open, charts, wins, onClose, onSaved, onLeveled }) {
   const [def, setDef] = useState(null);
   const [pending, setPending] = useState({});
   const [recharting, setRecharting] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [leveling, setLeveling] = useState(false);
   useEffect(() => {
     if (!open) return;
     setRecharting(false); setError('');
@@ -3266,6 +3304,14 @@ function ChartsPanel({ open, charts, onClose, onSaved }) {
     onSaved(r.data);
     onClose();
   };
+  const levelUp = async () => {
+    setLeveling(true); setError('');
+    const r = await apiGame('/api/charts/level-up', { method: 'POST', body: '{}' });
+    setLeveling(false);
+    if (!r.ok) { setError(r.data.error || "Couldn't level up."); return; }
+    setDef(d => ({ ...d, points: r.data.points, bought: r.data.bought, next_cost: r.data.next_cost }));
+    onLeveled(r.data);
+  };
   const cancel = () => { setPending({ ...committed }); setRecharting(false); setError(''); };
   const rechart = () => { setPending({}); setRecharting(true); setError(''); };
   return (
@@ -3274,7 +3320,24 @@ function ChartsPanel({ open, charts, onClose, onSaved }) {
         <div className="stats-title">🧭 Charts</div>
         <button className="stats-close-btn" onClick={onClose}>✕</button>
         {!def ? <div className="stats-loading">{error || 'Loading…'}</div> : (<>
-          <div className="charts-sub">{chartSpent(pending)} / {points} points · a new point every day of the tide</div>
+          <div className="charts-level">
+            <span className="chart-level-badge chart-level-badge--lg">Lv {points}</span>
+            <div className="charts-level-body">
+              <div className="charts-level-line">
+                Level {points} / {def.max_points} · 1 to start, +1 free each day, {def.bought} bought · resets with the tide
+              </div>
+              <div className="chart-xp"><div className="chart-xp-fill" style={{ width: `${chartXp(def, wins) * 100}%` }} /></div>
+              {def.next_cost != null ? (
+                <div className="charts-level-row">
+                  <span className="charts-level-next">Next level: {fmt(Math.min(wins, def.next_cost))} / {fmt(def.next_cost)} 🏆</span>
+                  <button className="charts-btn charts-btn--go" disabled={wins < def.next_cost || leveling} onClick={levelUp}>
+                    ⬆ Level up · {fmt(def.next_cost)} wins
+                  </button>
+                </div>
+              ) : <div className="charts-level-next">Max level · your Chart is full for this tide</div>}
+            </div>
+          </div>
+          <div className="charts-sub">{chartSpent(pending)} / {points} points placed</div>
           <div className="charts-trees">
             {CHART_TREES.map(tree => (
               <div key={tree} className={`charts-tree charts-tree--${tree}`}>
@@ -3289,7 +3352,7 @@ function ChartsPanel({ open, charts, onClose, onSaved }) {
                         <div key={t.id} className={`chart-node${rank ? ' on' : ''}${lock ? ' locked' : ''}${row === 'K' ? ' keystone' : ''}`}>
                           <button className="chart-node-main" aria-disabled={!!lock || rank >= t.max_rank}
                             title={lock || ''} onClick={() => { if (!lock && rank < t.max_rank) setPending(tryAlloc(t.id, 1)); }}>
-                            <span className="chart-node-name">{t.name}</span>
+                            <span className="chart-node-name">{t.icon} {t.name}</span>
                             <span className="chart-node-pips">{Array.from({ length: t.max_rank }, (_, i) => (i < rank ? '●' : '○')).join('')}</span>
                             <span className="chart-node-desc">{t.desc[Math.max(0, rank - 1)]}</span>
                             {rank > 0 && rank < t.max_rank && <span className="chart-node-next">Next: {t.desc[rank]}</span>}
@@ -3977,11 +4040,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   useEffect(() => {
     if (!season || !(season.player_facing_number >= 9)) return;
-    try { if (!localStorage.getItem('whatsNewSeen_s9_charts')) setShowWhatsNew(true); } catch (e) {}
+    try { if (!localStorage.getItem('whatsNewSeen_s9_levels')) setShowWhatsNew(true); } catch (e) {}
   }, [season ? season.player_facing_number : null]); // eslint-disable-line
   const dismissWhatsNew = useCallback(() => {
     setShowWhatsNew(false);
-    try { localStorage.setItem('whatsNewSeen_s9_charts', '1'); } catch (e) {}
+    try { localStorage.setItem('whatsNewSeen_s9_levels', '1'); } catch (e) {}
   }, []);
 
   const handleClosePatchNotes = useCallback(() => {
@@ -4430,14 +4493,19 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [insuranceCharges, setInsuranceCharges] = useState(gameState.insurance_charges || 0);
   const [insuranceArmed, setInsuranceArmed]   = useState(gameState.insurance_armed || false);
   const handleChartsSaved = data => {
-    const { alloc, points, spent, keystone: k, surge_mult, can_rechart } = data;
-    setCharts({ alloc, points, spent, keystone: k, surge_mult, can_rechart });
+    const { alloc, points, max_points, bought, next_cost, spent, keystone: k, surge_mult, can_rechart } = data;
+    setCharts({ alloc, points, max_points, bought, next_cost, spent, keystone: k, surge_mult, can_rechart });
     setOwnedItems(data.owned_items);
     if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
     setEquippedClass(null);
     setDoubleDownPending(p => p && data.owned_items.includes('wager_double_down'));
     setInsuranceArmed(p => p && data.owned_items.includes('wager_insurance'));
     showToast('🧭 Course set');
+  };
+  const handleChartsLeveled = data => {
+    setWins(data.wins);
+    setCharts(c => ({ ...c, points: data.points, bought: data.bought, next_cost: data.next_cost }));
+    showToast(`⬆ Chart level ${data.points}`);
   };
   const [activeWheelMode, setActiveWheelMode]       = useState(gameState.active_wheel_mode || 'steady');
   const [availableWheelModes, setAvailableWheelModes] = useState(gameState.available_wheel_modes || ['steady', 'volatile']);
@@ -4826,7 +4894,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <div className="whats-new-card" role="dialog" aria-label="What's new in Season 9">
           <div className="whats-new-title">🌊 What's new in Season 9</div>
           <ul className="whats-new-list">
-            <li>🧭 Charts: one new point every day. Spend them on Swell, Riptide or Angler — you can't have it all.</li>
+            <li>🧭 Charts: one free point a day, and level up with wins for more, up to 14. Spend them on Swell, Riptide or Angler — you can't have it all.</li>
             <li>🎣 Fishing is a fight now, and every catch charges 🌊 Surge spins for your wheel.</li>
             <li>Every Friday the tide turns: wins and Charts reset; medals, fish and records are forever.</li>
           </ul>
@@ -4925,7 +4993,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           : season && <SeasonInfo seasonName={season.season_name || season.season_number} playerFacingNumber={season.player_facing_number} endsAt={season.ends_at} />}
       </div>
 
-      <ChartsPanel open={showCharts} charts={charts} onClose={() => setShowCharts(false)} onSaved={handleChartsSaved} />
+      <ChartsPanel open={showCharts} charts={charts} wins={wins} onClose={() => setShowCharts(false)} onSaved={handleChartsSaved} onLeveled={handleChartsLeveled} />
 
       {showEncyclopedia && (
         <FishEncyclopedia
@@ -5293,6 +5361,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onEquipClass={handleEquipClass}
             onFishExchange={handleFishExchange}
             onOpenCharts={() => setShowCharts(true)}
+            charts={charts}
             equippedClass={equippedClass}
             fishExchangeTotal={fishExchangeTotal}
             collapsed={shopCollapsed}

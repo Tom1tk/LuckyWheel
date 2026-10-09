@@ -29,11 +29,21 @@ FULL_SWELL = {'undertow': 3, 'rising_tide': 2, 'steady_keel': 1, 'fortune_charm'
 # A. talents.py
 # ══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.parametrize('days,expected', [(0, 4), (1, 5), (3, 7), (6, 10)])
+@pytest.mark.parametrize('days,expected', [(0, 1), (1, 2), (3, 4), (6, 7)])
 def test_points_grow_one_a_day_from_the_turn(days, expected):
     now = LONDON_FRI_2100 + dt.timedelta(days=days, minutes=1)
     assert talents.tide_day(now) == days
     assert talents.points_total(now) == expected
+
+
+def test_bought_points_add_up_to_the_cap():
+    day3 = LONDON_FRI_2100 + dt.timedelta(days=3, minutes=1)
+    assert talents.points_total(day3, 2) == 6
+    assert talents.points_total(day3, 20) == talents.MAX_POINTS == 14
+
+
+def test_level_cost_grows_six_fold():
+    assert [talents.level_cost(b) for b in range(4)] == [1_000, 6_000, 36_000, 216_000]
 
 
 def test_day_rolls_at_2100_london_not_midnight():
@@ -146,9 +156,9 @@ def user(game_app, db_url):  # noqa: F811
 @pytest.fixture(autouse=True)
 def _reset(request, db_url, monkeypatch):
     if 'user' in request.fixturenames:
-        monkeypatch.setattr(talents, 'points_total', lambda now: 10)
+        monkeypatch.setattr(talents, 'points_total', lambda now, bought=0: 10)
         _set(db_url, request.getfixturevalue('user')[1],
-             talent_alloc={}, talent_rechart_date=None, owned_items=['auto_spin_unlock'],
+             talent_alloc={}, talent_rechart_date=None, chart_points_bought=0, owned_items=['auto_spin_unlock'],
              surge_spins=0, insurance_tokens=0, wins=1000, losses=0, streak=0, spin_count=0,
              wager_last_stake=0, double_down_pending=False, active_wheel_mode='steady',
              dice_rolled_since_spin=False, pending_dice=None, auto_spin_since=None)
@@ -380,3 +390,37 @@ def test_wins_to_fish_exchange_is_closed(user, db_url):
     r = client.post('/api/wins-exchange', json={'amount': 'all'}, headers={'X-CSRFToken': _read_csrf(client)})
     assert r.status_code == 403
     assert _get(db_url, username)['wins'] == 1000
+
+
+def _level_up(client):
+    r = client.post('/api/charts/level-up', json={}, headers={'X-CSRFToken': _read_csrf(client)})
+    return r.status_code, r.get_json()
+
+
+def test_level_up_spends_wins_and_adds_a_point(user, db_url, monkeypatch):
+    client, username = user
+    monkeypatch.setattr(talents, 'points_total', lambda now, bought=0: 1 + bought)
+    _set(db_url, username, wins=7_500)
+    status, body = _level_up(client)
+    assert status == 200 and body['wins'] == 6_500 and body['bought'] == 1
+    assert body['points'] == 2 and body['next_cost'] == 6_000
+    status, body = _level_up(client)
+    assert status == 200 and body['wins'] == 500 and body['next_cost'] == 36_000
+    status, body = _level_up(client)
+    assert status == 400 and 'wins' in body['error']
+    row = _get(db_url, username)
+    assert row['wins'] == 500 and row['chart_points_bought'] == 2
+    # Bought points count when setting the Chart.
+    assert _chart(client, {'undertow': 3})[0] == 200
+    assert _chart(client, {'undertow': 3, 'rising_tide': 1})[0] == 400
+
+
+def test_level_up_refused_at_max_level(user, db_url, monkeypatch):
+    client, username = user
+    monkeypatch.setattr(talents, 'points_total', lambda now, bought=0: min(talents.MAX_POINTS, 13 + bought))
+    _set(db_url, username, wins=10**12)
+    status, body = _level_up(client)
+    assert status == 200 and body['points'] == 14 and body['next_cost'] is None
+    status, _ = _level_up(client)
+    assert status == 409
+    assert _get(db_url, username)['chart_points_bought'] == 1

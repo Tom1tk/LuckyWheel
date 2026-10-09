@@ -280,7 +280,7 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                    biggest_win_announced = 0,
                    -- S9 Charts: the Chart, Surge and chips start level every tide;
                    -- fish_records and caught_species carry over.
-                   talent_alloc = '{}'::jsonb, talent_rechart_date = NULL,
+                   talent_alloc = '{}'::jsonb, talent_rechart_date = NULL, chart_points_bought = 0,
                    surge_spins = 0, insurance_tokens = 0,
                    fishing_species = NULL, fishing_hooked_at = NULL""",
             {'always': always, 'cosmetics': cosmetics, 'theme': [new_theme], 'starts': next_starts},
