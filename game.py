@@ -975,6 +975,7 @@ def get_state():
                               wager_banked_wins,
                               insurance_charges, insurance_armed,
                               wager_last_win_amount, wager_banked_losses,
+                              insurance_free_claimed_date,
                               active_wheel_mode, insurance_tokens, aquarium_species,
                               cosmetic_fragments, guard_charges,
                               gravity_drift,

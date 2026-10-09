@@ -1759,7 +1759,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
           <>
             <span className="catch-side-emoji">{lastCatch.emoji}</span>
             <span className="catch-side-name">{lastCatch.name} · {lastCatch.kg} kg</span>
-            <span className="catch-side-value">+{fmt(lastCatch.value)} 🐟{lastCatch.surge > 0 ? ` · +${lastCatch.surge} Surge` : ''}{lastCatch.doubled ? ' 2x!' : ''}</span>
+            <span className="catch-side-value">+{fmt(lastCatch.value)} 🐟{lastCatch.surge > 0 ? ` · +${lastCatch.surge} 🌊 Surge spin${lastCatch.surge !== 1 ? 's' : ''}` : ''}{lastCatch.doubled ? ' 2x!' : ''}</span>
             {lastCatch.record && <span className="catch-side-tag catch-side-record">🏆 New record!</span>}
             {lastCatch.isNew && <span className="catch-side-tag catch-side-new">NEW!</span>}
             {lastCatch.isLucky && <span className="catch-side-tag catch-side-lucky">⭐ Lucky!</span>}
@@ -3554,11 +3554,11 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
 // behavior changes, just the same children in a function body.
 
 function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
-  if (insuranceFreeClaimedToday) return null;
   return (
     <div className="free-tokens-section">
-      <button className="free-tokens-claim-btn" onClick={onClaim} title="Chips pay part of a 30% stake (1 🪙 = 1 🏆) or arm Insurance">
-        🪙 Claim 3 free stake chips
+      <button className="free-tokens-claim-btn" onClick={onClaim} disabled={insuranceFreeClaimedToday}
+        title="Chips pay part of a 30% stake (1 🪙 = 1 🏆) or arm Insurance">
+        {insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow' : '🪙 Claim 3 free stake chips'}
       </button>
     </div>
   );
@@ -3750,6 +3750,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [equippedClass, setEquippedClass]   = useState(gameState.equipped_class || null);
   const [charts, setCharts]                 = useState(gameState.charts || null);
   const [surgeSpins, setSurgeSpins]         = useState(gameState.surge_spins || 0);
+  const [surgeExplained, setSurgeExplained] = useState(() => {
+    try { return !!localStorage.getItem('tidesSurgeExplained'); } catch (e) { return false; }
+  });
+  const dismissSurgeHint = () => {
+    setSurgeExplained(true);
+    try { localStorage.setItem('tidesSurgeExplained', '1'); } catch (e) {}
+  };
   const [showCharts, setShowCharts]         = useState(false);
   const keystone = charts ? charts.keystone : null;
   const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
@@ -4831,6 +4838,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T119: claim 3 free insurance tokens once per UTC day.
   const handleClaimFreeTokens = useCallback(async () => {
     const { ok, data } = await apiGame('/api/insurance/claim-free', { method: 'POST', body: JSON.stringify({}) });
+    // A 409 means it was already claimed today (e.g. in another tab): show it as claimed too.
+    if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(new Date().toISOString().slice(0, 10));
     if (ok) {
       if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
       showToast('🪙 Claimed 3 free tokens');
@@ -4903,7 +4912,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <div className="whats-new-title">🌊 What's new in Season 9</div>
           <ul className="whats-new-list">
             <li>🧭 Charts: one free point a day, and level up with wins for more, up to 14. Spend them on Swell, Riptide or Angler — you can't have it all.</li>
-            <li>🎣 Fishing is a fight now, and every catch charges 🌊 Surge spins for your wheel.</li>
+            <li>🎣 Fishing is a fight now. Every catch banks 🌊 Surge spins, and each one multiplies a wheel spin's wins.</li>
             <li>Every Friday the tide turns: wins and Charts reset; medals, fish and records are forever.</li>
           </ul>
           <button className="whats-new-btn" onClick={dismissWhatsNew}>Got it</button>
@@ -5226,8 +5235,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
           {surgeSpins > 0 && keystone !== 'rogue_wave' && charts && (
-            <div className="surge-chip" title="Each spin spends one Surge spin and multiplies its wins">
-              🌊 Surge ×{charts.surge_mult} · {fmt(surgeSpins)} spin{surgeSpins !== 1 ? 's' : ''}
+            <div className="surge-chip" title="Surge spins come from fishing and bounties. Each spin uses one.">
+              🌊 Surge · next {fmt(surgeSpins)} spin{surgeSpins !== 1 ? 's' : ''} pay ×{charts.surge_mult}
+            </div>
+          )}
+          {surgeSpins > 0 && keystone !== 'rogue_wave' && charts && !surgeExplained && (
+            <div className="surge-hint">
+              <span>Surge spins come from 🎣 fishing and 📋 bounties. Each spin uses one and multiplies its wins ×{charts.surge_mult}.</span>
+              <button className="surge-hint-btn" onClick={dismissSurgeHint}>Got it</button>
             </div>
           )}
 
