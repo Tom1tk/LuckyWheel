@@ -36,6 +36,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # — the test only counts and matches by (path, function-name) pair.
 SESSION_ROUTES = [
     ('/api/charts',                      'charts_set'),
+    ('/api/land',                        'land_line'),
     ('/api/wager/bank',                  'wager_bank'),
     ('/api/wager/stake',                 'wager_set_stake'),
     ('/api/wager/double-down',           'wager_double_down'),

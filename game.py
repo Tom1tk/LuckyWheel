@@ -2351,6 +2351,30 @@ def reel_line():
         return jsonify({'error': 'Reel failed'}), 500
 
 
+@game_bp.route('/api/land', methods=['POST'])
+@login_required
+@limiter.limit('5 per second')
+def land_line():
+    err = require_json()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    landed, quality = data.get('landed'), data.get('quality', 0)
+    if not isinstance(landed, bool) or isinstance(quality, bool) or not isinstance(quality, (int, float)) \
+            or quality != quality:
+        return jsonify({'error': 'landed must be a boolean and quality a number'}), 400
+    try:
+        with db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                result = fish.land_line(cur, conn, current_user.id,
+                                        dt.datetime.now(timezone.utc), landed, float(quality))
+            conn.commit()
+        return jsonify(result)
+    except Exception:
+        log.exception('LAND_ERROR  user_id=%s', current_user.id)
+        return jsonify({'error': 'Land failed'}), 500
+
+
 @game_bp.route('/api/fish-catalog', methods=['GET'])
 @login_required
 def fish_catalog_route():

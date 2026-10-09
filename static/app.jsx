@@ -1328,12 +1328,26 @@ function FishEncyclopedia({ caughtSpecies, onClose }) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught }) {
-  const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | success | miss
+// S9 fight tuning (spec §5). Tension is 0–1; the line snaps at 1.
+const FIGHT_RISE = 0.6;          // per second while holding
+const FIGHT_FALL = 0.5;          // per second while released
+const FIGHT_START = 0.25;
+const FIGHT_SURGE_S = 0.5;       // how long one fish surge lasts
+const FIGHT_SLIP_S = 3;          // seconds under 10% before the fish slips off
+const FIGHT_GIVE_UP_S = 44;      // the server refuses lands after 45 s
+// Pull = surge chance per second, and extra tension per second while surging (×1.5).
+const FIGHT_PULL = { junk: 0.15, common: 0.25, uncommon: 0.35, rare: 0.45, legendary: 0.6 };
+
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, steadyHands, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught }) {
+  const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | fight | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
   const [lastCatch, setLastCatch] = useState(null);
-  const [missReason, setMissReason] = useState('late'); // 'late' | 'early'
+  const [missReason, setMissReason] = useState('late'); // 'late' | 'early' | 'snap' | 'slack'
+  const [fight, setFight]         = useState(null); // { t, p, surging, lo, hi } while phase === 'fight'
+  const fightRef                  = useRef(null);
+  const holdRef                   = useRef(false);
+  const fightRafRef               = useRef(null);
   const [luckyNextActive, setLuckyNextActive] = useState(fishingLuckyNext || false);
   const [autoCast, setAutoCast]   = useState(false);
   // T224: initialise autoFish from the server's auto_fish_enabled flag
@@ -1514,6 +1528,90 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
     setTimeout(() => setPhase('idle'), 1500);
   }, [countMiss]); // eslint-disable-line
 
+  const failCatch = useCallback((reason) => {
+    setMissReason(reason);
+    setPhase('miss');
+    countMiss();
+    setTimeout(() => setPhase('idle'), reason === 'snap' || reason === 'slack' ? 2200 : 1500);
+  }, [countMiss]);
+
+  const endFight = useCallback(async (landed, reason) => {
+    const f = fightRef.current;
+    if (!f || f.done) return;
+    f.done = true;
+    cancelAnimationFrame(fightRafRef.current);
+    holdRef.current = false;
+    setFight(null);
+    setPhase('reeling');
+    const quality = f.elapsed > 0 ? f.inZone / f.elapsed : 0;
+    const { ok, data } = await apiGame('/api/land', { method: 'POST', body: JSON.stringify({ landed, quality }) });
+    if (!landed) { failCatch(reason); return; }
+    if (!ok || data.result !== 'hit') { failCatch(data && data.reason === 'timeout' ? 'slack' : 'late'); return; }
+    consecutiveMissesRef.current = 0;
+    setLastCatch({ emoji: data.species_emoji, name: data.species_name, value: data.value, kg: data.kg, surge: data.surge, record: !!data.new_record, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled });
+    onFishBucksUpdate(data.fish_clicks);
+    if (data.first_catch) onCaughtSpeciesUpdate(data.species);
+    if (onFishCaught) onFishCaught(data);
+    setLuckyNextActive(!!data.lucky_next_active);
+    setPhase('success');
+    setTimeout(() => setPhase('idle'), 3000);
+  }, [failCatch]); // eslint-disable-line
+
+  const startFight = useCallback((rarity, fightS) => {
+    const [lo, hi] = steadyHands ? [0.30, 0.80] : [0.40, 0.75];
+    fightRef.current = { t: FIGHT_START, p: 0, low: 0, surgeLeft: 0, inZone: 0, elapsed: 0,
+      last: performance.now(), fightS, pull: FIGHT_PULL[rarity] || 0.3, lo, hi, done: false };
+    holdRef.current = false;
+    setFight({ t: FIGHT_START, p: 0, surging: false, lo, hi });
+    setPhase('fight');
+    const step = (now) => {
+      const f = fightRef.current;
+      if (!f || f.done) return;
+      const dt = Math.min(0.05, (now - f.last) / 1000);
+      f.last = now;
+      f.elapsed += dt;
+      if (f.surgeLeft > 0) f.surgeLeft -= dt;
+      else if (Math.random() < f.pull * dt) f.surgeLeft = FIGHT_SURGE_S;
+      f.t += (holdRef.current ? FIGHT_RISE : -FIGHT_FALL) * dt + (f.surgeLeft > 0 ? f.pull * 1.5 * dt : 0);
+      f.t = Math.max(0, f.t);
+      if (f.t >= f.lo && f.t <= f.hi) { f.p += dt / f.fightS; f.inZone += dt; }
+      f.low = f.t < 0.10 ? f.low + dt : 0;
+      if (f.t >= 1) { endFight(false, 'snap'); return; }
+      if (f.low >= FIGHT_SLIP_S || f.elapsed >= FIGHT_GIVE_UP_S) { endFight(false, 'slack'); return; }
+      if (f.p >= 1) { endFight(true); return; }
+      setFight({ t: f.t, p: f.p, surging: f.surgeLeft > 0, lo: f.lo, hi: f.hi });
+      fightRafRef.current = requestAnimationFrame(step);
+    };
+    fightRafRef.current = requestAnimationFrame(step);
+  }, [steadyHands, endFight]);
+
+  // Hold with mouse/touch anywhere on the panel, or Space. Space is caught in the
+  // capture phase so it reels instead of spinning the wheel.
+  useEffect(() => {
+    if (phase !== 'fight') return;
+    const release = () => { holdRef.current = false; };
+    const onKey = (e) => {
+      if (e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      holdRef.current = e.type === 'keydown';
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    window.addEventListener('blur', release);
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('keyup', onKey, true);
+    return () => {
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      window.removeEventListener('blur', release);
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keyup', onKey, true);
+    };
+  }, [phase]);
+
+  useEffect(() => () => cancelAnimationFrame(fightRafRef.current), []);
+
   const handleReel = useCallback(async () => {
     if (phase !== 'bite' || reelInFlightRef.current) return;
     reelInFlightRef.current = true;
@@ -1523,29 +1621,16 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
     const { ok, data } = await apiGame('/api/reel', { method: 'POST', body: '{}' });
     reelInFlightRef.current = false;
     if (!ok) { setPhase('idle'); return; }
-    if (data.result === 'hit') {
-      consecutiveMissesRef.current = 0;
-      const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
-      setLastCatch({ emoji: fish ? fish.emoji : '🐟', name: fish ? fish.name : data.species, value: data.value, isNew: !!data.first_catch, isLucky: data.species === 'lucky', doubled: !!data.was_doubled, preciseMult: data.precise_bonus ? data.precise_mult : null, precisePct: data.precise_pct != null ? data.precise_pct : null });
-      onFishBucksUpdate(data.fish_clicks);
-      if (data.first_catch) onCaughtSpeciesUpdate(data.species);
-      if (onFishCaught) onFishCaught();
-      setLuckyNextActive(!!data.lucky_next_active);
-      setPhase('success');
-      setTimeout(() => setPhase('idle'), 2000);
-    } else {
-      setMissReason('late');
-      setPhase('miss');
-      countMiss();
-      setTimeout(() => setPhase('idle'), 1500);
-    }
-  }, [phase, countMiss]); // eslint-disable-line
+    if (data.result === 'hooked') startFight(data.rarity, data.fight_s);
+    else failCatch('late');
+  }, [phase, startFight, failCatch]);
 
   const biteWindowMs = expiresAt && biteAt ? expiresAt - biteAt : 1800;
-  const inWater = phase === 'waiting' || phase === 'bite' || phase === 'reeling';
+  const inWater = phase === 'waiting' || phase === 'bite' || phase === 'reeling' || phase === 'fight';
 
   return (
-    <div className="fishing-panel" style={{ transform: `translateY(-50%) scale(${scale})` }} onClick={phase === 'bite' ? handleReel : undefined}>
+    <div className="fishing-panel" style={{ transform: `translateY(-50%) scale(${scale})` }} onClick={phase === 'bite' ? handleReel : undefined}
+      onPointerDown={phase === 'fight' ? (e => { e.preventDefault(); holdRef.current = true; }) : undefined}>
       {luckyNextActive && (
         <div className="fishing-lucky-banner">⭐ Next catch DOUBLED!</div>
       )}
@@ -1575,6 +1660,16 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
           </div>
         )}
         {phase === 'bite' && <div className="bite-hint">CLICK TO REEL!</div>}
+        {phase === 'fight' && fight && (
+          <div className="fight-box">
+            <div className="fight-prompt">Hold to reel — keep the line in the green</div>
+            <div className={`fight-meter${fight.surging ? ' fight-meter--surge' : ''}`}>
+              <div className="fight-zone" style={{ left: `${fight.lo * 100}%`, width: `${(fight.hi - fight.lo) * 100}%` }} />
+              <div className="fight-needle" style={{ left: `${Math.min(1, fight.t) * 100}%` }} />
+            </div>
+            <div className="fight-progress"><div className="fight-progress-fill" style={{ width: `${Math.min(1, fight.p) * 100}%` }} /></div>
+          </div>
+        )}
       </div>
       <div className="fishing-controls">
         {!autoFish && (
@@ -1583,6 +1678,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
              phase === 'waiting' ? 'Waiting…'   :
              phase === 'bite'    ? 'TAP!'        :
              phase === 'reeling' ? 'Reeling…'   :
+             phase === 'fight'   ? 'HOLD'        :
              phase === 'success' ? '✓ Caught!'  : 'Miss…'}
           </button>
         )}
@@ -1613,13 +1709,14 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
         {phase === 'success' && lastCatch ? (
           <>
             <span className="catch-side-emoji">{lastCatch.emoji}</span>
-            <span className="catch-side-value">+{lastCatch.value} 🐟{lastCatch.doubled ? ' 2x!' : ''}</span>
-            {lastCatch.preciseMult && <span className="catch-side-precise">🎯 {lastCatch.preciseMult}x @ {lastCatch.precisePct}%</span>}
+            <span className="catch-side-name">{lastCatch.name} · {lastCatch.kg} kg</span>
+            <span className="catch-side-value">+{fmt(lastCatch.value)} 🐟{lastCatch.surge > 0 ? ` · +${lastCatch.surge} Surge` : ''}{lastCatch.doubled ? ' 2x!' : ''}</span>
+            {lastCatch.record && <span className="catch-side-tag catch-side-record">🏆 New record!</span>}
             {lastCatch.isNew && <span className="catch-side-tag catch-side-new">NEW!</span>}
             {lastCatch.isLucky && <span className="catch-side-tag catch-side-lucky">⭐ Lucky!</span>}
           </>
         ) : phase === 'miss' ? (
-          <span className="catch-side-miss">{missReason === 'early' ? 'Too early!' : 'Too slow!'}</span>
+          <span className="catch-side-miss">{{ early: 'Too early!', snap: 'Snap! The line broke.', slack: 'It slipped the hook.' }[missReason] || 'Too slow!'}</span>
         ) : autoFish && autoFishPopup ? (
           autoFishPopup.type === 'hit' ? (
             <>
@@ -1634,8 +1731,7 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
           <>
             <span className="catch-side-label">Last</span>
             <span className="catch-side-emoji">{lastCatch.emoji}</span>
-            <span className="catch-side-value">+{lastCatch.value} 🐟</span>
-            {lastCatch.preciseMult && <span className="catch-side-precise">🎯 {lastCatch.preciseMult}x @ {lastCatch.precisePct}%</span>}
+            <span className="catch-side-value">+{fmt(lastCatch.value)} 🐟</span>
           </>
         ) : null}
       </div>
@@ -4809,6 +4905,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           ownedItems={ownedItems}
           fishPanelScale={fishPanelScale}
           autoFishEnabled={autoFishEnabled}
+          steadyHands={!!(charts && charts.alloc && charts.alloc.steady_hands)}
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={refreshBountiesAndGoal}
@@ -4826,6 +4923,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             ownedItems={ownedItems}
             fishPanelScale={fishPanelScale}
             autoFishEnabled={autoFishEnabled}
+            steadyHands={!!(charts && charts.alloc && charts.alloc.steady_hands)}
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
             onFishCaught={refreshBountiesAndGoal}

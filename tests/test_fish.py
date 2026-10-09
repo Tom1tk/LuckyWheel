@@ -391,181 +391,112 @@ class TestReelLine:
         assert result["reason"] == "too_fast"
         assert result["fish_clicks"] == 5
 
-    def test_successful_catch_returns_hit(self, monkeypatch):
-        # Force a minnow at 0 elapsed; expect a low value, lucky_next=False.
-        row = self._row(fish_clicks=100, onboarding_step=0)
+    def test_hook_stores_species_and_hides_it(self, monkeypatch):
+        row = self._row(fish_clicks=100)
         cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        bookkeeping_calls = []
-        monkeypatch.setattr(
-            fish,
-            "increment_bounty",
-            lambda *a, **k: bookkeeping_calls.append(("bounty", a, k)),
-        )
-        monkeypatch.setattr(
-            fish,
-            "_post_catch_bookkeeping",
-            lambda conn, uid, ts, fc: bookkeeping_calls.append(("book", uid, fc)),
-        )
-        # reel_line uses the module-level random; the catch species
-        # is forced via the roll_fish patch below so the test is
-        # fully deterministic.
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["result"] == "hit"
-        assert result["species"] in FISH_CATALOG
-        assert result["value"] >= 1
-        assert result["fish_clicks"] == 100 + result["value"]
-        assert result["first_catch"] is True
-        assert result["lucky_next_active"] is False
-        # Bookkeeping was invoked exactly once with first_catch=True.
-        assert len(bookkeeping_calls) == 1
-        assert bookkeeping_calls[0][0] == "book"
-        assert bookkeeping_calls[0][1] == 7
-        assert bookkeeping_calls[0][2] is True
-
-    def test_first_catch_false_when_already_caught(self, monkeypatch):
-        # Pick a species deterministically by patching roll_fish.
-        row = self._row(
-            fish_clicks=50,
-            caught_species=["minnow"],
-            onboarding_step=0,
-        )
-        cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["result"] == "hit"
-        assert result["species"] == "minnow"
-        assert result["first_catch"] is False
-
-    def test_lucky_next_doubles_value(self, monkeypatch):
-        # If lucky_next is True, the catch value is doubled.
-        row = self._row(
-            fish_clicks=0,
-            fishing_lucky_next=True,
-            caught_species=[],
-            onboarding_step=0,
-        )
-        cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        # Minnow at lure 0 → 1; doubled → 2.
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["value"] == 2
-        assert result["was_doubled"] is True
-        # The new lucky_next is False (we caught a minnow, not lucky).
-        assert result["lucky_next_active"] is False
-
-    def test_catching_lucky_sets_lucky_next(self, monkeypatch):
-        row = self._row(fish_clicks=0, caught_species=[], onboarding_step=0)
-        cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "lucky")
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["species"] == "lucky"
-        assert result["lucky_next_active"] is True
-
-    def test_precise_angler_multiplier_applied(self, monkeypatch):
-        # own precise_angler_1, reel in the first 50% → 1.2x
-        row = self._row(
-            fish_clicks=0,
-            owned_items=["precise_angler_1"],
-            onboarding_step=0,
-        )
-        cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        # elapsed = 0.5s, REEL_WINDOW = 1.8s → precise_pct = 27.8% (< 50%)
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["precise_bonus"] is True
-        assert result["precise_mult"] == 1.2
-        # Minnow base 1, * 1.2 = 1.2 → int 1
-        assert result["value"] == 1
-
-    def test_catch_of_day_bonus_today(self, monkeypatch):
-        # Own catch_of_the_day, never claimed today → bonus fires.
-        row = self._row(
-            fish_clicks=0,
-            owned_items=["catch_of_the_day"],
-            catch_of_the_day_date="2020-01-01",  # a different day
-            onboarding_step=0,
-        )
-        cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["catch_of_day_bonus"] is True
-        assert result["value"] == 5  # minnow 1 x5
-        # The "with bonus" UPDATE writes catch_of_the_day_date.
-        updates = [
-            c
-            for c in cur.execute_calls
-            if c[0].startswith("UPDATE game_state") and "catch_of_the_day_date" in c[0]
-        ]
-        assert len(updates) == 1
-
-    def test_catch_of_day_bonus_already_claimed_today(self, monkeypatch):
-        today = self.NOW.date().isoformat()
-        row = self._row(
-            fish_clicks=0,
-            owned_items=["catch_of_the_day"],
-            catch_of_the_day_date=today,
-            onboarding_step=0,
-        )
-        cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["catch_of_day_bonus"] is False
-        assert result["value"] == 1
-
-    def test_catch_of_day_date_column_blocks_second_bonus(self, monkeypatch):
-        # The DB column is a DATE, not a string.
-        row = self._row(
-            fish_clicks=0,
-            owned_items=["catch_of_the_day"],
-            catch_of_the_day_date=self.NOW.date(),
-            onboarding_step=0,
-        )
-        cur = MockCursor(queue_fetchone=[row])
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
-        monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
+        monkeypatch.setattr(fish, "roll_fish", lambda **k: "shark")
         result = reel_line(cur, MockConn(), user_id=7, now_utc=self.NOW)
-        assert result["catch_of_day_bonus"] is False
+        assert result == {"result": "hooked", "rarity": "rare",
+                          "fight_s": fish.FIGHT_S["rare"], "fish_clicks": 100}
+        hooks = [c for c in cur.execute_calls if "fishing_species = %s" in c[0]]
+        assert len(hooks) == 1 and hooks[0][1][:2] == ("shark", self.NOW)
 
-    def test_suspicious_catch_increments_under_12pct(self, monkeypatch):
+    def test_suspicious_hook_increments_under_12pct(self, monkeypatch):
         # Elapsed 0.05s → precise_pct ≈ 2.8% → suspicious.
         bite = self.NOW - dt.timedelta(seconds=0.05)
-        row = self._row(
-            fishing_bite_at=bite,
-            fish_clicks=0,
-            suspicious_catches=0,
-            onboarding_step=0,
-        )
+        row = self._row(fishing_bite_at=bite, suspicious_catches=0)
         cur = MockCursor(queue_fetchone=[row])
-        conn = MockConn()
-        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
         monkeypatch.setattr(fish, "roll_fish", lambda **k: "minnow")
-        result = reel_line(cur, conn, user_id=7, now_utc=self.NOW)
-        assert result["result"] == "hit"
-        # The reel-line UPDATE writes (new_fish_clicks, new_lucky_next,
-        # caught_species, new_best, new_suspicious, new_catch_count,
-        # new_ewma, user_id).  Index 4 is the suspicious_catches value.
-        reel_updates = [
-            c
-            for c in cur.execute_calls
-            if c[0].startswith("UPDATE game_state") and "fish_clicks = %s" in c[0]
-        ]
-        assert any(u[1][4] == 1 for u in reel_updates), (
-            "suspicious_catches should be incremented to 1 on a sub-12% reel"
-        )
+        result = reel_line(cur, MockConn(), user_id=7, now_utc=self.NOW)
+        assert result["result"] == "hooked"
+        hook = next(c for c in cur.execute_calls if "fishing_species = %s" in c[0])
+        assert hook[1][3] == 1  # suspicious_catches
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# land_line
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class TestLandLine:
+    NOW = dt.datetime(2026, 6, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def _row(self, species="minnow", fought=5.0, **kw):
+        row = {
+            "owned_items": [],
+            "talent_alloc": {}, "fish_records": {},
+            "fishing_species": species,
+            "fishing_hooked_at": self.NOW - dt.timedelta(seconds=fought),
+            "fishing_lucky_next": False,
+            "caught_species": [],
+            "fish_clicks": 0,
+            "catch_of_the_day_date": self.NOW.date(),  # already used today
+            "onboarding_step": 0,
+        }
+        row.update(kw)
+        return row
+
+    def _land(self, monkeypatch, row, landed=True, quality=1.0):
+        calls = []
+        monkeypatch.setattr(fish, "_post_catch_bookkeeping",
+                            lambda conn, uid, ts, fc: calls.append((uid, fc)))
+        cur = MockCursor(queue_fetchone=[row])
+        return fish.land_line(cur, MockConn(), 7, self.NOW, landed, quality), cur, calls
+
+    def test_no_hook_is_no_session(self, monkeypatch):
+        result, _, calls = self._land(monkeypatch, self._row(species=None, fish_clicks=9))
+        assert result == {"result": "miss", "reason": "no_session", "fish_clicks": 9}
+        assert calls == []
+
+    def test_not_landed_clears_the_line(self, monkeypatch):
+        result, cur, calls = self._land(monkeypatch, self._row(), landed=False)
+        assert result["result"] == "lost" and calls == []
+        assert any("fishing_species = NULL" in c[0] for c in cur.execute_calls)
+        assert not any("fish_clicks = %s" in c[0] for c in cur.execute_calls)
+
+    def test_too_fast(self, monkeypatch):
+        # shark fight_s 6 → must fight ≥ 3.6 s
+        result, cur, _ = self._land(monkeypatch, self._row(species="shark", fought=3.5))
+        assert result["reason"] == "too_fast"
+        assert any("fishing_species = NULL" in c[0] for c in cur.execute_calls)
+
+    def test_timeout(self, monkeypatch):
+        result, _, _ = self._land(monkeypatch, self._row(fought=45.5))
+        assert result["reason"] == "timeout"
+
+    def test_hit_pays_and_books(self, monkeypatch):
+        result, _, calls = self._land(monkeypatch, self._row(species="shark", fought=6.5, fish_clicks=100))
+        assert result["result"] == "hit" and result["species"] == "shark"
+        assert result["fish_clicks"] == 100 + result["value"]
+        assert result["first_catch"] is True and calls == [(7, True)]
+
+    def test_quality_is_clamped(self, monkeypatch):
+        monkeypatch.setattr(fish.random, "random", lambda: 1.0)
+        hi, _, _ = self._land(monkeypatch, self._row(species="shark"), quality=50.0)
+        lo, _, _ = self._land(monkeypatch, self._row(species="shark"), quality=-50.0)
+        lo_kg, hi_kg = FISH_CATALOG["shark"]["kg"]
+        assert hi["kg"] == round(hi_kg, 3)
+        assert lo["kg"] == round(lo_kg + (hi_kg - lo_kg) * 0.5, 3)
+
+    def test_lucky_next_doubles_value(self, monkeypatch):
+        monkeypatch.setattr(fish.random, "random", lambda: 0.0)
+        plain, _, _ = self._land(monkeypatch, self._row(species="shark"), quality=0.0)
+        lucky, _, _ = self._land(monkeypatch, self._row(species="shark", fishing_lucky_next=True), quality=0.0)
+        assert lucky["value"] == 2 * plain["value"] and lucky["was_doubled"] is True
+        assert lucky["lucky_next_active"] is False
+
+    def test_catching_lucky_sets_lucky_next(self, monkeypatch):
+        result, _, _ = self._land(monkeypatch, self._row(species="lucky", fought=8.0))
+        assert result["lucky_next_active"] is True
+
+    def test_catch_of_the_day_is_universal(self, monkeypatch):
+        monkeypatch.setattr(fish.random, "random", lambda: 0.0)
+        plain, _, _ = self._land(monkeypatch, self._row(species="shark"), quality=0.0)
+        first, cur, _ = self._land(monkeypatch, self._row(species="shark", catch_of_the_day_date=None), quality=0.0)
+        assert first["catch_of_day_bonus"] is True and plain["catch_of_day_bonus"] is False
+        assert first["value"] == 5 * plain["value"]
+        upd = next(c for c in cur.execute_calls if "fish_clicks = %s" in c[0])
+        assert upd[1][3] == self.NOW.date()
 
 
 # ──────────────────────────────────────────────────────────────────────────
