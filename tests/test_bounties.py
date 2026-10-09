@@ -609,3 +609,11 @@ def test_no_bounty_needs_mirror_mode():
     """Mirror mode is not in the weekly rotation, so a mirror bounty can never complete."""
     from bounties import BOUNTY_DEFS
     assert not any('mirror' in b['id'] for b in BOUNTY_DEFS)
+
+
+def test_every_bounty_is_open_to_every_chart_build():
+    """S9: Spring Tide can't stake and only Riptide has jackpots, banking or
+    double-down, so bounties on those could never complete for most builds."""
+    from bounties import BOUNTY_DEFS
+    assert {b['id'] for b in BOUNTY_DEFS} == {
+        'bounty_fish10', 'bounty_streak10', 'bounty_hand5', 'bounty_rare', 'bounty_trophy'}

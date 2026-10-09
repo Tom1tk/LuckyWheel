@@ -80,6 +80,7 @@ REEL_MIN_DELTA_SECONDS = 0.05
 FIGHT_S = {"junk": 1.5, "common": 3.0, "uncommon": 4.5, "rare": 6.0, "legendary": 8.0}
 FIGHT_MIN_FRACTION = 0.6
 FIGHT_MAX_SECONDS = 45.0
+TROPHY_RATIO = 0.9               # bounty_trophy: top 10% of the species' kg range
 # EWMA smoothing factor for precise_pct telemetry
 # (lower = slower response).
 _EWMA_ALPHA = 0.15
@@ -92,7 +93,7 @@ def size_up_catch(sid: str, base_value: int, quality: float, alloc: dict,
     value = max(1, int(base_value * (0.5 + ratio))) if base_value else 0
     surge = talents.catch_surge(alloc, FISH_CATALOG[sid]["rarity"], ratio, auto)
     records, new_record = update_records(records, sid, kg)
-    return {"kg": kg, "value": value, "surge": surge,
+    return {"kg": kg, "value": value, "surge": surge, "ratio": ratio,
             "records": records, "new_record": new_record}
 
 
@@ -465,6 +466,12 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
     # all called on the open conn — they share this catch's
     # transaction, so any failure rolls the whole catch back.
     _post_catch_bookkeeping(conn, user_id, now_utc, first_catch)
+    bounty_date = now_utc.date()
+    increment_bounty(conn, user_id, "bounty_hand5", bounty_date)
+    if species["rarity"] in ("rare", "legendary"):
+        increment_bounty(conn, user_id, "bounty_rare", bounty_date)
+    if catch["ratio"] >= TROPHY_RATIO:
+        increment_bounty(conn, user_id, "bounty_trophy", bounty_date)
 
     return {
         "result": "hit",

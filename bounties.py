@@ -16,26 +16,15 @@ from datetime import date
 
 # Bounty definitions (from spec S8). Each has an id, description, tracking
 # metric, and target.
+# S9: every bounty must be completable by any Chart build (Spring Tide can't
+# stake, only Riptide has jackpots / banking / double-down), so the pool is
+# streaks and fishing only.
 BOUNTY_DEFS = [
-    {
-        'id': 'bounty_wager5',
-        'description': 'Win 5 spins with a 5%+ stake',
-        'metric': 'wager_wins_5x',
-        'target': 5,
-        'reward_tokens': 100,
-    },
     {
         'id': 'bounty_fish10',
         'description': 'Catch 10 fish',
         'metric': 'fish_caught_today',
         'target': 10,
-        'reward_tokens': 100,
-    },
-    {
-        'id': 'bounty_jackpot',
-        'description': 'Land a jackpot in any mode',
-        'metric': 'jackpots_today',
-        'target': 1,
         'reward_tokens': 100,
     },
     {
@@ -46,17 +35,24 @@ BOUNTY_DEFS = [
         'reward_tokens': 100,
     },
     {
-        'id': 'bounty_bank',
-        'description': 'Bank winnings 3 times',
-        'metric': 'banks_today',
-        'target': 3,
+        'id': 'bounty_hand5',
+        'description': 'Land 5 fish in a fight',
+        'metric': 'fights_won_today',
+        'target': 5,
         'reward_tokens': 100,
     },
     {
-        'id': 'bounty_double',
-        'description': 'Win 2 double-downs',
-        'metric': 'double_downs_won_today',
-        'target': 2,
+        'id': 'bounty_rare',
+        'description': 'Land a rare or legendary fish',
+        'metric': 'rares_landed_today',
+        'target': 1,
+        'reward_tokens': 100,
+    },
+    {
+        'id': 'bounty_trophy',
+        'description': 'Land a trophy fish (top 10% of its size range)',
+        'metric': 'trophies_today',
+        'target': 1,
         'reward_tokens': 100,
     },
 ]
