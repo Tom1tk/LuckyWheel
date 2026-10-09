@@ -75,6 +75,11 @@ REEL_WINDOW_SECONDS = 1.8
 # Sub-50ms reels are impossible for real players (poll cadence +
 # network RTT floor).
 REEL_MIN_DELTA_SECONDS = 0.05
+
+# S9 fight: seconds of clean play needed to land each rarity (spec §5).
+FIGHT_S = {"junk": 1.5, "common": 3.0, "uncommon": 4.5, "rare": 6.0, "legendary": 8.0}
+FIGHT_MIN_FRACTION = 0.6
+FIGHT_MAX_SECONDS = 45.0
 # EWMA smoothing factor for precise_pct telemetry
 # (lower = slower response).
 _EWMA_ALPHA = 0.15
@@ -219,7 +224,8 @@ def cast_line(
         nibble_at = (now_utc + timedelta(seconds=delay * nibble_frac)).isoformat()
 
     cur.execute(
-        "UPDATE game_state SET fishing_cast_at = %s, fishing_bite_at = %s "
+        "UPDATE game_state SET fishing_cast_at = %s, fishing_bite_at = %s, "
+        "fishing_species = NULL, fishing_hooked_at = NULL "
         "WHERE user_id = %s",
         (now_utc, new_bite_at, user_id),
     )
@@ -270,19 +276,15 @@ def bite_poll(cur, user_id: int, now_utc: dt.datetime) -> dict:
 
 
 def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int, dict]:
-    """Resolve the player's reel attempt.
+    """Hook the fish (S9 fight step 1).
 
-    Returns the response body on success/miss, or a ``(status, body)``
-    tuple on a rejection. The thin route handler just renders the
-    return value to JSON + status code.
+    Checks the bite window, picks the species from what's biting now and
+    stores it on the line. The species stays hidden until ``land_line``.
     """
     cur.execute(
-        """SELECT owned_items, fishing_cast_at, fishing_bite_at,
-                  fishing_lucky_next, caught_species, fish_clicks,
-                  fastest_catch_pct,
-                  suspicious_catches, catch_count, catch_pct_ewma,
-                  catch_of_the_day_date, onboarding_step,
-                  talent_alloc, fish_records
+        """SELECT owned_items, fishing_cast_at, fishing_bite_at, fish_clicks,
+                  fastest_catch_pct, suspicious_catches, catch_count,
+                  catch_pct_ewma, talent_alloc
            FROM game_state WHERE user_id = %s FOR UPDATE""",
         (user_id,),
     )
@@ -302,7 +304,7 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
     bite_at = _aware(bite_at)
     expires_at = bite_at + timedelta(seconds=REEL_WINDOW_SECONDS)
 
-    # Always clear the session regardless of timing
+    # Always clear the cast regardless of timing
     cur.execute(
         "UPDATE game_state SET fishing_cast_at = NULL, fishing_bite_at = NULL "
         "WHERE user_id = %s",
@@ -329,63 +331,18 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
             "fish_clicks": fish_clicks,
         }
 
-    # Successful catch!
     owned = list(gs["owned_items"])
-    lure_lvl = lure_level(owned)
-    happy_hour = _is_happy_hour(now_utc)
-    alloc = gs["talent_alloc"]
     species_id = roll_fish(
-        auto_mode=False, master_lure=(lure_lvl >= 5), happy_hour=happy_hour,
-        now=now_utc, deep_sea=talents.keystone(alloc) == "deep_sea",
+        auto_mode=False, master_lure=(lure_level(owned) >= 5),
+        happy_hour=_is_happy_hour(now_utc),
+        now=now_utc, deep_sea=talents.keystone(gs["talent_alloc"]) == "deep_sea",
     )
-    species = FISH_CATALOG[species_id]
-    # ponytail: neutral quality until the D4 fight reports a real one.
-    catch = size_up_catch(species_id, fish_value(species_id, lure_lvl), 0.5,
-                          alloc, gs["fish_records"], auto=False)
-    value = catch["value"]
-    lucky_next = bool(gs["fishing_lucky_next"])
-    caught_species = list(gs["caught_species"])
-    was_doubled = False
+    rarity = FISH_CATALOG[species_id]["rarity"]
 
-    if lucky_next:
-        value *= 2
-        was_doubled = True
-
-    # Precise Angler: tiered multiplier for early reels (exclusive —
-    # highest gate wins).  elapsed_s already computed above (reused
-    # from the too_fast check).
+    # Reaction-time telemetry (bot detection), measured at the hook.
     precise_pct = round((elapsed_s / REEL_WINDOW_SECONDS) * 100, 1)
-    precise_mult = 1.0
-    if "precise_angler_3" in owned and precise_pct <= 15.0:
-        precise_mult = 2.0
-    elif "precise_angler_2" in owned and precise_pct <= 20.0:
-        precise_mult = 1.5
-    elif "precise_angler_1" in owned and precise_pct <= 50.0:
-        precise_mult = 1.2
-    precise_bonus = precise_mult > 1.0
-    if precise_bonus:
-        value = int(value * precise_mult)
-
-    new_lucky_next = species_id == "lucky"
-    first_catch = species_id not in caught_species
-    if first_catch:
-        caught_species = caught_species + [species_id]
-
-    # Catch of the Day: the first catch each UTC day is worth 5x.
-    catch_of_day_bonus = (
-        "catch_of_the_day" in owned
-        and str(gs.get("catch_of_the_day_date") or "") != now_utc.date().isoformat()
-    )
-    if catch_of_day_bonus:
-        value *= 5
-
-    new_fish_clicks = fish_clicks + value
-
-    # Track personal best (lowest = fastest) precise catch percentage
     old_best = gs["fastest_catch_pct"]
     new_best = precise_pct if (old_best is None or precise_pct < old_best) else old_best
-
-    # Telemetry: EWMA of precise_pct and suspicious-catch counter.
     old_ewma = gs["catch_pct_ewma"]
     new_ewma = (
         precise_pct
@@ -407,58 +364,107 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                 new_suspicious,
             )
 
+    cur.execute(
+        """UPDATE game_state
+           SET fishing_species = %s, fishing_hooked_at = %s,
+               fastest_catch_pct = %s, suspicious_catches = %s,
+               catch_count = %s, catch_pct_ewma = %s
+           WHERE user_id = %s""",
+        (species_id, now_utc, new_best, new_suspicious, new_catch_count,
+         new_ewma, user_id),
+    )
+    return {
+        "result": "hooked",
+        "rarity": rarity,
+        "fight_s": FIGHT_S[rarity],
+        "fish_clicks": fish_clicks,
+    }
+
+
+def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
+              landed: bool, quality: float) -> dict:
+    """Resolve the fight (S9 fight step 2): pay out a landed fish.
+
+    ``quality`` is client-reported and clamped to [0, 1]; the server bounds the
+    gain with the species it picked and the minimum fight duration (spec §5).
+    """
+    cur.execute(
+        """SELECT owned_items, fishing_species, fishing_hooked_at,
+                  fishing_lucky_next, caught_species, fish_clicks,
+                  catch_of_the_day_date, onboarding_step,
+                  talent_alloc, fish_records
+           FROM game_state WHERE user_id = %s FOR UPDATE""",
+        (user_id,),
+    )
+    gs = cur.fetchone()
+    fish_clicks = int(gs["fish_clicks"])
+    species_id = gs["fishing_species"]
+    hooked_at = gs["fishing_hooked_at"]
+
+    if not species_id or not hooked_at or species_id not in FISH_CATALOG:
+        return {"result": "miss", "reason": "no_session", "fish_clicks": fish_clicks}
+
+    cur.execute(
+        "UPDATE game_state SET fishing_species = NULL, fishing_hooked_at = NULL "
+        "WHERE user_id = %s",
+        (user_id,),
+    )
+    if not landed:
+        return {"result": "lost", "fish_clicks": fish_clicks}
+
+    species = FISH_CATALOG[species_id]
+    elapsed_s = (now_utc - _aware(hooked_at)).total_seconds()
+    if elapsed_s < FIGHT_MIN_FRACTION * FIGHT_S[species["rarity"]]:
+        log.warning("SUSPICIOUS_LAND_TOO_FAST user_id=%s species=%s elapsed=%.2f",
+                    user_id, species_id, elapsed_s)
+        return {"result": "miss", "reason": "too_fast", "fish_clicks": fish_clicks}
+    if elapsed_s > FIGHT_MAX_SECONDS:
+        return {"result": "miss", "reason": "timeout", "fish_clicks": fish_clicks}
+
+    quality = min(1.0, max(0.0, quality))
+    owned = list(gs["owned_items"])
+    catch = size_up_catch(species_id, fish_value(species_id, lure_level(owned)), quality,
+                          gs["talent_alloc"], gs["fish_records"], auto=False)
+    value = catch["value"]
+    was_doubled = bool(gs["fishing_lucky_next"])
+    if was_doubled:
+        value *= 2
+
+    caught_species = list(gs["caught_species"])
+    first_catch = species_id not in caught_species
+    if first_catch:
+        caught_species = caught_species + [species_id]
+
+    # Catch of the Day (universal in S9): the first catch each UTC day is worth 5x.
+    catch_of_day_bonus = (
+        str(gs.get("catch_of_the_day_date") or "") != now_utc.date().isoformat()
+    )
     if catch_of_day_bonus:
-        cur.execute(
-            """UPDATE game_state
-               SET fish_clicks = %s, fishing_lucky_next = %s,
-                   caught_species = %s, fastest_catch_pct = %s,
-                   suspicious_catches = %s, catch_count = %s,
-                   catch_pct_ewma = %s, catch_of_the_day_date = %s,
-                   surge_spins = surge_spins + %s, fish_records = %s
-               WHERE user_id = %s""",
-            (
-                new_fish_clicks,
-                new_lucky_next,
-                caught_species,
-                new_best,
-                new_suspicious,
-                new_catch_count,
-                new_ewma,
-                now_utc.date(),
-                catch["surge"],
-                psycopg2.extras.Json(catch["records"]),
-                user_id,
-            ),
-        )
-    else:
-        cur.execute(
-            """UPDATE game_state
-               SET fish_clicks = %s, fishing_lucky_next = %s,
-                   caught_species = %s, fastest_catch_pct = %s,
-                   suspicious_catches = %s, catch_count = %s,
-                   catch_pct_ewma = %s,
-                   surge_spins = surge_spins + %s, fish_records = %s
-               WHERE user_id = %s""",
-            (
-                new_fish_clicks,
-                new_lucky_next,
-                caught_species,
-                new_best,
-                new_suspicious,
-                new_catch_count,
-                new_ewma,
-                catch["surge"],
-                psycopg2.extras.Json(catch["records"]),
-                user_id,
-            ),
-        )
+        value *= 5
+
+    new_fish_clicks = fish_clicks + value
+    new_lucky_next = species_id == "lucky"
+    cur.execute(
+        """UPDATE game_state
+           SET fish_clicks = %s, fishing_lucky_next = %s, caught_species = %s,
+               catch_of_the_day_date = %s,
+               surge_spins = surge_spins + %s, fish_records = %s
+           WHERE user_id = %s""",
+        (
+            new_fish_clicks,
+            new_lucky_next,
+            caught_species,
+            now_utc.date(),
+            catch["surge"],
+            psycopg2.extras.Json(catch["records"]),
+            user_id,
+        ),
+    )
 
     # Bounty / community-goal / onboarding bookkeeping.  These are
-    # all called on the open conn — they share this reel's
+    # all called on the open conn — they share this catch's
     # transaction, so any failure rolls the whole catch back.
     _post_catch_bookkeeping(conn, user_id, now_utc, first_catch)
-
-    onboarding_advance = gs.get("onboarding_step", 0) == 2
 
     return {
         "result": "hit",
@@ -468,13 +474,10 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
         "value": value,
         "first_catch": first_catch,
         "was_doubled": was_doubled,
-        "precise_bonus": precise_bonus,
-        "precise_mult": precise_mult,
-        "precise_pct": precise_pct,
         "lucky_next_active": new_lucky_next,
         "fish_clicks": new_fish_clicks,
         "catch_of_day_bonus": catch_of_day_bonus,
-        "onboarding_advance": onboarding_advance,
+        "onboarding_advance": gs.get("onboarding_step", 0) == 2,
         "rarity": species["rarity"],
         "kg": catch["kg"],
         "new_record": catch["new_record"],

@@ -192,17 +192,16 @@ def test_size_up_scales_value_and_junk_is_worthless():
 # D. Live routes (wheeldb_test)
 # ══════════════════════════════════════════════════════════════════════════
 
-def _hook_now(db_url, username):
-    now = dt.datetime.now(timezone.utc)
-    _set(db_url, username, fishing_cast_at=now - dt.timedelta(seconds=3),
-         fishing_bite_at=now - dt.timedelta(seconds=0.4), fish_records={})
+def _land_shark(client, db_url, username):
+    _set(db_url, username, fishing_species='shark', fish_records={},
+         fishing_hooked_at=dt.datetime.now(timezone.utc) - dt.timedelta(seconds=7))
+    return client.post('/api/land', json={'landed': True, 'quality': 0.5},
+                       headers={'X-CSRFToken': _read_csrf(client)}).get_json()
 
 
-def test_reel_earns_surge_and_sets_a_record(user, db_url, monkeypatch):
+def test_land_earns_surge_and_sets_a_record(user, db_url):
     client, username = user
-    monkeypatch.setattr(fish, 'roll_fish', lambda **k: 'shark')
-    _hook_now(db_url, username)
-    body = client.post('/api/reel', json={}, headers={'X-CSRFToken': _read_csrf(client)}).get_json()
+    body = _land_shark(client, db_url, username)
     assert body['result'] == 'hit' and body['rarity'] == 'rare' and body['new_record']
     assert 20 <= body['surge'] <= 60
     gs = _get(db_url, username)
@@ -210,12 +209,10 @@ def test_reel_earns_surge_and_sets_a_record(user, db_url, monkeypatch):
     assert gs['fish_records'] == {'shark': body['kg']}
 
 
-def test_rogue_wave_reel_earns_no_surge(user, db_url, monkeypatch):
+def test_rogue_wave_land_earns_no_surge(user, db_url):
     client, username = user
     _chart(client, {'open_water': 1, 'loaded_dice': 3, 'treasure': 1, 'deep_water': 1, 'rogue_wave': 1})
-    monkeypatch.setattr(fish, 'roll_fish', lambda **k: 'shark')
-    _hook_now(db_url, username)
-    body = client.post('/api/reel', json={}, headers={'X-CSRFToken': _read_csrf(client)}).get_json()
+    body = _land_shark(client, db_url, username)
     assert body['result'] == 'hit' and body['surge'] == 0
     assert _get(db_url, username)['surge_spins'] == 0
 
