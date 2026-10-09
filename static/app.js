@@ -2145,20 +2145,23 @@ function FishEncyclopedia(_ref8) {
 }
 
 // ── Fishing Panel ─────────────────────────────────────────────────────────
-// S9 fight tuning (spec §5). Tension is 0–1; the line snaps at 1.
-var FIGHT_RISE = 0.6; // per second while holding
-var FIGHT_FALL = 0.5; // per second while released
-var FIGHT_START = 0.25;
-var FIGHT_SURGE_S = 0.5; // how long one fish surge lasts
-var FIGHT_SLIP_S = 3; // seconds under 10% before the fish slips off
+// S9 fight (spec §5), Stardew-style: keep the fish inside your reel bar. Hold pushes
+// the bar right, release lets it drift left. The catch fills while the fish is in the
+// bar and drains while it isn't; empty and the fish slips the hook. Units: meter widths.
+var FIGHT_START = 0.3;
+var FIGHT_BAR = [0.24, 0.28]; // bar width: base, Steady Hands 1+
+var FIGHT_ACCEL = [1.6, 2.4]; // bar acceleration /s²: base, Steady Hands 2+
+var FIGHT_VMAX = [0.8, 1.2]; // bar top speed /s: base, Steady Hands 2+
+var FIGHT_DRAIN = [0.2, 0.15]; // catch lost /s outside the bar: base, Steady Hands 3
+var FIGHT_BOUNCE = 0.3; // bar keeps this much speed off the meter's ends
 var FIGHT_GIVE_UP_S = 44; // the server refuses lands after 45 s
-// Pull = surge chance per second, and extra tension per second while surging (×1.5).
-var FIGHT_PULL = {
-  junk: 0.15,
-  common: 0.25,
-  uncommon: 0.35,
-  rare: 0.45,
-  legendary: 0.6
+// [speed /s, darts /s]: rarer fish swim faster and change direction more often.
+var FIGHT_FISH = {
+  junk: [0.10, 0.3],
+  common: [0.25, 0.6],
+  uncommon: [0.35, 0.8],
+  rare: [0.45, 1.0],
+  legendary: [0.58, 1.3]
 };
 function FishingPanel(_ref9) {
   var fishClicks = _ref9.fishClicks,
@@ -2191,11 +2194,11 @@ function FishingPanel(_ref9) {
   var _useState15 = useState('late'),
     _useState16 = _slicedToArray(_useState15, 2),
     missReason = _useState16[0],
-    setMissReason = _useState16[1]; // 'late' | 'early' | 'snap' | 'slack'
+    setMissReason = _useState16[1]; // 'late' | 'early' | 'slack'
   var _useState17 = useState(null),
     _useState18 = _slicedToArray(_useState17, 2),
     fight = _useState18[0],
-    setFight = _useState18[1]; // { t, p, surging, lo, hi } while phase === 'fight'
+    setFight = _useState18[1]; // { x, b, w, p, out } while phase === 'fight'
   var fightRef = useRef(null);
   var holdRef = useRef(false);
   var fightRafRef = useRef(null);
@@ -2554,7 +2557,7 @@ function FishingPanel(_ref9) {
     countMiss();
     setTimeout(function () {
       return setPhase('idle');
-    }, reason === 'snap' || reason === 'slack' ? 2200 : 1500);
+    }, reason === 'slack' ? 2200 : 1500);
   }, [countMiss]);
   var endFight = useCallback(/*#__PURE__*/function () {
     var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(landed, reason) {
@@ -2632,31 +2635,39 @@ function FishingPanel(_ref9) {
   }(), [failCatch]); // eslint-disable-line
 
   var startFight = useCallback(function (rarity, fightS) {
-    var _ref10 = steadyHands ? [0.30, 0.80] : [0.40, 0.75],
+    var up = function up(n) {
+      return steadyHands >= n ? 1 : 0;
+    };
+    var _ref10 = FIGHT_FISH[rarity] || FIGHT_FISH.common,
       _ref11 = _slicedToArray(_ref10, 2),
-      lo = _ref11[0],
-      hi = _ref11[1];
+      speed = _ref11[0],
+      dart = _ref11[1];
+    var x = Math.random();
     fightRef.current = {
-      t: FIGHT_START,
-      p: 0,
-      low: 0,
-      surgeLeft: 0,
+      x: x,
+      tgt: x,
+      b: 0.5,
+      v: 0,
+      p: FIGHT_START,
       inZone: 0,
       elapsed: 0,
       last: performance.now(),
       fightS: fightS,
-      pull: FIGHT_PULL[rarity] || 0.3,
-      lo: lo,
-      hi: hi,
+      speed: speed,
+      dart: dart,
+      w: FIGHT_BAR[up(1)],
+      acc: FIGHT_ACCEL[up(2)],
+      vmax: FIGHT_VMAX[up(2)],
+      drain: FIGHT_DRAIN[up(3)],
       done: false
     };
     holdRef.current = false;
     setFight({
-      t: FIGHT_START,
-      p: 0,
-      surging: false,
-      lo: lo,
-      hi: hi
+      x: x,
+      b: 0.5,
+      w: FIGHT_BAR[up(1)],
+      p: FIGHT_START,
+      out: Math.abs(x - 0.5) > FIGHT_BAR[up(1)] / 2
     });
     setPhase('fight');
     var _step = function step(now) {
@@ -2665,19 +2676,25 @@ function FishingPanel(_ref9) {
       var dt = Math.min(0.05, (now - f.last) / 1000);
       f.last = now;
       f.elapsed += dt;
-      if (f.surgeLeft > 0) f.surgeLeft -= dt;else if (Math.random() < f.pull * dt) f.surgeLeft = FIGHT_SURGE_S;
-      f.t += (holdRef.current ? FIGHT_RISE : -FIGHT_FALL) * dt + (f.surgeLeft > 0 ? f.pull * 1.5 * dt : 0);
-      f.t = Math.max(0, f.t);
-      if (f.t >= f.lo && f.t <= f.hi) {
+      if (Math.random() < f.dart * dt) f.tgt = Math.random();
+      f.x += Math.max(-f.speed * dt, Math.min(f.speed * dt, f.tgt - f.x));
+      f.v = Math.max(-f.vmax, Math.min(f.vmax, f.v + (holdRef.current ? f.acc : -f.acc) * dt));
+      f.b += f.v * dt;
+      var half = f.w / 2;
+      if (f.b < half) {
+        f.b = half;
+        if (f.v < 0) f.v *= -FIGHT_BOUNCE;
+      }
+      if (f.b > 1 - half) {
+        f.b = 1 - half;
+        if (f.v > 0) f.v *= -FIGHT_BOUNCE;
+      }
+      var inBar = Math.abs(f.x - f.b) <= half;
+      if (inBar) {
         f.p += dt / f.fightS;
         f.inZone += dt;
-      }
-      f.low = f.t < 0.10 ? f.low + dt : 0;
-      if (f.t >= 1) {
-        endFight(false, 'snap');
-        return;
-      }
-      if (f.low >= FIGHT_SLIP_S || f.elapsed >= FIGHT_GIVE_UP_S) {
+      } else f.p -= f.drain * dt;
+      if (f.p <= 0 || f.elapsed >= FIGHT_GIVE_UP_S) {
         endFight(false, 'slack');
         return;
       }
@@ -2686,11 +2703,11 @@ function FishingPanel(_ref9) {
         return;
       }
       setFight({
-        t: f.t,
+        x: f.x,
+        b: f.b,
+        w: f.w,
         p: f.p,
-        surging: f.surgeLeft > 0,
-        lo: f.lo,
-        hi: f.hi
+        out: !inBar
       });
       fightRafRef.current = requestAnimationFrame(_step);
     };
@@ -2826,21 +2843,21 @@ function FishingPanel(_ref9) {
     className: "fight-box"
   }, /*#__PURE__*/React.createElement("div", {
     className: "fight-prompt"
-  }, "Hold to reel \u2014 keep the line in the green"), /*#__PURE__*/React.createElement("div", {
-    className: "fight-meter".concat(fight.surging ? ' fight-meter--surge' : '')
+  }, "Hold to reel \u2014 keep the fish in the green"), /*#__PURE__*/React.createElement("div", {
+    className: "fight-meter".concat(fight.out ? ' fight-meter--out' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "fight-zone",
     style: {
-      left: "".concat(fight.lo * 100, "%"),
-      width: "".concat((fight.hi - fight.lo) * 100, "%")
+      left: "".concat((fight.b - fight.w / 2) * 100, "%"),
+      width: "".concat(fight.w * 100, "%")
     }
   }), /*#__PURE__*/React.createElement("div", {
-    className: "fight-needle",
+    className: "fight-fish",
     style: {
-      left: "".concat(Math.min(1, fight.t) * 100, "%")
+      left: "".concat(fight.x * 100, "%")
     }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "fight-progress"
+  }, "\uD83D\uDC1F")), /*#__PURE__*/React.createElement("div", {
+    className: "fight-progress".concat(fight.p < 0.25 ? ' fight-progress--low' : '')
   }, /*#__PURE__*/React.createElement("div", {
     className: "fight-progress-fill",
     style: {
@@ -2903,7 +2920,6 @@ function FishingPanel(_ref9) {
     className: "catch-side-miss"
   }, {
     early: 'Too early!',
-    snap: 'Snap! The line broke.',
     slack: 'It slipped the hook.'
   }[missReason] || 'Too slow!') : autoFish && autoFishPopup ? autoFishPopup.type === 'hit' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "catch-side-emoji"
@@ -8594,7 +8610,7 @@ function GameApp(_ref39) {
     ownedItems: ownedItems,
     fishPanelScale: fishPanelScale,
     autoFishEnabled: autoFishEnabled,
-    steadyHands: !!(charts && charts.alloc && charts.alloc.steady_hands),
+    steadyHands: charts && charts.alloc && charts.alloc.steady_hands || 0,
     onFishBucksUpdate: function onFishBucksUpdate(v) {
       return setFishClicks(v);
     },
@@ -8614,7 +8630,7 @@ function GameApp(_ref39) {
     ownedItems: ownedItems,
     fishPanelScale: fishPanelScale,
     autoFishEnabled: autoFishEnabled,
-    steadyHands: !!(charts && charts.alloc && charts.alloc.steady_hands),
+    steadyHands: charts && charts.alloc && charts.alloc.steady_hands || 0,
     onFishBucksUpdate: function onFishBucksUpdate(v) {
       return setFishClicks(v);
     },

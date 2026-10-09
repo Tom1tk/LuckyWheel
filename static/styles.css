@@ -5376,25 +5376,24 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   text-transform: uppercase; text-align: center; color: var(--p-lt);
 }
 .fight-meter {
-  position: relative; height: 16px; border-radius: 8px; overflow: hidden;
-  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.04) 85%, rgba(255,80,60,0.35) 100%);
+  position: relative; height: 20px; border-radius: 10px; overflow: hidden;
+  background: rgba(255,255,255,0.04);
   border: 1px solid rgba(var(--p-rgb),0.5);
 }
-.fight-meter--surge { border-color: #FF7F6E; animation: fightShake 0.12s linear infinite; }
-@keyframes fightShake { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
+.fight-meter--out { border-color: #FF7F6E; }
 .fight-zone {
   position: absolute; top: 0; bottom: 0;
   background: rgba(68,255,136,0.28); border-left: 1px solid #44ff88; border-right: 1px solid #44ff88;
 }
-.fight-needle {
-  position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px;
-  background: #fff; box-shadow: 0 0 6px #fff; border-radius: 2px;
+.fight-fish {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  font-size: 14px; line-height: 1; filter: drop-shadow(0 0 4px rgba(255,255,255,0.8));
 }
 .fight-progress { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .fight-progress-fill { height: 100%; background: linear-gradient(90deg, var(--p-md), var(--p-lt)); }
+.fight-progress--low .fight-progress-fill { background: #FF7F6E; }
 .catch-side-name   { font-size: 0.62rem; color: #cfd8df; letter-spacing: 0.3px; }
 .catch-side-record { color: #FFD700; }
-@media (prefers-reduced-motion: reduce) { .fight-meter--surge { animation: none; } }
 
 /* ── S9 Surge chip ─────────────────────────────────────────────────────── */
 .surge-chip {
