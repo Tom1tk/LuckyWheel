@@ -3975,11 +3975,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   useEffect(() => {
     if (!season || !(season.player_facing_number >= 9)) return;
-    try { if (!localStorage.getItem('whatsNewSeen_s9')) setShowWhatsNew(true); } catch (e) {}
+    try { if (!localStorage.getItem('whatsNewSeen_s9_charts')) setShowWhatsNew(true); } catch (e) {}
   }, [season ? season.player_facing_number : null]); // eslint-disable-line
   const dismissWhatsNew = useCallback(() => {
     setShowWhatsNew(false);
-    try { localStorage.setItem('whatsNewSeen_s9', '1'); } catch (e) {}
+    try { localStorage.setItem('whatsNewSeen_s9_charts', '1'); } catch (e) {}
   }, []);
 
   const handleClosePatchNotes = useCallback(() => {
