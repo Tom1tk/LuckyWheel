@@ -94,11 +94,19 @@ def migrant_slot(now: datetime) -> int:
     return get_week_number(now) % MIGRANT_SLOTS
 
 
+def _conditions(now: datetime) -> tuple[str, str, int]:
+    return day_window(now), tide(now)[0], migrant_slot(now)
+
+
+def _biting(f: dict, cond: tuple[str, str, int]) -> bool:
+    window, phase, slot = cond
+    return ((f['windows'] is None or window in f['windows'])
+            and (f['tide'] is None or phase == f['tide'])
+            and (f['migrant'] is None or slot == f['migrant']))
+
+
 def is_available(sid: str, now: datetime) -> bool:
-    f = FISH_CATALOG[sid]
-    return ((f['windows'] is None or day_window(now) in f['windows'])
-            and (f['tide'] is None or tide(now)[0] == f['tide'])
-            and (f['migrant'] is None or migrant_slot(now) == f['migrant']))
+    return _biting(FISH_CATALOG[sid], _conditions(now))
 
 
 def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = False,
@@ -109,11 +117,11 @@ def roll_fish(auto_mode: bool, allow_rare: bool = False, master_lure: bool = Fal
     Deep Sea: no junk/common, rare and legendary ×3. ``master_lure`` adds +1
     and ``happy_hour`` +50% to legendary weights (manual only).
     """
-    now = now or datetime.now(timezone.utc)
+    cond = _conditions(now or datetime.now(timezone.utc))
     ids, weights = [], []
     for sid, f in FISH_CATALOG.items():
         r = f['rarity']
-        if not is_available(sid, now):
+        if not _biting(f, cond):
             continue
         if auto_mode and (r == 'legendary' or (r == 'rare' and not allow_rare)):
             continue
@@ -145,6 +153,7 @@ def update_records(records: dict, sid: str, kg: float) -> tuple[dict, bool]:
 
 def catalog_payload(now: datetime) -> dict:
     phase, turns_in = tide(now)
+    cond = _conditions(now)
     return {
         'tide': phase, 'tide_turns_in_s': turns_in,
         'window': day_window(now), 'migrant_slot': migrant_slot(now),
@@ -152,7 +161,7 @@ def catalog_payload(now: datetime) -> dict:
             {'id': sid, 'emoji': f['emoji'], 'hue': f['hue'], 'name': f['name'],
              'rarity': f['rarity'], 'value': f['value'], 'kg': list(f['kg']), 'hint': f['hint'],
              'windows': sorted(f['windows'], key=WINDOWS.index) if f['windows'] else None,
-             'tide': f['tide'], 'migrant': f['migrant'], 'biting_now': is_available(sid, now)}
+             'tide': f['tide'], 'migrant': f['migrant'], 'biting_now': _biting(f, cond)}
             for sid, f in FISH_CATALOG.items()
         ],
     }
