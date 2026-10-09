@@ -373,3 +373,10 @@ def test_rechart_drops_armed_double_down_insurance_and_class(user, db_url):
     assert _chart(client, {'open_water': 1})[0] == 200
     gs = _get(db_url, username)
     assert not gs['double_down_pending'] and not gs['insurance_armed'] and gs['equipped_class'] is None
+
+
+def test_wins_to_fish_exchange_is_closed(user, db_url):
+    client, username = user
+    r = client.post('/api/wins-exchange', json={'amount': 'all'}, headers={'X-CSRFToken': _read_csrf(client)})
+    assert r.status_code == 403
+    assert _get(db_url, username)['wins'] == 1000

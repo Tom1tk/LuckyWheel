@@ -1644,18 +1644,6 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
 }
 
 // ── Lucky Seven Counter ───────────────────────────────────────────────────
-const LuckySevenCounter = React.memo(function LuckySevenCounter({ spinCount }) {
-  const progress = spinCount % 7;
-  return (
-    <div className="lucky-seven-counter">
-      <span className="lucky-seven-counter-label">7️⃣</span>
-      {[1,2,3,4,5,6,7].map(i => (
-        <div key={i} className={`lucky-seven-pip${i <= progress ? ' filled' : ''}${i === 7 && progress === 0 && spinCount > 0 ? ' triggered' : ''}`} />
-      ))}
-    </div>
-  );
-});
-
 const ProcStreakCounter = React.memo(function ProcStreakCounter({ streak }) {
   if (streak === 0) return null;
   return (
@@ -1726,11 +1714,11 @@ function Die({ value, rolling, landed }) {
 const DICE_TOOLTIP_W = 240;
 const DICE_TOOLTIP_TEXT = 'Needs a win streak of 3+. Roll the dice and their total is added to your streak. Two 6s double it, three 6s triple it. ⚠️ Two 1s halve it, three 1s cut it to a third. One roll per spin; a charge comes back every 10 minutes.';
 
-function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
+function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges, rechargeSecs = 600) {
   const [secsToNext, setSecsToNext] = React.useState(null);
   React.useEffect(() => {
     if (!diceLastRecharge || diceCharges >= maxCharges) { setSecsToNext(null); return; }
-    const rechargeAt = new Date(diceLastRecharge).getTime() + 600 * 1000;
+    const rechargeAt = new Date(diceLastRecharge).getTime() + rechargeSecs * 1000;
     const tick = () => {
       const secs = Math.max(0, Math.ceil((rechargeAt - Date.now()) / 1000));
       setSecsToNext(secs);
@@ -1738,11 +1726,11 @@ function useDiceCountdown(diceLastRecharge, diceCharges, maxCharges) {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [diceLastRecharge, diceCharges, maxCharges]);
+  }, [diceLastRecharge, diceCharges, maxCharges, rechargeSecs]);
   return secsToNext;
 }
 
-function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, hasDiceExtra, rolledSinceSpin }) {
+function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec, diceCharges, maxDiceCharges, diceLastRecharge, rechargeSecs = 600, hasDiceExtra, rolledSinceSpin }) {
   const [animDie1, setAnimDie1] = React.useState(1);
   const [animDie2, setAnimDie2] = React.useState(1);
   const [animDie3, setAnimDie3] = React.useState(1);
@@ -1753,7 +1741,7 @@ function DicePanel({ streak, onRoll, rolling, diceResult, guardSpinning, lowSpec
   const intervalRef = React.useRef(null);
   const descRef     = React.useRef(null);
 
-  const secsToNext = useDiceCountdown(diceLastRecharge, diceCharges, maxDiceCharges);
+  const secsToNext = useDiceCountdown(diceLastRecharge, diceCharges, maxDiceCharges, rechargeSecs);
 
   React.useEffect(() => {
     if (rolling && !lowSpec) {
@@ -2867,10 +2855,10 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
-function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onWinsExchange, equippedClass, fishExchangeTotal, collapsed, caughtSpecies, procStreak }) {
+function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onOpenCharts, equippedClass, fishExchangeTotal, collapsed, caughtSpecies, procStreak }) {
   const [activeTab, setActiveTab] = useState('functional');
 
-  const { cosmeticSections, functionalSections } = useMemo(() => {
+  const { cosmeticSections } = useMemo(() => {
     const cosmetic = [], functional = [];
     SHOP_SECTIONS.forEach(section => {
       const isCosmeticSection = COSMETIC_SECTION_LABELS.has(section.label);
@@ -2983,11 +2971,14 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
           </>
         ) : (
           <>
-            {functionalSections.map(renderSection)}
-            {(fishClicks > 0 || wins > 0) && (
+            <div className="shop-charts-notice">
+              <div>Gear comes from 🧭 Charts now. The shop sells looks.</div>
+              <button className="charts-btn charts-btn--go" onClick={onOpenCharts}>🧭 Open Charts</button>
+            </div>
+            {fishClicks > 0 && (
               <React.Fragment>
                 <div className="shop-section-label">── 🔄 Fish Exchange ──</div>
-                {fishClicks > 0 && (
+                {(
                   <div className="fish-exchange-panel">
                     <div className="fish-exchange-desc">
                       Convert 🐟 Fish Bucks → 🏆 Wins at ~{exchangeRate}¢ per buck
@@ -2999,21 +2990,6 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
                       </button>
                       <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('all')}>
                         Exchange All ({fmt(fishClicks)} 🐟)
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {wins > 0 && (
-                  <div className="wins-exchange-panel">
-                    <div className="wins-exchange-desc">
-                      Convert 🏆 Wins → 🐟 Fish Bucks at 1:1
-                    </div>
-                    <div className="fish-exchange-buttons">
-                      <button className="shop-buy-btn can-afford" onClick={() => onWinsExchange('10pct')}>
-                        Exchange 10% ({fmt(Math.max(1, Math.floor(wins / 10)))} 🏆)
-                      </button>
-                      <button className="shop-buy-btn can-afford" onClick={() => onWinsExchange('all')}>
-                        Exchange All ({fmt(wins)} 🏆)
                       </button>
                     </div>
                   </div>
@@ -3100,6 +3076,120 @@ function PatchNotesPanel({ open, onClose }) {
             ? <div className="patch-notes-content" dangerouslySetInnerHTML={{ __html: html }} />
             : <div className="stats-loading">Loading…</div>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Charts (S9 talents: docs/SEASON_9_DEEP_SPEC.md §3, §11) ───────────────
+const CHART_TREES = ['swell', 'riptide', 'angler'];
+const CHART_ROWS = [1, 2, 3, 'K'];
+const chartSpent = alloc => Object.values(alloc).reduce((a, b) => a + b, 0);
+
+// Mirrors talents.validate so locks show before the server says no.
+function chartProblem(alloc, points, def) {
+  const byId = Object.fromEntries(def.talents.map(t => [t.id, t]));
+  if (chartSpent(alloc) > points) return 'No points left · a new one every day';
+  for (const [id, r] of Object.entries(alloc)) {
+    if (!r) continue;
+    const t = byId[id];
+    const treeName = def.trees[t.tree].name;
+    if (t.row === 'K') {
+      const other = def.talents.some(o => o.row === 'K' && o.id !== id && alloc[o.id]);
+      const inTree = def.talents.filter(o => o.tree === t.tree && o.row !== 'K')
+        .reduce((a, o) => a + (alloc[o.id] || 0), 0);
+      if (other || inTree < def.keystone_gate) return `Needs ${def.keystone_gate} points in ${treeName} · one keystone only`;
+    } else {
+      const below = def.talents.filter(o => o.tree === t.tree && o.row !== 'K' && o.row < t.row)
+        .reduce((a, o) => a + (alloc[o.id] || 0), 0);
+      if (below < def.row_gate[t.row]) return `Needs ${def.row_gate[t.row]} points in ${treeName}`;
+    }
+    if (t.requires && (alloc[t.requires] || 0) < byId[t.requires].max_rank) return `Needs ${byId[t.requires].name} first`;
+  }
+  return null;
+}
+
+function ChartsPanel({ open, charts, onClose, onSaved }) {
+  const [def, setDef] = useState(null);
+  const [pending, setPending] = useState({});
+  const [recharting, setRecharting] = useState(false);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setRecharting(false); setError('');
+    apiGame('/api/charts').then(r => {
+      if (!r.ok) { setError(r.data.error || "Couldn't load your Chart."); return; }
+      setDef(r.data); setPending({ ...r.data.alloc });
+    });
+  }, [open]);
+  if (!open) return null;
+  const committed = def ? def.alloc : {};
+  const points = def ? def.points : 0;
+  const floor = id => (recharting ? 0 : committed[id] || 0);
+  const tryAlloc = (id, delta) => {
+    const next = { ...pending, [id]: (pending[id] || 0) + delta };
+    if (!next[id]) delete next[id];
+    return next;
+  };
+  const changed = JSON.stringify(Object.entries(pending).sort()) !== JSON.stringify(Object.entries(committed).sort());
+  const save = async () => {
+    setSaving(true); setError('');
+    const r = await apiGame('/api/charts', { method: 'POST', body: JSON.stringify({ alloc: pending }) });
+    setSaving(false);
+    if (!r.ok) { setError(r.data.error || "Couldn't set course."); return; }
+    onSaved(r.data);
+    onClose();
+  };
+  const cancel = () => { setPending({ ...committed }); setRecharting(false); setError(''); };
+  const rechart = () => { setPending({}); setRecharting(true); setError(''); };
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="charts-card" onClick={e => e.stopPropagation()}>
+        <div className="stats-title">🧭 Charts</div>
+        <button className="stats-close-btn" onClick={onClose}>✕</button>
+        {!def ? <div className="stats-loading">{error || 'Loading…'}</div> : (<>
+          <div className="charts-sub">{chartSpent(pending)} / {points} points · a new point every day of the tide</div>
+          <div className="charts-trees">
+            {CHART_TREES.map(tree => (
+              <div key={tree} className={`charts-tree charts-tree--${tree}`}>
+                <div className="charts-tree-head">{def.trees[tree].name} — {def.trees[tree].motto}</div>
+                {CHART_ROWS.map(row => (
+                  <div key={row} className={`charts-row${row === 'K' ? ' charts-row--k' : ''}`}>
+                    {def.talents.filter(t => t.tree === tree && t.row === row).map(t => {
+                      const rank = pending[t.id] || 0;
+                      const lock = rank < t.max_rank ? chartProblem(tryAlloc(t.id, 1), points, def) : null;
+                      const canDrop = rank > floor(t.id) && !chartProblem(tryAlloc(t.id, -1), points, def);
+                      return (
+                        <div key={t.id} className={`chart-node${rank ? ' on' : ''}${lock ? ' locked' : ''}${row === 'K' ? ' keystone' : ''}`}>
+                          <button className="chart-node-main" aria-disabled={!!lock || rank >= t.max_rank}
+                            title={lock || ''} onClick={() => { if (!lock && rank < t.max_rank) setPending(tryAlloc(t.id, 1)); }}>
+                            <span className="chart-node-name">{t.name}</span>
+                            <span className="chart-node-pips">{Array.from({ length: t.max_rank }, (_, i) => (i < rank ? '●' : '○')).join('')}</span>
+                            <span className="chart-node-desc">{t.desc[Math.max(0, rank - 1)]}</span>
+                            {rank > 0 && rank < t.max_rank && <span className="chart-node-next">Next: {t.desc[rank]}</span>}
+                            {lock && rank < t.max_rank && <span className="chart-node-lock">🔒 {lock}</span>}
+                          </button>
+                          {canDrop && <button className="chart-node-drop" title="Take this point back" onClick={() => setPending(tryAlloc(t.id, -1))}>−</button>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          {error && <div className="charts-error">{error}</div>}
+          <div className="charts-actions">
+            {chartSpent(committed) > 0 && !recharting && (
+              <button className="charts-btn" disabled={!def.can_rechart} onClick={rechart}>
+                {def.can_rechart ? 'Re-chart (1 left today)' : 'Re-chart tomorrow'}
+              </button>
+            )}
+            <button className="charts-btn" disabled={!changed && !recharting} onClick={cancel}>Cancel</button>
+            <button className="charts-btn charts-btn--go" disabled={!changed || saving} onClick={save}>Set course</button>
+          </div>
+        </>)}
       </div>
     </div>
   );
@@ -3462,6 +3552,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [equippedFish, setEquippedFish] = useState(gameState.equipped_fish);
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
   const [equippedClass, setEquippedClass]   = useState(gameState.equipped_class || null);
+  const [charts, setCharts]                 = useState(gameState.charts || null);
+  const [showCharts, setShowCharts]         = useState(false);
+  const keystone = charts ? charts.keystone : null;
   const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
   const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
   const [showStats, setShowStats]     = useState(false);
@@ -3515,11 +3608,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, []);
 
   const diceMaxCharges = useMemo(() => {
-    if (ownedItems.includes('dice_charge_4')) return 4;
-    if (ownedItems.includes('dice_charge_3')) return 3;
-    if (ownedItems.includes('dice_charge_2')) return 2;
-    return 1;
-  }, [ownedItems]);
+    const base = ownedItems.includes('dice_charge_4') ? 4 : ownedItems.includes('dice_charge_3') ? 3
+      : ownedItems.includes('dice_charge_2') ? 2 : 1;
+    return base + (keystone === 'rogue_wave' ? 2 : 0);
+  }, [ownedItems, keystone]);
 
   // fishPanelScale: controls the CSS transform scale on the fishing panel
   const fishPanelScale = useMemo(() =>
@@ -3830,20 +3922,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       setWins(data.wins);
       setFishExchangeTotal(prev => prev + data.fish_spent);
       showToast(`Exchanged ${fmt(data.fish_spent)} 🐟 → +${fmt(data.wins_earned)} 🏆`);
-    } else {
-      showToast(data.error || 'Exchange failed');
-    }
-  }, [showToast]);
-
-  const handleWinsExchange = useCallback(async (amountType) => {
-    const { ok, data } = await apiGame('/api/wins-exchange', {
-      method: 'POST',
-      body: JSON.stringify({ amount: amountType }),
-    });
-    if (ok) {
-      setWins(data.wins);
-      setFishClicks(data.fish_clicks);
-      showToast(`Exchanged ${fmt(data.wins_spent)} 🏆 → +${fmt(data.fish_earned)} 🐟`);
     } else {
       showToast(data.error || 'Exchange failed');
     }
@@ -4222,6 +4300,16 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [wagerLastWinAmount, setWagerLastWinAmount] = useState(gameState.wager_last_win_amount || 0);
   const [insuranceCharges, setInsuranceCharges] = useState(gameState.insurance_charges || 0);
   const [insuranceArmed, setInsuranceArmed]   = useState(gameState.insurance_armed || false);
+  const handleChartsSaved = data => {
+    const { alloc, points, spent, keystone: k, surge_mult, can_rechart } = data;
+    setCharts({ alloc, points, spent, keystone: k, surge_mult, can_rechart });
+    setOwnedItems(data.owned_items);
+    if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
+    setEquippedClass(null);
+    setDoubleDownPending(p => p && data.owned_items.includes('wager_double_down'));
+    setInsuranceArmed(p => p && data.owned_items.includes('wager_insurance'));
+    showToast('🧭 Course set');
+  };
   const [activeWheelMode, setActiveWheelMode]       = useState(gameState.active_wheel_mode || 'steady');
   const [availableWheelModes, setAvailableWheelModes] = useState(gameState.available_wheel_modes || ['steady', 'volatile']);
   // T80: server-provided wheel probabilities (drift-adjusted for gravity,
@@ -4668,6 +4756,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
+        <button className="stats-btn charts-open-btn" title="Charts" onClick={() => setShowCharts(true)}>
+          🧭{charts && charts.spent < charts.points && <span className="charts-dot" />}
+        </button>
         <button className="stats-btn" title="Stats" onClick={() => setShowStats(true)}>📊</button>
         <button className="stats-btn" title="Fish Encyclopaedia" onClick={() => setShowEncyclopedia(true)}>📖</button>
         <button
@@ -4698,6 +4789,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           ? <TideBanner season={season} onOpenHof={() => setShowHof(true)} />
           : season && <SeasonInfo seasonName={season.season_name || season.season_number} playerFacingNumber={season.player_facing_number} endsAt={season.ends_at} />}
       </div>
+
+      <ChartsPanel open={showCharts} charts={charts} onClose={() => setShowCharts(false)} onSaved={handleChartsSaved} />
 
       {showEncyclopedia && (
         <FishEncyclopedia
@@ -4838,7 +4931,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <div className="wheel-and-wager">
             {/* T202: wager panel is left-of-wheel on desktop; on mobile
                 it moves into .mobile-below-wheel (below the wheel). */}
-            {!isMobile && ownedItems.includes('wager_unlock') && (
+            {!isMobile && ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && (
               <WagerPanel
                 ownedItems={ownedItems}
                 stakePct={stakePct}
@@ -4930,7 +5023,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   not possible to see or use except from its title." */}
               <div className="mobile-streak-dice-row">
                 <StreakPanel streak={streak} bonusmultLevel={0} />
-                {unlocked.dice && <div className={gateClass('dice')}><DicePanel
+                {unlocked.dice && keystone !== 'spring_tide' && <div className={gateClass('dice')}><DicePanel
                   streak={streak}
                   onRoll={handleDiceRoll}
                   rolling={diceRolling}
@@ -4940,6 +5033,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   diceCharges={diceCharges}
                   maxDiceCharges={diceMaxCharges}
                   diceLastRecharge={diceLastRecharge}
+                  rechargeSecs={keystone === 'rogue_wave' ? 300 : 600}
                   hasDiceExtra={ownedItems.includes('dice_extra')}
                   rolledSinceSpin={diceRolledSinceSpin}
                 /></div>}
@@ -4948,7 +5042,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {/* T202: wager panel relocated below the wheel on mobile so
                   the stake slider, DD/insurance buttons, and token balance
                   are thumb-reachable. */}
-              {ownedItems.includes('wager_unlock') && (
+              {ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && (
                 <WagerPanel
                   ownedItems={ownedItems}
                   stakePct={stakePct}
@@ -5014,11 +5108,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   )}
                 </div>
               )}
-              {ownedItems.includes('lucky_seven') && (
-                <LuckySevenCounter spinCount={spinCount} />
-              )}
               <StreakPanel streak={streak} bonusmultLevel={0} />
-              {unlocked.dice && <div className={gateClass('dice')}><DicePanel
+              {unlocked.dice && keystone !== 'spring_tide' && <div className={gateClass('dice')}><DicePanel
                 streak={streak}
                 onRoll={handleDiceRoll}
                 rolling={diceRolling}
@@ -5028,6 +5119,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 diceCharges={diceCharges}
                 maxDiceCharges={diceMaxCharges}
                 diceLastRecharge={diceLastRecharge}
+                rechargeSecs={keystone === 'rogue_wave' ? 300 : 600}
                 hasDiceExtra={ownedItems.includes('dice_extra')}
                 rolledSinceSpin={diceRolledSinceSpin}
               /></div>}
@@ -5059,7 +5151,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onEquipCosmetic={handleEquipCosmetic}
             onEquipClass={handleEquipClass}
             onFishExchange={handleFishExchange}
-            onWinsExchange={handleWinsExchange}
+            onOpenCharts={() => setShowCharts(true)}
             equippedClass={equippedClass}
             fishExchangeTotal={fishExchangeTotal}
             collapsed={shopCollapsed}

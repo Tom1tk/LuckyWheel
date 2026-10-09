@@ -2494,53 +2494,8 @@ def fish_exchange():
 @login_required
 @limiter.limit('5 per second')
 def wins_exchange():
-    err = require_json()
-    if err:
-        return err
-    data = request.get_json(silent=True) or {}
-    amount_type = data.get('amount', '10pct')
-    if amount_type not in ('10pct', 'all'):
-        return jsonify({'error': 'Invalid amount type'}), 400
-
-    try:
-        with db_connection() as conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    'SELECT wins FROM game_state WHERE user_id = %s FOR UPDATE',
-                    (current_user.id,),
-                )
-                gs = cur.fetchone()
-
-            current_wins = int(gs['wins'])
-            if current_wins <= 0:
-                return jsonify({'error': 'No wins to exchange'}), 400
-
-            wins_to_exchange = max(1, current_wins // 10) if amount_type == '10pct' else current_wins
-            fish_earned = wins_to_exchange  # 1:1 rate
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    '''UPDATE game_state
-                       SET wins = wins - %s, fish_clicks = fish_clicks + %s
-                       WHERE user_id = %s''',
-                    (wins_to_exchange, fish_earned, current_user.id),
-                )
-                cur.execute('SELECT wins, fish_clicks FROM game_state WHERE user_id = %s', (current_user.id,))
-                row = cur.fetchone()
-                updated_wins, updated_fish = row[0], row[1]
-            conn.commit()
-
-        return jsonify({
-            'ok':          True,
-            'wins_spent':  wins_to_exchange,
-            'fish_earned': fish_earned,
-            'wins':        int(updated_wins),
-            'fish_clicks': int(updated_fish),
-        })
-    except Exception:
-        log.exception('WINS_EXCHANGE_ERROR  user_id=%s', current_user.id)
-        return jsonify({'error': 'Exchange failed'}), 500
-
+    # S9 Charts: wins→fish exchange is retired (spec §9); fish→wins stays.
+    return jsonify({'error': 'Wins exchange is closed this season'}), 403
 
 
 @game_bp.route('/api/equip-cosmetic', methods=['POST'])
