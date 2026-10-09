@@ -79,7 +79,7 @@ _GAME_STATE_SQL = '''
            wager_last_win_amount, wager_banked_losses,
            insurance_free_claimed_date, insurance_unlock_grant_given,
            gravity_drift,
-           talent_alloc, talent_rechart_date, surge_spins, fish_records
+           talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records
     FROM game_state WHERE user_id = %s
 '''
 
@@ -204,9 +204,14 @@ def _surge_mults(ctx: dict, gs: dict, surge_left: int):
 def _charts_payload(gs: dict, now: dt.datetime) -> dict:
     """S9 Charts summary shared by /api/state and /api/charts."""
     alloc = gs.get('talent_alloc') or {}
+    bought = gs.get('chart_points_bought') or 0
+    points = talents.points_total(now, bought)
     return {
         'alloc':       alloc,
-        'points':      talents.points_total(now),
+        'points':      points,
+        'max_points':  talents.MAX_POINTS,
+        'bought':      bought,
+        'next_cost':   talents.level_cost(bought) if points < talents.MAX_POINTS else None,
         'spent':       sum(alloc.values()),
         'keystone':    talents.keystone(alloc),
         'surge_mult':  talents.surge_mult(alloc),
@@ -974,7 +979,7 @@ def get_state():
                               cosmetic_fragments, guard_charges,
                               gravity_drift,
                               auto_fish_enabled, auto_fish_last_tick,
-                              talent_alloc, talent_rechart_date, surge_spins, fish_records
+                              talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -2063,7 +2068,7 @@ def charts_get():
     now = dt.datetime.now(timezone.utc)
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT talent_alloc, talent_rechart_date FROM game_state WHERE user_id = %s',
+            cur.execute('SELECT talent_alloc, talent_rechart_date, chart_points_bought FROM game_state WHERE user_id = %s',
                         (current_user.id,))
             gs = cur.fetchone()
     return jsonify({**_charts_payload(gs, now), 'trees': talents.TREES, 'talents': talents.catalog(),
@@ -2081,15 +2086,15 @@ def charts_set():
         return err
     alloc = (request.get_json(silent=True) or {}).get('alloc')
     now = dt.datetime.now(timezone.utc)
-    problem = talents.validate(alloc, talents.points_total(now))
-    if problem:
-        return jsonify({'error': problem}), 400
-    alloc = talents.clean(alloc)
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('''SELECT owned_items, talent_alloc, talent_rechart_date
+            cur.execute('''SELECT owned_items, talent_alloc, talent_rechart_date, chart_points_bought
                            FROM game_state WHERE user_id = %s FOR UPDATE''', (current_user.id,))
             gs = cur.fetchone()
+            problem = talents.validate(alloc, talents.points_total(now, gs['chart_points_bought']))
+            if problem:
+                return jsonify({'error': problem}), 400
+            alloc = talents.clean(alloc)
             rechart_date = gs['talent_rechart_date']
             if talents.is_refund(gs['talent_alloc'], alloc):
                 if rechart_date == talents.london_date(now):
@@ -2107,8 +2112,36 @@ def charts_set():
                          'wager_double_down' in owned, 'wager_insurance' in owned, current_user.id))
         conn.commit()
     log.info('CHARTS_SET  user_id=%s  alloc=%s', current_user.id, alloc)
-    payload = _charts_payload({'talent_alloc': alloc, 'talent_rechart_date': rechart_date}, now)
+    payload = _charts_payload({**gs, 'talent_alloc': alloc, 'talent_rechart_date': rechart_date}, now)
     return jsonify({**payload, 'owned_items': owned, 'max_stake_pct': compute_max_stake_pct(owned)})
+
+
+@game_bp.route('/api/charts/level-up', methods=['POST'])
+@login_required
+@limiter.limit('10 per second')
+def charts_level_up():
+    """Buy one Chart point with wins. Each costs ×6 the last; resets each tide."""
+    err = require_json()
+    if err:
+        return err
+    now = dt.datetime.now(timezone.utc)
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute('''SELECT wins, talent_alloc, talent_rechart_date, chart_points_bought
+                           FROM game_state WHERE user_id = %s FOR UPDATE''', (current_user.id,))
+            gs = cur.fetchone()
+            bought = gs['chart_points_bought']
+            if talents.points_total(now, bought) >= talents.MAX_POINTS:
+                return jsonify({'error': 'Your Chart is at max level.'}), 409
+            cost = talents.level_cost(bought)
+            if gs['wins'] < cost:
+                return jsonify({'error': f'Level up costs {cost:,} wins.'}), 400
+            cur.execute('''UPDATE game_state SET wins = wins - %s, chart_points_bought = chart_points_bought + 1
+                           WHERE user_id = %s RETURNING wins, chart_points_bought''', (cost, current_user.id))
+            gs = {**gs, **cur.fetchone()}
+        conn.commit()
+    log.info('CHARTS_LEVEL_UP  user_id=%s  bought=%s  cost=%s', current_user.id, gs['chart_points_bought'], cost)
+    return jsonify({**_charts_payload(gs, now), 'wins': int(gs['wins'])})
 
 
 @game_bp.route('/api/community-pot')

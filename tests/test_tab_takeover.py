@@ -18,7 +18,7 @@ def test_bite_poll_limit_is_above_client_poll_rate():
 def _new_context(browser):
     context = browser.new_context()
     context.add_init_script(_dismiss_patch_notes_init())
-    context.add_init_script("localStorage.setItem('whatsNewSeen_s9_charts', '1')")
+    context.add_init_script("localStorage.setItem('whatsNewSeen_s9_levels', '1')")
     return context
 
 

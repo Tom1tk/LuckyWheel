@@ -25,7 +25,7 @@ This doc extends `SEASON_9_SPEC.md`. The S9 baseline (weekly tides, universal au
 | Source | Lesson | Used here |
 |---|---|---|
 | **Path of Exile** keystones; **Diablo II** skill trees | A small number of big, rule-changing nodes creates identity. Ten +2% nodes don't. | One **keystone** per tree. Each one bends a rule and costs something. |
-| **Slay the Spire**, **Balatro** | Builds emerge from *scarcity plus synergy*. You see more good options than you can take. | 10 points against 30 ranks on offer. A full tree costs 10. |
+| **Slay the Spire**, **Balatro** | Builds emerge from *scarcity plus synergy*. You see more good options than you can take. | At most 14 points against 32 ranks on offer. A full tree costs 10–11. |
 | **Hades** mirror (free respec) | Respec friction should be low enough to experiment and high enough that choices stick. | Adding points is always free. A refund (re-chart) is **once per London day**. |
 | **Stardew Valley**, **Animal Crossing** | Time-of-day and seasonal availability make a reason to come back. It isn't a chore if nothing is lost by missing it. | Fish bite at dawn, day, dusk or night, at high or low tide, and two **migrants** visit each tide on a 4-tide cycle. |
 | **Dredge**, **Stardew** fishing bar, **Sea of Thieves** | A short skill fight with readable tension beats a single timing tap. Size and records give mastery a target. | Hook → **tension fight** → land. Weight depends on how cleanly you played. Personal **records** persist. |
@@ -64,8 +64,10 @@ Retired items stay in `SHOP_ITEMS` so `post_rollover_check` and legacy `owned_it
 
 ### 3.1 Points
 
-- **Points this tide = 4 + days the tide has run (0..6).** Days count from Fri 21:00 London. Day 0 gives 4 points; the last day (day 6) gives 10.
-- Everyone has the same total on the same day. A late joiner is never behind on points, so there is nothing to grind and nothing to run away with. The pull back is the daily **new point** to place. ("Your Chart has a new point" is the day-2+ hook.)
+- **Points this tide = min(14, 1 + days the tide has run (0..6) + points bought).** Days count from Fri 21:00 London. With no buying, day 0 gives 1 point and day 6 gives 7.
+- **Levelling up:** `POST /api/charts/level-up` buys one point with wins. The first costs 1,000 wins and each next ×6 (1k, 6k, 36k, 216k, 1.3M, …); wins are spent (`chart_points_bought`, reset each tide). 409 at 14, 400 if short of wins.
+- **Why 14, of 32 ranks:** one full tree (10–11) plus a small splash, so builds stay distinct and no one owns every tree. Sim (`talents` + 28.8k auto-spins/day): a dedicated buyer hits 14 around day 5; a non-buyer ends the tide at 7. Buying spends wins, so it costs leaderboard standing; that is the trade.
+- **Why not a prestige-style reset to 0:** the leaderboard ranks by wins, so wiping them per level would punish the players the feature should reward.
 - **Charting:** `POST /api/charts {alloc}` replaces the whole allocation atomically.
   - If the new allocation contains the old one (only adds), it is always allowed.
   - If it removes anything, it is a **re-chart** and is allowed once per London day (`talent_rechart_date`).
@@ -289,7 +291,8 @@ Net: −3 systems, +2.
 ## 11. UI copy (exact)
 
 - **Charts panel title:** "🧭 Charts".
-- **Charts subtitle:** "{spent} / {total} points · a new point every day of the tide".
+- **Charts level line:** "Level {points} / 14 · 1 to start, +1 free each day, {bought} bought · resets with the tide"; "Next level: {wins} / {cost} 🏆"; button "⬆ Level up · {cost} wins"; at cap "Max level · your Chart is full for this tide".
+- **Charts subtitle:** "{spent} / {points} points placed".
 - **Tree headers:**
   - "🌊 Swell — ride the streak"
   - "🌀 Riptide — bet the tide"
@@ -308,9 +311,9 @@ Net: −3 systems, +2.
   - success "{emoji} {name} · {kg} kg"
   - "+{v} 🐟 · +{s} Surge"
   - "🏆 New record!"
-- **Shop functional notice:** "Gear comes from 🧭 Charts now. The shop sells looks."
+- **Shop Chart strip** (top of the shop, opens the Charts panel): "🧭 Chart", "Lv {points}", "{n} to place" / "{spent} / {points} placed" / "Max level", "Open ›", an XP bar toward the next level, and every talent as an icon (lit when ranked, rank badge if max rank > 1, keystones round).
 - **What's New card** (replaces the S9 card's lines):
-  1. "🧭 Charts: one new point every day. Spend them on Swell, Riptide or Angler — you can't have it all."
+  1. "🧭 Charts: one free point a day, and level up with wins for more, up to 14. Spend them on Swell, Riptide or Angler — you can't have it all."
   2. "🎣 Fishing is a fight now, and every catch charges 🌊 Surge spins for your wheel."
   3. "Every Friday the tide turns: wins and Charts reset; medals, fish and records are forever."
 - **Progressive disclosure:**

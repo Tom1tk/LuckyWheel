@@ -105,9 +105,9 @@ def run_checks(conn, before, live_url=''):
             unreset = cur.fetchone()[0]
             results.append(('wins_reset', unreset == 0, f'{unreset} rows with wins <> 0'))
             cur.execute("SELECT count(*) FROM game_state WHERE talent_alloc <> '{}'::jsonb "
-                        "OR surge_spins <> 0 OR insurance_tokens <> 0")
+                        "OR surge_spins <> 0 OR insurance_tokens <> 0 OR chart_points_bought <> 0")
             unreset = cur.fetchone()[0]
-            results.append(('charts_reset', unreset == 0, f'{unreset} rows kept Chart / Surge / chips'))
+            results.append(('charts_reset', unreset == 0, f'{unreset} rows kept Chart / levels / Surge / chips'))
 
         results.append(('grants_theme', _missing_grant(cur, THEME) == 0, f'{THEME} missing for some rows'))
         results.append(('auto_spin_unlock', _missing_grant(cur, 'auto_spin_unlock') == 0,
