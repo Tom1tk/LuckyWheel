@@ -42,7 +42,7 @@ if [[ "$REHEARSE" != 1 ]]; then
   BACKUP="/home/user/backups/wheeldb_launch_s9_$TS.sql.gz"
   pg_dump "$DATABASE_URL" | gzip > "$BACKUP"
   gzip -t "$BACKUP"
-  [[ $(stat -c %s "$BACKUP") -gt 1000000 ]]
+  [[ $(stat -c %s "$BACKUP") -gt 100000 ]]  # nightly dumps are ~465 KB
   echo "    backup: $BACKUP ($(du -h "$BACKUP" | cut -f1))"
 
   step "merge staging -> master"
