@@ -208,7 +208,7 @@ Lessons from `SEASON_8_LAUNCH_POSTMORTEM.md` are encoded here as hard rules.
 - **Rehearse the whole ordered launch script on the clone, test-account delete included** (also in Phase 3). Gate: `count(username ~ '^t[0-9]') == count(ip_address='127.0.0.1')` (2145 at G0) before the delete, so no real player is matched; no FK errors or orphans afterwards; no test residue in aggregates (community-goal totals, singularity totals, chat, jackpot pool).
 
 ### 7.2 🧑 H3 — Go/no-go (+ README review)
-Orchestrator presents: pre-flight results, backup path, migration list, proposed launch time (default: a Friday 21:00 UK, aligned with the weekly reset), rollback commands, **and the link to the rendered README on branch `readme-revival`**. **User says go.** Outward-facing: affects the friends' accounts and the public repo. Never autonomous.
+Orchestrator presents: pre-flight results, backup path, migration list, proposed launch time (default: a Friday 21:00 UK, aligned with the weekly reset), rollback commands, **and the link to the rendered README on branch `staging`**. **User says go.** Outward-facing: affects the friends' accounts and the public repo. Never autonomous.
 
 ### 7.3 Launch (single atomic window — no half-migrated state)
 1. Maintenance flag on (or launch at a quiet hour) → backup.
@@ -221,7 +221,7 @@ Orchestrator presents: pre-flight results, backup path, migration list, proposed
    - `/api/health`, `/api/state`, `/api/season`, `/api/leaderboard`, `/api/chat` OK; chat shows usernames (the S8 bug #2).
    - Playwright smoke on prod with a throwaway account → screenshot → delete that account.
 5. Install the prod rollover timer; confirm `systemctl list-timers` shows the next Friday.
-6. Merge `readme-revival` → master, push; confirm images render on GitHub.
+6. Confirm the README images render on GitHub (`readme-revival` was merged into staging on 2026-10-09, so step 3 ships it).
 7. System chat message announcing the season.
 
 ### 7.4 🤖 G4 + 48h watch

@@ -41,7 +41,7 @@ A cleaner fight lands a **heavier fish**, and heavier fish are worth more 🐟. 
 
 ### 🌊 Surge: Fishing Powers the Wheel
 
-Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip above the wheel shows your Surge. **Bounties now pay Surge** too: 100, 200 and 300 spins. Bounties are now streaks and fishing only (land fish in a fight, a rare, a trophy-sized catch), so every build can finish them.
+Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip under your score shows how many Surge spins you have left and what they pay, and the first time you earn Surge a short card explains it. **Bounties now pay Surge** too: 100, 200 and 300 spins. Bounties are now streaks and fishing only (land fish in a fight, a rare, a trophy-sized catch), so every build can finish them.
 
 ### 🐠 46 Species
 
@@ -49,7 +49,9 @@ The Encyclopaedia has grown from 13 to **46** fish. Many only bite at **dawn, da
 
 ### 🪙 Stake Chips
 
-Free tokens are now **stake chips**: 3 a day. A chip pays for one staked spin or arms insurance.
+Free tokens are now **stake chips**: 3 a day. A chip pays for one staked spin or arms insurance. Once you've claimed today's chips, the button says so.
+
+The **stake panel** is new too: tap to raise your stake in 5% steps, and it shows what you'd win or lose before you spin.
 
 ### 🏛 Hall of Fame and Medals
 
@@ -80,6 +82,9 @@ To keep the weekly race fair, a few systems built for endless seasons are retire
 - Being rate-limited now says **"Slow down a moment"** instead of a bare "Spin failed".
 - If the wheel is open in two tabs, the paused tab says so and offers a **Play here** button to move over.
 - The leaderboard shows "No wins yet. Spin to take the top spot." right after a reset instead of disappearing.
+- The animated background is much lighter, so the game runs smoother on older laptops.
+- Dice work on touch screens, and a greyed-out dice button now says why.
+- The **Community Goal** now sits under Bounties, so it no longer covers the **Cast** button on smaller screens.
 
 ---
 
