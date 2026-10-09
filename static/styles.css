@@ -1,4 +1,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+/* One scrollbar style everywhere (the shop's): thin and themed. Scroll areas
+   use overflow: auto, so a bar only shows when content overflows. */
+* { scrollbar-width: thin; scrollbar-color: var(--p) #111; }
 
 /* Seabed background iframe — full-screen, behind everything */
 #seabed-bg {
@@ -1374,8 +1377,6 @@ body::before {
   flex: 1;
   overflow-y: auto;
   padding: 4px 6px 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--p) #111;
 }
 
 .shop-header {
@@ -1925,12 +1926,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   overflow-y: auto;
   flex: 1;
   padding-right: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--p-rgb),0.3) transparent;
 }
-.patch-notes-body::-webkit-scrollbar { width: 6px; }
-.patch-notes-body::-webkit-scrollbar-thumb { background: rgba(var(--p-rgb),0.3); border-radius: 3px; }
-.patch-notes-body::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Apology Popup ──────────────────────────────────────────────────────── */
 
@@ -2621,8 +2617,6 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--p-xs) #0a0010;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3009,7 +3003,7 @@ body.page-season1 .shop-title { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
 body.page-season1 .shop-balance span { color: #FFD700; }
 body.page-season1 .shop-tabs { border-bottom-color: rgba(255,215,0,0.2); }
 body.page-season1 .shop-tab.active { color: #FFD700; border-bottom-color: #FFD700; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
-body.page-season1 .shop-tab-content { scrollbar-color: #FFD700 #111; }
+body.page-season1 * { scrollbar-color: #FFD700 #111; }
 body.page-season1 .shop-item { background: rgba(255,215,0,0.04); border-color: rgba(255,215,0,0.15); }
 body.page-season1 .shop-item.owned { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.07); }
 body.page-season1 .shop-item.equipped { border-color: #FFD700; background: rgba(255,215,0,0.12); box-shadow: 0 0 8px rgba(255,215,0,0.2); }
@@ -3120,7 +3114,7 @@ body.page-season2 .shop-title { color: #00CC44; text-shadow: 0 0 10px #00CC44; }
 body.page-season2 .shop-balance span { color: #00CC44; }
 body.page-season2 .shop-tabs { border-bottom-color: rgba(0,204,68,0.2); }
 body.page-season2 .shop-tab.active { color: #00CC44; border-bottom-color: #00CC44; text-shadow: 0 0 8px rgba(0,204,68,0.5); }
-body.page-season2 .shop-tab-content { scrollbar-color: #00CC44 #111; }
+body.page-season2 * { scrollbar-color: #00CC44 #111; }
 body.page-season2 .shop-item { background: rgba(0,204,68,0.03); border-color: rgba(0,204,68,0.12); }
 body.page-season2 .shop-item.owned { border-color: rgba(0,204,68,0.4); background: rgba(0,204,68,0.07); }
 body.page-season2 .shop-item.equipped { border-color: #00CC44; background: rgba(0,204,68,0.12); box-shadow: 0 0 8px rgba(0,204,68,0.2); }
@@ -3361,7 +3355,7 @@ body.page-season3 .shop-title { color: #AA00FF; text-shadow: 0 0 10px #AA00FF; }
 body.page-season3 .shop-balance span { color: #AA00FF; }
 body.page-season3 .shop-tabs { border-bottom-color: rgba(170,0,255,0.2); }
 body.page-season3 .shop-tab.active { color: #AA00FF; border-bottom-color: #AA00FF; text-shadow: 0 0 8px rgba(170,0,255,0.5); }
-body.page-season3 .shop-tab-content { scrollbar-color: #AA00FF #111; }
+body.page-season3 * { scrollbar-color: #AA00FF #111; }
 body.page-season3 .shop-item { background: rgba(170,0,255,0.03); border-color: rgba(170,0,255,0.12); }
 body.page-season3 .shop-item.owned { border-color: rgba(170,0,255,0.4); background: rgba(170,0,255,0.07); }
 body.page-season3 .shop-item.equipped { border-color: #AA00FF; background: rgba(170,0,255,0.12); box-shadow: 0 0 8px rgba(170,0,255,0.2); }
@@ -3434,7 +3428,7 @@ body.page-season5 .shop-title { color: #00E5FF; text-shadow: 0 0 10px #00E5FF; }
 body.page-season5 .shop-balance span { color: #00E5FF; }
 body.page-season5 .shop-tabs { border-bottom-color: rgba(0,229,255,0.2); }
 body.page-season5 .shop-tab.active { color: #00E5FF; border-bottom-color: #00E5FF; text-shadow: 0 0 8px rgba(0,229,255,0.5); }
-body.page-season5 .shop-tab-content { scrollbar-color: #00E5FF #050f1a; }
+body.page-season5 * { scrollbar-color: #00E5FF #050f1a; }
 body.page-season5 .shop-item { background: rgba(0,229,255,0.03); border-color: rgba(0,229,255,0.12); }
 body.page-season5 .shop-item.owned { border-color: rgba(0,229,255,0.4); background: rgba(0,229,255,0.07); }
 body.page-season5 .shop-item.equipped { border-color: #00E5FF; background: rgba(0,229,255,0.12); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
@@ -3555,8 +3549,6 @@ body.page-season5 .shop-tab-content--cosmetic .shop-item-cost { color: #FF6B6B; 
 body.page-season5 .shop-active-badge { color: #00E5FF !important; border-color: #00E5FF !important; }
 /* Fortune charm bonus flash */
 body.page-season5 .bonus-line.fortune-charm-line { color: #00E5FF; text-shadow: 0 0 12px rgba(0,229,255,0.7); }
-/* Chat scrollbar */
-body.page-season5 .chat-messages { scrollbar-color: #006080 #000509; }
 
 /* ── Season 4 Theme (cosmetic override) ─────────────────────────────────── */
 /* The classic purple — identical to the default base theme                  */
@@ -3589,7 +3581,7 @@ body.page-season4 .shop-title { color: #AA00FF; text-shadow: 0 0 10px #AA00FF; }
 body.page-season4 .shop-balance span { color: #AA00FF; }
 body.page-season4 .shop-tabs { border-bottom-color: rgba(170,0,255,0.2); }
 body.page-season4 .shop-tab.active { color: #AA00FF; border-bottom-color: #AA00FF; text-shadow: 0 0 8px rgba(170,0,255,0.5); }
-body.page-season4 .shop-tab-content { scrollbar-color: #AA00FF #111; }
+body.page-season4 * { scrollbar-color: #AA00FF #111; }
 body.page-season4 .shop-item { background: rgba(170,0,255,0.03); border-color: rgba(170,0,255,0.12); }
 body.page-season4 .shop-item.owned { border-color: rgba(170,0,255,0.4); background: rgba(170,0,255,0.07); }
 body.page-season4 .shop-item.equipped { border-color: #AA00FF; background: rgba(170,0,255,0.12); box-shadow: 0 0 8px rgba(170,0,255,0.2); }
@@ -3781,8 +3773,6 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
 
 .hof-card { width: min(520px, 92vw); max-height: 82vh; display: flex; flex-direction: column; }
 .hof-body { overflow-y: auto; padding-right: 4px; }
-.hof-body::-webkit-scrollbar { width: 6px; }
-.hof-body::-webkit-scrollbar-thumb { background: rgba(var(--p-rgb),0.3); border-radius: 3px; }
 .hof-empty { color: #6f8290; font-size: 0.72rem; letter-spacing: 1px; padding: 4px 0 10px; }
 .hof-medals { margin-bottom: 8px; }
 .hof-medal-row {
