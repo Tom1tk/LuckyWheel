@@ -186,6 +186,7 @@ class TestCastLine:
             queue_fetchone=[
                 {
                     "owned_items": ["lure_3"],
+                    "talent_alloc": {}, "fish_records": {},
                     "fishing_cast_at": None,
                     "fishing_bite_at": None,
                 }
@@ -210,6 +211,7 @@ class TestCastLine:
             queue_fetchone=[
                 {
                     "owned_items": [],
+                    "talent_alloc": {}, "fish_records": {},
                     "fishing_cast_at": self.NOW - dt.timedelta(seconds=2),
                     "fishing_bite_at": active_bite,
                 }
@@ -238,6 +240,7 @@ class TestCastLine:
             queue_fetchone=[
                 {
                     "owned_items": [],
+                    "talent_alloc": {}, "fish_records": {},
                     "fishing_cast_at": self.NOW - dt.timedelta(seconds=10),
                     "fishing_bite_at": stale_bite,
                 }
@@ -255,6 +258,7 @@ class TestCastLine:
             queue_fetchone=[
                 {
                     "owned_items": [],
+                    "talent_alloc": {}, "fish_records": {},
                     "fishing_cast_at": None,
                     "fishing_bite_at": None,
                 }
@@ -326,6 +330,7 @@ class TestReelLine:
     def _row(self, **kw):
         defaults = {
             "owned_items": [],
+            "talent_alloc": {}, "fish_records": {},
             "fishing_cast_at": self.CAST_AT,
             "fishing_bite_at": self.BITE,
             "fishing_lucky_next": False,
@@ -574,6 +579,7 @@ class TestAutoFishTick:
     def _row(self, **kw):
         row = {
             "owned_items": ["autofisher_2"],
+            "talent_alloc": {}, "fish_records": {},
             "fish_clicks": 0,
             "caught_species": [],
             "auto_fish_last_tick": None,
@@ -669,6 +675,7 @@ class TestSetAutoFishEnabled:
             queue_fetchone=[
                 {
                     "owned_items": ["autofisher_1"],
+                    "talent_alloc": {}, "fish_records": {},
                     "auto_fish_enabled": False,
                 }
             ]
@@ -685,6 +692,7 @@ class TestSetAutoFishEnabled:
             queue_fetchone=[
                 {
                     "owned_items": [],
+                    "talent_alloc": {}, "fish_records": {},
                     "auto_fish_enabled": True,
                 }
             ]
@@ -700,6 +708,7 @@ class TestSetAutoFishEnabled:
             queue_fetchone=[
                 {
                     "owned_items": ["autofisher_1"],
+                    "talent_alloc": {}, "fish_records": {},
                     "auto_fish_enabled": True,
                 }
             ]
@@ -715,6 +724,7 @@ class TestSetAutoFishEnabled:
             queue_fetchone=[
                 {
                     "owned_items": ["autofisher_1"],
+                    "talent_alloc": {}, "fish_records": {},
                     "auto_fish_enabled": True,
                 }
             ]

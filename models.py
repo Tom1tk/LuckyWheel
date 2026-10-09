@@ -9,65 +9,12 @@ class User(UserMixin):
         self.username = username
 
 
-# ── Fishing minigame catalog ───────────────────────────────────────────────
-# weight values sum to 100; they represent percentage probability of a catch.
-FISH_CATALOG = {
-    'minnow':     {'emoji': '🐟', 'name': 'Minnow',     'value':   1, 'weight': 30.0, 'tier': 'Common'},
-    'shrimp':     {'emoji': '🦐', 'name': 'Shrimp',      'value':   2, 'weight': 12.0, 'tier': 'Common'},
-    'clownfish':  {'emoji': '🐠', 'name': 'Clownfish',   'value':   3, 'weight': 15.0, 'tier': 'Common'},
-    'pufferfish': {'emoji': '🐡', 'name': 'Pufferfish',  'value':   3, 'weight': 12.0, 'tier': 'Common'},
-    'crab':       {'emoji': '🦀', 'name': 'Crab',        'value':   8, 'weight': 10.0, 'tier': 'Uncommon'},
-    'squid':      {'emoji': '🦑', 'name': 'Squid',       'value':   8, 'weight':  8.0, 'tier': 'Uncommon'},
-    'octopus':    {'emoji': '🐙', 'name': 'Octopus',     'value':  12, 'weight':  5.0, 'tier': 'Uncommon'},
-    'lobster':    {'emoji': '🦞', 'name': 'Lobster',     'value':  20, 'weight':  4.0, 'tier': 'Rare'},
-    'dolphin':    {'emoji': '🐬', 'name': 'Dolphin',     'value':  30, 'weight':  2.0, 'tier': 'Rare'},
-    'shark':      {'emoji': '🦈', 'name': 'Shark',       'value':  40, 'weight':  1.5, 'tier': 'Rare'},
-    'whale':      {'emoji': '🐋', 'name': 'Blue Whale',  'value':  75, 'weight':  0.5, 'tier': 'Legendary'},
-    'mermaid':    {'emoji': '🧜', 'name': 'Mermaid',     'value': 120, 'weight':  0.2, 'tier': 'Legendary'},
-    'lucky':      {'emoji': '⭐', 'name': 'Lucky Fish',  'value': 100, 'weight':  0.3, 'tier': 'Legendary', 'doubles_next': True},
-}
+# ── Fishing minigame catalog (Season 9: fish_catalog.py) ──────────────────
+from fish_catalog import FISH_CATALOG, roll_fish  # noqa: E402,F401
 
-# Legendary fish never catchable by auto-fish at any level
-_AUTO_FISH_LEGENDARY = frozenset({'whale', 'mermaid', 'lucky'})
-# Rare fish excluded at autofisher levels 1–3; unlocked by autofisher_4 (Master Auto-Fisher)
-_AUTO_FISH_RARE = frozenset({'lobster', 'dolphin', 'shark'})
-# Combined exclusion for levels 1–3
-AUTO_FISH_EXCLUDED = _AUTO_FISH_LEGENDARY | _AUTO_FISH_RARE
-
-# Pre-built weighted lists for roll_fish()
-_ALL_IDS     = list(FISH_CATALOG.keys())
-_ALL_WEIGHTS = [FISH_CATALOG[k]['weight'] for k in _ALL_IDS]
-# Levels 1–3: common + uncommon only
-_AUTO_IDS    = [k for k in _ALL_IDS if k not in AUTO_FISH_EXCLUDED]
-_AUTO_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_IDS]
-# Level 4 (Master): common + uncommon + rare; still no legendary
-_AUTO_RARE_IDS    = [k for k in _ALL_IDS if k not in _AUTO_FISH_LEGENDARY]
-_AUTO_RARE_WEIGHTS= [FISH_CATALOG[k]['weight'] for k in _AUTO_RARE_IDS]
-
-
-def roll_fish(
-    auto_mode: bool,
-    allow_rare: bool = False,
-    master_lure: bool = False,
-    happy_hour: bool = False,
-) -> str:
-    """Return a random fish species ID weighted by rarity.
-    master_lure=True adds +1% to each legendary species — manual only.
-    happy_hour=True adds +50% weight to legendary species — manual only.
-    """
-    if auto_mode:
-        if allow_rare:
-            return random.choices(_AUTO_RARE_IDS, weights=_AUTO_RARE_WEIGHTS, k=1)[0]
-        return random.choices(_AUTO_IDS, weights=_AUTO_WEIGHTS, k=1)[0]
-    if master_lure or happy_hour:
-        legend_bonus = (1.0 if master_lure else 0.0)
-        hh_bonus     = 0.5 if happy_hour else 0.0
-        boosted = [
-            w + (legend_bonus + FISH_CATALOG[k]['weight'] * hh_bonus if k in _AUTO_FISH_LEGENDARY else 0.0)
-            for k, w in zip(_ALL_IDS, _ALL_WEIGHTS)
-        ]
-        return random.choices(_ALL_IDS, weights=boosted, k=1)[0]
-    return random.choices(_ALL_IDS, weights=_ALL_WEIGHTS, k=1)[0]
+_AUTO_FISH_LEGENDARY = frozenset(k for k, f in FISH_CATALOG.items() if f['rarity'] == 'legendary')
+# Rares need Old Salt (autofisher_4); legendaries never bite for auto-fish.
+AUTO_FISH_EXCLUDED = _AUTO_FISH_LEGENDARY | frozenset(k for k, f in FISH_CATALOG.items() if f['rarity'] == 'rare')
 
 
 def lure_bite_delay_seconds(lure_level: int) -> tuple[float, float]:
@@ -94,9 +41,9 @@ def autofisher_catch_rate(autofisher_level: int) -> float:
 
 
 def fish_value(species_id: str, lure_level: int) -> int:
-    """Base catalog value × lure multiplier (Lucky Fish / Precise Angler doubling applied externally)."""
+    """Base catalog value × lure multiplier; junk is worth 0 (Lucky / Catch of the Day applied externally)."""
     base = FISH_CATALOG[species_id]['value']
-    return max(1, int(base * lure_value_multiplier(lure_level)))
+    return max(1, int(base * lure_value_multiplier(lure_level))) if base else 0
 
 
 FISH_SKINS = {

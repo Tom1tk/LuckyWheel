@@ -60,6 +60,9 @@ from community_goals import (
 )
 from seasons import get_season_info
 from wheel_modes import get_week_number
+import psycopg2.extras
+import talents
+from fish_catalog import roll_kg, update_records, DEEP_SEA_BITE_MULT
 
 log = logging.getLogger("wheel")
 
@@ -75,6 +78,17 @@ REEL_MIN_DELTA_SECONDS = 0.05
 # EWMA smoothing factor for precise_pct telemetry
 # (lower = slower response).
 _EWMA_ALPHA = 0.15
+
+
+def size_up_catch(sid: str, base_value: int, quality: float, alloc: dict,
+                  records: dict, auto: bool) -> dict:
+    """Weigh one catch: kg, size-scaled 🐟 value, Surge earned, records (spec §4–5)."""
+    kg, ratio = roll_kg(sid, quality)
+    value = max(1, int(base_value * (0.5 + ratio))) if base_value else 0
+    surge = talents.catch_surge(alloc, FISH_CATALOG[sid]["rarity"], ratio, auto)
+    records, new_record = update_records(records, sid, kg)
+    return {"kg": kg, "value": value, "surge": surge,
+            "records": records, "new_record": new_record}
 
 
 # ── SUM(fish_clicks) cache ─────────────────────────────────────────────────
@@ -177,7 +191,7 @@ def cast_line(
     """
     r = rand if rand is not None else random
     cur.execute(
-        "SELECT owned_items, fishing_cast_at, fishing_bite_at "
+        "SELECT owned_items, fishing_cast_at, fishing_bite_at, talent_alloc "
         "FROM game_state WHERE user_id = %s FOR UPDATE",
         (user_id,),
     )
@@ -194,6 +208,8 @@ def cast_line(
     lure_lvl = lure_level(owned)
     min_delay, max_delay = lure_bite_delay_seconds(lure_lvl)
     delay = r.uniform(min_delay, max_delay)
+    if talents.keystone(gs["talent_alloc"]) == "deep_sea":
+        delay *= DEEP_SEA_BITE_MULT
     new_bite_at = now_utc + timedelta(seconds=delay)
 
     # 50% chance of a fake nibble partway through the wait (adds tension)
@@ -265,7 +281,8 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                   fishing_lucky_next, caught_species, fish_clicks,
                   fastest_catch_pct,
                   suspicious_catches, catch_count, catch_pct_ewma,
-                  catch_of_the_day_date, onboarding_step
+                  catch_of_the_day_date, onboarding_step,
+                  talent_alloc, fish_records
            FROM game_state WHERE user_id = %s FOR UPDATE""",
         (user_id,),
     )
@@ -316,11 +333,16 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
     owned = list(gs["owned_items"])
     lure_lvl = lure_level(owned)
     happy_hour = _is_happy_hour(now_utc)
+    alloc = gs["talent_alloc"]
     species_id = roll_fish(
-        auto_mode=False, master_lure=(lure_lvl >= 5), happy_hour=happy_hour
+        auto_mode=False, master_lure=(lure_lvl >= 5), happy_hour=happy_hour,
+        now=now_utc, deep_sea=talents.keystone(alloc) == "deep_sea",
     )
     species = FISH_CATALOG[species_id]
-    value = fish_value(species_id, lure_lvl)
+    # ponytail: neutral quality until the D4 fight reports a real one.
+    catch = size_up_catch(species_id, fish_value(species_id, lure_lvl), 0.5,
+                          alloc, gs["fish_records"], auto=False)
+    value = catch["value"]
     lucky_next = bool(gs["fishing_lucky_next"])
     caught_species = list(gs["caught_species"])
     was_doubled = False
@@ -391,7 +413,8 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                SET fish_clicks = %s, fishing_lucky_next = %s,
                    caught_species = %s, fastest_catch_pct = %s,
                    suspicious_catches = %s, catch_count = %s,
-                   catch_pct_ewma = %s, catch_of_the_day_date = %s
+                   catch_pct_ewma = %s, catch_of_the_day_date = %s,
+                   surge_spins = surge_spins + %s, fish_records = %s
                WHERE user_id = %s""",
             (
                 new_fish_clicks,
@@ -402,6 +425,8 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                 new_catch_count,
                 new_ewma,
                 now_utc.date(),
+                catch["surge"],
+                psycopg2.extras.Json(catch["records"]),
                 user_id,
             ),
         )
@@ -411,7 +436,8 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                SET fish_clicks = %s, fishing_lucky_next = %s,
                    caught_species = %s, fastest_catch_pct = %s,
                    suspicious_catches = %s, catch_count = %s,
-                   catch_pct_ewma = %s
+                   catch_pct_ewma = %s,
+                   surge_spins = surge_spins + %s, fish_records = %s
                WHERE user_id = %s""",
             (
                 new_fish_clicks,
@@ -421,6 +447,8 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
                 new_suspicious,
                 new_catch_count,
                 new_ewma,
+                catch["surge"],
+                psycopg2.extras.Json(catch["records"]),
                 user_id,
             ),
         )
@@ -447,6 +475,10 @@ def reel_line(cur, conn, user_id: int, now_utc: dt.datetime) -> dict | tuple[int
         "fish_clicks": new_fish_clicks,
         "catch_of_day_bonus": catch_of_day_bonus,
         "onboarding_advance": onboarding_advance,
+        "rarity": species["rarity"],
+        "kg": catch["kg"],
+        "new_record": catch["new_record"],
+        "surge": catch["surge"],
     }
 
 
@@ -465,7 +497,8 @@ def auto_fish_tick(
     r = rand if rand is not None else random
     cur.execute(
         """SELECT owned_items, fish_clicks, caught_species,
-                  auto_fish_last_tick, lure_mastery_level, equipped_class
+                  auto_fish_last_tick, lure_mastery_level, equipped_class,
+                  talent_alloc, fish_records
            FROM game_state WHERE user_id = %s FOR UPDATE""",
         (user_id,),
     )
@@ -498,14 +531,19 @@ def auto_fish_tick(
         }
 
     lure_lvl = lure_level(owned)
-    species_id = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4))
+    alloc = gs["talent_alloc"]
+    species_id = roll_fish(
+        auto_mode=True, allow_rare=(autofisher_lvl >= 4),
+        now=now_utc, deep_sea=talents.keystone(alloc) == "deep_sea",
+    )
     species = FISH_CATALOG[species_id]
-    base_value = fish_value(species_id, lure_lvl)
     lm_mult = lure_mastery_mult(gs["lure_mastery_level"])
     earth_mult = (
         1.0 + CLASS_EARTH_FISH_BONUS if gs["equipped_class"] == "earth" else 1.0
     )
-    value = max(1, int(base_value * lm_mult * earth_mult))
+    catch = size_up_catch(species_id, fish_value(species_id, lure_lvl), r.random(),
+                          alloc, gs["fish_records"], auto=True)
+    value = int(catch["value"] * lm_mult * earth_mult)
     caught_species = list(gs["caught_species"])
     first_catch = species_id not in caught_species
     if first_catch:
@@ -515,9 +553,11 @@ def auto_fish_tick(
 
     cur.execute(
         "UPDATE game_state SET fish_clicks = %s, caught_species = %s, "
-        "auto_fish_last_tick = %s, auto_fish_enabled = TRUE "
+        "auto_fish_last_tick = %s, auto_fish_enabled = TRUE, "
+        "surge_spins = surge_spins + %s, fish_records = %s "
         "WHERE user_id = %s",
-        (new_fish_clicks, caught_species, now_utc, user_id),
+        (new_fish_clicks, caught_species, now_utc, catch["surge"],
+         psycopg2.extras.Json(catch["records"]), user_id),
     )
 
     return {
@@ -528,6 +568,10 @@ def auto_fish_tick(
         "value": value,
         "first_catch": first_catch,
         "fish_clicks": new_fish_clicks,
+        "rarity": species["rarity"],
+        "kg": catch["kg"],
+        "new_record": catch["new_record"],
+        "surge": catch["surge"],
     }
 
 
