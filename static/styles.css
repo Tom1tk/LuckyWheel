@@ -4864,8 +4864,9 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   font-weight: 700;
   transition: opacity 0.15s, transform 0.1s;
 }
-.free-tokens-claim-btn:hover { opacity: 0.85; }
-.free-tokens-claim-btn:active { transform: scale(0.97); }
+.free-tokens-claim-btn:hover:not(:disabled) { opacity: 0.85; }
+.free-tokens-claim-btn:active:not(:disabled) { transform: scale(0.97); }
+.free-tokens-claim-btn:disabled { background: rgba(255,184,77,0.12); color: #ffb84d; cursor: default; }
 .free-tokens-claimed {
   font-size: 0.6rem;
   color: #999;
@@ -5396,6 +5397,31 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
 .catch-side-record { color: #FFD700; }
 
 /* ── S9 Surge chip ─────────────────────────────────────────────────────── */
+.surge-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  margin: -4px 0 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(63, 214, 198, 0.55);
+  border-radius: 10px;
+  background: rgba(63, 214, 198, 0.08);
+  color: #cfeeea;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.surge-hint-btn {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid #3FD6C6;
+  border-radius: 999px;
+  background: transparent;
+  color: #3FD6C6;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.surge-hint-btn:hover { background: rgba(63, 214, 198, 0.15); }
 .surge-chip {
   margin: -6px 0 10px;
   padding: 3px 12px;

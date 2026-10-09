@@ -420,6 +420,12 @@ def test_no_recharge_in_state():
         "/api/state response must include the new 'insurance_free_claimed_date' "
         "key (T119 daily-claim gate)"
     )
+    # ...and get_state must actually SELECT it, or the key is always None
+    # and the claim button reverts to unclaimed on every reload.
+    state_sql = src.split('def get_state', 1)[1].split('FROM game_state', 1)[0]
+    assert 'insurance_free_claimed_date' in state_sql, (
+        "get_state's SELECT must read insurance_free_claimed_date"
+    )
 
 
 # ════════════════════════════════════════════════════════════════════════════
