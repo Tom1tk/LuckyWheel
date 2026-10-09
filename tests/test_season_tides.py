@@ -311,6 +311,17 @@ def test_rollover_keeps_running_auto_spin_and_leaves_stopped_alone(conn):
     assert _state(conn, stopped)['auto_spin_since'] is None
 
 
+def test_rollover_switches_auto_fish_off(conn):
+    uid = _make_user(conn)
+    _set_state(conn, uid, auto_fish_enabled=True, auto_fish_last_tick=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    gs = _state(conn, uid)
+    assert gs['auto_fish_enabled'] is False and gs['auto_fish_last_tick'] is None
+
+
 # ── RV-05: rollover chat message + weekly goal ───────────────────────────────
 
 def _podium_users(conn, wins_list):
