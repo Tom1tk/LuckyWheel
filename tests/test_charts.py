@@ -385,6 +385,15 @@ def test_rechart_drops_armed_double_down_insurance_and_class(user, db_url):
     assert not gs['double_down_pending'] and not gs['insurance_armed'] and gs['equipped_class'] is None
 
 
+def test_rechart_dropping_deckhand_switches_auto_fish_off(user, db_url):
+    client, username = user
+    assert _chart(client, {'rich_waters': 2, 'deckhand': 1})[0] == 200
+    _set(db_url, username, auto_fish_enabled=True, auto_fish_last_tick=dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc))
+    assert _chart(client, {'rich_waters': 2})[0] == 200
+    gs = _get(db_url, username)
+    assert gs['auto_fish_enabled'] is False and gs['auto_fish_last_tick'] is None
+
+
 def test_wins_to_fish_exchange_is_closed(user, db_url):
     client, username = user
     r = client.post('/api/wins-exchange', json={'amount': 'all'}, headers={'X-CSRFToken': _read_csrf(client)})

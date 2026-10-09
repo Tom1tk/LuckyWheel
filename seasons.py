@@ -261,6 +261,8 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                    fastest_catch_pct = NULL,
                    auto_spin_since = CASE WHEN auto_spin_since IS NOT NULL THEN %(starts)s END,
                    last_spin_at    = CASE WHEN auto_spin_since IS NOT NULL THEN %(starts)s END,
+                   -- the Chart (and its auto-fisher) resets, so stale auto-fish time can't pay into the new tide
+                   auto_fish_enabled = FALSE, auto_fish_last_tick = NULL,
                    season_registered = FALSE,
                    -- T218: do NOT carry over prior-season wins into S{N}'s legacy_wins.
                    -- legacy_wins is now a per-season prestige counter, reset to 0 at

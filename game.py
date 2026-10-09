@@ -2102,15 +2102,18 @@ def charts_set():
                     return jsonify({'error': 'You can re-chart once a day — come back tomorrow.'}), 409
                 rechart_date = talents.london_date(now)
             owned = talents.recompute_owned(list(gs['owned_items']), alloc)
-            # A re-chart that drops Double or Nothing / Safety Line also drops what they armed.
+            # A re-chart that drops Double or Nothing / Safety Line / Deckhand also drops what they armed.
             # Classes are shop gear the Chart never grants, so charting unequips them.
             cur.execute('''UPDATE game_state SET talent_alloc = %s, talent_rechart_date = %s, owned_items = %s,
                                   double_down_pending = double_down_pending AND %s,
                                   insurance_armed = insurance_armed AND %s,
+                                  auto_fish_enabled = auto_fish_enabled AND %s,
+                                  auto_fish_last_tick = CASE WHEN %s THEN auto_fish_last_tick END,
                                   equipped_class = NULL
                            WHERE user_id = %s''',
                         (psycopg2.extras.Json(alloc), rechart_date, owned,
-                         'wager_double_down' in owned, 'wager_insurance' in owned, current_user.id))
+                         'wager_double_down' in owned, 'wager_insurance' in owned,
+                         'autofisher_1' in owned, 'autofisher_1' in owned, current_user.id))
         conn.commit()
     log.info('CHARTS_SET  user_id=%s  alloc=%s', current_user.id, alloc)
     payload = _charts_payload({**gs, 'talent_alloc': alloc, 'talent_rechart_date': rechart_date}, now)
