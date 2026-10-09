@@ -136,7 +136,7 @@ Tree sizes: Swell 10, Riptide 12, Angler 11. With 10 points, a full tree means g
 - **Auto** catches (tick and AFK catch-up) give **×0.25**, rounded, with a minimum of 1 for non-junk.
 - Each spin, manual or auto (including the auto-spin catch-up), spends 1 Surge spin while any remain. A Surge spin pays **(win mult + M − 1)** and **(bonus mult + M − 1)**. That is *additive*, not multiplicative: M = 5 for everyone, 25/50/100 with Rich Waters.
 - Additive is deliberate. Multiplicative surge × Undertow made the best hybrid 1.8e10 against 1.7e9 for pure Swell (sim run6). Additive brings it to 2.8e9 (run7).
-- The UI shows **"🌊 Surge ×M · N spins"** above the wheel while N > 0.
+- The UI shows **"🌊 Surge ×M · N spins"** under the wins / losses scoreboard while N > 0.
 
 ## 5. Fishing: the Fight
 
