@@ -197,7 +197,8 @@ function FireEffect(_ref) {
     // Lerped display values — these change every frame, never trigger re-mounts
     var dispInt = targetRef.current.intensity;
     var dispInfern = targetRef.current.inferno;
-    var last = 0;
+    var last = 0,
+      blank = false;
     var FRAME_MS = lowSpec ? 1000 / 24 : 1000 / 40;
     function tick(ts) {
       if (ts - last < FRAME_MS) {
@@ -216,7 +217,9 @@ function FireEffect(_ref) {
       if (Math.abs(dispInfern - tgt.inferno) < 0.001) dispInfern = tgt.inferno;
       var cw = canvas.width,
         ch = canvas.height;
-      ctx.clearRect(0, 0, cw, ch);
+      // No streak and already blank: leave the canvas untouched so the compositor has nothing to re-upload.
+      if (dispInt > 0 || !blank) ctx.clearRect(0, 0, cw, ch);
+      blank = dispInt === 0;
       if (dispInt > 0) {
         if (activeMode === 1) renderEmbers(ctx, cw, ch, dispInt, ts / 1000, stateRef.current);else if (activeMode === 2) renderMix(ctx, cw, ch, dispInt, dispInfern, ts / 1000, stateRef.current);else if (activeMode === 3) renderInferno(ctx, cw, ch, dispInfern, stateRef.current);
       }

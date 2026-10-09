@@ -133,7 +133,7 @@ function FireEffect({ streak, mode, lowSpec }) {
     let dispInt    = targetRef.current.intensity;
     let dispInfern = targetRef.current.inferno;
 
-    let last = 0;
+    let last = 0, blank = false;
     const FRAME_MS = lowSpec ? 1000 / 24 : 1000 / 40;
 
     function tick(ts) {
@@ -150,7 +150,9 @@ function FireEffect({ streak, mode, lowSpec }) {
       if (Math.abs(dispInfern - tgt.inferno)   < 0.001) dispInfern = tgt.inferno;
 
       const cw = canvas.width, ch = canvas.height;
-      ctx.clearRect(0, 0, cw, ch);
+      // No streak and already blank: leave the canvas untouched so the compositor has nothing to re-upload.
+      if (dispInt > 0 || !blank) ctx.clearRect(0, 0, cw, ch);
+      blank = dispInt === 0;
       if (dispInt > 0) {
         if (activeMode === 1) renderEmbers(ctx, cw, ch, dispInt, ts / 1000, stateRef.current);
         else if (activeMode === 2) renderMix(ctx, cw, ch, dispInt, dispInfern, ts / 1000, stateRef.current);
