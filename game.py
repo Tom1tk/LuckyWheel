@@ -2378,7 +2378,13 @@ def land_line():
 @game_bp.route('/api/fish-catalog', methods=['GET'])
 @login_required
 def fish_catalog_route():
-    return jsonify(fish_catalog.catalog_payload(dt.datetime.now(timezone.utc)))
+    with db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT caught_species, fish_records FROM game_state WHERE user_id = %s',
+                        (current_user.id,))
+            row = cur.fetchone()
+    payload = fish_catalog.catalog_payload(dt.datetime.now(timezone.utc))
+    return jsonify({**payload, 'caught': (row and row[0]) or [], 'records': (row and row[1]) or {}})
 
 
 @game_bp.route('/api/auto-fish-tick', methods=['POST'])

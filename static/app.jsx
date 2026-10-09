@@ -1298,26 +1298,66 @@ const FISH_CATALOG_CLIENT = [
 ];
 
 // ── Fish Encyclopaedia ────────────────────────────────────────────────────
-function FishEncyclopedia({ caughtSpecies, onClose }) {
-  const discovered = new Set(caughtSpecies || []);
-  const count = discovered.size;
-  const TIER_ORDER = { Common: 0, Uncommon: 1, Rare: 2, Legendary: 3 };
-  const sorted = [...FISH_CATALOG_CLIENT].sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier]);
+// S9: driven by /api/fish-catalog (46 species, conditions, the player's records).
+const ENC_RARITY_ORDER = { junk: 0, common: 1, uncommon: 2, rare: 3, legendary: 4 };
+const ENC_WINDOW_ICON = { dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
+
+function fmtHoursMins(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function FishEncyclopedia({ onClose }) {
+  const [cat, setCat] = useState(null);
+  useEffect(() => {
+    apiFetch('/api/fish-catalog').then(r => { if (r.ok) setCat(r.data); });
+  }, []);
+  const discovered = new Set((cat && cat.caught) || []);
+  const records = (cat && cat.records) || {};
+  const species = cat
+    ? [...cat.species].sort((a, b) => ENC_RARITY_ORDER[a.rarity] - ENC_RARITY_ORDER[b.rarity] || a.value - b.value)
+    : [];
+  const count = species.filter(f => discovered.has(f.id)).length;
   return (
     <div className="encyclopedia-overlay" onClick={onClose}>
       <div className="encyclopedia-card" onClick={e => e.stopPropagation()}>
         <div className="encyclopedia-title">📖 Fish Encyclopaedia</div>
-        <div className="encyclopedia-progress">Discovered: {count} / {FISH_CATALOG_CLIENT.length}</div>
-        <button className="encyclopedia-close-btn" onClick={onClose}>✕</button>
+        <div className="encyclopedia-progress">
+          {cat
+            ? `Discovered ${count} / ${species.length} · Tide: ${cat.tide === 'high' ? 'High' : 'Low'} (turns in ${fmtHoursMins(cat.tide_turns_in_s)})`
+            : 'Loading…'}
+        </div>
+        <button className="encyclopedia-close-btn" onClick={onClose} aria-label="Close">✕</button>
         <div className="encyclopedia-grid">
-          {sorted.map(fish => {
+          {species.map(fish => {
             const known = discovered.has(fish.id);
+            const tier = fish.rarity.charAt(0).toUpperCase() + fish.rarity.slice(1);
+            const when = [
+              ...(fish.windows || []).map(w => ENC_WINDOW_ICON[w]),
+              fish.tide === 'high' ? '🌊' : fish.tide === 'low' ? '🏖️' : null,
+              fish.migrant != null ? '🧭' : null,
+            ].filter(Boolean).join(' ');
+            const whenTitle = [
+              fish.windows ? `Bites at ${fish.windows.join(', ')}` : null,
+              fish.tide ? `${fish.tide} tide only` : null,
+              fish.migrant != null ? 'Migrant: only some weeks' : null,
+            ].filter(Boolean).join(' · ');
             return (
               <div key={fish.id} className={`encyclopedia-entry${known ? ' unlocked' : ' locked'}`}>
-                <span className="encyclopedia-entry-emoji">{known ? fish.emoji : '❓'}</span>
+                {fish.biting_now && <span className="encyclopedia-entry-biting">Biting now</span>}
+                <span className="encyclopedia-entry-emoji"
+                      style={known && fish.hue ? { filter: `hue-rotate(${fish.hue}deg)` } : undefined}>
+                  {known ? fish.emoji : '❓'}
+                </span>
                 <span className="encyclopedia-entry-name">{known ? fish.name : '???'}</span>
-                <span className={`encyclopedia-entry-tier ${fish.tier}`}>{fish.tier}</span>
+                <span className={`encyclopedia-entry-tier ${tier}`}>{tier}</span>
                 <span className="encyclopedia-entry-value">{known ? `${fish.value} 🐟` : '???'}</span>
+                {known && records[fish.id] != null && (
+                  <span className="encyclopedia-entry-record">🏆 {Number(records[fish.id]).toFixed(2)} kg</span>
+                )}
+                {when && <span className="encyclopedia-entry-when" title={whenTitle}>{when}</span>}
+                <span className="encyclopedia-entry-hint">{fish.hint}</span>
               </div>
             );
           })}
@@ -1418,13 +1458,12 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
       const { ok, data } = await apiGame('/api/auto-fish-tick', { method: 'POST', body: '{}' });
       if (!ok || !data.result) return;
       if (data.result === 'hit') {
-        const fish = FISH_CATALOG_CLIENT.find(f => f.id === data.species);
-        const emoji = fish ? fish.emoji : '🐟';
-        const name  = fish ? fish.name  : data.species;
+        const emoji = data.species_emoji || '🐟';
+        const name  = data.species_name || data.species;
         setLastCatch({ emoji, name, value: data.value, isNew: !!data.first_catch, isLucky: false, doubled: false });
         onFishBucksUpdate(data.fish_clicks);
         if (data.first_catch) onCaughtSpeciesUpdate(data.species);
-        if (onFishCaught) onFishCaught();
+        if (onFishCaught) onFishCaught(data);
         showAutoFishPopup({ type: 'hit', emoji, value: data.value, isNew: !!data.first_catch });
       } else {
         showAutoFishPopup({ type: 'miss' });
@@ -2952,7 +2991,6 @@ const ShopItem = React.memo(function ShopItem({ item, owned, equipped, active, c
 const COSMETIC_SECTION_LABELS = new Set(['🐟 Fishing Panel Size', '✨ Fish Trail', '🎡 Wheel Theme', '🎊 Confetti', '🎨 Atmosphere', '🖼️ Page Theme']);
 
 function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeCosmetics, infLevels, onBuy, onEquip, onEquipCosmetic, onEquipClass, onFishExchange, onOpenCharts, equippedClass, fishExchangeTotal, collapsed, caughtSpecies, procStreak }) {
-  const [activeTab, setActiveTab] = useState('functional');
 
   const { cosmeticSections } = useMemo(() => {
     const cosmetic = [], functional = [];
@@ -3047,53 +3085,42 @@ function ShopPanel({ fishClicks, wins, losses, ownedItems, equippedFish, activeC
           <span className="balance-clicks">🐟 {fmt(fishClicks)}</span>
         </div>
       </div>
-      <div className="shop-tabs">
-        <button className={`shop-tab ${activeTab === 'functional' ? 'active' : ''}`} onClick={() => setActiveTab('functional')}>⚡ Functional</button>
-        <button className={`shop-tab shop-tab--cosmetic ${activeTab === 'cosmetic' ? 'active' : ''}`} onClick={() => setActiveTab('cosmetic')}>🎨 Cosmetic</button>
-      </div>
-      <div className={`shop-tab-content${activeTab === 'cosmetic' ? ' shop-tab-content--cosmetic' : ''}`}>
-        {activeTab === 'cosmetic' ? (
-          <>
-            <div className="shop-section-label">── Fish Skins ──</div>
-            {FISH_SKINS.map(item => (
-              <ShopItem key={item.id} item={item} isSkin
-                owned={ownedItems.includes(item.id)}
-                equipped={equippedFish === item.id}
-                canAfford={losses >= item.cost}
-                onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
-              />
-            ))}
-            {cosmeticSections.map(renderSection)}
-          </>
-        ) : (
-          <>
-            <div className="shop-charts-notice">
-              <div>Gear comes from 🧭 Charts now. The shop sells looks.</div>
-              <button className="charts-btn charts-btn--go" onClick={onOpenCharts}>🧭 Open Charts</button>
-            </div>
-            {fishClicks > 0 && (
-              <React.Fragment>
-                <div className="shop-section-label">── 🔄 Fish Exchange ──</div>
-                {(
-                  <div className="fish-exchange-panel">
-                    <div className="fish-exchange-desc">
-                      Convert 🐟 Fish Bucks → 🏆 Wins at ~{exchangeRate}¢ per buck
-                      {exchangeRate < 100 && <span className="fish-exchange-rate-warn"> (1:1 for first 25M, then decays)</span>}
-                    </div>
-                    <div className="fish-exchange-buttons">
-                      <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('10pct')}>
-                        Exchange 10% ({fmt(Math.max(1, Math.floor(fishClicks / 10)))} 🐟)
-                      </button>
-                      <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('all')}>
-                        Exchange All ({fmt(fishClicks)} 🐟)
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </React.Fragment>
+      <div className="shop-tab-content shop-tab-content--cosmetic">
+        <div className="shop-charts-notice">
+          <div>Gear comes from 🧭 Charts now. The shop sells looks.</div>
+          <button className="charts-btn charts-btn--go" onClick={onOpenCharts}>🧭 Open Charts</button>
+        </div>
+        {fishClicks > 0 && (
+          <React.Fragment>
+            <div className="shop-section-label">── 🔄 Fish Exchange ──</div>
+            {(
+              <div className="fish-exchange-panel">
+                <div className="fish-exchange-desc">
+                  Convert 🐟 Fish Bucks → 🏆 Wins at ~{exchangeRate}¢ per buck
+                  {exchangeRate < 100 && <span className="fish-exchange-rate-warn"> (1:1 for first 25M, then decays)</span>}
+                </div>
+                <div className="fish-exchange-buttons">
+                  <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('10pct')}>
+                    Exchange 10% ({fmt(Math.max(1, Math.floor(fishClicks / 10)))} 🐟)
+                  </button>
+                  <button className="shop-buy-btn can-afford" onClick={() => onFishExchange('all')}>
+                    Exchange All ({fmt(fishClicks)} 🐟)
+                  </button>
+                </div>
+              </div>
             )}
-          </>
+          </React.Fragment>
         )}
+        <div className="shop-section-label">── Fish Skins ──</div>
+        {FISH_SKINS.map(item => (
+          <ShopItem key={item.id} item={item} isSkin
+            owned={ownedItems.includes(item.id)}
+            equipped={equippedFish === item.id}
+            canAfford={losses >= item.cost}
+            onBuy={onBuy} onEquip={onEquip} onEquipCosmetic={onEquipCosmetic}
+          />
+        ))}
+        {cosmeticSections.map(renderSection)}
       </div>
     </div>
   );
@@ -3457,8 +3484,8 @@ function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
   if (insuranceFreeClaimedToday) return null;
   return (
     <div className="free-tokens-section">
-      <button className="free-tokens-claim-btn" onClick={onClaim} title="Tokens pay part of a 30% stake (1 🪙 = 1 🏆) or arm Insurance">
-        🪙 Claim 3 free tokens
+      <button className="free-tokens-claim-btn" onClick={onClaim} title="Chips pay part of a 30% stake (1 🪙 = 1 🏆) or arm Insurance">
+        🪙 Claim 3 free stake chips
       </button>
     </div>
   );
@@ -3478,13 +3505,13 @@ function BountiesPanel({ bounties, onClaim }) {
           <div className="bounty-progress-bar">
             <div className="bounty-progress-fill" style={{ width: `${Math.min(100, (b.progress / b.target) * 100)}%` }} />
           </div>
-          <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)} · reward {b.position} 🪙</div>
+          <div className="bounty-progress-text">{fmt(b.progress)} / {fmt(b.target)} · reward {fmt(b.reward_surge)} 🌊 Surge</div>
           {b.completed && !b.claimed && (
             <button className="bounty-claim-btn" onClick={() => onClaim(b.bounty_id)}>
-              Claim {b.position} 🪙 token{b.position > 1 ? 's' : ''}
+              Claim {fmt(b.reward_surge)} 🌊 Surge
             </button>
           )}
-          {b.claimed && <span className="bounty-claimed">✓ +{b.position} claimed</span>}
+          {b.claimed && <span className="bounty-claimed">✓ +{fmt(b.reward_surge)} 🌊 claimed</span>}
         </div>
       ))}
     </div>
@@ -3649,6 +3676,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [activeCosmetics, setActiveCosmetics] = useState(gameState.active_cosmetics || []);
   const [equippedClass, setEquippedClass]   = useState(gameState.equipped_class || null);
   const [charts, setCharts]                 = useState(gameState.charts || null);
+  const [surgeSpins, setSurgeSpins]         = useState(gameState.surge_spins || 0);
   const [showCharts, setShowCharts]         = useState(false);
   const keystone = charts ? charts.keystone : null;
   const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
@@ -4092,6 +4120,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setLuckySevenTriggered(!!data.lucky_seven_triggered);
     setFortuneCharmTriggered(!!data.fortune_charm_triggered);
     if (data.new_spin_count != null) setSpinCount(data.new_spin_count);
+    if (data.surge_spins != null) setSurgeSpins(data.surge_spins);
     if (data.active_cosmetics) setActiveCosmetics(data.active_cosmetics);
     if (data.dice_charges != null) setDiceCharges(data.dice_charges);
     if (data.dice_last_recharge) setDiceLastRecharge(data.dice_last_recharge);
@@ -4318,6 +4347,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (data.state.win_count  != null) setWinCount(data.state.win_count);
           if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
           if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
+          if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
           setDiceRolledSinceSpin(false);
         }
         const hrs = Math.floor(data.elapsed_seconds / 3600);
@@ -4360,6 +4390,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
 
       if (data.state) {
+        if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
         if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
         if (data.state.dice_rolled_since_spin != null) {
           setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
@@ -4472,6 +4503,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (bountyRes.ok) setBounties(bountyRes.data.bounties || []);
     if (goalRes.ok && goalRes.data.goal) setCommunityGoal(goalRes.data.goal);
   }, []);
+
+  const handleFishCaught = useCallback((data) => {
+    if (data && data.surge) setSurgeSpins(prev => prev + data.surge);
+    refreshBountiesAndGoal();
+  }, [refreshBountiesAndGoal]);
 
   // Clear any previously-set accessibility classes from localStorage
   useEffect(() => {
@@ -4651,8 +4687,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (ok) {
       if (data.rewards?.cosmetic_fragments) setCosmeticFragments(prev => prev + data.rewards.cosmetic_fragments);
       if (data.rewards?.wins) setWins(prev => prev + data.rewards.wins);
+      if (data.rewards?.surge) setSurgeSpins(prev => prev + data.rewards.surge);
       setBounties(prev => prev.map(b => b.bounty_id === bountyId ? { ...b, claimed: true } : b));
-      showToast('Bounty claimed!');
+      showToast(data.rewards?.surge ? `Bounty claimed! +${fmt(data.rewards.surge)} 🌊 Surge` : 'Bounty claimed!');
     } else {
       showToast(data.error || 'Claim failed');
     }
@@ -4787,9 +4824,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <div className="whats-new-card" role="dialog" aria-label="What's new in Season 9">
           <div className="whats-new-title">🌊 What's new in Season 9</div>
           <ul className="whats-new-list">
-            <li>Every Friday the tide turns: wins reset, medals are forever.</li>
-            <li>Auto-spin is free and keeps going while you're away (up to 24 h).</li>
-            <li>Your fish collection carries over.</li>
+            <li>🧭 Charts: one new point every day. Spend them on Swell, Riptide or Angler — you can't have it all.</li>
+            <li>🎣 Fishing is a fight now, and every catch charges 🌊 Surge spins for your wheel.</li>
+            <li>Every Friday the tide turns: wins and Charts reset; medals, fish and records are forever.</li>
           </ul>
           <button className="whats-new-btn" onClick={dismissWhatsNew}>Got it</button>
         </div>
@@ -4890,7 +4927,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       {showEncyclopedia && (
         <FishEncyclopedia
-          caughtSpecies={caughtSpecies}
           onClose={() => setShowEncyclopedia(false)}
         />
       )}
@@ -4908,7 +4944,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           steadyHands={!!(charts && charts.alloc && charts.alloc.steady_hands)}
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
-          onFishCaught={refreshBountiesAndGoal}
+          onFishCaught={handleFishCaught}
         />
         </div>
       )}
@@ -4926,7 +4962,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             steadyHands={!!(charts && charts.alloc && charts.alloc.steady_hands)}
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
-            onFishCaught={refreshBountiesAndGoal}
+            onFishCaught={handleFishCaught}
           />
         </div>
       )}
@@ -5111,6 +5147,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           </div>
 
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
+          {surgeSpins > 0 && keystone !== 'rogue_wave' && charts && (
+            <div className="surge-chip" title="Each spin spends one Surge spin and multiplies its wins">
+              🌊 Surge ×{charts.surge_mult} · {fmt(surgeSpins)} spin{surgeSpins !== 1 ? 's' : ''}
+            </div>
+          )}
 
           {isMobile && (
             <div className="mobile-below-wheel" style={{ width: '100%' }}>

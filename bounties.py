@@ -163,6 +163,7 @@ def get_bounty_status(conn, user_id, bounty_date=None):
             'claimed': row['claimed'] if row else False,
             'position': position,
             'reward_tokens': b['reward_tokens'],
+            'reward_surge': position * BOUNTY_SURGE_PER_POSITION,
         })
 
     return result

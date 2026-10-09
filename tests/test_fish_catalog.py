@@ -275,3 +275,10 @@ def test_fish_catalog_route(user):
     by_id = {s['id']: s for s in body['species']}
     assert all(by_id[sid]['biting_now'] for sid in ORIGINALS)
     assert by_id['kraken']['windows'] == ['night'] and by_id['kraken']['tide'] == 'high'
+
+
+def test_fish_catalog_route_returns_the_players_collection(user, db_url):
+    client, username = user
+    _set(db_url, username, caught_species=['crab'], fish_records={'crab': 1.25})
+    body = client.get('/api/fish-catalog').get_json()
+    assert body['caught'] == ['crab'] and body['records'] == {'crab': 1.25}

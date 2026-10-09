@@ -1033,8 +1033,8 @@ def test_jsx_free_tokens_section():
     assert 'free-tokens-section' in jsx, (
         "JSX must include a .free-tokens-section element above the bounties panel"
     )
-    assert 'Claim 3 free tokens' in jsx, (
-        "free-tokens section must show the 'Claim 3 free tokens' button"
+    assert 'Claim 3 free stake chips' in jsx, (
+        "free-tokens section must show the 'Claim 3 free stake chips' button"
     )
     assert 'claimed today' in jsx.lower() or 'Claimed today' in jsx, (
         "free-tokens section must show a 'claimed today' indicator after claim"
