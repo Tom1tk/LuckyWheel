@@ -408,6 +408,8 @@ def test_payload_uses_bounty_id_key():
 
     positions = [e['position'] for e in result]
     assert positions == [1, 2, 3], f"positions should be 1-indexed [1,2,3], got {positions}"
+    # S9: the label shows the Surge the claim will actually pay.
+    assert [e['reward_surge'] for e in result] == [100, 200, 300]
 
 
 def test_per_bounty_token_amounts():

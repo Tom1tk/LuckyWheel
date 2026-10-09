@@ -12,11 +12,39 @@ This season is built around a weekly rhythm. Short races, a long chase, and noth
 
 Season 9 runs in weekly **tides**: Tide 9.1, 9.2, 9.3 and so on. Every **Friday at 21:00 (UK time)** the tide turns:
 
-- **Wins, losses, streaks and functional upgrades reset.** Everyone starts the new tide level.
+- **Wins, losses, streaks, Charts, Surge and 🪙 chips reset.** Everyone starts the new tide level.
 - The **top three** of the tide that just ended are posted in chat and saved to the Hall of Fame.
 - A new **community goal** starts.
 
 The banner at the top of the screen shows the current tide, a countdown to the next turn, and last tide's podium.
+
+### 🧭 Charts: Build, Don't Buy
+
+The functional shop is gone. Gear now comes from **Charts**: three talent trees, and not enough points for all of them.
+
+- You get **4 points** when the tide turns and **one more every day**, up to 10 on the last day. Everyone has the same points on the same day, so joining late never leaves you behind.
+- **🌊 Swell — ride the streak.** Bigger streak bonuses, win multipliers, Echo and the Breakwater shield. Keystone **Spring Tide** doubles streak bonuses again, but you can't stake or roll dice.
+- **🌀 Riptide — bet the tide.** Staking, dice charges, jackpots, insurance and Double or Nothing. Keystone **Rogue Wave**: dice come back twice as fast and stack two higher, but no Surge for you.
+- **🎣 Angler — read the water.** Bigger Surge, better bait, auto-fishing and a wider sweet zone. Keystone **Deep Sea**: junk and common fish stop biting, rares and legendaries bite three times as often, and bites take longer.
+- Higher rows need points in that tree first, and you can hold **one keystone**. Adding points is always free; a **re-chart** (clearing points) is allowed once a day.
+
+### 🎣 Fishing Is a Fight
+
+Tap when the fish bites to **hook** it, then **hold to reel** (mouse, touch or Space) and keep the line in the green. Hold too hard and the line snaps; ease off too long and it slips the hook. Bigger fish pull harder and fight longer.
+
+A cleaner fight lands a **heavier fish**, and heavier fish are worth more 🐟. Your heaviest catch of each species is saved as a **record** that never resets.
+
+### 🌊 Surge: Fishing Powers the Wheel
+
+Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip above the wheel shows your Surge. **Bounties now pay Surge** too: 100, 200 and 300 spins.
+
+### 🐠 46 Species
+
+The Encyclopaedia has grown from 13 to **46** fish. Many only bite at **dawn, day, dusk or night**, at **high or low tide**, or are **migrants** that visit for a week at a time. The Encyclopaedia shows the current tide, what's **biting now**, a hint for every fish and your record weights. Your first catch of the day still pays ×5.
+
+### 🪙 Stake Chips
+
+Free tokens are now **stake chips**: 3 a day. A chip pays for one staked spin or arms insurance.
 
 ### 🏛 Hall of Fame and Medals
 
@@ -27,7 +55,7 @@ Finish a tide in the top three and you earn a medal: 🥇 🥈 🥉. **Medals ne
 Your weekly reset only touches the race. These carry over from tide to tide:
 
 - **Cosmetics**: themes, trails, confetti, backgrounds, page themes and fish skins, plus whatever you have equipped.
-- **Your Encyclopaedia**: every species you've caught stays caught.
+- **Your Encyclopaedia**: every species you've caught stays caught, and every record weight stays yours.
 - **Medals**, chat, and your account.
 
 ### 🔁 Free Auto-Spin, Even While You're Away

@@ -1017,7 +1017,7 @@ body::before {
   border: 2px solid var(--p-xs);
   border-radius: 12px;
   padding: 24px;
-  width: min(540px, 95vw);
+  width: min(640px, 95vw);
   max-height: 82vh;
   overflow-y: auto;
   position: relative;
@@ -1043,7 +1043,7 @@ body::before {
 
 .encyclopedia-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: 10px;
 }
 
@@ -1098,6 +1098,17 @@ body::before {
 .encyclopedia-entry-tier.Uncommon  { background: rgba(0,160,70,0.2);   color: #44dd88; }
 .encyclopedia-entry-tier.Rare      { background: rgba(40,80,230,0.2);  color: #7799ff; }
 .encyclopedia-entry-tier.Legendary { background: rgba(160,70,0,0.25);  color: #ffaa44; }
+
+.encyclopedia-entry { position: relative; }
+.encyclopedia-entry-tier.Junk { background: rgba(120,90,60,0.25); color: #b9a07a; }
+.encyclopedia-entry-record { font-size: 0.6rem; color: #F2E3C6; letter-spacing: 1px; }
+.encyclopedia-entry-when { font-size: 0.7rem; letter-spacing: 2px; cursor: help; }
+.encyclopedia-entry-hint { font-size: 0.55rem; color: #889; line-height: 1.3; font-style: italic; }
+.encyclopedia-entry-biting {
+  position: absolute; top: 4px; right: 4px;
+  font-size: 0.45rem; letter-spacing: 1px; text-transform: uppercase;
+  color: #07060e; background: #3FD6C6; border-radius: 3px; padding: 1px 4px;
+}
 
 .encyclopedia-entry-special { font-size: 0.52rem; color: #FFD700; letter-spacing: 1px; }
 
@@ -5343,3 +5354,16 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
 .catch-side-name   { font-size: 0.62rem; color: #cfd8df; letter-spacing: 0.3px; }
 .catch-side-record { color: #FFD700; }
 @media (prefers-reduced-motion: reduce) { .fight-meter--surge { animation: none; } }
+
+/* ── S9 Surge chip ─────────────────────────────────────────────────────── */
+.surge-chip {
+  margin: -6px 0 10px;
+  padding: 3px 12px;
+  border: 1px solid rgba(63, 214, 198, 0.55);
+  border-radius: 999px;
+  background: rgba(63, 214, 198, 0.12);
+  color: #3FD6C6;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
