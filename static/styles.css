@@ -2172,32 +2172,29 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 }
 
 /* ── Catch-up summary banner ──────────────────────────────────────────── */
-.catchup-banner {
+.away-card {
   position: fixed;
-  top: 0;
+  top: 64px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9997;
-  background: rgba(20, 60, 100, 0.95);
-  color: #adf;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 260px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 20px;
+  border: 1px solid rgba(63, 214, 198, 0.55);
+  border-radius: 12px;
+  background: rgba(4, 14, 20, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: #cfeeea;
   font-size: 0.85rem;
-  font-weight: 700;
   text-align: center;
-  padding: 10px 24px;
-  border-radius: 0 0 10px 10px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-  max-width: 420px;
-  white-space: nowrap;
 }
-
-.catchup-banner--fish {
-  top: auto;
-  bottom: 0;
-  border-radius: 10px 10px 0 0;
-  background: rgba(10, 60, 30, 0.95);
-  color: #afe;
-  box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
-}
+.away-title { color: #3FD6C6; font-weight: 700; letter-spacing: 1px; }
+.away-card b { color: #fff; }
 
 /* ── Proc Streak Counter ───────────────────────────────────────────────── */
 .proc-streak-counter {
@@ -5401,7 +5398,7 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   font-size: 0.75rem;
   line-height: 1.4;
 }
-.surge-hint-btn {
+.surge-hint-btn, .away-btn {
   flex: none;
   padding: 4px 10px;
   border: 1px solid #3FD6C6;
@@ -5411,7 +5408,7 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   font-size: 0.75rem;
   cursor: pointer;
 }
-.surge-hint-btn:hover { background: rgba(63, 214, 198, 0.15); }
+.surge-hint-btn:hover, .away-btn:hover { background: rgba(63, 214, 198, 0.15); }
 .surge-chip {
   margin: -6px 0 10px;
   padding: 3px 12px;

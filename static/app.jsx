@@ -3740,8 +3740,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [luckySevenTriggered, setLuckySevenTriggered]   = useState(false);
   const [fortuneCharmTriggered, setFortuneCharmTriggered] = useState(false);
   const [regenRechargeWins, setRegenRechargeWins] = useState(gameState.regen_recharge_wins || 0);
-  const [catchUpSummary, setCatchUpSummary] = useState(null);
-  const [fishCatchUpSummary, setFishCatchUpSummary] = useState(null);
+  // "While you were away" card: stays until dismissed and adds up repeat
+  // catch-ups (a background tab's throttled ticks can deliver several).
+  const [away, setAway] = useState(null);
   const [happyHour, setHappyHour]     = useState(gameState.happy_hour || false);
   const [happyHourDismissed, setHappyHourDismissed] = useState(false);
   const [ownedItems, setOwnedItems]   = useState(gameState.owned_items);
@@ -4265,11 +4266,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         return [...s];
       });
     }
-    const hrs = Math.floor(fc.elapsed_seconds / 3600);
-    const mins = Math.floor((fc.elapsed_seconds % 3600) / 60);
-    const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-    setFishCatchUpSummary(`🎣 Away ${timeStr} — ${fc.fish_count} fish auto-caught (+${fmt(fc.total_value)} 🐟)`);
-    setTimeout(() => setFishCatchUpSummary(null), 5000);
+    setAway(a => {
+      const prev = a || { secs: 0, spins: 0, wins: 0, fish: 0, fishValue: 0 };
+      return { ...prev, secs: Math.max(prev.secs, fc.elapsed_seconds),
+               fish: prev.fish + fc.fish_count, fishValue: prev.fishValue + fc.total_value };
+    });
   }, []);
 
   // Season 8: manual spin (replaces always-on auto-spin as the primary game action)
@@ -4430,11 +4431,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
           setDiceRolledSinceSpin(false);
         }
-        const hrs = Math.floor(data.elapsed_seconds / 3600);
-        const mins = Math.floor((data.elapsed_seconds % 3600) / 60);
-        const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-        setCatchUpSummary(`⏰ Away ${timeStr} — ${data.spins_processed} spins processed`);
-        setTimeout(() => setCatchUpSummary(null), 5000);
+        setAway(a => {
+          const prev = a || { secs: 0, spins: 0, wins: 0, fish: 0, fishValue: 0 };
+          return { ...prev, secs: prev.secs + data.elapsed_seconds,
+                   spins: prev.spins + data.spins_processed, wins: prev.wins + data.wins_gained };
+        });
         if (data.fish_catchup) applyFishCatchUp(data.fish_catchup);
         return;
       }
@@ -4924,11 +4925,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <button className="happy-hour-banner-close" onClick={() => setHappyHourDismissed(true)}>✕</button>
         </div>
       )}
-      {catchUpSummary && (
-        <div className="catchup-banner">{catchUpSummary}</div>
-      )}
-      {fishCatchUpSummary && (
-        <div className="catchup-banner catchup-banner--fish">{fishCatchUpSummary}</div>
+      {away && (
+        <div className="away-card" role="status">
+          <div className="away-title">⏰ While you were away · {Math.floor(away.secs / 3600) > 0 ? `${Math.floor(away.secs / 3600)}h ` : ''}{Math.floor((away.secs % 3600) / 60)}m</div>
+          {away.spins > 0 && <div>🎡 {fmt(away.spins)} spins · <b>+{fmt(away.wins)} 🏆</b></div>}
+          {away.fish > 0 && <div>🎣 {fmt(away.fish)} fish · <b>+{fmt(away.fishValue)} 🐟</b></div>}
+          <button className="away-btn" onClick={() => setAway(null)}>Got it</button>
+        </div>
       )}
       {/* ── Season 8 UI ─────────────────────────────────────────────────── */}
       {/* aria-live region for screen readers (T37) */}
