@@ -8928,7 +8928,13 @@ function GameApp(_ref39) {
   }, /*#__PURE__*/React.createElement(BountiesPanel, {
     bounties: bounties,
     onClaim: handleBountyClaim
-  }))), /*#__PURE__*/React.createElement(ShopPanel, {
+  })), communityGoal && unlocked.goal && /*#__PURE__*/React.createElement("div", {
+    className: gateClass('goal')
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "season8-meta-panel"
+  }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
+    communityGoal: communityGoal
+  })))), /*#__PURE__*/React.createElement(ShopPanel, {
     fishClicks: fishClicks,
     wins: wins,
     losses: losses,
@@ -8952,13 +8958,7 @@ function GameApp(_ref39) {
     procStreak: procStreak
   }))), /*#__PURE__*/React.createElement("div", {
     className: "bottom-left-stack"
-  }, !isMobile && communityGoal && unlocked.goal && /*#__PURE__*/React.createElement("div", {
-    className: gateClass('goal')
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "season8-meta-panel mini-panel"
-  }, /*#__PURE__*/React.createElement(CommunityGoalPanel, {
-    communityGoal: communityGoal
-  }))), !isMobile && /*#__PURE__*/React.createElement("div", {
+  }, !isMobile && /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
     className: "fish-counter-label"

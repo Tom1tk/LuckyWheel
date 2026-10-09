@@ -4875,7 +4875,7 @@ body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3)
   font-style: italic;
 }
 
-/* ── Season 8: community goal + singularity, merged into one slim panel in .bottom-left-stack ─────────────── */
+/* ── Season 8: community goal + singularity, one slim panel (desktop: under Bounties) ─────────────── */
 /* Two separate bordered panels used to sit here and collided with the vertically-centered
    .fishing-panel on shorter viewports (e.g. 1366x768) — merged into one shell to cut the
    duplicate padding/border/gap overhead. */

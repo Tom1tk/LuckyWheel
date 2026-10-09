@@ -5367,6 +5367,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 bounties={bounties}
                 onClaim={handleBountyClaim}
               /></div>}
+              {/* Community goal sits under Bounties: in the bottom-left stack it
+                  pushed up into the CAST button on screens under ~1000px tall. */}
+              {communityGoal && unlocked.goal && <div className={gateClass('goal')}><div className="season8-meta-panel">
+                <CommunityGoalPanel communityGoal={communityGoal} />
+              </div></div>}
             </div>
           )}
 
@@ -5395,14 +5400,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <div className="bottom-left-stack">
-        {/* T202: Community goal panel — extracted into a component so the
-            same JSX renders in the desktop bottom-left-stack (this block)
-            AND in the mobile drawer. */}
-        {!isMobile && communityGoal && unlocked.goal && (
-          <div className={gateClass('goal')}><div className="season8-meta-panel mini-panel">
-            <CommunityGoalPanel communityGoal={communityGoal} />
-          </div></div>
-        )}
         {!isMobile && (
           <div className="fish-counter">
             <span className="fish-counter-label">Balance</span>
