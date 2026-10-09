@@ -26,9 +26,10 @@
     const pal = Object.assign({}, DEFAULT_PALETTE, opts.palette || {});
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const still = !!opts.lowSpec || reduce;
-    const ctx = canvas.getContext('2d');
+    let ctx = canvas.getContext('2d');   // swapped to an offscreen ctx while painting the still layer
     let W = 0, H = 0, dpr = 1, horizon = 0, moonX = 0, moonY = 0, moonR = 0;
-    let stars = [], sparks = [], raf = 0, running = true;
+    let stars = [], sparks = [], raf = 0, running = true, last = -1e9, staticKey = '';
+    const FRAME_MS = 1000 / 30;   // slow scenery; 30 fps halves the per-frame upload cost
     const start = performance.now();
 
     // Deterministic pseudo-random so the static frame is stable between loads.
@@ -59,35 +60,62 @@
     }
 
     function resize() {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Animated: 1× pixels — a full-screen canvas re-uploaded every frame at 2× starved
+      // the compositor (≈9 fps on a throttled 2× screen). The still frame keeps 2×.
+      dpr = still ? Math.min(window.devicePixelRatio || 1, 2) : 1;
       W = canvas.clientWidth; H = canvas.clientHeight;
       canvas.width = W * dpr; canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       layout(); seedScene();
       if (still && running) frame(start);
+      else refreshStill();
     }
 
-    function sky(t) {
+    // Animated mode: sky, sea and headland never move, so paint them once into the
+    // canvas's CSS background; each frame then only clears and draws what moves.
+    function refreshStill() {
+      const key = [W, H, moonX, moonY, moonR, horizon].join();
+      if (key === staticKey || !W || !H) return;
+      staticKey = key;
+      const k = 1;   // soft gradients and a silhouette; 2× made each JPEG encode ≈0.5 s on slow machines
+      const off = document.createElement('canvas');
+      off.width = W * k; off.height = H * k;
+      const real = ctx;
+      ctx = off.getContext('2d'); ctx.setTransform(k, 0, 0, k, 0, 0);
+      sky(); sea(); headland();
+      ctx = real;
+      // data: not blob: — the CSP's img-src allows only 'self' and data:. JPEG: the layer is opaque.
+      canvas.style.backgroundImage = `url(${off.toDataURL('image/jpeg', 0.92)})`;
+      canvas.style.backgroundSize = '100% 100%';
+    }
+
+    function sky() {
       const g = ctx.createLinearGradient(0, 0, 0, horizon);
       g.addColorStop(0, pal.skyTop); g.addColorStop(1, pal.skyLow);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizon + 1);
-      for (const s of stars) {
-        ctx.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t / 900 + s.p));
-        ctx.fillStyle = pal.sand;
-        ctx.fillRect(s.x, s.y, s.r, s.r);
-      }
-      ctx.globalAlpha = 1;
       // Moon-glow from the wheel, warming the sky above the horizon.
       const halo = ctx.createRadialGradient(moonX, moonY, moonR * 0.8, moonX, moonY, moonR * 3.2);
       halo.addColorStop(0, 'rgba(63,214,198,0.16)'); halo.addColorStop(1, 'rgba(63,214,198,0)');
       ctx.fillStyle = halo; ctx.fillRect(0, 0, W, horizon);
     }
 
-    function headland(t) {
-      // Low cliff running in from the left; the lighthouse stands at its tip,
-      // in the open water between the left-hand panels and the wheel.
-      // Phones: the wheel fills the width, so tuck the lighthouse against the edge.
-      const lx = moonX - moonR < 60 ? 26 : Math.max(70, moonX - moonR * 2.35), base = horizon + 2;
+    function twinkle(t) {
+      for (const s of stars) {
+        ctx.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t / 900 + s.p));
+        ctx.fillStyle = pal.sand;
+        ctx.fillRect(s.x, s.y, s.r, s.r);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Low cliff running in from the left; the lighthouse stands at its tip,
+    // in the open water between the left-hand panels and the wheel.
+    // Phones: the wheel fills the width, so tuck the lighthouse against the edge.
+    const lighthouseX = () => (moonX - moonR < 60 ? 26 : Math.max(70, moonX - moonR * 2.35));
+    const lampY = () => horizon + 2 - H * 0.045 - 54 - 9;
+
+    function headland() {
+      const lx = lighthouseX(), base = horizon + 2;
       ctx.fillStyle = pal.land;
       ctx.beginPath();
       ctx.moveTo(0, base - H * 0.07);
@@ -104,20 +132,22 @@
       ctx.fillRect(lx - 7, top + 18, 14, 5); ctx.fillRect(lx - 7.5, top + 34, 15, 5);
       ctx.fillStyle = pal.land; ctx.fillRect(lx - 7, top - 4, 14, 4);
       ctx.beginPath(); ctx.moveTo(lx - 6, top - 13); ctx.lineTo(lx, top - 20); ctx.lineTo(lx + 6, top - 13); ctx.fill();
+    }
 
+    function beam(t) {
       // Rotating beam: a cone whose apparent length foreshortens as it turns.
+      const lx = lighthouseX(), ly = lampY();
       const a = still ? 0.35 : t / 2600;
       const reach = Math.cos(a) * W * 0.55;
-      const lampY = top - 9;
-      const g = ctx.createLinearGradient(lx, lampY, lx + reach, lampY);
+      const g = ctx.createLinearGradient(lx, ly, lx + reach, ly);
       g.addColorStop(0, `rgba(${pal.lamp},0.35)`); g.addColorStop(1, `rgba(${pal.lamp},0)`);
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.moveTo(lx, lampY); ctx.lineTo(lx + reach, lampY - 26); ctx.lineTo(lx + reach, lampY + 22);
+      ctx.moveTo(lx, ly); ctx.lineTo(lx + reach, ly - 26); ctx.lineTo(lx + reach, ly + 22);
       ctx.closePath(); ctx.fill();
-      const glow = ctx.createRadialGradient(lx, lampY, 0, lx, lampY, 16);
+      const glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, 16);
       glow.addColorStop(0, `rgba(${pal.lamp},0.95)`); glow.addColorStop(1, `rgba(${pal.lamp},0)`);
-      ctx.fillStyle = glow; ctx.fillRect(lx - 16, lampY - 16, 32, 32);
+      ctx.fillStyle = glow; ctx.fillRect(lx - 16, ly - 16, 32, 32);
     }
 
     function sea() {
@@ -220,9 +250,14 @@
 
     function frame(now) {
       if (!running) return;
+      if (!still && now - last < FRAME_MS - 2) { raf = requestAnimationFrame(frame); return; }
+      last = now;
       const t = now - start;
-      if (!still && t % 1000 < 17) layout();   // follow the wheel if the layout shifts
-      sky(t); sea(); headland(t); glitter(t); swell(t);
+      if (!still && t % 1000 < FRAME_MS) { layout(); refreshStill(); }   // follow the wheel if the layout shifts
+      if (still) { sky(); twinkle(t); sea(); headland(); }
+      else ctx.clearRect(0, 0, W, H);
+      if (!still) twinkle(t);
+      beam(t); glitter(t); swell(t);
       buoy(moonX - moonR * 1.45, 0.14, t, pal.win, 1300);
       buoy(moonX + moonR * 1.05, 0.06, t, pal.lose, 1700);
       boat(t); plankton(t);
@@ -237,6 +272,7 @@
       stop() {
         running = false;
         cancelAnimationFrame(raf);
+        canvas.style.backgroundImage = '';
         window.removeEventListener('resize', resize);
       },
     };
