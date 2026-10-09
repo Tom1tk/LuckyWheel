@@ -28,12 +28,14 @@ The functional shop is gone. Gear now comes from **Charts**: three talent trees,
 - The shop now shows your Chart at a glance. Tap it to open the full Charts.
 - **🌊 Swell — ride the streak.** Bigger streak bonuses, win multipliers, Echo and the Breakwater shield. Keystone **Spring Tide** doubles streak bonuses again, but you can't stake or roll dice.
 - **🌀 Riptide — bet the tide.** Staking, dice charges, jackpots, insurance and Double or Nothing. Keystone **Rogue Wave**: dice come back twice as fast and stack two higher, but no Surge for you.
-- **🎣 Angler — read the water.** Bigger Surge, better bait, auto-fishing and a wider sweet zone. Keystone **Deep Sea**: junk and common fish stop biting, rares and legendaries bite three times as often, and bites take longer.
+- **🎣 Angler — read the water.** Bigger Surge, better bait, auto-fishing and **Steady Hands** for the fight. Keystone **Deep Sea**: junk and common fish stop biting, rares and legendaries bite three times as often, and bites take longer.
 - Higher rows need points in that tree first, and you can hold **one keystone**. Adding points is always free; a **re-chart** (clearing points) is allowed once a day.
 
 ### 🎣 Fishing Is a Fight
 
-Tap when the fish bites to **hook** it, then **hold to reel** (mouse, touch or Space) and keep the line in the green. Hold too hard and the line snaps; ease off too long and it slips the hook. Bigger fish pull harder and fight longer.
+Tap when the fish bites to **hook** it, then keep the 🐟 inside your **green reel bar**. Hold (mouse, touch or Space) to push the bar right; let go and it drifts back. The catch meter fills while the fish is in the bar and drains while it isn't. If it empties, the fish gets away. Rarer fish swim faster, dart more often and take longer to land.
+
+**Steady Hands** (Angler, 3 ranks) makes the fight easier, one rank at a time: a wider bar, a bar that moves 50% faster, then a meter that drains 25% slower.
 
 A cleaner fight lands a **heavier fish**, and heavier fish are worth more 🐟. Your heaviest catch of each species is saved as a **record** that never resets.
 

@@ -25,7 +25,7 @@ This doc extends `SEASON_9_SPEC.md`. The S9 baseline (weekly tides, universal au
 | Source | Lesson | Used here |
 |---|---|---|
 | **Path of Exile** keystones; **Diablo II** skill trees | A small number of big, rule-changing nodes creates identity. Ten +2% nodes don't. | One **keystone** per tree. Each one bends a rule and costs something. |
-| **Slay the Spire**, **Balatro** | Builds emerge from *scarcity plus synergy*. You see more good options than you can take. | At most 14 points against 32 ranks on offer. A full tree costs 10–11. |
+| **Slay the Spire**, **Balatro** | Builds emerge from *scarcity plus synergy*. You see more good options than you can take. | At most 14 points against 34 ranks on offer. A full tree costs 10–13. |
 | **Hades** mirror (free respec) | Respec friction should be low enough to experiment and high enough that choices stick. | Adding points is always free. A refund (re-chart) is **once per London day**. |
 | **Stardew Valley**, **Animal Crossing** | Time-of-day and seasonal availability make a reason to come back. It isn't a chore if nothing is lost by missing it. | Fish bite at dawn, day, dusk or night, at high or low tide, and two **migrants** visit each tide on a 4-tide cycle. |
 | **Dredge**, **Stardew** fishing bar, **Sea of Thieves** | A short skill fight with readable tension beats a single timing tap. Size and records give mastery a target. | Hook → **tension fight** → land. Weight depends on how cleanly you played. Personal **records** persist. |
@@ -66,7 +66,7 @@ Retired items stay in `SHOP_ITEMS` so `post_rollover_check` and legacy `owned_it
 
 - **Points this tide = min(14, 1 + days the tide has run (0..6) + points bought).** Days count from Fri 21:00 London. With no buying, day 0 gives 1 point and day 6 gives 7.
 - **Levelling up:** `POST /api/charts/level-up` buys one point with wins. The first costs 1,000 wins and each next ×6 (1k, 6k, 36k, 216k, 1.3M, …); wins are spent (`chart_points_bought`, reset each tide). 409 at 14, 400 if short of wins.
-- **Why 14, of 32 ranks:** one full tree (10–11) plus a small splash, so builds stay distinct and no one owns every tree. Sim (`talents` + 28.8k auto-spins/day): a dedicated buyer hits 14 around day 5; a non-buyer ends the tide at 7. Buying spends wins, so it costs leaderboard standing; that is the trade.
+- **Why 14, of 34 ranks:** one full tree (10–13) plus a small splash, so builds stay distinct and no one owns every tree. Sim (`talents` + 28.8k auto-spins/day): a dedicated buyer hits 14 around day 5; a non-buyer ends the tide at 7. Buying spends wins, so it costs leaderboard standing; that is the trade.
 - **Why not a prestige-style reset to 0:** the leaderboard ranks by wins, so wiping them per level would punish the players the feature should reward.
 - **Charting:** `POST /api/charts {alloc}` replaces the whole allocation atomically.
   - If the new allocation contains the old one (only adds), it is always allowed.
@@ -113,12 +113,12 @@ Rank `n` grants every item up to rank `n` (the full chain), so the engine helper
 | 1 | Rich Waters | 3 | Surge ×25 / ×50 / ×100 | "Surge spins pay ×25 / ×50 / ×100 (base ×5)" |
 | 1 | Better Bait | 2 | `lure_1..2` / `lure_1..3`, +25% Surge per rank | "Faster bites, bigger catches, +25% Surge" |
 | 2 | Deckhand | 2 | `autofisher_1..2` | "Auto-fish while you're away" |
-| 2 | Steady Hands | 1 | sweet zone 30–80% (from 40–75%) | "A wider sweet zone in the fight" |
+| 2 | Steady Hands | 3 | reel bar 0.24 → 0.28 / + bar accel 1.6 → 2.4, top speed 0.8 → 1.2 / + catch drain 0.20 → 0.15 per s | "A wider reel bar" / "Wider bar, and it moves 50% faster" / "Wider, faster bar, and a slipping fish gets away 25% slower" |
 | 2 | Auto-Cast | 1 | `auto_cast` | "Recast automatically" |
 | 3 | Old Salt | 1 | `autofisher_1..4` (requires Deckhand 2) | "Auto-fish catches rares, and more often" |
 | K | **Deep Sea** | 1 | rare/legendary bite ×3; junk and commons don't bite; bites 50% slower | "Only the big ones bite — and they take their time" |
 
-Tree sizes: Swell 10, Riptide 12, Angler 11. With 10 points, a full tree means giving up its own last row or keystone, or never touching another tree.
+Tree sizes: Swell 10, Riptide 11, Angler 13. With at most 14 points, a full tree leaves 1–4 points for a splash, never a second tree.
 
 ### 3.3 Keystone trade-offs (enforced server-side)
 
@@ -148,10 +148,12 @@ Tree sizes: Swell 10, Riptide 12, Angler 11. With 10 points, a full tree means g
 |---|---|---|
 | Cast | `POST /api/cast` (unchanged). Bite delay from lure level; Deep Sea ×1.5. | Bobber, nibble wobble |
 | Hook | `POST /api/reel` now **hooks**. It checks the bite window, then picks the species from what's biting now and stores `fishing_species` and `fishing_hooked_at`. Returns `{result:'hooked', rarity, fight_s}`. The species is hidden. | Fight starts |
-| Fight | — | Hold (mouse, touch or Space) to reel, release to ease. Tension rises while holding and when the fish surges; it falls on release. Sweet zone 40–75% (Steady Hands 30–80%). Progress fills only in the zone. Tension ≥100% snaps the line. 3 s below 10% and the fish slips off. |
+| Fight | — | Stardew-style. The fish swims along the meter; hold (mouse, touch or Space) to push your green reel bar right, release and it drifts left (it bounces a little off the ends). The catch meter starts at 30%, fills at 1/`fight_s` per s while the fish is in the bar and drains 0.20/s while it isn't. Full: landed. Empty: "It slipped the hook." |
 | Land | `POST /api/land {landed, quality}`. Elapsed must be ≥ 60% of `fight_s` and ≤ 45 s, otherwise `too_fast` / `timeout`. Quality is clamped to [0, 1]. | Result card: species, kg, record badge, +🐟, +Surge |
 
-- **Fight length by rarity (`fight_s`):** junk 1.5, common 3, uncommon 4.5, rare 6, legendary 8.
+- **Fight length by rarity (`fight_s`):** junk 1.5, common 3, uncommon 4.5, rare 6, legendary 8. A perfect fight takes 0.7 × `fight_s`, so it clears the server's 60% floor.
+- **Fish movement by rarity** (speed in meter widths/s, new target per s): junk 0.10 / 0.3, common 0.25 / 0.6, uncommon 0.35 / 0.8, rare 0.45 / 1.0, legendary 0.58 / 1.3.
+- **Tuning** (simulated player with 0.22 s reaction; a casual to decent skill band): with no Steady Hands, commons land 94–96%, uncommons 75–85%, rares 36–51%, legendaries 4–10%. With Steady Hands 3: rares 90–97%, legendaries 43–70%. Losing must be possible: the old tension fight could not be lost by a player who simply let go.
 - **Fish pull strength:** rises with rarity, so legendaries surge harder and more often.
 - **Weight:** `kg = min + (max − min) × (0.5 × random + 0.5 × quality)`. `size_ratio = (kg − min)/(max − min)`.
 - **Values:**
