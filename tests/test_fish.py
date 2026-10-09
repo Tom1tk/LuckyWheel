@@ -440,8 +440,21 @@ class TestLandLine:
         calls = []
         monkeypatch.setattr(fish, "_post_catch_bookkeeping",
                             lambda conn, uid, ts, fc: calls.append((uid, fc)))
+        self.bounties = []
+        monkeypatch.setattr(fish, "increment_bounty",
+                            lambda conn, uid, bid, d, amount=1: self.bounties.append(bid))
         cur = MockCursor(queue_fetchone=[row])
         return fish.land_line(cur, MockConn(), 7, self.NOW, landed, quality), cur, calls
+
+    def test_land_bounties(self, monkeypatch):
+        monkeypatch.setattr(fish, "size_up_catch", lambda *a, **k: {
+            "kg": 1.0, "value": 5, "surge": 1, "ratio": 0.95, "records": {}, "new_record": False})
+        self._land(monkeypatch, self._row(species="shark", fought=7))
+        assert self.bounties == ["bounty_hand5", "bounty_rare", "bounty_trophy"]
+        monkeypatch.setattr(fish, "size_up_catch", lambda *a, **k: {
+            "kg": 0.02, "value": 1, "surge": 1, "ratio": 0.89, "records": {}, "new_record": False})
+        self._land(monkeypatch, self._row())
+        assert self.bounties == ["bounty_hand5"]
 
     def test_no_hook_is_no_session(self, monkeypatch):
         result, _, calls = self._land(monkeypatch, self._row(species=None, fish_clicks=9))

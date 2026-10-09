@@ -1433,10 +1433,6 @@ def spin():
 
             # Season 8: bounty tracking
             bounty_date = dt.datetime.now(timezone.utc).date()
-            if events['jackpot_hit']:
-                increment_bounty(conn, current_user.id, 'bounty_jackpot', bounty_date)
-            if events.get('stake', 1) >= 5 and events['result'] in ('win', 'jackpot'):
-                increment_bounty(conn, current_user.id, 'bounty_wager5', bounty_date)
             # bounty_streak10 tracks the real win streak (events['streak']), not
             # wager_streak (the same-stake hot-streak counter, which never resets
             # at the default 1x stake and made this permanently uncompletable
@@ -1444,8 +1440,6 @@ def spin():
             # this is a one-time "reach a streak" achievement, not a 10x counter.
             if events.get('streak', 0) == 10:
                 increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date, amount=10)
-            if double_down_active and events['result'] in ('win', 'jackpot'):
-                increment_bounty(conn, current_user.id, 'bounty_double', bounty_date)
             # Season 8: community goal contribution hooks
             season_info = get_season_info(conn)
             season_num = season_info.get('season_number', 8) if season_info else 8
@@ -2779,8 +2773,6 @@ def wager_bank():
                    WHERE user_id = %s''',
                 (new_wins, new_losses, current_user.id),
             )
-        bounty_date = dt.datetime.now(timezone.utc).date()
-        increment_bounty(conn, current_user.id, 'bounty_bank', bounty_date)
         conn.commit()
     return jsonify({
         'wins':               new_wins,

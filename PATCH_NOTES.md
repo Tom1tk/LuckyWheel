@@ -36,7 +36,7 @@ A cleaner fight lands a **heavier fish**, and heavier fish are worth more 🐟. 
 
 ### 🌊 Surge: Fishing Powers the Wheel
 
-Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip above the wheel shows your Surge. **Bounties now pay Surge** too: 100, 200 and 300 spins.
+Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip above the wheel shows your Surge. **Bounties now pay Surge** too: 100, 200 and 300 spins. Bounties are now streaks and fishing only (land fish in a fight, a rare, a trophy-sized catch), so every build can finish them.
 
 ### 🐠 46 Species
 
