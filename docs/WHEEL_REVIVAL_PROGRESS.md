@@ -87,3 +87,4 @@ Notes for H2/H3:
 Spec: `docs/SEASON_9_DEEP_SPEC.md` (Charts talent trees, Surge, fish fight, 46-species catalogue). Tickets D1–D5.
 
 - **D1 backend:** `talents.py`, migration 078, `/api/charts` GET/POST (refund once per London day), gear shop locked (403), staked spin costs 1 🪙 chip, Surge in spin + tick, Spring Tide / Rogue Wave rules, staked jackpot ×5, REGEN 25, goal reward 10 chips, rollover clears Chart/Surge/chips and keeps `fish_records`. Tests: `tests/test_charts.py`, rollover case in `tests/test_season_tides.py`.
+- **D3 backend:** `fish_catalog.py` (46 species; London window / tide / migrant availability; Deep Sea filter and ×1.5 bite wait), `GET /api/fish-catalog`, size (kg) and size-scaled 🐟 value, `fish_records`, Surge from catches at all three sites (manual reel, auto-fish tick, AFK catch-up; ×0.25 auto, none for Rogue Wave). Junk is worth 0. Manual reel uses neutral quality 0.5 until the D4 fight. Tests: `tests/test_fish_catalog.py`.

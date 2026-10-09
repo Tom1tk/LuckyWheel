@@ -185,3 +185,16 @@ def catalog() -> list:
         out.append({'id': tid, 'tree': d['tree'], 'row': d['row'], 'name': d['name'],
                     'max_rank': max_rank(tid), 'desc': d['desc'], 'requires': d.get('requires')})
     return out
+
+
+SURGE_BY_RARITY = {'junk': 0, 'common': 6, 'uncommon': 15, 'rare': 40, 'legendary': 150}
+AUTO_SURGE_MULT = 0.25
+
+
+def catch_surge(alloc: dict, rarity: str, size_ratio: float, auto: bool) -> int:
+    """Surge spins a catch earns (spec §4). Rogue Wave earns none."""
+    base = SURGE_BY_RARITY[rarity]
+    if not base or keystone(alloc) == 'rogue_wave':
+        return 0
+    s = base * (0.5 + size_ratio) * surge_bonus(alloc)
+    return max(1, round(s * AUTO_SURGE_MULT)) if auto else round(s)

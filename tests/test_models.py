@@ -17,10 +17,9 @@ from models import (
 
 # ── FISH_CATALOG integrity ────────────────────────────────────────────────────
 
-def test_fish_catalog_weights_approx_100():
-    # random.choices normalises automatically; weights just need to be positive and ~100
-    total = sum(v['weight'] for v in FISH_CATALOG.values())
-    assert 99.0 < total < 102.0, f"weights sum to {total}, expected roughly 100"
+def test_fish_catalog_weights_positive():
+    # random.choices normalises; Season 9 weights are relative (spec §6 table).
+    assert all(v['weight'] > 0 for v in FISH_CATALOG.values())
 
 
 def test_all_items_keys_disjoint():
@@ -70,8 +69,8 @@ def test_fish_value_lure_5():
     assert val == 20  # base 1 * 20.0
 
 def test_fish_value_minimum_1():
-    for sid in FISH_CATALOG:
-        assert fish_value(sid, 0) >= 1
+    for sid, f in FISH_CATALOG.items():
+        assert fish_value(sid, 0) == (0 if f['rarity'] == 'junk' else max(1, f['value']))
 
 
 # ── lure_bite_delay_seconds ───────────────────────────────────────────────────

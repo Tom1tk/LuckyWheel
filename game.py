@@ -35,6 +35,7 @@ from chat import post_system_message, post_dedup_system_message
 import chat_triggers
 import dice
 import fish
+import fish_catalog
 import shop
 import talents
 import loadout
@@ -1886,10 +1887,18 @@ def tick():
                             total_value    = 0
                             catch_count    = 0
                             first_catches  = []
+                            alloc          = gs.get('talent_alloc') or {}
+                            records        = gs.get('fish_records') or {}
+                            surge_earned   = 0
                             for _ in range(pending_fish):
                                 if random.random() < autofisher_catch_rate(autofisher_lvl):
-                                    sid = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4))
-                                    val = max(1, int(fish_value(sid, lure_lvl) * _lm_mult * _earth_mult))
+                                    sid = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4), now=now_utc,
+                                                    deep_sea=talents.keystone(alloc) == 'deep_sea')
+                                    catch = fish.size_up_catch(sid, fish_value(sid, lure_lvl), random.random(),
+                                                               alloc, records, auto=True)
+                                    records = catch['records']
+                                    surge_earned += catch['surge']
+                                    val = int(catch['value'] * _lm_mult * _earth_mult)
                                     new_clicks  += val
                                     total_value += val
                                     catch_count += 1
@@ -1900,9 +1909,11 @@ def tick():
                                 cur.execute(
                                     '''UPDATE game_state
                                        SET fish_clicks = %s, caught_species = %s,
-                                           auto_fish_last_tick = %s
+                                           auto_fish_last_tick = %s,
+                                           surge_spins = surge_spins + %s, fish_records = %s
                                        WHERE user_id = %s''',
-                                    (new_clicks, new_caught, now_utc, current_user.id),
+                                    (new_clicks, new_caught, now_utc, surge_earned,
+                                     psycopg2.extras.Json(records), current_user.id),
                                 )
                             fish_catchup_data = {
                                 'fish_count':      catch_count,
@@ -1910,6 +1921,7 @@ def tick():
                                 'new_species':     first_catches,
                                 'fish_clicks':     new_clicks,
                                 'elapsed_seconds': fish_elapsed,
+                                'surge':           surge_earned,
                             }
 
             conn.commit()
@@ -1934,7 +1946,7 @@ def tick():
             'auto_spin_active':      True,
             # T106: cumulative_wins after all processed spins (catch-up summary).
             'cumulative_wins':       new_cumulative_wins,
-            'surge_spins':           surge_left,
+            'surge_spins':           surge_left + (fish_catchup_data or {}).get('surge', 0),
         }
 
         if is_catch_up:
@@ -2337,6 +2349,12 @@ def reel_line():
     except Exception:
         log.exception('REEL_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Reel failed'}), 500
+
+
+@game_bp.route('/api/fish-catalog', methods=['GET'])
+@login_required
+def fish_catalog_route():
+    return jsonify(fish_catalog.catalog_payload(dt.datetime.now(timezone.utc)))
 
 
 @game_bp.route('/api/auto-fish-tick', methods=['POST'])
