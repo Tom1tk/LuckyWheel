@@ -6832,13 +6832,13 @@ function GameApp(_ref38) {
   useEffect(function () {
     if (!season || !(season.player_facing_number >= 9)) return;
     try {
-      if (!localStorage.getItem('whatsNewSeen_s9')) setShowWhatsNew(true);
+      if (!localStorage.getItem('whatsNewSeen_s9_charts')) setShowWhatsNew(true);
     } catch (e) {}
   }, [season ? season.player_facing_number : null]); // eslint-disable-line
   var dismissWhatsNew = useCallback(function () {
     setShowWhatsNew(false);
     try {
-      localStorage.setItem('whatsNewSeen_s9', '1');
+      localStorage.setItem('whatsNewSeen_s9_charts', '1');
     } catch (e) {}
   }, []);
   var handleClosePatchNotes = useCallback(function () {
