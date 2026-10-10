@@ -646,6 +646,9 @@ def _resolve_spin(
         jackpot_hit = True
         # A wheel jackpot multiplies the payout a win would have paid, streak bonus included.
         bonus_earned = streak_bonus(abs(new_streak)) * bonus_mult
+        if 'fortune_charm' in owned and bonus_earned > 0 and random.random() < charm_chance:
+            bonus_earned = int(bonus_earned * 1.25)
+            fortune_charm_triggered = True
         jackpot_mult = mode.get('jackpot_multiplier', 25)
         if stake_cost_total > 0:
             jackpot_mult = min(jackpot_mult, STAKED_JACKPOT_MULT)
