@@ -279,7 +279,7 @@ DEDUP_EVENT_KINDS = frozenset({
 
 
 def post_system_message(conn, message: str, message_type: str = 'system', event_kind: str | None = None,
-                        throttle: bool = True):
+                        throttle: bool = True, user_id: int | None = None):
     """Insert a system message into chat (user_id=NULL, username='SYSTEM').
 
     Throttled to at most one message per SYSTEM_MESSAGE_THROTTLE_SECS per
@@ -291,7 +291,8 @@ def post_system_message(conn, message: str, message_type: str = 'system', event_
     prestige announcements, jackpots. Must be called within an existing
     db_connection() context — caller manages commit/rollback.
     throttle=False is for once-a-week messages (the tide rollover) that must
-    never be dropped.
+    never be dropped. user_id names the player the message is about, so its
+    IP is stored and test accounts' messages stay hidden like their chat.
     """
     if not message:
         return
@@ -305,9 +306,9 @@ def post_system_message(conn, message: str, message_type: str = 'system', event_
     message = message[:MAX_MSG_LEN]
     with conn.cursor() as cur:
         cur.execute(
-            '''INSERT INTO chat_messages (user_id, username, message, message_type)
-               VALUES (NULL, 'SYSTEM', %s, %s)''',
-            (message, message_type),
+            '''INSERT INTO chat_messages (user_id, username, message, message_type, ip_address)
+               VALUES (NULL, 'SYSTEM', %s, %s, (SELECT ip_address FROM users WHERE id = %s))''',
+            (message, message_type, user_id),
         )
         # Trim to MAX_CHAT_MESSAGES most recent (system messages share the table with
         # player chat; post_chat() already does this for its own inserts,
@@ -344,7 +345,7 @@ def post_dedup_system_message(conn, message, user_id, event_kind, *, message_typ
         return
     if event_kind not in DEDUP_EVENT_KINDS:
         return post_system_message(
-            conn, message, message_type=message_type, event_kind=event_kind,
+            conn, message, message_type=message_type, event_kind=event_kind, user_id=user_id,
         )
 
     message = message[:MAX_MSG_LEN]
