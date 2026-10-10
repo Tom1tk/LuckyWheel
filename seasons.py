@@ -231,6 +231,8 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
     # persist across tides; functional items reset. Everyone keeps auto_spin_unlock
     # and the season theme, and auto-spin that was running keeps running.
     new_theme = SEASON_CONFIG['theme_item']
+    # A new season swaps everyone onto its theme; a weekly tide keeps the player's choice.
+    force_theme = next_player_facing_number != season['player_facing_number']
     cosmetics = [k for k, v in ITEM_CURRENCY.items() if v == 'losses']
     always = [new_theme, 'auto_spin_unlock']
     with conn.cursor() as cur:
@@ -242,8 +244,9 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                    equipped_fish = CASE WHEN equipped_fish = ANY(owned_items) AND equipped_fish = ANY(%(cosmetics)s)
                                         THEN equipped_fish ELSE 'default' END,
                    regen_recharge_wins = 0,
-                   active_cosmetics = ARRAY(SELECT x FROM unnest(active_cosmetics) x WHERE x = ANY(%(cosmetics)s))
-                       || CASE WHEN EXISTS (SELECT 1 FROM unnest(active_cosmetics) x
+                   active_cosmetics = ARRAY(SELECT x FROM unnest(active_cosmetics) x WHERE x = ANY(%(cosmetics)s)
+                                                AND NOT (%(force_theme)s AND x LIKE 'page\\_%%'))
+                       || CASE WHEN NOT %(force_theme)s AND EXISTS (SELECT 1 FROM unnest(active_cosmetics) x
                                             WHERE x LIKE 'page\\_%%' AND x = ANY(%(cosmetics)s))
                                THEN '{}'::text[] ELSE %(theme)s::text[] END,
                    spin_count = 0, win_count = 0, loss_count = 0,
@@ -285,7 +288,8 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                    talent_alloc = '{}'::jsonb, talent_rechart_date = NULL, chart_points_bought = 0,
                    surge_spins = 0, insurance_tokens = 0,
                    fishing_species = NULL, fishing_hooked_at = NULL""",
-            {'always': always, 'cosmetics': cosmetics, 'theme': [new_theme], 'starts': next_starts},
+            {'always': always, 'cosmetics': cosmetics, 'theme': [new_theme], 'starts': next_starts,
+             'force_theme': force_theme},
         )
 
     with conn.cursor() as cur:
