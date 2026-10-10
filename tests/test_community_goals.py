@@ -660,3 +660,35 @@ def test_goal_does_not_rotate_when_iso_week_changes_mid_tide():
     finally:
         conn.rollback()
         conn.close()
+
+
+def test_test_account_does_not_move_the_shared_goal():
+    """Accounts created from 127.0.0.1 are hidden test accounts: their play must not move the goal."""
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_database()")
+            assert cur.fetchone()[0] == 'wheeldb_test'
+            ids = {}
+            for ip in ('127.0.0.1', '203.0.113.9'):
+                cur.execute("INSERT INTO users (username, password_hash, ip_address) VALUES (%s, 'x', %s) RETURNING id",
+                            (f'cg_{ip.replace(".", "")}_{time.time_ns() % 10**8}', ip))
+                ids[ip] = cur.fetchone()[0]
+            cur.execute("INSERT INTO community_goals (goal_id, season_number, week_number, target) "
+                        "VALUES ('goal_fish5000', 99999, 1, 5000) RETURNING id")
+            cur.execute("SELECT current FROM community_goals WHERE goal_id = 'goal_fish5000' AND NOT completed "
+                        "ORDER BY id DESC LIMIT 1")
+            start = cur.fetchone()[0]
+
+        community_goals.increment_goal(conn, 'goal_fish5000', ids['127.0.0.1'], 3)
+        with conn.cursor() as cur:
+            cur.execute("SELECT current FROM community_goals WHERE season_number = 99999")
+            assert cur.fetchone()[0] == start
+
+        community_goals.increment_goal(conn, 'goal_fish5000', ids['203.0.113.9'], 3)
+        with conn.cursor() as cur:
+            cur.execute("SELECT current FROM community_goals WHERE season_number = 99999")
+            assert cur.fetchone()[0] == start + 3
+    finally:
+        conn.rollback()
+        conn.close()

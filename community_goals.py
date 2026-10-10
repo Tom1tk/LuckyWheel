@@ -209,8 +209,10 @@ def increment_goal(conn, goal_id, user_id, amount):
             '''UPDATE community_goals
                SET current = current + %s
                WHERE goal_id = %s AND NOT completed
+                 -- test accounts (127.0.0.1) never move the shared goal
+                 AND NOT EXISTS (SELECT 1 FROM users WHERE id = %s AND ip_address = '127.0.0.1')
                RETURNING current, target, milestone_25, milestone_50, milestone_75''',
-            (actual_amount, goal_id),
+            (actual_amount, goal_id, user_id),
         )
         goal_row = cur.fetchone()
 
