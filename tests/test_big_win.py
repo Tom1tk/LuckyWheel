@@ -106,7 +106,7 @@ def _fake_db_connection():
 _posted = []
 
 
-def _fake_post_system_message(conn, message, message_type='system', event_kind=None):
+def _fake_post_system_message(conn, message, message_type='system', event_kind=None, **_kw):
     _posted.append({'message': message, 'event_kind': event_kind})
 
 

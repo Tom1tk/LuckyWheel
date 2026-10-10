@@ -1422,7 +1422,7 @@ def spin():
                     int(events.get('stake', 1)),
                     int(events['wins_delta']),
                     events.get('active_wheel_mode', 'steady'),
-                ), 'system', event_kind='double_down_win')
+                ), 'system', event_kind='double_down_win', user_id=current_user.id)
                 double_down_msg_posted = True
             # Season 8: hot streak milestone (fires on exact transition to threshold)
             if (events['result'] in ('win', 'jackpot')
@@ -1470,7 +1470,7 @@ def spin():
                 onboarding_advance = True
                 # Season 8: post system message for new player first spin
                 post_system_message(conn, chat_triggers.new_player_msg(current_user.username),
-                                    'system', event_kind='new_player')
+                                    'system', event_kind='new_player', user_id=current_user.id)
                 # Season 8: grant trail_1 cosmetic reward on first spin
                 if 'trail_1' not in new_state['owned']:
                     new_state['owned'] = list(new_state['owned']) + ['trail_1']

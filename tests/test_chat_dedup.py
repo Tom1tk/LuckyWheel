@@ -159,7 +159,7 @@ class _FakeCursor:
         # INSERT INTO chat_messages ...
         if s_upper.startswith('INSERT INTO CHAT_MESSAGES'):
             # post_dedup_system_message: (user_id, message, message_type, event_kind, ip_address)
-            # post_system_message (fall-through): (message, message_type)
+            # post_system_message (fall-through): (message, message_type, user_id)
             if len(params) >= 4:
                 # post_dedup_system_message — user_id, message, message_type, event_kind, [ip_address]
                 user_id, message, message_type, event_kind = params[:4]
@@ -175,7 +175,7 @@ class _FakeCursor:
                 }
             else:
                 # post_system_message inlines NULL and 'SYSTEM' literally.
-                message, message_type = params
+                message, message_type, _about_user_id = params
                 new_row = {
                     'id': self._next_id,
                     'user_id': None,

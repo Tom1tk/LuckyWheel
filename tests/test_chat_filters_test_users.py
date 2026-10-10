@@ -151,3 +151,32 @@ def test_migration_072_adds_ip_column():
     assert 'INET' in src.upper(), (
         "ip_address must be INET (matches the users.ip_address type)"
     )
+
+
+def test_system_message_about_a_test_account_is_hidden():
+    """A first-spin style announcement about a 127.0.0.1 account must not reach the chat feed."""
+    import uuid
+    import psycopg2
+    import chat as _chat
+
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SELECT current_database()')
+            assert cur.fetchone()[0] == 'wheeldb_test'
+            ids = {}
+            for ip in ('127.0.0.1', '203.0.113.9'):
+                cur.execute("INSERT INTO users (username, password_hash, ip_address) VALUES (%s, 'x', %s) RETURNING id",
+                            (f'cf_{uuid.uuid4().hex[:10]}', ip))
+                ids[ip] = cur.fetchone()[0]
+        tag = uuid.uuid4().hex
+        for ip, uid in ids.items():
+            _chat.post_system_message(conn, f'{tag} {ip}', event_kind=f'k_{tag}_{ip}', user_id=uid)
+        sql, params = _chat._build_chat_query({})
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            shown = [r[2] for r in cur.fetchall() if tag in r[2]]
+        assert shown == [f'{tag} 203.0.113.9']
+    finally:
+        conn.rollback()
+        conn.close()
