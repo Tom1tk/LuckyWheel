@@ -1,5 +1,6 @@
 import datetime as dt
 import hmac
+import json
 import logging
 import os
 import random
@@ -79,7 +80,7 @@ _GAME_STATE_SQL = '''
            wager_last_win_amount, wager_banked_losses,
            insurance_free_claimed_date, insurance_unlock_grant_given,
            gravity_drift,
-           talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records
+           talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins
     FROM game_state WHERE user_id = %s
 '''
 
@@ -904,6 +905,15 @@ _RESPONSE_KEYS = (
 )
 
 
+RECENT_SPINS_KEPT = 10
+
+
+def _push_recent_spin(recent: list, events: dict) -> list:
+    """Newest-first spin log for the leaderboard's Recent Spins tab."""
+    entry = {'result': events['result'], 'wins_delta': int(events.get('wins_delta') or 0)}
+    return [entry, *(recent or [])][:RECENT_SPINS_KEPT]
+
+
 def _events_to_response(events: dict) -> dict:
     """Convert spin events into the JSON response payload shared by spin() and tick().
 
@@ -980,7 +990,7 @@ def get_state():
                               cosmetic_fragments, guard_charges,
                               gravity_drift,
                               auto_fish_enabled, auto_fish_last_tick,
-                              talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records
+                              talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -1120,6 +1130,7 @@ def get_state():
             'charts':               _charts_payload(gs, now_utc),
             'surge_spins':          int(gs.get('surge_spins', 0) or 0),
             'fish_records':         gs.get('fish_records') or {},
+            'recent_spins':         gs.get('recent_spins') or [],
             'aquarium_species':     list(gs.get('caught_species', [])),
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
             # T102: max stake percentage for this player (30 base, 35/40/45
@@ -1477,6 +1488,8 @@ def spin():
                 if 'trail_1' not in new_state['active_cosmetics']:
                     new_state['active_cosmetics'] = list(new_state['active_cosmetics']) + ['trail_1']
 
+            recent_spins = _push_recent_spin(gs.get('recent_spins'), events)
+
             # Manual spin: add extra full rotations for the wheel animation
             total_rotation = random.randint(5, 8) * 360 + events['segment_angle']
 
@@ -1505,6 +1518,7 @@ def spin():
                           gravity_drift = %s,
                           insurance_tokens = %s,
                           surge_spins = %s,
+                          recent_spins = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                        WHERE user_id = %s''',
                      (new_state['wins'], new_state['losses'],
@@ -1524,6 +1538,7 @@ def spin():
                      new_biggest_win_announced,
                      new_state.get('gravity_drift', 0),
                      chips_after, surge_after,
+                     json.dumps(recent_spins),
                      current_user.id),
                 )
             conn.commit()
@@ -1572,6 +1587,7 @@ def spin():
         resp['tokens_spent'] = 1 if events.get('staked') else 0
         resp['surge_spins'] = surge_after
         resp['surge_used'] = bool(surge_spent)
+        resp['recent_spins'] = recent_spins
         return jsonify(resp)
     except Exception:
         log.exception('SPIN_ERROR  user_id=%s', current_user.id)
@@ -1729,6 +1745,7 @@ def tick():
             dice_refunded_this_tick = False
 
             surge_left = int(gs.get('surge_spins', 0) or 0)
+            recent_spins = gs.get('recent_spins') or []
             for _ in range(spins_due):
                 new_spin_count += 1
                 win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, surge_left)
@@ -1805,6 +1822,7 @@ def tick():
                 new_loss_count += 1 if events['result'] == 'lose' else 0
                 # T106: cumulative_wins — track lifetime value of wins gained.
                 new_cumulative_wins += max(0, int(events.get('wins_delta', 0)))
+                recent_spins = _push_recent_spin(recent_spins, events)
 
                 # T221: jackpot chat messages are gone entirely (see /api/spin).
                 # T90: auto-post chat messages (mirror T82 manual /api/spin path)
@@ -1828,6 +1846,7 @@ def tick():
                     # T220: tell the client if the dice was refunded on this
                     # spin (loss path) so it can show the refund toast.
                     resp['dice_refunded'] = dice_refunded_this_tick
+                    resp['recent_spins'] = recent_spins
                     spin_results.append(resp)
 
             # Advance last_spin_at cursor
@@ -1847,6 +1866,7 @@ def tick():
                            gravity_drift = %s,
                            wager_banked_losses = %s,
                            surge_spins = %s,
+                           recent_spins = %s,
                        dice_rolled_since_spin = FALSE, pending_dice = NULL,
                        last_spin_at = %s
                       WHERE user_id = %s''',
@@ -1861,6 +1881,7 @@ def tick():
                      current_gravity_drift,
                      current_wager_banked_losses,
                      surge_left,
+                     json.dumps(recent_spins),
                      new_last_spin,
                      current_user.id),
                 )
@@ -2688,7 +2709,7 @@ def leaderboard():
                 # keeps the leaderboard clean for every viewer, server-side.
                 cur.execute(
                     '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
-                              gs.last_spin_at
+                              gs.last_spin_at, gs.chart_points_bought
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
                        WHERE gs.wins > 0
@@ -2709,6 +2730,7 @@ def leaderboard():
                 'losses':          r['losses'],
                 'streak':          r['streak'],
                 'best_streak':     r['best_streak'],
+                'talent_points':   talents.points_total(now_utc, r['chart_points_bought']),
                 'active':          bool(active),
             })
         return jsonify(result)

@@ -1994,7 +1994,7 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .bottom-left-stack > * { pointer-events: auto; }
 
 .leaderboard-panel {
-  width: 265px;
+  width: 300px;
   background: rgba(0, 5, 15, 0.92);
   border: 1px solid var(--p-xs);
   border-radius: 10px;
@@ -2012,32 +2012,32 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   opacity: 0.85;
 }
 
-.lb-header {
-  display: flex;
+.lb-header, .lb-row {
+  /* Fixed columns so every row lines up: rank | name | W | L | TP | streak */
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 64px 44px 22px 38px;
   align-items: baseline;
-  gap: 4px;
+  column-gap: 6px;
+}
+.lb-header.lb-spins, .lb-row.lb-spins { grid-template-columns: 18px minmax(0, 1fr) 80px; }
+
+.lb-header {
   padding: 0 0 4px 0;
   border-bottom: 1px solid rgba(var(--p-rgb),0.12);
   margin-bottom: 3px;
 }
-.lb-rank-h   { width: 18px; flex-shrink: 0; }
-.lb-name-h   { flex: 1; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-transform: uppercase; }
-.lb-wins-h   { width: 64px; font-size: 0.5rem; color: #555; letter-spacing: 0.5px; text-align: right; flex-shrink: 0; }
+.lb-name-h   { font-size: 0.5rem; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+.lb-wins-h, .lb-losses-h, .lb-tp-h { font-size: 0.5rem; color: #555; letter-spacing: 0.5px; text-align: right; text-transform: uppercase; }
 .lb-best-h   { width: 34px; font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; }
 .lb-streak-h { font-size: 0.5rem; color: #555; letter-spacing: 1px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 
 .lb-row {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
   padding: 2px 0;
 }
 
 .lb-rank {
   font-size: 0.6rem;
   color: #555;
-  width: 18px;
-  flex-shrink: 0;
 }
 .lb-rank.gold   { color: var(--p); text-shadow: 0 0 6px var(--p); }
 .lb-rank.silver { color: #aaa; }
@@ -2056,15 +2056,10 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-name.is-you { color: var(--p); }
 
 .lb-wins {
-  /* T227: widened from 28px to fit scientific notation ("1.23e+50"
-     is 8 chars at 0.6rem ≈ 65-75px). flex-shrink:0 + text-align:right
-     keep the number right-aligned and let .lb-name absorb the slack
-     via its flex:1. */
-  min-width: 64px;
-  width: 64px;
+  /* Column width comes from the .lb-row grid; it must fit scientific
+     notation ("1.23e+50"). */
   font-size: 0.6rem;
   color: var(--p);
-  flex-shrink: 0;
   letter-spacing: 0.5px;
   text-align: right;
   overflow: hidden;
@@ -2088,6 +2083,18 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   white-space: nowrap;
   min-height: 1em;
 }
+
+.lb-losses, .lb-tp {
+  font-size: 0.6rem;
+  color: #888;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.lb-wins.is-neg { color: #888; }
+.lb-spin-result { font-size: 0.62rem; letter-spacing: 1px; text-transform: uppercase; color: #ddd; }
+.lb-spin-result.is-jackpot { color: var(--p); text-shadow: 0 0 6px var(--p); }
+.lb-spin-result.is-lose { color: #777; }
 
 /* Streak inferno glow — escalates with active win streak */
 .streak-inferno-1  { color: #FF8800; }
