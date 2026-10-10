@@ -1,12 +1,24 @@
 import logging
 import os
 from datetime import timedelta
+from decimal import Decimal
 
 from flask import Flask, jsonify, request
+from flask.json.provider import DefaultJSONProvider
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 log = logging.getLogger('wheel')
+
+
+class _JSONProvider(DefaultJSONProvider):
+    # NUMERIC columns (wins etc.) come back as Decimal, which Flask sends as a string;
+    # the client then did `wins + "2"` and the counter grew by string concatenation.
+    @staticmethod
+    def default(o):
+        if isinstance(o, Decimal):
+            return int(o) if o == o.to_integral_value() else float(o)
+        return DefaultJSONProvider.default(o)
 
 
 def create_app() -> Flask:
@@ -25,6 +37,7 @@ def create_app() -> Flask:
         )
 
     app = Flask(__name__, static_folder='static')
+    app.json = _JSONProvider(app)
     # Trust one layer of reverse-proxy headers (nginx/caddy in front).
     # Fixes remote_addr (rate-limit keys, audit logs) and request.is_secure.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
