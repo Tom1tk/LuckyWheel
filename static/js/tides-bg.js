@@ -23,7 +23,9 @@
 
   function createTidesScene(canvas, opts) {
     opts = opts || {};
-    const pal = Object.assign({}, DEFAULT_PALETTE, opts.palette || {});
+    // opts.halloween adds static/js/halloween-bg.js's layer on top of the tide scene.
+    const hw = opts.halloween && window.createHalloweenLayer ? window.createHalloweenLayer() : null;
+    const pal = Object.assign({}, DEFAULT_PALETTE, hw ? hw.palette : {}, opts.palette || {});
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const still = !!opts.lowSpec || reduce;
     let ctx = canvas.getContext('2d');   // swapped to an offscreen ctx while painting the still layer
@@ -83,6 +85,7 @@
       const real = ctx;
       ctx = off.getContext('2d'); ctx.setTransform(k, 0, 0, k, 0, 0);
       sky(); sea(); headland();
+      if (hw) hw.land(ctx, geom());
       ctx = real;
       // data: not blob: — the CSP's img-src allows only 'self' and data:. JPEG: the layer is opaque.
       canvas.style.backgroundImage = `url(${off.toDataURL('image/jpeg', 0.92)})`;
@@ -96,8 +99,12 @@
       // Moon-glow from the wheel, warming the sky above the horizon.
       const halo = ctx.createRadialGradient(moonX, moonY, moonR * 0.8, moonX, moonY, moonR * 3.2);
       halo.addColorStop(0, 'rgba(63,214,198,0.16)'); halo.addColorStop(1, 'rgba(63,214,198,0)');
-      ctx.fillStyle = halo; ctx.fillRect(0, 0, W, horizon);
+      ctx.fillStyle = halo;
+      if (hw) hw.sky(ctx, geom());   // its orange glow replaces the sea-glass one
+      else ctx.fillRect(0, 0, W, horizon);
     }
+
+    const geom = () => ({ W, H, moonX, moonY, moonR, horizon, rowY, lighthouseX });
 
     function twinkle(t) {
       for (const s of stars) {
@@ -254,13 +261,14 @@
       last = now;
       const t = now - start;
       if (!still && t % 1000 < FRAME_MS) { layout(); refreshStill(); }   // follow the wheel if the layout shifts
-      if (still) { sky(); twinkle(t); sea(); headland(); }
+      if (still) { sky(); twinkle(t); sea(); headland(); if (hw) hw.land(ctx, geom()); }
       else ctx.clearRect(0, 0, W, H);
       if (!still) twinkle(t);
       beam(t); glitter(t); swell(t);
       buoy(moonX - moonR * 1.45, 0.14, t, pal.win, 1300);
       buoy(moonX + moonR * 1.05, 0.06, t, pal.lose, 1700);
       boat(t); plankton(t);
+      if (hw) hw.draw(ctx, geom(), t, still);
       if (!still) raf = requestAnimationFrame(frame);
     }
 
