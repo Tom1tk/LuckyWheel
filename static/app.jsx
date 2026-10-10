@@ -5171,7 +5171,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="casino-title">
               <span className="title-lucky-wrap">
                 <span className="title-lucky">Lucky</span>
-                <span className="title-endless">{tidesActive ? 'Tide' : 'Casino'}</span>
+                <span className="title-endless">{tidesActive ? (HALLOWEEN_ACTIVE ? 'Spooky' : 'Tide') : 'Casino'}</span>
               </span>
               {' '}Wheel
             </div>
