@@ -221,6 +221,39 @@ def test_rollover_grants_page_season9_by_default(conn):
     assert 'page_season9' in _owned_items(conn, user_id)
 
 
+def _wear(conn, user_id, items):
+    with conn.cursor() as cur:
+        cur.execute('UPDATE game_state SET owned_items = %s, active_cosmetics = %s WHERE user_id = %s',
+                    (items, items, user_id))
+
+
+def _active(conn, user_id):
+    with conn.cursor() as cur:
+        cur.execute('SELECT active_cosmetics FROM game_state WHERE user_id = %s', (user_id,))
+        return cur.fetchone()[0]
+
+
+def test_new_season_equips_its_theme_over_the_old_one(conn):
+    user_id = _make_user(conn)
+    _wear(conn, user_id, ['page_season8', 'trail_1'])
+    _seed_season(conn, pfn=8, sub=None, name='Casino')
+
+    seasons.advance_season(conn, 9, 'Tides', 1)
+
+    assert sorted(_active(conn, user_id)) == ['page_season9', 'trail_1']
+    assert 'page_season8' in _owned_items(conn, user_id)
+
+
+def test_tide_keeps_the_players_chosen_theme(conn):
+    user_id = _make_user(conn)
+    _wear(conn, user_id, ['page_season8'])
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    assert _active(conn, user_id) == ['page_season8']
+
+
 def test_ends_at_is_next_rollover_after_now(conn, monkeypatch):
     calls = []
     real_next_rollover = seasons.next_rollover_after
