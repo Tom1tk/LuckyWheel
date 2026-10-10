@@ -172,31 +172,17 @@ def test_format_wins_handles_string_input():
 
 
 def test_lb_wins_column_widened():
-    """T227: the .lb-wins column must be wide enough to fit
-    '1.23e+50' (8 chars at 0.6rem ≈ 70px). 64px + flex-shrink:0
-    is the minimum, and the column must use overflow:hidden
-    (not visible) so it never expands the row."""
+    """T227: the leaderboard wins column must be wide enough to fit
+    '1.23e+50' (8 chars at 0.6rem). Rows and header share one grid
+    template, so the W track (3rd column) sets both, and the cell clips
+    (overflow:hidden) rather than expanding the row."""
     css = open('static/styles.css').read()
-    # Find the .lb-wins rule. It must have width >= 64px.
-    m = re.search(r'\.lb-wins\s*\{([^}]+)\}', css, re.DOTALL)
-    assert m, ".lb-wins CSS rule not found"
-    rule = m.group(1)
-    width_m = re.search(r'(?:^|\s)width:\s*(\d+)px', rule, re.MULTILINE)
-    assert width_m, ".lb-wins must have explicit width in px"
-    width = int(width_m.group(1))
-    assert width >= 64, (
-        f".lb-wins width={width}px is too narrow for "
-        f"scientific notation (1.50e+50 needs ~70px). "
-        f"Widen to 64px or more."
-    )
-    # And the header column should match.
-    m_h = re.search(r'\.lb-wins-h\s*\{([^}]+)\}', css, re.DOTALL)
-    assert m_h, ".lb-wins-h CSS rule not found (header must match)"
-    h_width = int(re.search(r'width:\s*(\d+)px', m_h.group(1)).group(1))
-    assert h_width >= 64, (
-        f".lb-wins-h width={h_width}px doesn't match the data "
-        f"column width — header will be misaligned"
-    )
+    m = re.search(r'\.lb-header, \.lb-row \{[^}]*grid-template-columns:\s*([^;]+);', css)
+    assert m, ".lb-header/.lb-row shared grid template not found"
+    width = int(re.match(r'(\d+)px', m.group(1).split()[3]).group(1))
+    assert width >= 64, f"W column {width}px is too narrow for scientific notation"
+    rule = re.search(r'\.lb-wins\s*\{([^}]+)\}', css, re.DOTALL).group(1)
+    assert 'overflow: hidden' in rule
 
 
 def test_lb_wins_column_handles_overflow():

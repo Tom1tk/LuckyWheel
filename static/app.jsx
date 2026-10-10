@@ -2361,7 +2361,9 @@ function HiatusScreen({ season, username, onLogout }) {
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
-function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
+const SPIN_RESULT_LABELS = { win: 'Win', jackpot: 'Jackpot', lose: 'Loss' };
+
+function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, recentSpins }) {
   const [rows, setRows] = useState([]);
   const [tab, setTab] = useState('players');
 
@@ -2392,6 +2394,12 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
           className={`leaderboard-tab${tab === 'players' ? ' active' : ''}`}
           onClick={() => setTab('players')}
         >Top Players</button>
+        {recentSpins && (
+          <button
+            className={`leaderboard-tab${tab === 'spins' ? ' active' : ''}`}
+            onClick={() => setTab('spins')}
+          >Recent Spins</button>
+        )}
         <button
           className={`leaderboard-tab${tab === 'winners' ? ' active' : ''}`}
           onClick={() => setTab('winners')}
@@ -2403,6 +2411,8 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
             <span className="lb-wins-h">W</span>
+            <span className="lb-losses-h">L</span>
+            <span className="lb-tp-h" title="Talent points">TP</span>
             <span className="lb-streak-h">🔥</span>
           </div>
           {rows.length === 0 && <div className="lb-winners-empty">No wins yet. Spin to take the top spot.</div>}
@@ -2411,9 +2421,28 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber }) {
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
               <span className="lb-wins">{fmt(r.wins)}</span>
+              <span className="lb-losses">{fmt(r.losses)}</span>
+              <span className="lb-tp">{r.talent_points}</span>
               <span className={`lb-streak ${infernoClass(r.streak)}`}>
                 {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
               </span>
+            </div>
+          ))}
+        </>
+      )}
+      {tab === 'spins' && recentSpins && (
+        <>
+          <div className="lb-header lb-spins">
+            <span className="lb-rank-h"></span>
+            <span className="lb-name-h">Result · newest first</span>
+            <span className="lb-wins-h">Wins</span>
+          </div>
+          {recentSpins.length === 0 && <div className="lb-winners-empty">No spins yet. Your last 10 will show here.</div>}
+          {recentSpins.map((s, i) => (
+            <div key={i} className="lb-row lb-spins">
+              <span className="lb-rank">{i + 1}.</span>
+              <span className={`lb-spin-result is-${s.result}`}>{SPIN_RESULT_LABELS[s.result] || s.result}</span>
+              <span className={`lb-wins${s.wins_delta < 0 ? ' is-neg' : ''}`}>{s.wins_delta > 0 ? '+' : ''}{fmt(s.wins_delta)}</span>
             </div>
           ))}
         </>
@@ -3751,6 +3780,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [equippedClass, setEquippedClass]   = useState(gameState.equipped_class || null);
   const [charts, setCharts]                 = useState(gameState.charts || null);
   const [surgeSpins, setSurgeSpins]         = useState(gameState.surge_spins || 0);
+  const [recentSpins, setRecentSpins]       = useState(gameState.recent_spins || []);
   const [surgeExplained, setSurgeExplained] = useState(() => {
     try { return !!localStorage.getItem('tidesSurgeExplained'); } catch (e) { return false; }
   });
@@ -4176,6 +4206,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // Shared post-spin state update (used both directly and via guard callback)
   const applySpinResult = useCallback((data) => {
     setResult(data.result);
+    if (data.recent_spins) setRecentSpins(data.recent_spins);
     if (data.wins_delta)   setWins(prev => prev + data.wins_delta);
     if (data.losses_delta) setLosses(prev => prev + data.losses_delta);
     // T217: capture the raw delta so the result bubble can show the
@@ -5414,6 +5445,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           extraClass={isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : ''}
           seasonWinners={season && season.latest_winners}
           seasonNumber={season && season.season_number - 1}
+          recentSpins={recentSpins}
         />
       </div>
 
