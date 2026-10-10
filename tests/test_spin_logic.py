@@ -330,3 +330,14 @@ def test_bonusmult_level_0_is_1():
 
 def test_bonusmult_level_6_is_70():
     assert _ctx([f'bonusmult_{n}' for n in range(1, 7)])['bonus_mult'] == 70
+
+
+def test_wheel_jackpot_multiplies_streak_bonus(monkeypatch):
+    """A wheel jackpot pays 25× what a win would have paid, streak bonus included."""
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.0)  # roll < jackpot_pct → wheel jackpot
+    state = _base_state(streak=9, wins=1000)
+    new_state, events = _resolve_spin(**state, **_base_ctx(effective_win_mult=2))
+    assert events['result'] == 'jackpot'
+    # streak 10 bonus = 1 << 7 = 128; win payout = 2 + 128 = 130; ×25 = 3250
+    assert new_state['wins'] - 1000 == 3250

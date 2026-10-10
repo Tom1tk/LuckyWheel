@@ -644,6 +644,8 @@ def _resolve_spin(
         if regen_recharge_wins > 0:
             regen_recharge_wins -= 1
         jackpot_hit = True
+        # A wheel jackpot multiplies the payout a win would have paid, streak bonus included.
+        bonus_earned = streak_bonus(abs(new_streak)) * bonus_mult
         jackpot_mult = mode.get('jackpot_multiplier', 25)
         if stake_cost_total > 0:
             jackpot_mult = min(jackpot_mult, STAKED_JACKPOT_MULT)
