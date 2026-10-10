@@ -341,3 +341,14 @@ def test_wheel_jackpot_multiplies_streak_bonus(monkeypatch):
     assert events['result'] == 'jackpot'
     # streak 10 bonus = 1 << 7 = 128; win payout = 2 + 128 = 130; ×25 = 3250
     assert new_state['wins'] - 1000 == 3250
+
+
+def test_wheel_jackpot_applies_fortune_charm(monkeypatch):
+    import random
+    monkeypatch.setattr(random, 'random', lambda: 0.0)  # wheel jackpot + charm procs
+    state = _base_state(owned=['fortune_charm'], streak=9, wins=1000)
+    new_state, events = _resolve_spin(**state, **_base_ctx(effective_win_mult=2, charm_chance=1.0))
+    assert events['result'] == 'jackpot'
+    assert events['fortune_charm_triggered'] is True
+    # streak 10 bonus 128 → charm int(128*1.25)=160; (2 + 160) × 25 = 4050
+    assert new_state['wins'] - 1000 == 4050
