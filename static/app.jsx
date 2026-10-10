@@ -911,7 +911,11 @@ const THEME_COLORS = {
   wormhole:        { win: ['#1a0044', '#BB88FF'], lose: ['#3d0022', '#FF44AA'] },
   casino:          { win: ['#063d1f', '#28e070'], lose: ['#4a0808', '#ff4040'] },
   tides:           { win: ['#073b3d', '#3fd6c6'], lose: ['#4a1712', '#ff7f6e'] },
+  halloween:       { win: ['#5a2600', '#ff8a1f'], lose: ['#2a0f45', '#9b5cff'] },
 };
+
+// Halloween dresses up the tides theme until the tide after the 31st turns (Fri 6 Nov, 9pm UK).
+const HALLOWEEN_ACTIVE = Date.now() < Date.UTC(2026, 10, 6, 21);
 
 // ── Casino Background (Season 8) ─────────────────────────────────────────────
 // Thin React wrapper around the shared vanilla scene module
@@ -937,17 +941,18 @@ function CasinoBackground({ lowSpec = false }) {
 // ── Tides Background (Season 9) ──────────────────────────────────────────────
 // Wrapper around static/js/tides-bg.js (window.createTidesScene); the scene
 // reads the wheel's position so its light falls on the water beneath it.
-function TidesBackground({ lowSpec = false }) {
+function TidesBackground({ lowSpec = false, halloween = false }) {
   const canvasRef = useRef(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !window.createTidesScene) return;
+    const colors = THEME_COLORS[halloween ? 'halloween' : 'tides'];
     const scene = window.createTidesScene(canvas, {
-      lowSpec,
-      palette: { win: THEME_COLORS.tides.win[1], lose: THEME_COLORS.tides.lose[1] },
+      lowSpec, halloween,
+      palette: { win: colors.win[1], lose: colors.lose[1] },
     });
     return () => scene && scene.stop();
-  }, [lowSpec]);
+  }, [lowSpec, halloween]);
   return (
     <canvas ref={canvasRef} aria-hidden="true"
       style={{ width:"100%", height:"100%", display:"block", background:"transparent", pointerEvents:"none" }} />
@@ -3871,7 +3876,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (activeCosmetics.includes('theme_frost')) return 'frost';
     if (activeCosmetics.includes('theme_ember')) return 'ember';
     if (activeCosmetics.includes('theme_tidal')) return 'tidal';
-    if (activeCosmetics.includes('page_season9')) return 'tides';
+    if (activeCosmetics.includes('page_season9')) return HALLOWEEN_ACTIVE ? 'halloween' : 'tides';
     if (activeCosmetics.includes('page_season8')) return 'casino';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
@@ -3900,7 +3905,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   }, [activeCosmetics]);
 
   const pageThemeClass = useMemo(() => {
-    if (activeCosmetics.includes('page_season9')) return 'page-season9';
+    if (activeCosmetics.includes('page_season9')) return HALLOWEEN_ACTIVE ? 'page-season9 halloween' : 'page-season9';
     if (activeCosmetics.includes('page_season8')) return 'page-season8';
     if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
@@ -4985,7 +4990,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
       {tidesActive && (
         <div style={{ position:'fixed', inset:0, zIndex:0, pointerEvents:'none' }}>
-          <TidesBackground lowSpec={lowSpec} />
+          <TidesBackground lowSpec={lowSpec} halloween={HALLOWEEN_ACTIVE} />
         </div>
       )}
       <div className={`overlay ${showResult ? 'active' : ''}`} />
@@ -5223,7 +5228,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 className="wheel-canvas"
                 style={{ transform: `rotate(${wheelRotation}deg)`, transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
               />
-              <div className="center-hub">★</div>
+              <div className="center-hub">{HALLOWEEN_ACTIVE && tidesActive ? '🎃' : '★'}</div>
             </div>
           </div>
 

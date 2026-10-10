@@ -3741,6 +3741,51 @@ body.page-season9 .dice-charge-dot.charged { color: #3FD6C6; text-shadow: 0 0 6p
 body.page-season9 .dice-roll-btn { background: linear-gradient(135deg, #0F4A48 0%, #062226 100%); border-color: #3FD6C6; color: #8FF0E4; box-shadow: 0 0 8px rgba(63,214,198,0.2); }
 body.page-season9 .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(63,214,198,0.5); }
 body.page-season9 .dice-roll-btn--disabled { border-color: rgba(143,240,228,0.3); color: rgba(143,240,228,0.6); }
+/* Halloween (on top of Season 9): pumpkin orange (wins) / witch purple (losses).
+   Same selectors as the tide rules above, one class more specific. */
+body.page-season9.halloween {
+  background: linear-gradient(180deg, #0a0614 0%, #2a1428 58%, #0a2438 60%, #030c17 100%);
+  --p:        #FF8A1F;
+  --p-lt:     #FFB866;
+  --p-md:     #E06A0A;
+  --p-dk:     #A84A06;
+  --p-xs:     #6E3004;
+  --p-2x:     #3A1A04;
+  --p-rgb:    255, 138, 31;
+  --p-dk-rgb: 168, 74, 6;
+  --s:        #9B5CFF;
+  --s-lt:     #BE94FF;
+  --s-rgb:    155, 92, 255;
+  --bg:       #0a0614;
+}
+body.page-season9.halloween::before { border-image: linear-gradient(90deg, #FF8A1F, #F2E3C6, #9B5CFF, #F2E3C6, #FF8A1F) 1; }
+body.page-season9.halloween .title-endless { color: #FF8A1F; text-shadow: 0 0 8px #FF8A1F, 0 0 22px #E06A0A; }
+body.page-season9.halloween .subtitle { color: #BE94FF; }
+body.page-season9.halloween .wheel-wrapper::before {
+  box-shadow: 0 0 34px 14px rgba(255,138,31,0.45), 0 0 90px 30px rgba(255,110,20,0.14), inset 0 0 20px rgba(255,138,31,0.1);
+}
+body.page-season9.halloween .pointer { filter: drop-shadow(0 0 10px #FF8A1F) drop-shadow(0 0 22px #9B5CFF); }
+body.page-season9.halloween .center-hub { background: radial-gradient(circle, #4a1f6e, #120620); box-shadow: 0 0 20px #FF8A1F, 0 0 45px rgba(255,184,102,0.5); }
+body.page-season9.halloween .bulb:nth-child(odd)  { background: #FF8A1F; box-shadow: 0 0 8px #FF8A1F; }
+body.page-season9.halloween .bulb:nth-child(even) { background: #9B5CFF; box-shadow: 0 0 8px #9B5CFF; }
+body.page-season9.halloween .result-text.win { color: #FFB866; border-color: #FF8A1F; text-shadow: 0 0 20px #FF8A1F, 0 0 50px #E06A0A; box-shadow: 0 0 40px #FF8A1F, inset 0 0 20px rgba(255,138,31,0.1); }
+body.page-season9.halloween .score-box.wins-box { border-color: #FF8A1F; background: rgba(255,138,31,0.08); box-shadow: 0 0 16px rgba(255,138,31,0.2); }
+body.page-season9.halloween .score-box.wins-box .score-label,
+body.page-season9.halloween .score-box.wins-box .score-value { color: #FFB866; }
+body.page-season9.halloween .score-box.wins-box .score-value { text-shadow: 0 0 12px #FF8A1F; }
+body.page-season9.halloween .dice-panel-label,
+body.page-season9.halloween .dice-result-text { color: #FFB866; }
+body.page-season9.halloween .dice-panel-desc,
+body.page-season9.halloween .dice-recharge-timer { color: #E06A0A; }
+body.page-season9.halloween .dice-panel { border-top-color: rgba(255,138,31,0.15); }
+body.page-season9.halloween .dice-tooltip { border-color: #FF8A1F; }
+body.page-season9.halloween .die { background: #1a0c04; border-color: #FF8A1F; box-shadow: 0 0 10px rgba(255,138,31,0.35), inset 0 0 8px rgba(255,138,31,0.08); }
+body.page-season9.halloween .dice-result-text { text-shadow: 0 0 8px rgba(255,138,31,0.7); }
+body.page-season9.halloween .dice-charge-dot { color: rgba(255,184,102,0.2); }
+body.page-season9.halloween .dice-charge-dot.charged { color: #FF8A1F; text-shadow: 0 0 6px #FF8A1F; }
+body.page-season9.halloween .dice-roll-btn { background: linear-gradient(135deg, #5a2600 0%, #200c02 100%); border-color: #FF8A1F; color: #FFB866; box-shadow: 0 0 8px rgba(255,138,31,0.2); }
+body.page-season9.halloween .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(255,138,31,0.5); }
+body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,184,102,0.3); color: rgba(255,184,102,0.6); }
 .dice-disabled-reason { font-size: 10px; letter-spacing: 0.04em; color: var(--p-lt); opacity: 0.8; text-align: center; }
 
 /* ── RV-08: Tide banner + Hall of Fame ────────────────────────────────────── */
