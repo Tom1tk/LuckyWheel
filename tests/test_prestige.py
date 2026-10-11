@@ -96,7 +96,7 @@ def _stub_specs():
             BIG_WIN_THRESHOLD=5000,
         )),
         ('bounties', lambda: _make_stub('bounties',
-            increment_bounty=lambda *a, **kw: None,
+            reach_bounty=lambda *a, **kw: None,
             get_bounty_status=lambda *a, **kw: [],
             get_claim_rewards_for_bounty=lambda *a, **kw: {},
             BOUNTY_DEFS={},

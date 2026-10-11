@@ -30,7 +30,7 @@ from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_strea
                     HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_prestige_threshold, MAX_PRESTIGE_LEVEL)
-from bounties import increment_bounty, get_bounty_status, get_claim_rewards_for_bounty
+from bounties import reach_bounty, get_bounty_status, get_claim_rewards_for_bounty
 from community_goals import get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message, post_dedup_system_message
 import chat_triggers
@@ -1457,11 +1457,10 @@ def spin():
             bounty_date = dt.datetime.now(timezone.utc).date()
             # bounty_streak10 tracks the real win streak (events['streak']), not
             # wager_streak (the same-stake hot-streak counter, which never resets
-            # at the default 1x stake and made this permanently uncompletable
-            # after a player's first day). amount=10 completes it in one shot —
-            # this is a one-time "reach a streak" achievement, not a 10x counter.
-            if events.get('streak', 0) == 10:
-                increment_bounty(conn, current_user.id, 'bounty_streak10', bounty_date, amount=10)
+            # at the default 1x stake). >= not ==: a dice roll can jump the
+            # streak past 10, and a streak carried over midnight UTC hit 10 yesterday.
+            if events.get('streak', 0) >= 10:
+                reach_bounty(conn, current_user.id, 'bounty_streak10', bounty_date)
             # Season 8: community goal contribution hooks
             season_info = get_season_info(conn)
             season_num = season_info.get('season_number', 8) if season_info else 8
@@ -1838,6 +1837,9 @@ def tick():
                 new_biggest_win_announced = _maybe_announce_big_win(
                     conn, gs, events, current_user.username, current_user.id)
                 gs['biggest_win_announced'] = new_biggest_win_announced
+                # Same streak bounty as /api/spin; auto-spin never tracked it.
+                if events.get('streak', 0) >= 10:
+                    reach_bounty(conn, current_user.id, 'bounty_streak10', now_utc.date())
 
                 if not is_catch_up:
                     resp = _events_to_response(events)

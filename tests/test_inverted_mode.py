@@ -549,7 +549,7 @@ def test_wager_bank_banks_losses_too():
         'losses':              200,
     }
     _game._load_game_state = lambda cur, user_id, for_update=False: gs
-    _game.increment_bounty = lambda *a, **kw: None
+    _game.reach_bounty = lambda *a, **kw: None
     _game.request = types.SimpleNamespace(method='POST')
     _game.current_user = types.SimpleNamespace(id=1)
     result = _game.wager_bank()
@@ -571,7 +571,7 @@ def test_wager_bank_only_losses_when_no_wins():
         'losses':              200,
     }
     _game._load_game_state = lambda cur, user_id, for_update=False: gs
-    _game.increment_bounty = lambda *a, **kw: None
+    _game.reach_bounty = lambda *a, **kw: None
     _game.request = types.SimpleNamespace(method='POST')
     _game.current_user = types.SimpleNamespace(id=1)
     result = _game.wager_bank()

@@ -116,6 +116,21 @@ def increment_bounty(conn, user_id, bounty_id, bounty_date, amount=1):
     return row
 
 
+def reach_bounty(conn, user_id, bounty_id, bounty_date):
+    """Complete a "reach N" bounty (e.g. a 10-spin streak). Idempotent: once
+    completed, repeat calls leave the row (and its completed_at) untouched."""
+    target = next(b['target'] for b in BOUNTY_DEFS if b['id'] == bounty_id)
+    with conn.cursor() as cur:
+        cur.execute(
+            '''INSERT INTO bounty_progress (user_id, bounty_date, bounty_id, progress, completed, completed_at)
+               VALUES (%s, %s, %s, %s, TRUE, NOW())
+               ON CONFLICT (user_id, bounty_date, bounty_id)
+               DO UPDATE SET progress = EXCLUDED.progress, completed = TRUE, completed_at = NOW()
+               WHERE NOT bounty_progress.completed''',
+            (user_id, bounty_date, bounty_id, target),
+        )
+
+
 def get_bounty_status(conn, user_id, bounty_date=None):
     """Return today's 3 bounties with current progress for this user.
 

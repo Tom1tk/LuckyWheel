@@ -128,7 +128,7 @@ def _install_game_load_stubs():
         BIG_WIN_THRESHOLD=5000,
     )
     sys.modules['bounties'] = _make_stub('bounties',
-        increment_bounty=lambda *a, **kw: None,
+        reach_bounty=lambda *a, **kw: None,
         get_bounty_status=lambda *a, **kw: [],
         get_claim_rewards=lambda *a, **kw: {},
         get_claim_rewards_for_bounty=lambda *a, **kw: {},
