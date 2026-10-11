@@ -2374,6 +2374,7 @@ const SPIN_RESULT_LABELS = { win: 'Win', jackpot: 'Jackpot', lose: 'Loss' };
 function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, recentSpins }) {
   const [rows, setRows] = useState([]);
   const [tab, setTab] = useState('players');
+  const [tpPop, setTpPop] = useState(null);
 
   useEffect(() => {
     let ctrl = new AbortController();
@@ -2430,12 +2431,17 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, rec
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
               <span className="lb-wins">{fmt(r.wins)}</span>
               <span className="lb-losses">{fmt(r.losses)}</span>
-              <span className="lb-tp">{r.talent_points}</span>
+              <span className="lb-tp" tabIndex={0}
+                onMouseEnter={e => setTpPop({ row: r, rect: e.currentTarget.getBoundingClientRect() })}
+                onMouseLeave={() => setTpPop(null)}
+                onFocus={e => setTpPop({ row: r, rect: e.currentTarget.getBoundingClientRect() })}
+                onBlur={() => setTpPop(null)}>{r.talent_points}</span>
               <span className={`lb-streak ${infernoClass(r.streak)}`}>
                 {r.streak > 0 ? `${r.streak}🔥` : r.streak < 0 ? `${r.streak}💀` : '0'}
               </span>
             </div>
           ))}
+          {tpPop && <LeaderboardChartPop pop={tpPop} />}
         </>
       )}
       {tab === 'spins' && recentSpins && (
@@ -3279,12 +3285,40 @@ function chartProblem(alloc, points, def) {
 // Wins progress toward the next bought level, 0..1 (full at max level).
 const chartXp = (charts, wins) => (charts.next_cost == null ? 1 : Math.min(1, wins / charts.next_cost));
 
+// Talent catalog is the same for every player; fetch once and share.
+let talentCatalogPromise = null;
+const loadTalentCatalog = () => {
+  if (!talentCatalogPromise) {
+    talentCatalogPromise = apiGame('/api/charts').then(r => {
+      if (!r.ok) talentCatalogPromise = null;
+      return r.ok ? r.data.talents : null;
+    });
+  }
+  return talentCatalogPromise;
+};
+
+// Every talent as an icon, one row per tree; lit ones carry their rank.
+function ChartPips({ alloc, talentList }) {
+  return CHART_TREES.map(tree => (
+    <div key={tree} className={`chart-strip-tree charts-tree--${tree}`}>
+      {talentList.filter(t => t.tree === tree).map(t => {
+        const rank = alloc[t.id] || 0;
+        return (
+          <span key={t.id} className={`chart-pip${rank ? ' on' : ''}${t.row === 'K' ? ' keystone' : ''}`}
+            title={`${t.name} ${rank}/${t.max_rank}`}>
+            {t.icon}
+            {rank > 0 && t.max_rank > 1 && <span className="chart-pip-rank">{rank}</span>}
+          </span>
+        );
+      })}
+    </div>
+  ));
+}
+
 // Shop's visual-only Chart: level, XP bar and every talent as an icon. Click opens ChartsPanel.
 function ChartStrip({ charts, wins, onOpen }) {
   const [talentList, setTalentList] = useState(null);
-  useEffect(() => {
-    apiGame('/api/charts').then(r => { if (r.ok) setTalentList(r.data.talents); });
-  }, []);
+  useEffect(() => { loadTalentCatalog().then(setTalentList); }, []);
   if (!charts) return null;
   const toPlace = charts.points - charts.spent;
   return (
@@ -3298,21 +3332,35 @@ function ChartStrip({ charts, wins, onOpen }) {
         <span className="chart-strip-open">Open ›</span>
       </div>
       <div className="chart-xp"><div className="chart-xp-fill" style={{ width: `${chartXp(charts, wins) * 100}%` }} /></div>
-      {talentList && CHART_TREES.map(tree => (
-        <div key={tree} className={`chart-strip-tree charts-tree--${tree}`}>
-          {talentList.filter(t => t.tree === tree).map(t => {
-            const rank = charts.alloc[t.id] || 0;
-            return (
-              <span key={t.id} className={`chart-pip${rank ? ' on' : ''}${t.row === 'K' ? ' keystone' : ''}`}
-                title={`${t.name} ${rank}/${t.max_rank}`}>
-                {t.icon}
-                {rank > 0 && t.max_rank > 1 && <span className="chart-pip-rank">{rank}</span>}
-              </span>
-            );
-          })}
-        </div>
-      ))}
+      {talentList && <ChartPips alloc={charts.alloc} talentList={talentList} />}
     </button>
+  );
+}
+
+// Leaderboard TP hover: another player's Chart, read-only, pinned beside the hovered cell.
+const LB_POP_W = 300;  // fits the widest tree (8 icons) on one row
+function LeaderboardChartPop({ pop }) {
+  const [talentList, setTalentList] = useState(null);
+  useEffect(() => { loadTalentCatalog().then(setTalentList); }, []);
+  if (!talentList) return null;
+  const { row, rect } = pop;
+  const spent = Object.values(row.talent_alloc || {}).reduce((a, n) => a + n, 0);
+  // Beside the cell when there's room so the leaderboard stays readable; else above/below it.
+  // ponytail: 175px is the popup's rough height, used only to keep it on screen.
+  const H = 175, vw = window.innerWidth, vh = window.innerHeight;
+  const place = rect.right + 10 + LB_POP_W <= vw
+    ? { left: rect.right + 10, top: Math.max(8, Math.min(rect.top + rect.height / 2 - H / 2, vh - H - 8)) }
+    : { left: Math.max(8, Math.min(rect.right - LB_POP_W, vw - LB_POP_W - 8)),
+        ...(rect.bottom + H > vh ? { bottom: vh - rect.top + 6 } : { top: rect.bottom + 6 }) };
+  return (
+    <div className="chart-strip lb-chart-pop" role="tooltip" style={{ width: LB_POP_W, ...place }}>
+      <div className="chart-strip-head">
+        <span className="chart-strip-title lb-chart-pop-name">🧭 {row.username}</span>
+        <span className="chart-level-badge">Lv {row.talent_points}</span>
+        <span className="chart-strip-meta">{spent} / {row.talent_points} placed</span>
+      </div>
+      <ChartPips alloc={row.talent_alloc || {}} talentList={talentList} />
+    </div>
   );
 }
 

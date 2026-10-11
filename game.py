@@ -2714,7 +2714,7 @@ def leaderboard():
                 # keeps the leaderboard clean for every viewer, server-side.
                 cur.execute(
                     '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
-                              gs.last_spin_at, gs.chart_points_bought
+                              gs.last_spin_at, gs.chart_points_bought, gs.talent_alloc
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
                        WHERE gs.wins > 0
@@ -2736,6 +2736,7 @@ def leaderboard():
                 'streak':          r['streak'],
                 'best_streak':     r['best_streak'],
                 'talent_points':   talents.points_total(now_utc, r['chart_points_bought']),
+                'talent_alloc':    r['talent_alloc'] or {},
                 'active':          bool(active),
             })
         return jsonify(result)
