@@ -1,12 +1,21 @@
 import random
+from datetime import datetime, timezone
 
 from flask_login import UserMixin
 
 
 class User(UserMixin):
-    def __init__(self, user_id, username):
+    def __init__(self, user_id, username, banned_until=None, ban_reason=None, is_admin=False, approved=True):
         self.id = user_id
         self.username = username
+        self.banned_until = banned_until
+        self.ban_reason = ban_reason
+        self.is_admin = is_admin
+        self.approved = approved
+
+    @property
+    def is_suspended(self):
+        return self.banned_until is not None and self.banned_until > datetime.now(timezone.utc)
 
 
 # ── Fishing minigame catalog (Season 9: fish_catalog.py) ──────────────────

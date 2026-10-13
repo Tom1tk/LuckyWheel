@@ -5484,3 +5484,39 @@ body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,18
   letter-spacing: 1px;
   white-space: nowrap;
 }
+
+/* Admin panel */
+.admin-card { width: min(620px, 94vw); max-height: 86vh; display: flex; flex-direction: column; }
+.admin-body { overflow-y: auto; padding-right: 4px; }
+.admin-item { display: block; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.75rem; }
+.admin-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.admin-click { cursor: pointer; }
+.admin-sub { display: block; color: #6f8290; font-size: 0.68rem; letter-spacing: 0.5px; margin-top: 2px; }
+.admin-warn { color: #ff6b6b; font-size: 0.7rem; margin: 3px 0; }
+.admin-error { padding: 4px 0; }
+.admin-note { color: #6f8290; font-size: 0.68rem; margin: 3px 0; }
+.admin-device {
+  display: grid; grid-template-columns: 92px 1fr; gap: 2px 10px;
+  margin: 6px 0; padding: 6px 8px;
+  background: rgba(255,255,255,0.03); border-left: 2px solid rgba(var(--p-rgb),0.4);
+  font-size: 0.68rem;
+}
+.admin-k { color: #6f8290; }
+.admin-v { color: #d6e4ec; overflow-wrap: anywhere; }
+.admin-span { grid-column: 1 / -1; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.admin-btn--bad { color: #ff6b6b; border-color: rgba(255,107,107,0.6); }
+.admin-btn--bad:hover:not(:disabled) { color: #ff8a8a; border-color: #ff6b6b; }
+.admin-input {
+  flex: 1; min-width: 160px; padding: 5px 8px;
+  background: rgba(255,255,255,0.04); color: #d6e4ec;
+  border: 1px solid #333; border-radius: 3px; font-family: inherit; font-size: 0.72rem;
+}
+.admin-input:focus { outline: none; border-color: var(--p); }
+.admin-chip { font-size: 0.6rem; letter-spacing: 1.5px; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+.admin-chip--ok { color: #6f8290; border-color: #333; }
+.admin-chip--admin { color: var(--p-lt); border-color: var(--p); }
+.admin-chip--warn { color: var(--s-lt); border-color: var(--s); }
+.admin-chip--bad { color: #ff6b6b; border-color: rgba(255,107,107,0.6); }
+.admin-setting { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.admin-setting input { margin-top: 3px; accent-color: var(--p); }

@@ -23,10 +23,13 @@ let _onSessionExpired = null;
 function setSessionExpiredHandler(fn) { _onSessionExpired = fn; }
 let _onTabLocked = null;
 function setTabLockedHandler(fn) { _onTabLocked = fn; }
+let _onRestricted = null;
+function setRestrictedHandler(fn) { _onRestricted = fn; }
 function apiGame(path, opts = {}) {
   return apiFetch(path, opts).then(r => {
     if (r.status === 401 && _onSessionExpired) _onSessionExpired();
     if (r.status === 423 && _onTabLocked) _onTabLocked();
+    if (r.status === 403 && _onRestricted && r.data.restricted) _onRestricted(r.data.error);
     return r;
   });
 }
@@ -2167,6 +2170,235 @@ function HallOfFamePanel({ open, onClose }) {
   );
 }
 
+// ── Device info (shown in the admin panel) ──
+function canvasHash() {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 200; c.height = 40;
+    const g = c.getContext('2d');
+    g.textBaseline = 'top'; g.font = '14px Arial';
+    g.fillStyle = '#f60'; g.fillRect(100, 1, 62, 20);
+    g.fillStyle = '#069'; g.fillText('wheel ✓ 🎣', 2, 15);
+    const d = c.toDataURL();
+    let h = 0;
+    for (let i = 0; i < d.length; i++) h = (h * 31 + d.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16);
+  } catch (e) { return ''; }
+}
+
+function gpuName() {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : (gl ? gl.getParameter(gl.RENDERER) : '');
+  } catch (e) { return ''; }
+}
+
+function collectFingerprint() {
+  const n = navigator;
+  return {
+    platform: n.platform || '',
+    languages: (n.languages || [n.language]).join(','),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    screen: `${screen.width}x${screen.height}`,
+    dpr: window.devicePixelRatio || 1,
+    depth: screen.colorDepth,
+    cores: n.hardwareConcurrency || 0,
+    memory: n.deviceMemory || 0,
+    touch: n.maxTouchPoints || 0,
+    gpu: gpuName(),
+    canvas: canvasHash(),
+  };
+}
+
+function reportFingerprint() {
+  try {
+    if (sessionStorage.getItem('fp_sent')) return;
+    sessionStorage.setItem('fp_sent', '1');
+  } catch (e) { /* private mode: report every load */ }
+  apiFetch('/api/fingerprint', { method: 'POST', body: JSON.stringify({ fp: collectFingerprint() }) });
+}
+
+// ── Admin panel (users.is_admin only; the API 404s for everyone else) ──
+const FLAG_LABELS = { continuous_play: 'Long session', steady_timing: 'Machine-like timing', daily_cap: 'Hit daily cast limit' };
+const VIA_LABELS = { browser: 'browser', fingerprint: 'device fingerprint', network: 'network' };
+const ADMIN_TABS = ['approvals', 'players', 'flags', 'settings'];
+
+function describeBrowser(ua) {
+  if (!ua) return 'Unknown';
+  const b = (ua.match(/(Edg|OPR|Firefox|SamsungBrowser|CriOS|FxiOS|Chrome)\/(\d+)/) || [])
+    .slice(1);
+  const names = { Edg: 'Edge', OPR: 'Opera', CriOS: 'Chrome', FxiOS: 'Firefox', SamsungBrowser: 'Samsung Internet' };
+  const browser = b.length ? `${names[b[0]] || b[0]} ${b[1]}`
+    : /Version\/(\d+).*Safari/.test(ua) ? `Safari ${ua.match(/Version\/(\d+)/)[1]}` : 'Unknown browser';
+  const os = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS X/.test(ua) ? 'macOS' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : 'Unknown OS';
+  return `${browser} · ${os}`;
+}
+
+const adminWhen = iso => iso
+  ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  : 'never';
+
+function AdminDevice({ d }) {
+  const fp = d.fp || {};
+  const rows = [
+    ['Device', describeBrowser(d.ua)],
+    ['Screen', fp.screen && `${fp.screen}${fp.dpr ? ` @${fp.dpr}x` : ''}`],
+    ['GPU', fp.gpu],
+    ['Timezone', fp.tz],
+    ['Language', fp.languages],
+    ['Cores / RAM', fp.cores ? `${fp.cores} cores${fp.memory ? ` · ${fp.memory} GB` : ''}` : null],
+    ['Touch', fp.touch != null ? (fp.touch > 0 ? `Yes (${fp.touch} points)` : 'No') : null],
+    ['IP', d.ip && `${d.ip}${d.country ? ` (${d.country})` : ''}`],
+    ['Fingerprint', d.fp_hash],
+  ].filter(([, v]) => v);
+  return (
+    <div className="admin-device">
+      {rows.map(([k, v]) => <React.Fragment key={k}><span className="admin-k">{k}</span><span className="admin-v">{v}</span></React.Fragment>)}
+      {!d.fp_hash && <span className="admin-k admin-span">Not reported yet. It fills in next time they open the game.</span>}
+    </div>
+  );
+}
+
+function AdminMatches({ matches }) {
+  return matches.map(m => (
+    <div key={m.username} className={m.suspended ? 'admin-warn' : 'admin-note'}>
+      {m.suspended ? '⚠ ' : ''}Same {m.via.map(v => VIA_LABELS[v]).join(' and ')} as {m.username}{m.suspended ? ' (suspended)' : ''}
+    </div>
+  ));
+}
+
+function AdminPanel({ open, onClose, onPending }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [tab, setTab] = useState('approvals');
+  const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+  const [reasons, setReasons] = useState({});
+
+  const load = useCallback(() => {
+    apiFetch('/api/admin/overview').then(r => {
+      if (r.ok) { setData(r.data); setError(null); onPending(r.data.pending.length); }
+      else setError((r.data && r.data.error) || 'Could not load the admin panel.');
+    });
+  }, [onPending]);
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const act = async (path, body) => {
+    setBusy(true);
+    const r = await apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    setBusy(false);
+    if (!r.ok) setError(r.data.error || 'That did not work.');
+    load();
+    return r.ok;
+  };
+
+  if (!open) return null;
+  const reject = p => {
+    if (window.confirm(`Reject ${p.username}? Their account is closed and their browser can't sign up again.`)) act('/api/admin/reject', { user_id: p.id });
+  };
+  const suspend = async p => {
+    if (await act('/api/admin/suspend', { user_id: p.id, reason: (reasons[p.id] || '').trim() })) setReasons(r => ({ ...r, [p.id]: '' }));
+  };
+  const status = p => p.is_admin ? ['Admin', 'admin'] : p.closed ? ['Closed', 'bad']
+    : p.banned_until ? [`Suspended until ${adminWhen(p.banned_until)}`, 'bad'] : !p.approved ? ['Waiting', 'warn'] : ['Active', 'ok'];
+  const labels = data ? { approvals: `Approvals (${data.pending.length})`, players: 'Players', flags: 'Flags', settings: 'Settings' } : {};
+
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="stats-card admin-card" onClick={e => e.stopPropagation()}>
+        <div className="stats-title">🛡️ Admin</div>
+        <button className="stats-close-btn" onClick={onClose}>✕</button>
+        {!data ? <div className="stats-loading">{error || 'Loading…'}</div> : (
+          <>
+            <div className="leaderboard-tabs">
+              {ADMIN_TABS.map(t => (
+                <button key={t} className={`leaderboard-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{labels[t]}</button>
+              ))}
+            </div>
+            {error && <div className="admin-warn admin-error">{error}</div>}
+            <div className="admin-body">
+              {tab === 'approvals' && (data.pending.length === 0
+                ? <div className="hof-empty">No accounts waiting.</div>
+                : data.pending.map(p => (
+                  <div className="admin-item" key={p.id}>
+                    <div className="admin-head">
+                      <span className="hof-name">{p.username}</span>
+                      <span className="hof-tide-date">signed up {adminWhen(p.created_at)}</span>
+                    </div>
+                    <AdminMatches matches={p.matches} />
+                    {p.devices.length === 0
+                      ? <div className="hof-empty">No device seen yet.</div>
+                      : p.devices.map(d => <AdminDevice key={d.device} d={d} />)}
+                    <div className="admin-actions">
+                      <button className="charts-btn charts-btn--go" disabled={busy} onClick={() => act('/api/admin/approve', { user_id: p.id })}>Approve</button>
+                      <button className="charts-btn admin-btn--bad" disabled={busy} onClick={() => reject(p)}>Reject</button>
+                    </div>
+                  </div>
+                )))}
+              {tab === 'players' && data.players.map(p => {
+                const [label, tone] = status(p);
+                return (
+                  <div className="admin-item" key={p.id}>
+                    <div className="admin-head admin-click" onClick={() => setExpanded(expanded === p.id ? null : p.id)}>
+                      <span className="hof-name">{p.username}</span>
+                      <span className={`admin-chip admin-chip--${tone}`}>{label}</span>
+                    </div>
+                    <div className="admin-sub">{fmt(p.wins)} wins · {p.casts_today} casts today · last seen {adminWhen(p.last_seen)}</div>
+                    {p.ban_reason && <div className="admin-note">Reason: {p.ban_reason}</div>}
+                    {expanded === p.id && (
+                      <>
+                        <AdminMatches matches={p.matches} />
+                        {p.devices.length === 0
+                          ? <div className="hof-empty">No device seen yet.</div>
+                          : p.devices.map(d => <AdminDevice key={d.device} d={d} />)}
+                        {!p.is_admin && !p.closed && (p.banned_until
+                          ? <div className="admin-actions"><button className="charts-btn" disabled={busy} onClick={() => act('/api/admin/unsuspend', { user_id: p.id })}>Lift suspension</button></div>
+                          : (
+                            <div className="admin-actions">
+                              <input className="admin-input" maxLength={80} placeholder="Reason (shown to the player)"
+                                value={reasons[p.id] || ''} onChange={e => setReasons(r => ({ ...r, [p.id]: e.target.value }))} />
+                              <button className="charts-btn admin-btn--bad" disabled={busy || !(reasons[p.id] || '').trim()} onClick={() => suspend(p)}>Suspend until next tide</button>
+                            </div>
+                          ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              {tab === 'flags' && (data.flags.length === 0
+                ? <div className="hof-empty">No flags.</div>
+                : data.flags.map(f => (
+                  <div className="admin-item" key={f.id}>
+                    <div className="admin-head">
+                      <span><span className="hof-name">{f.username}</span> · {FLAG_LABELS[f.kind] || f.kind}</span>
+                      <span className="hof-tide-date">{adminWhen(f.last_seen)}</span>
+                    </div>
+                    <div className="admin-sub">{f.detail}</div>
+                  </div>
+                )))}
+              {tab === 'settings' && (
+                <>
+                  <label className="admin-item admin-setting">
+                    <input type="checkbox" checked={data.settings.require_approval} disabled={busy}
+                      onChange={e => act('/api/admin/settings', { require_approval: e.target.checked })} />
+                    <span>
+                      <span className="hof-name">New accounts need approval</span>
+                      <span className="admin-sub">When on, new sign-ups can look around but can't play until you approve them.</span>
+                    </span>
+                  </label>
+                  <div className="admin-item admin-sub">Daily cast limit: {data.settings.daily_cast_limit.toLocaleString('en-GB')} per player (resets at midnight)</div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Hiatus Screen ────────────────────────────────────────────────────────
 function HiatusCountdown() {
   const [timeLeft, setTimeLeft] = useState('');
@@ -3858,6 +4090,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [toast, setToast]             = useState(null);
   const [tabPaused, setTabPaused]     = useState(false);
+  const [notice, setNotice]           = useState(gameState.notice || null);
+  const [showAdmin, setShowAdmin]     = useState(false);
+  const [adminPending, setAdminPending] = useState(gameState.admin_pending || 0);
   const [season, setSeason]           = useState(gameState.season || null);
   const [communityPot, setCommunityPot] = useState(gameState.community_pot || { total_contributed: 0, target: 1_000, filled: false, active: false, win_chance_pct: 50.0 });
   const [spinCount, setSpinCount]     = useState(gameState.spin_count || 0);
@@ -4030,8 +4265,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
   useEffect(() => {
     setTabLockedHandler(() => setTabPaused(true));
-    return () => setTabLockedHandler(null);
+    setRestrictedHandler(setNotice);
+    return () => { setTabLockedHandler(null); setRestrictedHandler(null); };
   }, []);
+
+  useEffect(() => { reportFingerprint(); }, []);
 
   useEffect(() => {
     const currentNumber = season ? season.season_number : null;
@@ -4995,6 +5233,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <PatchNotesPanel open={showPatchNotes} onClose={handleClosePatchNotes} />
       <HallOfFamePanel open={showHof} onClose={() => setShowHof(false)} />
       {toast && <div className={`toast-notification${toast.variant ? ` toast-notification--${toast.variant}` : ''}`}>{toast.msg}</div>}
+      {gameState.is_admin && <AdminPanel open={showAdmin} onClose={() => setShowAdmin(false)} onPending={setAdminPending} />}
+      {notice && (
+        <div className="tab-paused-banner" role="alert">
+          <span className="tab-paused-text">⛔ {notice}</span>
+        </div>
+      )}
       {tabPaused && (
         <div className="tab-paused-banner" role="alert">
           <span className="tab-paused-text">{TAB_PAUSED_MSG}</span>
@@ -5100,6 +5344,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           >💬</button>
         )}
         <button className="stats-btn" title="Patch Notes" onClick={() => setShowPatchNotes(true)}>📋</button>
+        {gameState.is_admin && (
+          <button className="stats-btn charts-open-btn" title="Admin" onClick={() => setShowAdmin(true)}>
+            🛡️{adminPending > 0 && <span className="charts-dot" />}
+          </button>
+        )}
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
         {season && season.sub_number != null
           ? <TideBanner season={season} onOpenHof={() => setShowHof(true)} />

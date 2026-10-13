@@ -72,6 +72,11 @@ def create_app() -> Flask:
     app.register_blueprint(game_bp)
     app.register_blueprint(chat_bp)
 
+    import anticheat
+    anticheat.register(app)
+    from admin import admin_bp
+    app.register_blueprint(admin_bp)
+
     _SEABED_PATHS = {'/static/seabed-animated.html', '/static/seabed-static.html'}
 
     # Security headers on every response

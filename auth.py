@@ -10,6 +10,7 @@ from flask_limiter.util import get_remote_address
 from flask_login import current_user, login_user, logout_user
 from flask_wtf.csrf import generate_csrf
 
+from anticheat import device_is_banned, require_approval
 from db import db_connection
 from extensions import limiter, login_manager
 from models import DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, User
@@ -26,12 +27,14 @@ def load_user(user_id):
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    'SELECT id, username, session_token FROM users WHERE id = %s',
+                    'SELECT id, username, session_token, banned_until, ban_reason, is_admin, approved '
+                    'FROM users WHERE id = %s',
                     (user_id,),
                 )
                 row = cur.fetchone()
         if row and row['session_token'] == session.get('session_token'):
-            return User(row['id'], row['username'])
+            return User(row['id'], row['username'], row['banned_until'], row['ban_reason'],
+                        row['is_admin'], row['approved'])
     except Exception:
         log.warning('LOAD_USER_ERROR  user_id=%s', user_id, exc_info=True)
     return None
@@ -96,6 +99,10 @@ def register():
     try:
         with db_connection() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                if device_id and device_is_banned(cur, device_id):
+                    log.warning('REGISTER_REJECT  reason=device_banned  device_id=%s  new_attempt=%s  ip=%s',
+                                device_id, username, ip)
+                    return jsonify({'error': "Registration isn't available on this device."}), 403
                 if device_id:
                     cur.execute('SELECT id, username FROM users WHERE device_id = %s', (device_id,))
                     existing = cur.fetchone()
@@ -111,9 +118,11 @@ def register():
                     log.warning('REGISTER_REJECT  reason=username_taken  username=%s  ip=%s', username, ip)
                     return jsonify({'error': 'Username already taken'}), 409
 
+                approved = not require_approval(cur)
                 cur.execute(
-                    'INSERT INTO users (username, password_hash, ip_address, device_id) VALUES (%s, %s, %s, %s) RETURNING id',
-                    (username, pw_hash, ip, device_id),
+                    'INSERT INTO users (username, password_hash, ip_address, device_id, approved) '
+                    'VALUES (%s, %s, %s, %s, %s) RETURNING id',
+                    (username, pw_hash, ip, device_id, approved),
                 )
                 user_id = cur.fetchone()['id']
                 # New players start with the season's page theme owned and
@@ -136,8 +145,8 @@ def register():
         login_user(user_obj, remember=False)
         session.permanent = True
 
-        log.info('REGISTER_SUCCESS  username=%s  user_id=%d  device_id=%s  ip=%s',
-                 username, user_id, device_id or 'none', ip)
+        log.info('REGISTER_SUCCESS  username=%s  user_id=%d  device_id=%s  ip=%s  approved=%s',
+                 username, user_id, device_id or 'none', ip, approved)
         return jsonify({'username': username, 'csrf_token': generate_csrf()}), 201
 
     except psycopg2.errors.UniqueViolation:

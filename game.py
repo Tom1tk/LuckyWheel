@@ -33,6 +33,8 @@ from prestige import (get_prestige_bonus, get_prestige_threshold, MAX_PRESTIGE_L
 from bounties import reach_bounty, get_bounty_status, get_claim_rewards_for_bounty
 from community_goals import get_active_goal, increment_goal, check_goal_completion, get_player_contribution
 from chat import post_system_message, post_dedup_system_message
+import admin
+import anticheat
 import chat_triggers
 import dice
 import fish
@@ -206,7 +208,7 @@ def _charts_payload(gs: dict, now: dt.datetime) -> dict:
     """S9 Charts summary shared by /api/state and /api/charts."""
     alloc = gs.get('talent_alloc') or {}
     bought = gs.get('chart_points_bought') or 0
-    points = talents.points_total(now, bought)
+    points = 0 if current_user.is_suspended else talents.points_total(now, bought)
     return {
         'alloc':       alloc,
         'points':      points,
@@ -1006,6 +1008,7 @@ def get_state():
                 # Season 8: singularity meter
                 cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
                 singularity = cur.fetchone()
+            admin_pending = admin.pending_count(conn) if current_user.is_admin else 0
 
             # T238: bounties + community goal run on the same conn as the rest
             # of the route. All three helpers are read-only (or read+INSERT-
@@ -1157,6 +1160,9 @@ def get_state():
                 'filled':            singularity['filled'] if singularity else False,
                 'fill_count':        singularity['fill_count'] if singularity else 0,
             } if singularity else None,
+            'notice':         anticheat.restriction_message(current_user),
+            'is_admin':       current_user.is_admin,
+            'admin_pending':  admin_pending,
         })
     except Exception:
         log.exception('GET_STATE_ERROR  user_id=%s', current_user.id)

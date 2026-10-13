@@ -202,3 +202,19 @@ def browser(playwright_instance):
     b = playwright_instance.chromium.launch()
     yield b
     b.close()
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _approval_off_for_tests():
+    """Tests register accounts and play straight away, so new sign-ups skip the admin approval
+    queue here (test_admin.py switches it back on where it tests approval)."""
+    try:
+        import psycopg2
+        conn = psycopg2.connect(_resolve_db_url())
+    except Exception:
+        yield  # stubbed tests without a database
+        return
+    with conn, conn.cursor() as cur:
+        cur.execute("UPDATE app_settings SET value = 'false' WHERE key = 'require_approval'")
+    conn.close()
+    yield
