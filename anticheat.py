@@ -28,6 +28,15 @@ PENDING_MSG = "Your account is waiting for an admin to approve it. You can look 
 CLOSED_YEAR = 9999  # closed account
 
 
+def _refuse_non_object_json():
+    """Every JSON endpoint reads an object; a list or scalar body would crash its handler."""
+    if request.method == 'POST' and request.is_json:
+        body = request.get_json(silent=True)
+        if body is not None and not isinstance(body, dict):
+            return jsonify({'error': 'Request body must be a JSON object.'}), 400
+    return None
+
+
 def _is_local():
     return request.remote_addr in LOCAL_ADDRS and 'X-Forwarded-For' not in request.headers
 
@@ -256,6 +265,7 @@ def record_fingerprint(cur, user_id, device_id, raw):
 
 def register(app):
     app.before_request(_refuse_bots)
+    app.before_request(_refuse_non_object_json)
     app.before_request(_refuse_restricted)
     app.before_request(_link_device)
     app.before_request(_track_play)
