@@ -4124,6 +4124,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     clickmult_inf: gameState.clickmult_inf_level || 0,
   });
   const WHEEL_SPIN_SPEED = 1.5; // seconds
+  const MANUAL_SPIN_GAP_MS = 3250; // server allows one spin per auto-spin interval (3s), plus network slack
 
   // Season 8: manual spin state (tab-lock ID mirrors HiatusWheel pattern)
   const [spinning, setSpinning]         = useState(false);
@@ -4609,6 +4610,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (spinningRef.current) return;
     spinningRef.current = true;
     setSpinning(true);
+    const startedAt = Date.now();
     try {
       const res = await apiGame('/api/spin', {
         method: 'POST',
@@ -4687,8 +4689,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           }
           scheduleResultDismiss();
         }
-        spinningRef.current = false;
-        setSpinning(false);
+        setTimeout(() => {
+          spinningRef.current = false;
+          setSpinning(false);
+        }, Math.max(0, MANUAL_SPIN_GAP_MS - (Date.now() - startedAt)));
       }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
     } catch {
       showToast('Spin failed');

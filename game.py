@@ -1272,6 +1272,8 @@ def spin():
             # per-activation budget column was dropped (see migration 057).
             if gs.get('auto_spin_since') is not None:
                 return jsonify({'error': 'Auto-spin is active. Stop it first to spin manually.'}), 403
+            if not anticheat.pace_spin(_aware(gs.get('last_spin_at'))):
+                return jsonify({'error': anticheat.SPIN_PACE_MSG}), 429
 
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute('SELECT filled, filled_at, win_chance_pct, last_decay_check, total_contributed, target FROM community_pot WHERE id = 1')

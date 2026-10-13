@@ -7239,6 +7239,7 @@ function GameApp(_ref48) {
     infLevels = _useState256[0],
     setInfLevels = _useState256[1];
   var WHEEL_SPIN_SPEED = 1.5; // seconds
+  var MANUAL_SPIN_GAP_MS = 3250; // server allows one spin per auto-spin interval (3s), plus network slack
 
   // Season 8: manual spin state (tab-lock ID mirrors HiatusWheel pattern)
   var _useState257 = useState(false),
@@ -7961,7 +7962,7 @@ function GameApp(_ref48) {
 
   // Season 8: manual spin (replaces always-on auto-spin as the primary game action)
   var handleManualSpin = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21() {
-    var res, _res$data, data, seg, nextRot, _t3;
+    var startedAt, res, _res$data, data, seg, nextRot, _t3;
     return _regenerator().w(function (_context21) {
       while (1) switch (_context21.p = _context21.n) {
         case 0:
@@ -7973,6 +7974,7 @@ function GameApp(_ref48) {
         case 1:
           spinningRef.current = true;
           setSpinning(true);
+          startedAt = Date.now();
           _context21.p = 2;
           _context21.n = 3;
           return apiGame('/api/spin', {
@@ -8059,8 +8061,10 @@ function GameApp(_ref48) {
               }
               scheduleResultDismiss();
             }
-            spinningRef.current = false;
-            setSpinning(false);
+            setTimeout(function () {
+              spinningRef.current = false;
+              setSpinning(false);
+            }, Math.max(0, MANUAL_SPIN_GAP_MS - (Date.now() - startedAt)));
           }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
           _context21.n = 6;
           break;

@@ -229,3 +229,19 @@ def test_fingerprint_needs_device_cookie(game_app):  # noqa: F811
     r = client.post('/api/fingerprint', json={'fp': {'platform': 'Win32'}},
                     headers={'X-CSRFToken': _read_csrf(client)})
     assert r.status_code == 400 and r.get_json()['error'] == 'No device cookie'
+
+
+OFFSITE = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0) Chrome/130', 'X-Forwarded-For': '203.0.113.7'}
+
+
+def test_manual_spins_are_paced_like_auto_spin(game_app, db_url):  # noqa: F811
+    client, name = _new_user(game_app, 'fast')
+    h = {**OFFSITE, 'X-CSRFToken': _read_csrf(client)}
+    assert client.post('/api/spin', json={}, headers=h).status_code == 200
+    r = client.post('/api/spin', json={}, headers=h)
+    assert r.status_code == 429 and 'still spinning' in r.get_json()['error']
+    uid = _uid(db_url, name)
+    _sql(db_url, "UPDATE game_state SET last_spin_at = NOW() - interval '2.5 seconds' WHERE user_id = %s", (uid,))
+    assert client.post('/api/spin', json={}, headers=h).status_code == 429
+    _sql(db_url, "UPDATE game_state SET last_spin_at = NOW() - interval '3.1 seconds' WHERE user_id = %s", (uid,))
+    assert client.post('/api/spin', json={}, headers=h).status_code == 200

@@ -5,14 +5,14 @@ import logging
 import math
 import re
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from flask import jsonify, request, session
 from flask_login import current_user
 
 from db import db_connection
-from models import DEVICE_COOKIE
+from models import AUTO_SPIN_INTERVAL_SECONDS, DEVICE_COOKIE
 
 log = logging.getLogger(__name__)
 
@@ -186,6 +186,17 @@ def _limit_fishing():
     except Exception:
         log.warning('LIMIT_FISHING_ERROR  user=%s', current_user.id, exc_info=True)
     return None
+
+
+MIN_SPIN_GAP = timedelta(seconds=AUTO_SPIN_INTERVAL_SECONDS)
+SPIN_PACE_MSG = 'The wheel is still spinning.'
+
+
+def pace_spin(last_spin_at) -> bool:
+    """False if a manual spin comes sooner than auto-spin would turn the wheel."""
+    if last_spin_at is None or _is_local():
+        return True
+    return datetime.now(timezone.utc) - last_spin_at >= MIN_SPIN_GAP
 
 
 def device_is_banned(cur, device_id) -> bool:
