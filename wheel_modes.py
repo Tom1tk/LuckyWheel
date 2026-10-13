@@ -71,11 +71,11 @@ _ROTATING_MODES = ['inverted', 'gravity', 'long_shot']
 
 
 # T77: gravity mode drift bounds. After a win/jackpot, drift += 10 (capped
-# at +35); after a loss, drift -= 10 (floored at -35). Jackpot counts as a
+# at +15); after a loss, drift -= 10 (floored at -15). Jackpot counts as a
 # win for drift purposes.
 GRAVITY_DRIFT_STEP     = 10
-GRAVITY_DRIFT_MAX      = 35
-GRAVITY_DRIFT_MIN      = -35
+GRAVITY_DRIFT_MAX      = 15
+GRAVITY_DRIFT_MIN      = -15
 GRAVITY_BASE_WIN_PCT   = 55
 GRAVITY_BASE_LOSE_PCT  = 40
 GRAVITY_JACKPOT_PCT    = 5
@@ -84,8 +84,8 @@ GRAVITY_JACKPOT_PCT    = 5
 def compute_gravity_probabilities(drift: int = 0) -> dict:
     """T77 AC#3: return drift-adjusted gravity mode probabilities.
 
-    win_pct  = 55 + drift  (range 20..90%)
-    lose_pct = 40 - drift  (range 5..75%)
+    win_pct  = 55 + drift  (range 40..70%)
+    lose_pct = 40 - drift  (range 25..55%)
     jackpot_pct is fixed at 5%.
     """
     win_pct  = GRAVITY_BASE_WIN_PCT  + int(drift)
@@ -98,7 +98,7 @@ def compute_gravity_probabilities(drift: int = 0) -> dict:
 
 
 def clamp_gravity_drift(drift: int) -> int:
-    """T77 AC#2: clamp gravity drift to [-35, +35]."""
+    """T77 AC#2: clamp gravity drift to [-15, +15]."""
     if drift > GRAVITY_DRIFT_MAX:
         return GRAVITY_DRIFT_MAX
     if drift < GRAVITY_DRIFT_MIN:

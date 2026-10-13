@@ -2,7 +2,7 @@
 
 T77 ACs covered:
   1. Base profile: 55% win / 40% lose / 5% jackpot.
-  2. Drift: win/jackpot +10 (cap +35), loss -10 (floor -35). Jackpot counts
+  2. Drift: win/jackpot +10 (cap +15), loss -10 (floor -15). Jackpot counts
      as a win for drift purposes.
   3. Effective probabilities: win_pct = 55 + drift, lose_pct = 40 - drift,
      jackpot_pct = 5.
@@ -270,10 +270,10 @@ def test_drift_decreases_on_loss(monkeypatch):
     )
 
 
-def test_drift_clamps_at_max_35(monkeypatch):
-    """T77 AC#2: drift is capped at +35 (already at max, win keeps it there)."""
-    # At drift=+35, win_pct=90, jackpot_pct=5. roll 0.10 < 0.05? No.
-    # 0.10 < 0.05+0.90 = 0.95? Yes → win.
+def test_drift_clamps_at_max(monkeypatch):
+    """T77 AC#2: drift is capped at +15 (already at max, win keeps it there)."""
+    # At drift=+15, win_pct=70, jackpot_pct=5. roll 0.10 < 0.05? No.
+    # 0.10 < 0.05+0.70 = 0.75? Yes → win.
     monkeypatch.setattr(random, 'random', lambda: 0.10)
     state = _base_state(gravity_drift=GRAVITY_DRIFT_MAX)
     _, events = _resolve_spin(
@@ -283,9 +283,9 @@ def test_drift_clamps_at_max_35(monkeypatch):
     assert events['gravity_drift'] == GRAVITY_DRIFT_MAX
 
 
-def test_drift_clamps_at_min_minus_35(monkeypatch):
-    """T77 AC#2: drift is floored at -35 (already at min, loss keeps it there)."""
-    # At drift=-35, win_pct=20, jackpot_pct=5. roll 0.99 → lose.
+def test_drift_clamps_at_min(monkeypatch):
+    """T77 AC#2: drift is floored at -15 (already at min, loss keeps it there)."""
+    # At drift=-15, win_pct=40, jackpot_pct=5. roll 0.99 → lose.
     monkeypatch.setattr(random, 'random', lambda: 0.99)
     state = _base_state(gravity_drift=GRAVITY_DRIFT_MIN)
     _, events = _resolve_spin(
@@ -296,29 +296,29 @@ def test_drift_clamps_at_min_minus_35(monkeypatch):
 
 
 def test_drift_walks_through_range(monkeypatch):
-    """T77 AC#2: 4 wins land at +35 (capped); 4 more losses walk back down."""
-    # 4 wins → drift +40 → clamps to +35.
+    """T77 AC#2: 2 wins land at +15 (capped); 2 losses walk back down."""
+    # 2 wins → drift +20 → clamps to +15.
     monkeypatch.setattr(random, 'random', lambda: 0.10)
     state = _base_state()
-    for _ in range(4):
+    for _ in range(2):
         new_state, _ = _resolve_spin(
             **state, **_base_ctx(active_wheel_mode='gravity'),
         )
         state.update(new_state)
     assert state['gravity_drift'] == GRAVITY_DRIFT_MAX, (
-        f"expected drift={GRAVITY_DRIFT_MAX} after 4 wins, "
+        f"expected drift={GRAVITY_DRIFT_MAX} after 2 wins, "
         f"got {state['gravity_drift']}"
     )
 
-    # 4 losses from +35 → +25 → +15 → +5 → -5.
+    # 2 losses from +15 → +5 → -5.
     monkeypatch.setattr(random, 'random', lambda: 0.99)
-    for _ in range(4):
+    for _ in range(2):
         new_state, _ = _resolve_spin(
             **state, **_base_ctx(active_wheel_mode='gravity'),
         )
         state.update(new_state)
     assert state['gravity_drift'] == -5, (
-        f"expected drift=-5 after 4 losses from +35, got {state['gravity_drift']}"
+        f"expected drift=-5 after 2 losses from +15, got {state['gravity_drift']}"
     )
 
 
@@ -334,15 +334,15 @@ def test_effective_probabilities_at_drift_zero():
 
 
 def test_effective_probabilities_at_drift_max():
-    """T77 AC#3: at drift=+35, win=90% lose=5% jackpot=5%."""
-    probs = _wheel_modes.compute_gravity_probabilities(35)
-    assert probs == {'win_pct': 90, 'lose_pct': 5, 'jackpot_pct': 5}
+    """T77 AC#3: at drift=+15, win=70% lose=25% jackpot=5%."""
+    probs = _wheel_modes.compute_gravity_probabilities(_wheel_modes.GRAVITY_DRIFT_MAX)
+    assert probs == {'win_pct': 70, 'lose_pct': 25, 'jackpot_pct': 5}
 
 
 def test_effective_probabilities_at_drift_min():
-    """T77 AC#3: at drift=-35, win=20% lose=75% jackpot=5%."""
-    probs = _wheel_modes.compute_gravity_probabilities(-35)
-    assert probs == {'win_pct': 20, 'lose_pct': 75, 'jackpot_pct': 5}
+    """T77 AC#3: at drift=-15, win=40% lose=55% jackpot=5%."""
+    probs = _wheel_modes.compute_gravity_probabilities(_wheel_modes.GRAVITY_DRIFT_MIN)
+    assert probs == {'win_pct': 40, 'lose_pct': 55, 'jackpot_pct': 5}
 
 
 def test_effective_probabilities_in_response_use_drift(monkeypatch):
