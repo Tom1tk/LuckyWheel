@@ -10,6 +10,7 @@ from flask_limiter.util import get_remote_address
 from flask_login import current_user, login_user, logout_user
 from flask_wtf.csrf import generate_csrf
 
+import anticheat
 from anticheat import device_is_banned, require_approval
 from db import db_connection
 from extensions import limiter, login_manager
@@ -94,6 +95,10 @@ def register():
         log.warning('REGISTER_REJECT  reason=short_password  username=%s  ip=%s', username, ip)
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
 
+    if not device_id and not anticheat._is_local():
+        log.warning('REGISTER_REJECT  reason=no_device  username=%s  ip=%s', username, ip)
+        return jsonify({'error': 'Please enable cookies and reload the page.'}), 400
+
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     try:
@@ -118,7 +123,7 @@ def register():
                     log.warning('REGISTER_REJECT  reason=username_taken  username=%s  ip=%s', username, ip)
                     return jsonify({'error': 'Username already taken'}), 409
 
-                approved = not require_approval(cur)
+                approved = not require_approval(cur) and not anticheat.linked_to_suspended(cur, ip)
                 cur.execute(
                     'INSERT INTO users (username, password_hash, ip_address, device_id, approved) '
                     'VALUES (%s, %s, %s, %s, %s) RETURNING id',

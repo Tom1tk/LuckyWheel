@@ -20,6 +20,8 @@ _LONDON = ZoneInfo('Europe/London')
 BOT_UA = re.compile(r'bot\b|bot/|crawl|spider|curl|wget|python|httpx|aiohttp|okhttp|go-http|java/|node-fetch|axios'
                     r'|headless|playwright|puppeteer|selenium', re.I)
 LOCAL_ADDRS = frozenset({'127.0.0.1', '::1'})
+# Shared addresses that say nothing about who signed up.
+UNINFORMATIVE_IPS = frozenset({'192.168.68.10', '127.0.0.1', '::1', None, ''})
 PENDING_ALLOWED = frozenset({'/api/logout', '/api/tab/heartbeat', '/api/fingerprint'})
 SUSPENDED_ALLOWED = PENDING_ALLOWED | {'/api/chat'}
 PENDING_MSG = "Your account is waiting for an admin to approve it. You can look around, but you can't play yet."
@@ -197,6 +199,17 @@ def pace_spin(last_spin_at) -> bool:
     if last_spin_at is None or _is_local():
         return True
     return datetime.now(timezone.utc) - last_spin_at >= MIN_SPIN_GAP
+
+
+def linked_to_suspended(cur, ip) -> bool:
+    """True if a suspended account signed up or played from this address."""
+    if ip in UNINFORMATIVE_IPS:
+        return False
+    cur.execute('''SELECT 1 FROM users u WHERE u.banned_until > NOW()
+                   AND (host(u.ip_address) = %s
+                        OR EXISTS (SELECT 1 FROM user_devices d WHERE d.user_id = u.id AND d.ip = %s))
+                   LIMIT 1''', (ip, ip))
+    return cur.fetchone() is not None
 
 
 def device_is_banned(cur, device_id) -> bool:

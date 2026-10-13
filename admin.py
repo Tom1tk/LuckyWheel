@@ -19,8 +19,7 @@ from security import require_json
 log = logging.getLogger('wheel')
 admin_bp = Blueprint('admin', __name__)
 
-# Shared addresses that say nothing about who signed up.
-UNINFORMATIVE_IPS = frozenset({'192.168.68.10', '127.0.0.1', '::1', None, ''})
+UNINFORMATIVE_IPS = anticheat.UNINFORMATIVE_IPS
 CLOSED_UNTIL = dt.datetime(anticheat.CLOSED_YEAR, 12, 31, tzinfo=timezone.utc)
 REASON_MAX = 80
 

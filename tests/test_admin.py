@@ -245,3 +245,32 @@ def test_manual_spins_are_paced_like_auto_spin(game_app, db_url):  # noqa: F811
     assert client.post('/api/spin', json={}, headers=h).status_code == 429
     _sql(db_url, "UPDATE game_state SET last_spin_at = NOW() - interval '3.1 seconds' WHERE user_id = %s", (uid,))
     assert client.post('/api/spin', json={}, headers=h).status_code == 200
+
+
+def _register_offsite(app, prefix, ip, device):
+    from extensions import limiter
+    limiter.reset()
+    client = app.test_client()
+    if device:
+        client.set_cookie('device_id', device)
+    name = f'{prefix}{uuid.uuid4().hex[:8]}'
+    r = client.post('/api/register', json={'username': name, 'password': 'testpass123'},
+                    headers={**OFFSITE, 'X-Forwarded-For': ip, 'X-CSRFToken': _read_csrf(client)})
+    return r, name
+
+
+def test_signup_off_this_machine_needs_device_cookie(game_app):  # noqa: F811
+    r, _ = _register_offsite(game_app, 'nock', '203.0.113.8', None)
+    assert r.status_code == 400 and 'cookies' in r.get_json()['error']
+    r, _ = _register_offsite(game_app, 'ck', '203.0.113.8', uuid.uuid4().hex)
+    assert r.status_code == 201
+
+
+def test_signup_from_suspended_players_address_waits_for_approval(game_app, db_url):  # noqa: F811
+    ip = f'198.51.100.{uuid.uuid4().int % 250 + 1}'
+    r, first = _register_offsite(game_app, 'evd', ip, uuid.uuid4().hex)
+    assert r.status_code == 201
+    _ban(db_url, first)
+    r, second = _register_offsite(game_app, 'evd', ip, uuid.uuid4().hex)
+    assert r.status_code == 201
+    assert _sql(db_url, 'SELECT approved FROM users WHERE username = %s', (second,))[0][0] is False
