@@ -281,3 +281,9 @@ def test_responses_carry_the_build_id(game_app):  # noqa: F811
     with open('static/app.js', 'rb') as f:
         expected = hashlib.sha256(f.read()).hexdigest()[:12]
     assert game_app.test_client().get('/api/me').headers['X-Build'] == expected
+
+
+def test_list_body_is_refused_not_a_crash(game_app):  # noqa: F811
+    client, _ = _new_user(game_app, 'listbody')
+    r = client.post('/api/spin', json=[1, 2], headers={'X-CSRFToken': _read_csrf(client)})
+    assert r.status_code == 400 and r.get_json()['error'] == 'Request body must be a JSON object.'
