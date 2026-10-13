@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 from datetime import timedelta
@@ -37,6 +38,9 @@ def create_app() -> Flask:
         )
 
     app = Flask(__name__, static_folder='static')
+    # Open tabs reload when this changes (see checkBuild in app.jsx).
+    with open(os.path.join(app.static_folder, 'app.js'), 'rb') as f:
+        build_id = hashlib.sha256(f.read()).hexdigest()[:12]
     app.json = _JSONProvider(app)
     # Trust one layer of reverse-proxy headers (nginx/caddy in front).
     # Fixes remote_addr (rate-limit keys, audit logs) and request.is_secure.
@@ -83,6 +87,7 @@ def create_app() -> Flask:
     @app.after_request
     def add_security_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
+        resp.headers['X-Build'] = build_id
         if request.path in _SEABED_PATHS:
             # These files are embedded as same-origin iframes; they use only
             # inline CSS and no external resources.

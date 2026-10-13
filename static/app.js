@@ -32,6 +32,24 @@ var _csrfToken = null;
 function storeCsrf(data) {
   if (data && data.csrf_token) _csrfToken = data.csrf_token;
 }
+
+// A deploy changed app.js: reload so every open tab runs the new code.
+var _build = null;
+function checkBuild(build) {
+  if (!build) return;
+  if (!_build) {
+    _build = build;
+    return;
+  }
+  if (build === _build) return;
+  try {
+    if (sessionStorage.getItem('reloaded_for') === build) return; // no reload loops
+    sessionStorage.setItem('reloaded_for', build);
+  } catch (e) {
+    return;
+  }
+  location.reload();
+}
 function apiFetch(_x) {
   return _apiFetch.apply(this, arguments);
 }
@@ -60,6 +78,7 @@ function _apiFetch() {
           }, opts));
         case 1:
           res = _context39.v;
+          checkBuild(res.headers.get('X-Build'));
           _context39.n = 2;
           return res.json()["catch"](function () {
             return {};

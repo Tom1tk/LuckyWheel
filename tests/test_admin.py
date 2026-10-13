@@ -1,5 +1,6 @@
 """admin.py against the real app and wheeldb_test: the admin API, account approval, closed accounts,
 suspensions, the daily cast cap and the steady-timing flag."""
+import hashlib
 import uuid
 
 from tests.test_spin_integration import _read_csrf, _register, game_app  # noqa: F401
@@ -274,3 +275,9 @@ def test_signup_from_suspended_players_address_waits_for_approval(game_app, db_u
     r, second = _register_offsite(game_app, 'evd', ip, uuid.uuid4().hex)
     assert r.status_code == 201
     assert _sql(db_url, 'SELECT approved FROM users WHERE username = %s', (second,))[0][0] is False
+
+
+def test_responses_carry_the_build_id(game_app):  # noqa: F811
+    with open('static/app.js', 'rb') as f:
+        expected = hashlib.sha256(f.read()).hexdigest()[:12]
+    assert game_app.test_client().get('/api/me').headers['X-Build'] == expected

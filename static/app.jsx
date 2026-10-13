@@ -4,6 +4,19 @@ const { useState, useRef, useEffect, useCallback, useMemo } = React;
 let _csrfToken = null;
 function storeCsrf(data) { if (data && data.csrf_token) _csrfToken = data.csrf_token; }
 
+// A deploy changed app.js: reload so every open tab runs the new code.
+let _build = null;
+function checkBuild(build) {
+  if (!build) return;
+  if (!_build) { _build = build; return; }
+  if (build === _build) return;
+  try {
+    if (sessionStorage.getItem('reloaded_for') === build) return; // no reload loops
+    sessionStorage.setItem('reloaded_for', build);
+  } catch (e) { return; }
+  location.reload();
+}
+
 async function apiFetch(path, opts = {}) {
   const method = (opts.method || 'GET').toUpperCase();
   const headers = { 'Content-Type': 'application/json' };
@@ -11,6 +24,7 @@ async function apiFetch(path, opts = {}) {
     headers['X-CSRFToken'] = _csrfToken;
   }
   const res = await fetch(path, { headers, ...opts });
+  checkBuild(res.headers.get('X-Build'));
   const json = await res.json().catch(() => ({}));
   // RV-11: flask-limiter's 429 is HTML, so without this callers fall back to "Spin failed".
   if (res.status === 429 && !json.error) json.error = 'Slow down a moment — try again in a few seconds.';
