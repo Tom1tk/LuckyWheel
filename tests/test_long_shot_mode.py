@@ -1,8 +1,7 @@
 """Tests for T115: "Long Shot" wheel mode.
 
 T115 ACs covered:
-  1. WHEEL_MODES['long_shot'] has the spec values (40/35/25, multiplier 10,
-     exact description).
+  1. WHEEL_MODES['long_shot'] has the spec values (40/35/25, multiplier 10).
   2. _ROTATING_MODES is ['inverted', 'gravity', 'long_shot'].
   3. get_rotating_mode(week_number=2) returns 'long_shot' (slot 2 of the
      weekly rotation).
