@@ -167,9 +167,9 @@ def test_manual_surge_table(rarity, ratio, expected):
     assert talents.catch_surge({}, rarity, ratio, auto=False) == expected
 
 
-def test_auto_surge_is_a_quarter_with_a_floor_of_one():
-    assert talents.catch_surge({}, 'common', 0.0, auto=True) == 1   # 0.75 → 1
-    assert talents.catch_surge({}, 'rare', 0.5, auto=True) == 10
+def test_auto_surge_is_a_half_with_a_floor_of_one():
+    assert talents.catch_surge({}, 'common', 0.0, auto=True) == 2   # 1.5 → 2
+    assert talents.catch_surge({}, 'rare', 0.5, auto=True) == 20
     assert talents.catch_surge({}, 'junk', 1.0, auto=True) == 0
 
 
@@ -236,7 +236,7 @@ def test_auto_fish_tick_earns_a_quarter(user, db_url, monkeypatch, rogue):
     if rogue:
         assert body['surge'] == 0
     else:
-        assert 2 <= body['surge'] <= 6  # round(15 × [0.5, 1.5] × 0.25)
+        assert 4 <= body['surge'] <= 11  # round(15 × [0.5, 1.5] × 0.5)
     assert _get(db_url, username)['surge_spins'] == body['surge']
 
 
@@ -260,7 +260,7 @@ def test_afk_catch_up_earns_surge_and_records(user, db_url, monkeypatch, rogue):
     if rogue:
         assert catch['surge'] == 0
     else:
-        assert 20 <= catch['surge'] <= 60
+        assert 40 <= catch['surge'] <= 110
     # The catch-up lands first, so the offline auto-spins can spend its Surge.
     spent = 0 if rogue else data['state']['spin_count']
     assert gs['surge_spins'] == catch['surge'] - spent == data['state']['surge_spins']

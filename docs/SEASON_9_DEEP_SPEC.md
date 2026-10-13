@@ -135,7 +135,7 @@ Tree sizes: Swell 10, Riptide 11, Angler 13. With at most 14 points, a full tree
   | 0 | 6 | 15 | 40 | 150 |
 
   This is scaled by catch quality (`0.5 + size_ratio`) and by Better Bait (+25% per rank).
-- **Auto** catches (tick and AFK catch-up) give **×0.25**, rounded, with a minimum of 1 for non-junk.
+- **Auto** catches (tick and AFK catch-up) give **×0.5**, rounded, with a minimum of 1 for non-junk.
 - Each spin, manual or auto (including the auto-spin catch-up), spends 1 Surge spin while any remain. A Surge spin pays **(win mult + M − 1)** and **(bonus mult + M − 1)**. That is *additive*, not multiplicative: M = 5 for everyone, 25/50/100 with Rich Waters.
 - Additive is deliberate. Multiplicative surge × Undertow made the best hybrid 1.8e10 against 1.7e9 for pure Swell (sim run6). Additive brings it to 2.8e9 (run7).
 - The UI shows **"🌊 Surge ×M · N spins"** under the wins / losses scoreboard while N > 0.
@@ -169,7 +169,7 @@ Tree sizes: Swell 10, Riptide 11, Angler 13. With at most 14 points, a full tree
 - Never catches legendaries, and catches rares only with Old Salt.
 - Random size.
 - Updates records.
-- Surge ×0.25.
+- Surge ×0.5.
 
 ## 6. The catalog: 46 species
 

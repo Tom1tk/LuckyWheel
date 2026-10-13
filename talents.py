@@ -206,7 +206,7 @@ def catalog() -> list:
 
 
 SURGE_BY_RARITY = {'junk': 0, 'common': 6, 'uncommon': 15, 'rare': 40, 'legendary': 150}
-AUTO_SURGE_MULT = 0.25
+AUTO_SURGE_MULT = 0.5
 
 
 def catch_surge(alloc: dict, rarity: str, size_ratio: float, auto: bool) -> int:
