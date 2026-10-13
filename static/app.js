@@ -2195,7 +2195,8 @@ function FishingPanel(_ref9) {
     steadyHands = _ref9.steadyHands,
     onFishBucksUpdate = _ref9.onFishBucksUpdate,
     onCaughtSpeciesUpdate = _ref9.onCaughtSpeciesUpdate,
-    onFishCaught = _ref9.onFishCaught;
+    onFishCaught = _ref9.onFishCaught,
+    onFishCatchUp = _ref9.onFishCatchUp;
   var _useState9 = useState('idle'),
     _useState0 = _slicedToArray(_useState9, 2),
     phase = _useState0[0],
@@ -2338,6 +2339,16 @@ function FishingPanel(_ref9) {
               }
               return _context.a(2);
             case 3:
+              if (!data.fish_catchup) {
+                _context.n = 4;
+                break;
+              }
+              onFishCatchUp && onFishCatchUp(data.fish_catchup);
+              if (onFishCaught) onFishCaught({
+                surge: data.fish_catchup.surge
+              });
+              return _context.a(2);
+            case 4:
               if (data.result === 'hit') {
                 emoji = data.species_emoji || '🐟';
                 name = data.species_name || data.species;
@@ -2363,7 +2374,7 @@ function FishingPanel(_ref9) {
                   type: 'miss'
                 });
               }
-            case 4:
+            case 5:
               return _context.a(2);
           }
         }, _callee);
@@ -7950,12 +7961,14 @@ function GameApp(_ref48) {
         spins: 0,
         wins: 0,
         fish: 0,
-        fishValue: 0
+        fishValue: 0,
+        surge: 0
       };
       return _objectSpread(_objectSpread({}, prev), {}, {
         secs: Math.max(prev.secs, fc.elapsed_seconds),
         fish: prev.fish + fc.fish_count,
-        fishValue: prev.fishValue + fc.total_value
+        fishValue: prev.fishValue + fc.total_value,
+        surge: prev.surge + (fc.surge || 0)
       });
     });
   }, []);
@@ -8216,7 +8229,8 @@ function GameApp(_ref48) {
               spins: 0,
               wins: 0,
               fish: 0,
-              fishValue: 0
+              fishValue: 0,
+              surge: 0
             };
             return _objectSpread(_objectSpread({}, prev), {}, {
               secs: prev.secs + data.elapsed_seconds,
@@ -8230,6 +8244,12 @@ function GameApp(_ref48) {
           if (!(!data.spins || data.spins.length === 0)) {
             _context24.n = 8;
             break;
+          }
+          if (data.fish_catchup) {
+            applyFishCatchUp(data.fish_catchup);
+            setSurgeSpins(function (prev) {
+              return prev + (data.fish_catchup.surge || 0);
+            });
           }
           return _context24.a(2);
         case 8:
@@ -9095,7 +9115,7 @@ function GameApp(_ref48) {
     role: "status"
   }, /*#__PURE__*/React.createElement("div", {
     className: "away-title"
-  }, "\u23F0 While you were away \xB7 ", Math.floor(away.secs / 3600) > 0 ? "".concat(Math.floor(away.secs / 3600), "h ") : '', Math.floor(away.secs % 3600 / 60), "m"), away.spins > 0 && /*#__PURE__*/React.createElement("div", null, "\uD83C\uDFA1 ", fmt(away.spins), " spins \xB7 ", /*#__PURE__*/React.createElement("b", null, "+", fmt(away.wins), " \uD83C\uDFC6")), away.fish > 0 && /*#__PURE__*/React.createElement("div", null, "\uD83C\uDFA3 ", fmt(away.fish), " fish \xB7 ", /*#__PURE__*/React.createElement("b", null, "+", fmt(away.fishValue), " \uD83D\uDC1F")), /*#__PURE__*/React.createElement("button", {
+  }, "\u23F0 While you were away \xB7 ", Math.floor(away.secs / 3600) > 0 ? "".concat(Math.floor(away.secs / 3600), "h ") : '', Math.floor(away.secs % 3600 / 60), "m"), away.spins > 0 && /*#__PURE__*/React.createElement("div", null, "\uD83C\uDFA1 ", fmt(away.spins), " spins \xB7 ", /*#__PURE__*/React.createElement("b", null, "+", fmt(away.wins), " \uD83C\uDFC6")), away.fish > 0 && /*#__PURE__*/React.createElement("div", null, "\uD83C\uDFA3 ", fmt(away.fish), " fish \xB7 ", /*#__PURE__*/React.createElement("b", null, "+", fmt(away.fishValue), " \uD83D\uDC1F")), away.surge > 0 && /*#__PURE__*/React.createElement("div", null, "\uD83C\uDF0A ", /*#__PURE__*/React.createElement("b", null, "+", fmt(away.surge)), " Surge spins"), /*#__PURE__*/React.createElement("button", {
     className: "away-btn",
     onClick: function onClick() {
       return setAway(null);
@@ -9272,7 +9292,8 @@ function GameApp(_ref48) {
         return prev.includes(id) ? prev : [].concat(_toConsumableArray(prev), [id]);
       });
     },
-    onFishCaught: handleFishCaught
+    onFishCaught: handleFishCaught,
+    onFishCatchUp: applyFishCatchUp
   })), isMobile && unlocked.fish && /*#__PURE__*/React.createElement("div", {
     className: "mobile-fish-panel".concat(mobilePanel === 'fish' ? ' mobile-visible' : '')
   }, /*#__PURE__*/React.createElement(FishingPanel, {
@@ -9292,7 +9313,8 @@ function GameApp(_ref48) {
         return prev.includes(id) ? prev : [].concat(_toConsumableArray(prev), [id]);
       });
     },
-    onFishCaught: handleFishCaught
+    onFishCaught: handleFishCaught,
+    onFishCatchUp: applyFishCatchUp
   })), showResult && /*#__PURE__*/React.createElement("div", {
     className: "result-banner ".concat(showResult && !hideResult ? 'show' : '', " ").concat(hideResult ? 'hide' : '')
   }, result === 'win' || result === 'jackpot' || result === 'lose' && shieldFeedback ? /*#__PURE__*/React.createElement("div", {

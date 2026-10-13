@@ -13,13 +13,10 @@ from flask_login import current_user, login_required
 from db import db_connection
 from extensions import limiter, csrf
 from models import (REGEN_SHIELD_RECHARGE_WINS,
-                    lure_mastery_mult,
-                    CLASS_EARTH_FISH_BONUS, CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
+                    CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, dice_max_charges, dice_recharge_seconds,
-                    roll_fish, fish_value, autofisher_catch_rate,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_SPIN_OFFLINE_CAP_S,
-                    AUTO_FISH_INTERVAL_SECONDS, MAX_FISH_CATCHUP_TICKS, FISH_CATCHUP_THRESHOLD,
                     HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
                     RETIRED_S9_ITEMS)
 from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
@@ -42,9 +39,7 @@ import fish_catalog
 import shop
 import talents
 import loadout
-from fish import (
-    lure_level, autofisher_level, get_total_fish_clicks,
-)
+from fish import get_total_fish_clicks
 
 
 def is_happy_hour(now_utc=None):
@@ -1673,12 +1668,17 @@ def tick():
                     'SELECT filled, filled_at, win_chance_pct FROM community_pot WHERE id = 1'
                 )
                 pot_row = cur.fetchone()
+                # Fish first, so Surge caught while away is there for the offline spins.
+                fish_catchup_data = fish.afk_catch_up(cur, current_user.id, gs, now_utc)
+            fish_surge = (fish_catchup_data or {}).get('surge', 0)
 
             # T216: only process auto-spin when the player has started it.
             # The per-activation budget column was dropped (see migration 057).
             # Manual spins go through /api/spin directly.
             if gs.get('auto_spin_since') is None:
-                return jsonify({'spins': [], 'auto_spin_active': False, 'elapsed_ms': 0})
+                conn.commit()
+                return jsonify({'spins': [], 'auto_spin_active': False, 'elapsed_ms': 0,
+                                'fish_catchup': fish_catchup_data})
 
             auto_spin_since = gs['auto_spin_since']
             auto_spin_since = _aware(auto_spin_since)
@@ -1696,8 +1696,9 @@ def tick():
             spins_due = min(int(elapsed // AUTO_SPIN_INTERVAL_SECONDS), MAX_SPINS_PER_TICK)
 
             if spins_due == 0:
+                conn.commit()
                 return jsonify({'spins': [], 'auto_spin_active': True,
-                                'elapsed_ms': int(elapsed * 1000)})
+                                'elapsed_ms': int(elapsed * 1000), 'fish_catchup': fish_catchup_data})
 
             is_catch_up = spins_due > CATCH_UP_THRESHOLD
 
@@ -1756,7 +1757,7 @@ def tick():
             spin_results = []
             dice_refunded_this_tick = False
 
-            surge_left = int(gs.get('surge_spins', 0) or 0)
+            surge_left = int(gs.get('surge_spins', 0) or 0) + fish_surge
             recent_spins = gs.get('recent_spins') or []
             for _ in range(spins_due):
                 new_spin_count += 1
@@ -1901,65 +1902,6 @@ def tick():
                      current_user.id),
                 )
 
-            # Auto-fish AFK catch-up — process missed ticks in the same transaction
-            fish_catchup_data = None
-            if gs['auto_fish_enabled']:
-                last_fish = gs['auto_fish_last_tick']
-                if last_fish is not None:
-                    last_fish = _aware(last_fish)
-                    fish_elapsed = (now_utc - last_fish).total_seconds()
-                    pending_fish = min(
-                        int(fish_elapsed / AUTO_FISH_INTERVAL_SECONDS),
-                        MAX_FISH_CATCHUP_TICKS,
-                    )
-                    if pending_fish >= FISH_CATCHUP_THRESHOLD:
-                        autofisher_lvl = autofisher_level(owned)
-                        if autofisher_lvl >= 1:
-                            lure_lvl       = lure_level(owned)
-                            _lm_mult       = lure_mastery_mult(gs['lure_mastery_level'])
-                            _earth_mult    = 1.0 + CLASS_EARTH_FISH_BONUS if gs['equipped_class'] == 'earth' else 1.0
-                            new_clicks     = int(gs['fish_clicks'])
-                            new_caught     = list(gs['caught_species'])
-                            total_value    = 0
-                            catch_count    = 0
-                            first_catches  = []
-                            alloc          = gs.get('talent_alloc') or {}
-                            records        = gs.get('fish_records') or {}
-                            surge_earned   = 0
-                            for _ in range(pending_fish):
-                                if random.random() < autofisher_catch_rate(autofisher_lvl):
-                                    sid = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4), now=now_utc,
-                                                    deep_sea=talents.keystone(alloc) == 'deep_sea')
-                                    catch = fish.size_up_catch(sid, fish_value(sid, lure_lvl), random.random(),
-                                                               alloc, records, auto=True)
-                                    records = catch['records']
-                                    surge_earned += catch['surge']
-                                    val = int(catch['value'] * _lm_mult * _earth_mult)
-                                    new_clicks  += val
-                                    total_value += val
-                                    catch_count += 1
-                                    if sid not in new_caught:
-                                        new_caught.append(sid)
-                                        first_catches.append(sid)
-                            with conn.cursor() as cur:
-                                cur.execute(
-                                    '''UPDATE game_state
-                                       SET fish_clicks = %s, caught_species = %s,
-                                           auto_fish_last_tick = %s,
-                                           surge_spins = surge_spins + %s, fish_records = %s
-                                       WHERE user_id = %s''',
-                                    (new_clicks, new_caught, now_utc, surge_earned,
-                                     psycopg2.extras.Json(records), current_user.id),
-                                )
-                            fish_catchup_data = {
-                                'fish_count':      catch_count,
-                                'total_value':     total_value,
-                                'new_species':     first_catches,
-                                'fish_clicks':     new_clicks,
-                                'elapsed_seconds': fish_elapsed,
-                                'surge':           surge_earned,
-                            }
-
             conn.commit()
 
         final_state = {
@@ -1982,7 +1924,7 @@ def tick():
             'auto_spin_active':      True,
             # T106: cumulative_wins after all processed spins (catch-up summary).
             'cumulative_wins':       new_cumulative_wins,
-            'surge_spins':           surge_left + (fish_catchup_data or {}).get('surge', 0),
+            'surge_spins':           surge_left,
         }
 
         if is_catch_up:

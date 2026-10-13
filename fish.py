@@ -46,6 +46,9 @@ from models import (
     autofisher_catch_rate,
     lure_mastery_mult,
     CLASS_EARTH_FISH_BONUS,
+    AUTO_FISH_INTERVAL_SECONDS,
+    MAX_FISH_CATCHUP_TICKS,
+    FISH_CATCHUP_THRESHOLD,
     HAPPY_HOUR_START_UTC,
     HAPPY_HOUR_END_UTC,
 )
@@ -492,6 +495,67 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
     }
 
 
+# ── Auto-fish AFK catch-up ────────────────────────────────────────────────
+
+
+def afk_catch_up(cur, user_id: int, gs: dict, now_utc: dt.datetime) -> dict | None:
+    """Land the auto-fish ticks missed while the player was away.
+
+    Runs before the offline auto-spins so the Surge it earns is there to spend.
+    Returns the catch-up summary, or None when there was nothing to catch up.
+    """
+    if not gs.get("auto_fish_enabled") or gs["auto_fish_last_tick"] is None:
+        return None
+    fish_elapsed = (now_utc - _aware(gs["auto_fish_last_tick"])).total_seconds()
+    pending_fish = min(int(fish_elapsed / AUTO_FISH_INTERVAL_SECONDS), MAX_FISH_CATCHUP_TICKS)
+    autofisher_lvl = autofisher_level(list(gs["owned_items"]))
+    if pending_fish < FISH_CATCHUP_THRESHOLD or autofisher_lvl < 1:
+        return None
+    lure_lvl = lure_level(list(gs["owned_items"]))
+    lm_mult = lure_mastery_mult(gs["lure_mastery_level"])
+    earth_mult = 1.0 + CLASS_EARTH_FISH_BONUS if gs["equipped_class"] == "earth" else 1.0
+    new_clicks = int(gs["fish_clicks"])
+    new_caught = list(gs["caught_species"])
+    total_value = 0
+    catch_count = 0
+    first_catches = []
+    alloc = gs.get("talent_alloc") or {}
+    records = gs.get("fish_records") or {}
+    surge_earned = 0
+    for _ in range(pending_fish):
+        if random.random() < autofisher_catch_rate(autofisher_lvl):
+            sid = roll_fish(auto_mode=True, allow_rare=(autofisher_lvl >= 4), now=now_utc,
+                            deep_sea=talents.keystone(alloc) == "deep_sea")
+            catch = size_up_catch(sid, fish_value(sid, lure_lvl), random.random(),
+                                  alloc, records, auto=True)
+            records = catch["records"]
+            surge_earned += catch["surge"]
+            val = int(catch["value"] * lm_mult * earth_mult)
+            new_clicks += val
+            total_value += val
+            catch_count += 1
+            if sid not in new_caught:
+                new_caught.append(sid)
+                first_catches.append(sid)
+    cur.execute(
+        """UPDATE game_state
+           SET fish_clicks = %s, caught_species = %s,
+               auto_fish_last_tick = %s,
+               surge_spins = surge_spins + %s, fish_records = %s
+           WHERE user_id = %s""",
+        (new_clicks, new_caught, now_utc, surge_earned,
+         psycopg2.extras.Json(records), user_id),
+    )
+    return {
+        "fish_count": catch_count,
+        "total_value": total_value,
+        "new_species": first_catches,
+        "fish_clicks": new_clicks,
+        "elapsed_seconds": fish_elapsed,
+        "surge": surge_earned,
+    }
+
+
 # ── Auto-fish tick ────────────────────────────────────────────────────────
 
 
@@ -507,7 +571,7 @@ def auto_fish_tick(
     r = rand if rand is not None else random
     cur.execute(
         """SELECT owned_items, fish_clicks, caught_species,
-                  auto_fish_last_tick, lure_mastery_level, equipped_class,
+                  auto_fish_enabled, auto_fish_last_tick, lure_mastery_level, equipped_class,
                   talent_alloc, fish_records
            FROM game_state WHERE user_id = %s FOR UPDATE""",
         (user_id,),
@@ -519,6 +583,11 @@ def auto_fish_tick(
 
     if autofisher_lvl < 1:
         return 403, {"error": "Auto-Fisher not owned"}
+
+    # Back from away with auto-spin off: /api/tick never runs, so catch up here.
+    catchup = afk_catch_up(cur, user_id, gs, now_utc)
+    if catchup:
+        return {"result": "catchup", "fish_clicks": catchup["fish_clicks"], "fish_catchup": catchup}
 
     last_tick = gs["auto_fish_last_tick"]
     if last_tick is not None:

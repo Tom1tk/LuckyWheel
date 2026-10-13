@@ -246,11 +246,11 @@ def test_afk_catch_up_earns_surge_and_records(user, db_url, monkeypatch, rogue):
     _set(db_url, username, owned_items=['auto_spin_unlock', 'autofisher_1'],
          talent_alloc=DECKHAND_ROGUE if rogue else DECKHAND)
     past = dt.datetime.now(timezone.utc) - dt.timedelta(seconds=10)
-    _set(db_url, username, auto_spin_since=past, last_spin_at=past, auto_fish_enabled=True,
+    _set(db_url, username, auto_spin_since=past, last_spin_at=past, auto_fish_enabled=True, spin_count=0,
          auto_fish_last_tick=dt.datetime.now(timezone.utc) - dt.timedelta(seconds=61), fish_records={})
-    game = sys.modules['game']  # game_app re-imports it; patch the live copy
-    monkeypatch.setattr(game, 'roll_fish', lambda **k: 'crab')
-    monkeypatch.setattr(game, 'autofisher_catch_rate', lambda lvl: 1.0)
+    fish = sys.modules['fish']  # game_app re-imports it; patch the live copy
+    monkeypatch.setattr(fish, 'roll_fish', lambda **k: 'crab')
+    monkeypatch.setattr(fish, 'autofisher_catch_rate', lambda lvl: 1.0)
     r = client.post('/api/tick', json={}, headers={'X-CSRFToken': _read_csrf(client)})
     assert r.status_code == 200, r.get_json()
     data = r.get_json()
@@ -261,9 +261,25 @@ def test_afk_catch_up_earns_surge_and_records(user, db_url, monkeypatch, rogue):
         assert catch['surge'] == 0
     else:
         assert 20 <= catch['surge'] <= 60
-    # Auto-spins spend surge before the catch-up adds it.
-    assert gs['surge_spins'] == catch['surge'] == data['state']['surge_spins']
+    # The catch-up lands first, so the offline auto-spins can spend its Surge.
+    spent = 0 if rogue else data['state']['spin_count']
+    assert gs['surge_spins'] == catch['surge'] - spent == data['state']['surge_spins']
     assert set(gs['fish_records']) == {'crab'}
+
+
+def test_afk_catch_up_runs_with_auto_spin_off(user, db_url, monkeypatch):
+    client, username = user
+    _set(db_url, username, owned_items=['auto_spin_unlock', 'autofisher_1'], talent_alloc=DECKHAND,
+         auto_spin_since=None, auto_fish_enabled=True, surge_spins=0, fish_records={},
+         auto_fish_last_tick=dt.datetime.now(timezone.utc) - dt.timedelta(seconds=61))
+    fish = sys.modules['fish']
+    monkeypatch.setattr(fish, 'roll_fish', lambda **k: 'crab')
+    monkeypatch.setattr(fish, 'autofisher_catch_rate', lambda lvl: 1.0)
+    r = client.post('/api/auto-fish-tick', json={}, headers={'X-CSRFToken': _read_csrf(client)})
+    assert r.status_code == 200, r.get_json()
+    body = r.get_json()
+    assert body['result'] == 'catchup' and body['fish_catchup']['fish_count'] == 10
+    assert _get(db_url, username)['surge_spins'] == body['fish_catchup']['surge'] > 0
 
 
 def test_fish_catalog_route(user):

@@ -1394,7 +1394,7 @@ const FIGHT_GIVE_UP_S = 44;      // the server refuses lands after 45 s
 // [speed /s, darts /s]: rarer fish swim faster and change direction more often.
 const FIGHT_FISH = { junk: [0.10, 0.3], common: [0.25, 0.6], uncommon: [0.35, 0.8], rare: [0.45, 1.0], legendary: [0.58, 1.3] };
 
-function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, steadyHands, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught }) {
+function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, ownedItems, fishPanelScale, autoFishEnabled, steadyHands, onFishBucksUpdate, onCaughtSpeciesUpdate, onFishCaught, onFishCatchUp }) {
   const [phase, setPhase]         = useState('idle'); // idle | waiting | bite | reeling | fight | success | miss
   const [biteAt, setBiteAt]       = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
@@ -1473,6 +1473,11 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
       if (!autoFishRef.current) return;
       const { ok, data } = await apiGame('/api/auto-fish-tick', { method: 'POST', body: '{}' });
       if (!ok || !data.result) return;
+      if (data.fish_catchup) {
+        onFishCatchUp && onFishCatchUp(data.fish_catchup);
+        if (onFishCaught) onFishCaught({ surge: data.fish_catchup.surge });
+        return;
+      }
       if (data.result === 'hit') {
         const emoji = data.species_emoji || '🐟';
         const name  = data.species_name || data.species;
@@ -4599,9 +4604,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       });
     }
     setAway(a => {
-      const prev = a || { secs: 0, spins: 0, wins: 0, fish: 0, fishValue: 0 };
+      const prev = a || { secs: 0, spins: 0, wins: 0, fish: 0, fishValue: 0, surge: 0 };
       return { ...prev, secs: Math.max(prev.secs, fc.elapsed_seconds),
-               fish: prev.fish + fc.fish_count, fishValue: prev.fishValue + fc.total_value };
+               fish: prev.fish + fc.fish_count, fishValue: prev.fishValue + fc.total_value,
+               surge: prev.surge + (fc.surge || 0) };
     });
   }, []);
 
@@ -4767,7 +4773,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           setDiceRolledSinceSpin(false);
         }
         setAway(a => {
-          const prev = a || { secs: 0, spins: 0, wins: 0, fish: 0, fishValue: 0 };
+          const prev = a || { secs: 0, spins: 0, wins: 0, fish: 0, fishValue: 0, surge: 0 };
           return { ...prev, secs: prev.secs + data.elapsed_seconds,
                    spins: prev.spins + data.spins_processed, wins: prev.wins + data.wins_gained };
         });
@@ -4775,7 +4781,13 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         return;
       }
 
-      if (!data.spins || data.spins.length === 0) return;
+      if (!data.spins || data.spins.length === 0) {
+        if (data.fish_catchup) {
+          applyFishCatchUp(data.fish_catchup);
+          setSurgeSpins(prev => prev + (data.fish_catchup.surge || 0));
+        }
+        return;
+      }
 
       const spinResult = data.spins[data.spins.length - 1];
 
@@ -5271,6 +5283,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <div className="away-title">⏰ While you were away · {Math.floor(away.secs / 3600) > 0 ? `${Math.floor(away.secs / 3600)}h ` : ''}{Math.floor((away.secs % 3600) / 60)}m</div>
           {away.spins > 0 && <div>🎡 {fmt(away.spins)} spins · <b>+{fmt(away.wins)} 🏆</b></div>}
           {away.fish > 0 && <div>🎣 {fmt(away.fish)} fish · <b>+{fmt(away.fishValue)} 🐟</b></div>}
+          {away.surge > 0 && <div>🌊 <b>+{fmt(away.surge)}</b> Surge spins</div>}
           <button className="away-btn" onClick={() => setAway(null)}>Got it</button>
         </div>
       )}
@@ -5381,6 +5394,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           onFishBucksUpdate={v => setFishClicks(v)}
           onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
           onFishCaught={handleFishCaught}
+          onFishCatchUp={applyFishCatchUp}
         />
         </div>
       )}
@@ -5399,6 +5413,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             onFishBucksUpdate={v => setFishClicks(v)}
             onCaughtSpeciesUpdate={id => setCaughtSpecies(prev => prev.includes(id) ? prev : [...prev, id])}
             onFishCaught={handleFishCaught}
+            onFishCatchUp={applyFishCatchUp}
           />
         </div>
       )}
