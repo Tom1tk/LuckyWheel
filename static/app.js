@@ -1620,8 +1620,8 @@ var WHEEL_MODE_DRAW = {
     jackpot_pct: 2
   },
   "volatile": {
-    win_pct: 45,
-    lose_pct: 50,
+    win_pct: 60,
+    lose_pct: 35,
     jackpot_pct: 5
   },
   inverted: {
@@ -1640,9 +1640,9 @@ var WHEEL_MODE_DRAW = {
     jackpot_pct: 5
   },
   long_shot: {
-    win_pct: 20,
-    lose_pct: 60,
-    jackpot_pct: 20
+    win_pct: 40,
+    lose_pct: 35,
+    jackpot_pct: 25
   },
   singularity: {
     win_pct: 75,
@@ -8707,7 +8707,7 @@ function GameApp(_ref48) {
     },
     "volatile": {
       label: 'Volatile',
-      desc: '45% win · 50% loss · 5% jackpot (×50). High variance — bigger swings both ways.'
+      desc: '60% win · 35% loss · 5% jackpot (×50). High variance — bigger swings both ways.'
     },
     inverted: {
       label: 'Inverted',
@@ -8715,7 +8715,7 @@ function GameApp(_ref48) {
     },
     gravity: {
       label: 'Gravity',
-      desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.'
+      desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result (win odds 40–70%) — streaks amplify.'
     },
     mirror: {
       label: 'Mirror',
@@ -8723,7 +8723,7 @@ function GameApp(_ref48) {
     },
     long_shot: {
       label: 'Long Shot',
-      desc: '20% win · 60% loss · 20% jackpot (×10). Most spins lose; jackpots hit often but pay less.'
+      desc: '40% win · 35% loss · 25% jackpot (×10). Loses more often than Steady, but a quarter of spins hit a jackpot (paying less).'
     },
     singularity: {
       label: 'Singularity',

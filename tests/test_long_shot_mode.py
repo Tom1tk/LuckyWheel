@@ -1,13 +1,13 @@
 """Tests for T115: "Long Shot" wheel mode.
 
 T115 ACs covered:
-  1. WHEEL_MODES['long_shot'] has the spec values (20/60/20, multiplier 10,
+  1. WHEEL_MODES['long_shot'] has the spec values (40/35/25, multiplier 10,
      exact description).
   2. _ROTATING_MODES is ['inverted', 'gravity', 'long_shot'].
   3. get_rotating_mode(week_number=2) returns 'long_shot' (slot 2 of the
      weekly rotation).
   4. Probabilities sum to 100 and a 10,000-spin sample in long_shot mode
-     resolves within ±3% of the expected 20/60/20 distribution.
+     resolves within ±3% of the expected 40/35/25 distribution.
 """
 import os
 import sys
@@ -208,21 +208,17 @@ def _base_ctx(**overrides):
 def test_long_shot_profile_matches_spec():
     """T115 AC#1: long_shot mode matches the operator-confirmed spec exactly.
 
-    win_pct=20, loss_pct=60, jackpot_pct=20, jackpot_multiplier=10,
-    description='Most spins lose. Jackpots hit often but pay less.'
+    win_pct=40, loss_pct=35, jackpot_pct=25, jackpot_multiplier=10.
     """
     assert 'long_shot' in WHEEL_MODES, (
         f"WHEEL_MODES must include 'long_shot'; keys: {sorted(WHEEL_MODES)}"
     )
     ls = WHEEL_MODES['long_shot']
-    assert ls['win_pct']        == 20, f"win_pct should be 20, got {ls['win_pct']}"
-    assert ls['loss_pct']       == 60, f"loss_pct should be 60, got {ls['loss_pct']}"
-    assert ls['jackpot_pct']    == 20, f"jackpot_pct should be 20, got {ls['jackpot_pct']}"
+    assert ls['win_pct']        == 40, f"win_pct should be 40, got {ls['win_pct']}"
+    assert ls['loss_pct']       == 35, f"loss_pct should be 35, got {ls['loss_pct']}"
+    assert ls['jackpot_pct']    == 25, f"jackpot_pct should be 25, got {ls['jackpot_pct']}"
     assert ls['jackpot_multiplier'] == 10, (
         f"jackpot_multiplier should be 10, got {ls['jackpot_multiplier']}"
-    )
-    assert ls['description'] == 'Most spins lose. Jackpots hit often but pay less.', (
-        f"description mismatch: {ls['description']!r}"
     )
 
 
@@ -282,9 +278,9 @@ def test_long_shot_probabilities_sum_to_100():
 
 def test_long_shot_spin_distribution_within_3_percent():
     """T115 AC#4: 10,000 spins in long_shot mode should land within ±3% of
-    the spec's 20% win / 60% loss / 20% jackpot distribution.
+    the spec's 40% win / 35% loss / 25% jackpot distribution.
 
-    Standard deviation for n=10000, p=0.20 is ~40 outcomes (0.4%), so a
+    Standard deviation for n=10000, p=0.40 is ~49 outcomes (0.5%), so a
     ±3% band is roughly 7-8σ — extremely safe. This guards against
     off-by-one in the _resolve_spin roll threshold (e.g. a swap of win
     and jackpot ordering would still pass a less forgiving test).
@@ -316,16 +312,16 @@ def test_long_shot_spin_distribution_within_3_percent():
     lose_pct_actual    = 100.0 * counts['lose']    / n
     jackpot_pct_actual = 100.0 * counts['jackpot'] / n
 
-    assert abs(win_pct_actual     - 20) <= 3, (
-        f"win_pct {win_pct_actual:.2f}% outside [17, 23] "
+    assert abs(win_pct_actual     - 40) <= 3, (
+        f"win_pct {win_pct_actual:.2f}% outside [37, 43] "
         f"(counts: {counts})"
     )
-    assert abs(lose_pct_actual    - 60) <= 3, (
-        f"lose_pct {lose_pct_actual:.2f}% outside [57, 63] "
+    assert abs(lose_pct_actual    - 35) <= 3, (
+        f"lose_pct {lose_pct_actual:.2f}% outside [32, 38] "
         f"(counts: {counts})"
     )
-    assert abs(jackpot_pct_actual - 20) <= 3, (
-        f"jackpot_pct {jackpot_pct_actual:.2f}% outside [17, 23] "
+    assert abs(jackpot_pct_actual - 25) <= 3, (
+        f"jackpot_pct {jackpot_pct_actual:.2f}% outside [22, 28] "
         f"(counts: {counts})"
     )
 

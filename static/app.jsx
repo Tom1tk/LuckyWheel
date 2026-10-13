@@ -987,11 +987,11 @@ function TidesBackground({ lowSpec = false, halloween = false }) {
 // table is referenced in other places, keep backward compat").
 const WHEEL_MODE_DRAW = {
   steady:      { win_pct: 70, lose_pct: 28, jackpot_pct: 2 },
-  volatile:    { win_pct: 45, lose_pct: 50, jackpot_pct: 5 },
+  volatile:    { win_pct: 60, lose_pct: 35, jackpot_pct: 5 },
   inverted:    { win_pct: 35, lose_pct: 60, jackpot_pct: 5 },
   gravity:     { win_pct: 55, lose_pct: 40, jackpot_pct: 5 },
   mirror:      { win_pct: 65, lose_pct: 30, jackpot_pct: 5 },
-  long_shot:   { win_pct: 20, lose_pct: 60, jackpot_pct: 20 },
+  long_shot:   { win_pct: 40, lose_pct: 35, jackpot_pct: 25 },
   singularity: { win_pct: 75, lose_pct: 10, jackpot_pct: 15 },
 };
 
@@ -5064,11 +5064,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // Season 8: wheel mode descriptions for tooltips
   const WHEEL_MODE_INFO = {
     steady:      { label: 'Steady',      desc: '70% win · 28% loss · 2% jackpot (×25). Consistent and predictable.' },
-    volatile:    { label: 'Volatile',    desc: '45% win · 50% loss · 5% jackpot (×50). High variance — bigger swings both ways.' },
+    volatile:    { label: 'Volatile',    desc: '60% win · 35% loss · 5% jackpot (×50). High variance — bigger swings both ways.' },
     inverted:    { label: 'Inverted',    desc: 'Flipped week: 60% lose · 35% win · 5% jackpot. LOSE is the good slice here: it pays out 💀 losses, the currency for cosmetics.' },
-    gravity:     { label: 'Gravity',     desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.' },
+    gravity:     { label: 'Gravity',     desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result (win odds 40–70%) — streaks amplify.' },
     mirror:      { label: 'Mirror',      desc: '65% win · 30% loss · 5% jackpot. Two spins resolved; the better result wins.' },
-    long_shot:   { label: 'Long Shot',   desc: '20% win · 60% loss · 20% jackpot (×10). Most spins lose; jackpots hit often but pay less.' },
+    long_shot:   { label: 'Long Shot',   desc: '40% win · 35% loss · 25% jackpot (×10). Loses more often than Steady, but a quarter of spins hit a jackpot (paying less).' },
     singularity: { label: 'Singularity', desc: '75% win · 10% loss · 15% jackpot (×50). Unlocked when the Singularity meter fills.' },
   };
 

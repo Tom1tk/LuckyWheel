@@ -22,7 +22,7 @@
             description: 'Default. Small wins, rare losses, standard jackpot.'
         },
         volatile: {
-            win_pct: 45, loss_pct: 50, jackpot_pct: 5,
+            win_pct: 60, loss_pct: 35, jackpot_pct: 5,
             jackpot_multiplier: 50,
             description: 'High variance. Big wins, frequent losses, double jackpot.'
         },
@@ -52,8 +52,8 @@
 
     // T77: gravity drift bounds — keep in sync with wheel_modes.py.
     var GRAVITY_DRIFT_STEP = 10;
-    var GRAVITY_DRIFT_MAX  = 35;
-    var GRAVITY_DRIFT_MIN  = -35;
+    var GRAVITY_DRIFT_MAX  = 15;
+    var GRAVITY_DRIFT_MIN  = -15;
 
     function compute_gravity_probabilities(drift) {
         drift = drift | 0;

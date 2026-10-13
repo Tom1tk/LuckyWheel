@@ -101,10 +101,10 @@ Switch the wheel's odds profile at will. **Steady** and **Volatile** are always 
 | Mode | Win % | Loss % | Jackpot % | Jackpot × | Notes |
 |------|-------|--------|-----------|-----------|-------|
 | Steady (default) | 70% | 28% | 2% | 25× | Small wins, rare losses |
-| Volatile | 45% | 50% | 5% | 50× | High variance, double jackpot payout |
+| Volatile | 60% | 35% | 5% | 50× | High variance, double jackpot payout |
 | Inverted *(rotates)* | 35% | 60% | 5% | 25× | Losses become small wins; loss streaks still build bonus |
 | Gravity *(rotates)* | 55% | 40% | 5% | 25× | Outcomes drift toward the last result |
-| Long Shot *(rotates)* | 20% | 60% | 20% | 10× | Most spins lose; jackpots hit often but pay less |
+| Long Shot *(rotates)* | 40% | 35% | 25% | 10× | Loses more often than Steady, but a quarter of spins hit a jackpot (paying less) |
 
 The rotating slot cycles Inverted → Gravity → Long Shot by week.
 

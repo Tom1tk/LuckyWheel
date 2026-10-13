@@ -21,8 +21,8 @@ WHEEL_MODES = {
         'jackpot_multiplier': 25,
     },
     'volatile': {
-        'win_pct': 45,
-        'loss_pct': 50,
+        'win_pct': 60,
+        'loss_pct': 35,
         'jackpot_pct': 5,
         'description': 'High variance. Big wins, frequent losses, double jackpot.',
         'jackpot_multiplier': 50,
@@ -51,10 +51,10 @@ WHEEL_MODES = {
         'jackpot_multiplier': 25,
     },
     'long_shot': {
-        'win_pct': 20,
-        'loss_pct': 60,
-        'jackpot_pct': 20,
-        'description': 'Most spins lose. Jackpots hit often but pay less.',
+        'win_pct': 40,
+        'loss_pct': 35,
+        'jackpot_pct': 25,
+        'description': 'Loses more often than Steady, but a quarter of spins hit a jackpot (paying less).',
         'jackpot_multiplier': 10,
     },
     'singularity': {
