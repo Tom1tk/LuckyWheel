@@ -173,10 +173,10 @@ def test_auto_surge_is_a_half_with_a_floor_of_one():
     assert talents.catch_surge({}, 'junk', 1.0, auto=True) == 0
 
 
-def test_better_bait_adds_25_percent_per_rank_and_rogue_wave_earns_nothing():
+def test_better_bait_adds_25_percent_per_rank_and_rogue_wave_earns_as_normal():
     assert talents.catch_surge({'better_bait': 2}, 'rare', 0.5, auto=False) == 60
-    assert talents.catch_surge({'rogue_wave': 1}, 'legendary', 1.0, auto=False) == 0
-    assert talents.catch_surge({'rogue_wave': 1}, 'common', 1.0, auto=True) == 0
+    assert talents.catch_surge({'rogue_wave': 1}, 'legendary', 1.0, auto=False) == 225
+    assert talents.catch_surge({'rogue_wave': 1}, 'common', 1.0, auto=True) == 4
 
 
 def test_size_up_scales_value_and_junk_is_worthless():
@@ -209,12 +209,12 @@ def test_land_earns_surge_and_sets_a_record(user, db_url):
     assert gs['fish_records'] == {'shark': body['kg']}
 
 
-def test_rogue_wave_land_earns_no_surge(user, db_url):
+def test_rogue_wave_land_earns_surge(user, db_url):
     client, username = user
     _chart(client, {'open_water': 1, 'loaded_dice': 3, 'treasure': 1, 'deep_water': 1, 'rogue_wave': 1})
     body = _land_shark(client, db_url, username)
-    assert body['result'] == 'hit' and body['surge'] == 0
-    assert _get(db_url, username)['surge_spins'] == 0
+    assert body['result'] == 'hit' and 20 <= body['surge'] <= 60
+    assert _get(db_url, username)['surge_spins'] == body['surge']
 
 
 DECKHAND = {'rich_waters': 2, 'deckhand': 1}
@@ -233,10 +233,7 @@ def test_auto_fish_tick_earns_a_quarter(user, db_url, monkeypatch, rogue):
     monkeypatch.setattr(fish, 'autofisher_catch_rate', lambda lvl: 1.0)
     body = client.post('/api/auto-fish-tick', json={}, headers={'X-CSRFToken': _read_csrf(client)}).get_json()
     assert body['result'] == 'hit' and body['rarity'] == 'uncommon'
-    if rogue:
-        assert body['surge'] == 0
-    else:
-        assert 4 <= body['surge'] <= 11  # round(15 × [0.5, 1.5] × 0.5)
+    assert 4 <= body['surge'] <= 11  # round(15 × [0.5, 1.5] × 0.5)
     assert _get(db_url, username)['surge_spins'] == body['surge']
 
 
@@ -257,12 +254,9 @@ def test_afk_catch_up_earns_surge_and_records(user, db_url, monkeypatch, rogue):
     catch = data['fish_catchup']
     assert catch['fish_count'] == 10
     gs = _get(db_url, username)
-    if rogue:
-        assert catch['surge'] == 0
-    else:
-        assert 40 <= catch['surge'] <= 110
+    assert 40 <= catch['surge'] <= 110
     # The catch-up lands first, so the offline auto-spins can spend its Surge.
-    spent = 0 if rogue else data['state']['spin_count']
+    spent = data['state']['spin_count']
     assert gs['surge_spins'] == catch['surge'] - spent == data['state']['surge_spins']
     assert set(gs['fish_records']) == {'crab'}
 

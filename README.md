@@ -41,7 +41,7 @@ Finish a tide in the top three to earn 🥇 🥈 🥉. Medals are the long chase
 ### 🧭 Charts
 The functional shop is gone. Gear comes from **Charts**: three talent trees, and not enough points for all of them.
 - You start each tide with **1 point** and get **one free point every day** (days start at 21:00 UK time, in step with the tide).
-- **Level up** to get points sooner. Each level costs wins: 1,000 for the first, then ×6 each time (6k, 36k, 216k, …).
+- **Level up** to get points sooner. Each level costs wins: 1,000 for the first, then ×8 each time (8k, 64k, 512k, …).
 - The cap is **14 points**: one full tree and a splash of another, never all three. Levels reset when the tide turns.
 - Higher rows need points in that tree first (row 2 needs 2, row 3 needs 4, the keystone needs 6), and you can hold **one keystone**.
 - Adding points is always free. A **re-chart** (taking points back) is allowed once a day.
@@ -54,7 +54,7 @@ The functional shop is gone. Gear comes from **Charts**: three talent trees, and
 | | 🍀 Fortune Charm | 1 | Streak bonuses sometimes pay +25% |
 | | 🔔 Echo | 1 | Wins sometimes pay twice |
 | | 🛡️ Breakwater | 1 | Blocks one loss, recharges after 25 wins |
-| | 🌕 **Spring Tide** (keystone) | 1 | Streak bonuses ×2 again, but you can't stake or roll dice |
+| | 🌕 **Spring Tide** (keystone) | 1 | Streak bonuses ×2 again, but not on staked or diced spins |
 | 🌀 **Riptide**: bet the tide | 🪙 Open Water | 1 | Stake up to 30% of your wins. Each staked spin costs 1 🪙 |
 | | 🎲 Loaded Dice | 3 | Hold 2 / 3 / 4 dice charges |
 | | 🔱 Deep Water | 2 | Stake up to 35% / 40% |
@@ -62,7 +62,7 @@ The functional shop is gone. Gear comes from **Charts**: three talent trees, and
 | | 🛟 Safety Line | 1 | Staked losses refund a little; arm insurance |
 | | 🎯 Third Die | 1 | Roll three dice |
 | | ⚖️ Double or Nothing | 1 | Re-stake your last win in one go |
-| | 🌪️ **Rogue Wave** (keystone) | 1 | Dice come back twice as fast and stack two higher, but no Surge |
+| | 🌪️ **Rogue Wave** (keystone) | 1 | Dice come back twice as fast and stack two higher, but Surge skips diced spins |
 | 🎣 **Angler**: read the water | 🐚 Rich Waters | 3 | Surge spins pay ×25 / ×50 / ×100 (base ×5) |
 | | 🪱 Better Bait | 2 | Faster bites, bigger catches, +25% / +50% Surge |
 | | ⛵ Deckhand | 2 | Auto-fish while you're away; catches more often |

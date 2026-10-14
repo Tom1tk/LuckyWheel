@@ -171,8 +171,6 @@ def _build_spin_context(gs: dict) -> dict:
     owned = gs.get('owned_items', [])
     base_win_mult = 1 << _winmult_level(owned)            # 1, 2, 4, ..., 128
     base_bonus_mult = _BONUS_MULT_TABLE[_bonusmult_level(owned)]  # 1, 2, 4, 8, 15, 35, 70
-    if talents.keystone(gs.get('talent_alloc')) == 'spring_tide':
-        base_bonus_mult *= 2
 
     return {
         'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),
@@ -187,16 +185,19 @@ def _build_spin_context(gs: dict) -> dict:
     }
 
 
-def _surge_mults(ctx: dict, gs: dict, surge_left: int):
+def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: bool):
     """S9 Surge: one banked Surge spin adds (M-1) to both multipliers.
 
-    Returns (win_mult, bonus_mult, spent). Rogue Wave neither earns nor spends Surge.
+    Returns (win_mult, bonus_mult, spent). Spring Tide doubles the streak bonus
+    on plain spins; Rogue Wave doesn't spend Surge on diced spins.
     """
     alloc = gs.get('talent_alloc')
-    if surge_left <= 0 or talents.keystone(alloc) == 'rogue_wave':
-        return ctx['effective_win_mult'], ctx['bonus_mult'], 0
+    ks = talents.keystone(alloc)
+    bonus_mult = ctx['bonus_mult'] * (2 if ks == 'spring_tide' and not (staked or diced) else 1)
+    if surge_left <= 0 or (ks == 'rogue_wave' and diced):
+        return ctx['effective_win_mult'], bonus_mult, 0
     extra = talents.surge_mult(alloc) - 1
-    return ctx['effective_win_mult'] + extra, ctx['bonus_mult'] + extra, 1
+    return ctx['effective_win_mult'] + extra, bonus_mult + extra, 1
 
 
 def _charts_payload(gs: dict, now: dt.datetime) -> dict:
@@ -1327,11 +1328,6 @@ def spin():
                 req_stake = 0
             double_down_active = bool(gs.get('double_down_pending', False))
             insurance_active = bool(gs.get('insurance_armed', False))
-            alloc = gs.get('talent_alloc') or {}
-            # S9 Charts: Spring Tide can't stake.
-            if talents.keystone(alloc) == 'spring_tide':
-                req_stake = 0
-                double_down_active = False
             # S9 Charts: tokens no longer cover stakes; a staked spin costs 1 🪙 chip instead.
             pay_with_tokens = False
             owns_stake = 'wager_unlock' in gs['owned_items'] or gs.get('active_wheel_mode') == 'inverted'
@@ -1339,7 +1335,9 @@ def spin():
                 req_stake, owns_stake, compute_max_stake_pct(list(gs['owned_items']))) > 0)
             if wants_stake and int(gs.get('insurance_tokens', 0) or 0) < 1:
                 return jsonify({'error': "Out of 🪙 chips — claim today's 3"}), 400
-            win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, int(gs.get('surge_spins', 0) or 0))
+            pd = gs.get('pending_dice')
+            win_mult, bonus_mult, surge_spent = _surge_mults(
+                ctx, gs, int(gs.get('surge_spins', 0) or 0), staked=wants_stake, diced=bool(pd))
 
             new_spin_count = gs['spin_count'] + 1
 
@@ -1350,7 +1348,6 @@ def spin():
             # dice_sum, ...}. We use new_streak as the input streak here.
             # If the spin resolves as a loss, we revert the streak to
             # original_streak and refund the dice charge below.
-            pd = gs.get('pending_dice')
             if pd:
                 input_streak = pd['new_streak']
             else:
@@ -1761,7 +1758,8 @@ def tick():
             recent_spins = gs.get('recent_spins') or []
             for _ in range(spins_due):
                 new_spin_count += 1
-                win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, surge_left)
+                win_mult, bonus_mult, surge_spent = _surge_mults(
+                    ctx, gs, surge_left, staked=False, diced=bool(pd))
                 surge_left -= surge_spent
                 new_state, events = _resolve_spin(
                     owned=owned,

@@ -3946,7 +3946,7 @@ function WagerPanel({
   wagerBankedWins, wagerLastWinAmount, insuranceTokens, insuranceArmed,
   activeWheelMode, maxStakePct, autoSpinActive, payWithTokens,
   onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
-  onInsurance, onCancelInsurance, onTogglePayWithTokens,
+  onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone,
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   if (autoSpinActive) return null;
@@ -3993,7 +3993,11 @@ function WagerPanel({
           {ownedItems.includes('wager_hot_streak') && <p><b>Hot Streak:</b> wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in.</p>}
           {ownedItems.includes('wager_double_down') && <p><b>Double Down:</b> bet your whole last win, all or nothing. No insurance or safety net.</p>}
           {ownedItems.includes('wager_insurance') && <p><b>Insurance:</b> costs 1 token; if your next spin loses, you get the stake back.</p>}
+          {keystone === 'spring_tide' && <p><b>🌕 Spring Tide:</b> staked or diced spins don't get the ×2 streak bonus.</p>}
         </div>
+      )}
+      {keystone === 'spring_tide' && stakePct > 0 && (
+        <div className="stake-keystone-note">🌕 No Spring Tide ×2 while staked</div>
       )}
       {!autoSpinActive && (<>
       {wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && (
@@ -5530,7 +5534,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <div className="wheel-and-wager">
             {/* T202: wager panel is left-of-wheel on desktop; on mobile
                 it moves into .mobile-below-wheel (below the wheel). */}
-            {!isMobile && ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && (
+            {!isMobile && ownedItems.includes('wager_unlock') && (
               <WagerPanel
                 ownedItems={ownedItems}
                 stakePct={stakePct}
@@ -5552,6 +5556,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 onInsurance={handleInsurance}
                 onCancelInsurance={handleCancelInsurance}
                 onTogglePayWithTokens={setPayWithTokens}
+                keystone={keystone}
               />
             )}
             <div
@@ -5612,12 +5617,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           </div>
 
           <Scoreboard wins={wins} losses={losses} lastResult={result} />
-          {surgeSpins > 0 && keystone !== 'rogue_wave' && charts && (
+          {surgeSpins > 0 && charts && (
             <div className="surge-chip" title="Surge spins come from fishing and bounties. Each spin uses one.">
-              🌊 Surge · next {fmt(surgeSpins)} spin{surgeSpins !== 1 ? 's' : ''} pay ×{charts.surge_mult}
+              🌊 Surge · next {fmt(surgeSpins)} spin{surgeSpins !== 1 ? 's' : ''} pay ×{charts.surge_mult}{keystone === 'rogue_wave' ? ' · not diced spins' : ''}
             </div>
           )}
-          {surgeSpins > 0 && keystone !== 'rogue_wave' && charts && !surgeExplained && (
+          {surgeSpins > 0 && charts && !surgeExplained && (
             <div className="surge-hint">
               <span>Surge spins come from 🎣 fishing and 📋 bounties. Each spin uses one and multiplies its wins ×{charts.surge_mult}.</span>
               <button className="surge-hint-btn" onClick={dismissSurgeHint}>Got it</button>
@@ -5633,7 +5638,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   not possible to see or use except from its title." */}
               <div className="mobile-streak-dice-row">
                 <StreakPanel streak={streak} bonusmultLevel={0} />
-                {unlocked.dice && keystone !== 'spring_tide' && <div className={gateClass('dice')}><DicePanel
+                {unlocked.dice && <div className={gateClass('dice')}><DicePanel
                   streak={streak}
                   onRoll={handleDiceRoll}
                   rolling={diceRolling}
@@ -5652,7 +5657,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               {/* T202: wager panel relocated below the wheel on mobile so
                   the stake slider, DD/insurance buttons, and token balance
                   are thumb-reachable. */}
-              {ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && (
+              {ownedItems.includes('wager_unlock') && (
                 <WagerPanel
                   ownedItems={ownedItems}
                   stakePct={stakePct}
@@ -5674,6 +5679,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   onInsurance={handleInsurance}
                   onCancelInsurance={handleCancelInsurance}
                   onTogglePayWithTokens={setPayWithTokens}
+                  keystone={keystone}
                 />
               )}
               {/* On mobile the balance flows here; fixed bottom-left it covered the stake panel. */}
@@ -5719,7 +5725,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 </div>
               )}
               <StreakPanel streak={streak} bonusmultLevel={0} />
-              {unlocked.dice && keystone !== 'spring_tide' && <div className={gateClass('dice')}><DicePanel
+              {unlocked.dice && <div className={gateClass('dice')}><DicePanel
                 streak={streak}
                 onRoll={handleDiceRoll}
                 rolling={diceRolling}

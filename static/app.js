@@ -6840,7 +6840,8 @@ function WagerPanel(_ref47) {
     onCancelDoubleDown = _ref47.onCancelDoubleDown,
     onInsurance = _ref47.onInsurance,
     onCancelInsurance = _ref47.onCancelInsurance,
-    onTogglePayWithTokens = _ref47.onTogglePayWithTokens;
+    onTogglePayWithTokens = _ref47.onTogglePayWithTokens,
+    keystone = _ref47.keystone;
   var _useState123 = useState(false),
     _useState124 = _slicedToArray(_useState123, 2),
     infoOpen = _useState124[0],
@@ -6899,7 +6900,9 @@ function WagerPanel(_ref47) {
     }, v, "%");
   })), infoOpen && /*#__PURE__*/React.createElement("div", {
     className: "stake-explainer"
-  }, /*#__PURE__*/React.createElement("p", null, "Stake puts part of your wins on the line each spin."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Win:"), " you get your stake back plus the same again (plus any streak bonus), instead of the normal win."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Lose:"), " the stake is gone."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Jackpot:"), " stake \xD7 the mode's jackpot multiplier."), /*#__PURE__*/React.createElement("p", null, "0% is a normal, risk-free spin."), ownedItems.includes('wager_safety_net') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Safety Net:"), " at 15%+ you get 25% of a lost stake back."), ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Hot Streak:"), " wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in."), ownedItems.includes('wager_double_down') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Double Down:"), " bet your whole last win, all or nothing. No insurance or safety net."), ownedItems.includes('wager_insurance') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Insurance:"), " costs 1 token; if your next spin loses, you get the stake back.")), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("p", null, "Stake puts part of your wins on the line each spin."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Win:"), " you get your stake back plus the same again (plus any streak bonus), instead of the normal win."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Lose:"), " the stake is gone."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Jackpot:"), " stake \xD7 the mode's jackpot multiplier."), /*#__PURE__*/React.createElement("p", null, "0% is a normal, risk-free spin."), ownedItems.includes('wager_safety_net') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Safety Net:"), " at 15%+ you get 25% of a lost stake back."), ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Hot Streak:"), " wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in."), ownedItems.includes('wager_double_down') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Double Down:"), " bet your whole last win, all or nothing. No insurance or safety net."), ownedItems.includes('wager_insurance') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Insurance:"), " costs 1 token; if your next spin loses, you get the stake back."), keystone === 'spring_tide' && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "\uD83C\uDF15 Spring Tide:"), " staked or diced spins don't get the \xD72 streak bonus.")), keystone === 'spring_tide' && stakePct > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "stake-keystone-note"
+  }, "\uD83C\uDF15 No Spring Tide \xD72 while staked"), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
@@ -9408,7 +9411,7 @@ function GameApp(_ref48) {
     className: "subtitle"
   }, tidesActive ? 'The tide turns every Friday' : 'All or nothing')), /*#__PURE__*/React.createElement("div", {
     className: "wheel-and-wager"
-  }, !isMobile && ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement(WagerPanel, {
+  }, !isMobile && ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
     ownedItems: ownedItems,
     stakePct: stakePct,
     stakeValue: stakeValue,
@@ -9428,7 +9431,8 @@ function GameApp(_ref48) {
     onCancelDoubleDown: handleCancelDoubleDown,
     onInsurance: handleInsurance,
     onCancelInsurance: handleCancelInsurance,
-    onTogglePayWithTokens: setPayWithTokens
+    onTogglePayWithTokens: setPayWithTokens,
+    keystone: keystone
   }), /*#__PURE__*/React.createElement("div", {
     className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
     onClick: !spinning ? handleManualSpin : undefined,
@@ -9484,10 +9488,10 @@ function GameApp(_ref48) {
     wins: wins,
     losses: losses,
     lastResult: result
-  }), surgeSpins > 0 && keystone !== 'rogue_wave' && charts && /*#__PURE__*/React.createElement("div", {
+  }), surgeSpins > 0 && charts && /*#__PURE__*/React.createElement("div", {
     className: "surge-chip",
     title: "Surge spins come from fishing and bounties. Each spin uses one."
-  }, "\uD83C\uDF0A Surge \xB7 next ", fmt(surgeSpins), " spin", surgeSpins !== 1 ? 's' : '', " pay \xD7", charts.surge_mult), surgeSpins > 0 && keystone !== 'rogue_wave' && charts && !surgeExplained && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF0A Surge \xB7 next ", fmt(surgeSpins), " spin", surgeSpins !== 1 ? 's' : '', " pay \xD7", charts.surge_mult, keystone === 'rogue_wave' ? ' · not diced spins' : ''), surgeSpins > 0 && charts && !surgeExplained && /*#__PURE__*/React.createElement("div", {
     className: "surge-hint"
   }, /*#__PURE__*/React.createElement("span", null, "Surge spins come from \uD83C\uDFA3 fishing and \uD83D\uDCCB bounties. Each spin uses one and multiplies its wins \xD7", charts.surge_mult, "."), /*#__PURE__*/React.createElement("button", {
     className: "surge-hint-btn",
@@ -9502,7 +9506,7 @@ function GameApp(_ref48) {
   }, /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
-  }), unlocked.dice && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement("div", {
+  }), unlocked.dice && /*#__PURE__*/React.createElement("div", {
     className: gateClass('dice')
   }, /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,
@@ -9517,7 +9521,7 @@ function GameApp(_ref48) {
     rechargeSecs: keystone === 'rogue_wave' ? 300 : 600,
     hasDiceExtra: ownedItems.includes('dice_extra'),
     rolledSinceSpin: diceRolledSinceSpin
-  }))), ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement(WagerPanel, {
+  }))), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
     ownedItems: ownedItems,
     stakePct: stakePct,
     stakeValue: stakeValue,
@@ -9537,7 +9541,8 @@ function GameApp(_ref48) {
     onCancelDoubleDown: handleCancelDoubleDown,
     onInsurance: handleInsurance,
     onCancelInsurance: handleCancelInsurance,
-    onTogglePayWithTokens: setPayWithTokens
+    onTogglePayWithTokens: setPayWithTokens,
+    keystone: keystone
   }), /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
@@ -9581,7 +9586,7 @@ function GameApp(_ref48) {
   }, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? "\uD83D\uDD04 ".concat(regenRechargeWins, " win").concat(regenRechargeWins !== 1 ? 's' : '') : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
-  }), unlocked.dice && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement("div", {
+  }), unlocked.dice && /*#__PURE__*/React.createElement("div", {
     className: gateClass('dice')
   }, /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,

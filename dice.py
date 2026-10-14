@@ -89,8 +89,6 @@ def roll_dice_core(
 
     # Recharge first so a player who waited long enough can roll.
     alloc = gs.get('talent_alloc') or {}
-    if alloc.get('spring_tide'):
-        return {'ok': False, 'status': 403, 'error': 'Spring Tide: no dice'}
     max_charges = dice_max_charges(owned, alloc)
     dice_charges = min(int(gs['dice_charges']), max_charges)  # cap stale over-limit
     last_recharge = _aware(gs['dice_last_recharge'])
