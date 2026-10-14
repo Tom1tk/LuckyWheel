@@ -42,8 +42,8 @@ def test_bought_points_add_up_to_the_cap():
     assert talents.points_total(day3, 20) == talents.MAX_POINTS == 14
 
 
-def test_level_cost_grows_six_fold():
-    assert [talents.level_cost(b) for b in range(4)] == [1_000, 6_000, 36_000, 216_000]
+def test_level_cost_grows_eight_fold():
+    assert [talents.level_cost(b) for b in range(4)] == [1_000, 8_000, 64_000, 512_000]
 
 
 def test_day_rolls_at_2100_london_not_midnight():
@@ -285,16 +285,31 @@ def test_stake_without_open_water_is_free_and_ignored(user, db_url, force_random
     assert _get(db_url, username)['insurance_tokens'] == 0
 
 
-def test_spring_tide_forces_stake_zero_and_blocks_dice(user, db_url, force_random):  # noqa: F811
+_PENDING_4 = {'new_streak': 4, 'original_streak': 4, 'dice_sum': 0}
+
+
+def test_spring_tide_skips_the_double_on_staked_and_diced_spins(user, db_url, force_random):  # noqa: F811
     client, username = user
-    _set(db_url, username, owned_items=['auto_spin_unlock', 'wager_unlock'], insurance_tokens=0)
     assert _chart(client, FULL_SWELL)[0] == 200
+    _set(db_url, username, owned_items=['auto_spin_unlock', 'wager_unlock'], insurance_tokens=5, streak=4)
     with force_random(_ROLL_WIN):
-        status, body = _post_spin(client, _read_csrf(client), stake=20)
-    assert status == 200 and body['stake'] == 0
+        _, plain = _post_spin(client, _read_csrf(client))
+    _set(db_url, username, streak=4)
+    with force_random(_ROLL_WIN):
+        status, staked = _post_spin(client, _read_csrf(client), stake=20)
+    assert status == 200 and staked['stake'] == 20
+    _set(db_url, username, streak=4, pending_dice=_PENDING_4)
+    with force_random(_ROLL_WIN):
+        _, diced = _post_spin(client, _read_csrf(client))
+    assert plain['bonus_earned'] == 2 * staked['bonus_earned'] == 2 * diced['bonus_earned'] > 0
+
+
+def test_spring_tide_can_roll_dice(user, db_url):
+    client, username = user
+    assert _chart(client, FULL_SWELL)[0] == 200
     _set(db_url, username, streak=5, dice_charges=1)
     r = client.post('/api/roll-dice', json={}, headers={'X-CSRFToken': _read_csrf(client)})
-    assert r.status_code == 403 and r.get_json()['error'] == 'Spring Tide: no dice'
+    assert r.status_code == 200, r.get_json()
 
 
 def test_spring_tide_doubles_streak_bonus(user, db_url, force_random):  # noqa: F811
@@ -324,13 +339,16 @@ def test_surge_adds_to_multipliers_and_spends_one(user, db_url, force_random):  
     assert surged['wins_delta'] == plain['wins_delta'] + 99
 
 
-def test_rogue_wave_never_spends_surge(user, db_url, force_random):  # noqa: F811
+def test_rogue_wave_spends_surge_only_on_undiced_spins(user, db_url, force_random):  # noqa: F811
     client, username = user
     _chart(client, {'open_water': 1, 'loaded_dice': 3, 'treasure': 1, 'deep_water': 1, 'rogue_wave': 1})
-    _set(db_url, username, surge_spins=5)
+    _set(db_url, username, surge_spins=5, pending_dice=_PENDING_4)
     with force_random(_ROLL_WIN):
-        _, body = _post_spin(client, _read_csrf(client))
-    assert body['surge_used'] is False and body['surge_spins'] == 5
+        _, diced = _post_spin(client, _read_csrf(client))
+    assert diced['surge_used'] is False and diced['surge_spins'] == 5
+    with force_random(_ROLL_WIN):
+        _, plain = _post_spin(client, _read_csrf(client))
+    assert plain['surge_used'] is True and plain['surge_spins'] == 4
 
 
 def test_tick_spends_surge_per_auto_spin(user, db_url):
@@ -409,12 +427,12 @@ def _level_up(client):
 def test_level_up_spends_wins_and_adds_a_point(user, db_url, monkeypatch):
     client, username = user
     monkeypatch.setattr(talents, 'points_total', lambda now, bought=0: 1 + bought)
-    _set(db_url, username, wins=7_500)
+    _set(db_url, username, wins=9_500)
     status, body = _level_up(client)
-    assert status == 200 and body['wins'] == 6_500 and body['bought'] == 1
-    assert body['points'] == 2 and body['next_cost'] == 6_000
+    assert status == 200 and body['wins'] == 8_500 and body['bought'] == 1
+    assert body['points'] == 2 and body['next_cost'] == 8_000
     status, body = _level_up(client)
-    assert status == 200 and body['wins'] == 500 and body['next_cost'] == 36_000
+    assert status == 200 and body['wins'] == 500 and body['next_cost'] == 64_000
     status, body = _level_up(client)
     assert status == 400 and 'wins' in body['error']
     row = _get(db_url, username)

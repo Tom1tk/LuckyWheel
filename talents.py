@@ -16,7 +16,7 @@ _LONDON = ZoneInfo('Europe/London')
 START_POINTS = 1           # day 0 of a tide; +1 free each tide day
 MAX_POINTS = 14            # one full tree plus a splash, of 32 ranks
 LEVEL_COST_BASE = 1_000    # wins for the first bought point
-LEVEL_COST_GROWTH = 6      # each bought point costs ×6 the last
+LEVEL_COST_GROWTH = 8      # each bought point costs ×8 the last
 ROW_GATE = {1: 0, 2: 2, 3: 4}   # points already in the tree to unlock a row
 KEYSTONE_GATE = 6
 SURGE_MULT_BY_RICH_WATERS = {0: 5, 1: 25, 2: 50, 3: 100}
@@ -45,7 +45,7 @@ TALENTS = {
     'breakwater':    {'tree': 'swell', 'row': 3, 'name': 'Breakwater', 'grants': [['regen_shield']],
                       'desc': ['Blocks one loss, recharges after 25 wins']},
     'spring_tide':   {'tree': 'swell', 'row': 'K', 'name': 'Spring Tide', 'grants': [[]],
-                      'desc': ["Streak bonuses ×2 again — but you can't stake or roll dice"]},
+                      'desc': ["Streak bonuses ×2 again — but not on staked or diced spins"]},
     # 🌀 Riptide
     'open_water':    {'tree': 'riptide', 'row': 1, 'name': 'Open Water', 'grants': [['wager_unlock']],
                       'desc': ['Stake up to 30% of your wins. Each staked spin costs 1 🪙']},
@@ -66,7 +66,7 @@ TALENTS = {
                       'grants': [['wager_double_down']],
                       'desc': ['Re-stake your last win in one go']},
     'rogue_wave':    {'tree': 'riptide', 'row': 'K', 'name': 'Rogue Wave', 'grants': [[]],
-                      'desc': ['Dice come back twice as fast and stack two higher — but no 🎣 Surge for you']},
+                      'desc': ['Dice come back twice as fast and stack two higher — but 🎣 Surge skips diced spins']},
     # 🎣 Angler
     'rich_waters':   {'tree': 'angler', 'row': 1, 'name': 'Rich Waters', 'grants': [[], [], []],
                       'desc': ['Surge spins pay ×25 (base ×5)', 'Surge spins pay ×50', 'Surge spins pay ×100']},
@@ -210,9 +210,9 @@ AUTO_SURGE_MULT = 0.5
 
 
 def catch_surge(alloc: dict, rarity: str, size_ratio: float, auto: bool) -> int:
-    """Surge spins a catch earns (spec §4). Rogue Wave earns none."""
+    """Surge spins a catch earns (spec §4)."""
     base = SURGE_BY_RARITY[rarity]
-    if not base or keystone(alloc) == 'rogue_wave':
+    if not base:
         return 0
     s = base * (0.5 + size_ratio) * surge_bonus(alloc)
     return max(1, round(s * AUTO_SURGE_MULT)) if auto else round(s)

@@ -4987,6 +4987,12 @@ body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,18
   text-align: center;
   margin-top: 2px;
 }
+.stake-keystone-note {
+  font-size: 0.7rem;
+  color: #9fd8ff;
+  text-align: center;
+  margin-top: 2px;
+}
 .wager-pay-tokens-toggle {
   display: flex;
   align-items: center;

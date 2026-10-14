@@ -65,7 +65,7 @@ Retired items stay in `SHOP_ITEMS` so `post_rollover_check` and legacy `owned_it
 ### 3.1 Points
 
 - **Points this tide = min(14, 1 + days the tide has run (0..6) + points bought).** Days count from Fri 21:00 London. With no buying, day 0 gives 1 point and day 6 gives 7.
-- **Levelling up:** `POST /api/charts/level-up` buys one point with wins. The first costs 1,000 wins and each next ×6 (1k, 6k, 36k, 216k, 1.3M, …); wins are spent (`chart_points_bought`, reset each tide). 409 at 14, 400 if short of wins.
+- **Levelling up:** `POST /api/charts/level-up` buys one point with wins. The first costs 1,000 wins and each next ×8 (1k, 8k, 64k, 512k, 4.1M, …); wins are spent (`chart_points_bought`, reset each tide). 409 at 14, 400 if short of wins.
 - **Why 14, of 34 ranks:** one full tree (10–13) plus a small splash, so builds stay distinct and no one owns every tree. Sim (`talents` + 28.8k auto-spins/day): a dedicated buyer hits 14 around day 5; a non-buyer ends the tide at 7. Buying spends wins, so it costs leaderboard standing; that is the trade.
 - **Why not a prestige-style reset to 0:** the leaderboard ranks by wins, so wiping them per level would punish the players the feature should reward.
 - **Charting:** `POST /api/charts {alloc}` replaces the whole allocation atomically.
@@ -91,7 +91,7 @@ Rank `n` grants every item up to rank `n` (the full chain), so the engine helper
 | 2 | Fortune Charm | 1 | `fortune_charm` | "Streak bonuses sometimes pay +25%" |
 | 2 | Echo | 1 | `win_echo` | "Wins sometimes pay twice" |
 | 3 | Breakwater | 1 | `regen_shield` | "Blocks one loss, recharges after 25 wins" |
-| K | **Spring Tide** | 1 | streak bonus ×2 | "Streak bonuses ×2 again — but you can't stake or roll dice" |
+| K | **Spring Tide** | 1 | streak bonus ×2 | "Streak bonuses ×2 again — but not on staked or diced spins" |
 
 **🌀 Riptide: bet the tide.**
 
@@ -104,7 +104,7 @@ Rank `n` grants every item up to rank `n` (the full chain), so the engine helper
 | 2 | Safety Line | 1 | `wager_safety_net`, `wager_insurance` | "Staked losses refund a little; arm insurance once a day" (requires Open Water) |
 | 3 | Third Die | 1 | `dice_extra` | "Roll three dice" |
 | 3 | Double or Nothing | 1 | `wager_double_down` | "Re-stake your last win in one go" (requires Open Water) |
-| K | **Rogue Wave** | 1 | +2 max dice charges, dice recharge in 5 min | "Dice come back twice as fast and stack two higher — but no 🎣 Surge for you" |
+| K | **Rogue Wave** | 1 | +2 max dice charges, dice recharge in 5 min | "Dice come back twice as fast and stack two higher — but 🎣 Surge skips diced spins" |
 
 **🎣 Angler: read the water.**
 
@@ -122,8 +122,8 @@ Tree sizes: Swell 10, Riptide 11, Angler 13. With at most 14 points, a full tree
 
 ### 3.3 Keystone trade-offs (enforced server-side)
 
-- **Spring Tide:** `validate_stake` → 0, and `/api/roll-dice` → 403 `"Spring Tide: no dice"`.
-- **Rogue Wave:** surge is neither earned nor spent.
+- **Spring Tide:** the ×2 applies only to spins with no stake and no pending dice roll.
+- **Rogue Wave:** surge is earned as normal but not spent on a spin with a pending dice roll.
 - **Deep Sea:** applied in `roll_fish` and `cast_line`.
 
 ## 4. Surge: fishing powers the wheel
@@ -337,8 +337,8 @@ Net: −3 systems, +2.
 **Unit / integration** (pytest against `wheeldb_test`):
 - **Charts:** points by tide day 0..6 (4..10); add-only allowed repeatedly; refund once a day, then 409; row gates; keystone gate plus one-keystone; `requires`; overspend; unknown id or rank above max → 400; `owned_items` recompute keeps cosmetics and strips ungranted gear; rollover clears.
 - **Shop:** every wins item → 403; cosmetics still buy.
-- **Spring Tide:** stake forced to 0; dice 403.
-- **Rogue Wave:** no surge earned.
+- **Spring Tide:** no ×2 on staked or diced spins.
+- **Rogue Wave:** no surge spent on diced spins.
 - **Chips:** a staked spin costs 1; 0 chips → 400; auto-spin never charges.
 - **Staked jackpot:** ×5.
 - **Surge:**
