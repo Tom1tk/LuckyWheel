@@ -65,6 +65,7 @@ from seasons import get_season_info
 from wheel_modes import get_week_number
 import psycopg2.extras
 import talents
+import tide_stats
 from fish_catalog import roll_kg, update_records, DEEP_SEA_BITE_MULT
 
 log = logging.getLogger("wheel")
@@ -464,6 +465,7 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
             user_id,
         ),
     )
+    tide_stats.bump(cur, user_id, now_utc, surge_from_catch=catch["surge"])
 
     # Bounty / community-goal / onboarding bookkeeping.  These are
     # all called on the open conn — they share this catch's
@@ -546,6 +548,7 @@ def afk_catch_up(cur, user_id: int, gs: dict, now_utc: dt.datetime) -> dict | No
         (new_clicks, new_caught, now_utc, surge_earned,
          psycopg2.extras.Json(records), user_id),
     )
+    tide_stats.bump(cur, user_id, now_utc, surge_from_catch_up=surge_earned)
     return {
         "fish_count": catch_count,
         "total_value": total_value,
@@ -638,6 +641,7 @@ def auto_fish_tick(
         (new_fish_clicks, caught_species, now_utc, catch["surge"],
          psycopg2.extras.Json(catch["records"]), user_id),
     )
+    tide_stats.bump(cur, user_id, now_utc, surge_from_auto_fish=catch["surge"])
 
     return {
         "result": "hit",
