@@ -5,4 +5,5 @@ Description=Wheel weekly tide rollover
 Type=oneshot
 User=user
 WorkingDirectory=/home/user/wheel-app
+Environment=RELEASE_CMD=/home/user/wheel-app/bin/release.sh
 ExecStart=/home/user/wheel-app/bin/rollover.sh
