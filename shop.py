@@ -42,6 +42,7 @@ import logging
 
 from loadout import COSMETIC_SLOTS
 from models import (
+    CHIP_CAP,
     ALL_ITEMS,
     FISH_CATALOG,
     INFINITE_UPGRADES,
@@ -327,10 +328,10 @@ def _buy_item(cur, conn, item_id: str, user_id: int, gs: dict) -> dict:
     ):
         cur.execute(
             """UPDATE game_state
-               SET insurance_tokens = insurance_tokens + 5,
+               SET insurance_tokens = LEAST(insurance_tokens + 5, %s),
                    insurance_unlock_grant_given = TRUE
                WHERE user_id = %s""",
-            (user_id,),
+            (CHIP_CAP, user_id),
         )
 
     return {

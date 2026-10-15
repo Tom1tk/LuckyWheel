@@ -49,8 +49,8 @@ from models import (
     AUTO_FISH_INTERVAL_SECONDS,
     MAX_FISH_CATCHUP_TICKS,
     FISH_CATCHUP_THRESHOLD,
-    HAPPY_HOUR_START_UTC,
-    HAPPY_HOUR_END_UTC,
+    HAPPY_HOUR_START_LONDON,
+    HAPPY_HOUR_END_LONDON,
 )
 
 # Post-catch bookkeeping — top-level so tests can monkeypatch
@@ -439,9 +439,9 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
     if first_catch:
         caught_species = caught_species + [species_id]
 
-    # Catch of the Day (universal in S9): the first catch each UTC day is worth 5x.
+    # Catch of the Day (universal in S9): the first catch each London day is worth 5x.
     catch_of_day_bonus = (
-        str(gs.get("catch_of_the_day_date") or "") != now_utc.date().isoformat()
+        str(gs.get("catch_of_the_day_date") or "") != talents.london_date(now_utc).isoformat()
     )
     if catch_of_day_bonus:
         value *= 5
@@ -458,7 +458,7 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
             new_fish_clicks,
             new_lucky_next,
             caught_species,
-            now_utc.date(),
+            talents.london_date(now_utc),
             catch["surge"],
             psycopg2.extras.Json(catch["records"]),
             user_id,
@@ -469,7 +469,7 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
     # all called on the open conn — they share this catch's
     # transaction, so any failure rolls the whole catch back.
     _post_catch_bookkeeping(conn, user_id, now_utc, first_catch)
-    bounty_date = now_utc.date()
+    bounty_date = talents.london_date(now_utc)
     increment_bounty(conn, user_id, "bounty_hand5", bounty_date)
     if species["rarity"] in ("rare", "legendary"):
         increment_bounty(conn, user_id, "bounty_rare", bounty_date)
@@ -693,10 +693,8 @@ def set_auto_fish_enabled(
 
 
 def _is_happy_hour(now_utc: dt.datetime) -> bool:
-    """Return True if the current UTC hour is inside the configured
-    happy-hour window (20:00–20:59 UTC = 9–10pm BST).
-    """
-    return HAPPY_HOUR_START_UTC <= now_utc.hour < HAPPY_HOUR_END_UTC
+    """Return True if the London hour is inside the happy-hour window (9–10pm)."""
+    return HAPPY_HOUR_START_LONDON <= now_utc.astimezone(talents._LONDON).hour < HAPPY_HOUR_END_LONDON
 
 
 def _post_catch_bookkeeping(
@@ -714,7 +712,7 @@ def _post_catch_bookkeeping(
     These are run on the same open transaction as the catch so any
     failure rolls everything back.
     """
-    bounty_date = now_utc.date()
+    bounty_date = talents.london_date(now_utc)
     increment_bounty(conn, user_id, "bounty_fish10", bounty_date)
 
     season_info = get_season_info(conn)

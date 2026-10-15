@@ -17,7 +17,7 @@ from models import (REGEN_SHIELD_RECHARGE_WINS,
                     streak_bonus, dice_max_charges, dice_recharge_seconds,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
                     AUTO_SPIN_OFFLINE_CAP_S,
-                    HAPPY_HOUR_START_UTC, HAPPY_HOUR_END_UTC,
+                    HAPPY_HOUR_START_LONDON, HAPPY_HOUR_END_LONDON, CHIP_CAP,
                     RETIRED_S9_ITEMS)
 from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
 from security import require_json
@@ -44,7 +44,7 @@ from fish import get_total_fish_clicks
 
 def is_happy_hour(now_utc=None):
     now = now_utc or dt.datetime.now(timezone.utc)
-    return HAPPY_HOUR_START_UTC <= now.hour < HAPPY_HOUR_END_UTC
+    return HAPPY_HOUR_START_LONDON <= now.astimezone(talents._LONDON).hour < HAPPY_HOUR_END_LONDON
 
 
 def _aware(dt_val):
@@ -1010,7 +1010,7 @@ def get_state():
             # then-rollback, same as before — the route does not commit), so
             # the open transaction is fine.
             now_utc = dt.datetime.now(timezone.utc)
-            bounty_date = now_utc.date()
+            bounty_date = talents.london_date(now_utc)
             week_num = get_week_number(now_utc)
             bounties = get_bounty_status(conn, current_user.id, bounty_date)
             goal_row, goal_def = get_active_goal(conn, season_info['season_number'], week_num)
@@ -1457,11 +1457,11 @@ def spin():
                 skip_message=double_down_msg_posted)
 
             # Season 8: bounty tracking
-            bounty_date = dt.datetime.now(timezone.utc).date()
+            bounty_date = talents.london_date(dt.datetime.now(timezone.utc))
             # bounty_streak10 tracks the real win streak (events['streak']), not
             # wager_streak (the same-stake hot-streak counter, which never resets
             # at the default 1x stake). >= not ==: a dice roll can jump the
-            # streak past 10, and a streak carried over midnight UTC hit 10 yesterday.
+            # streak past 10, and a streak carried over London midnight hit 10 yesterday.
             if events.get('streak', 0) >= 10:
                 reach_bounty(conn, current_user.id, 'bounty_streak10', bounty_date)
             # Season 8: community goal contribution hooks
@@ -1848,7 +1848,7 @@ def tick():
                 gs['biggest_win_announced'] = new_biggest_win_announced
                 # Same streak bounty as /api/spin; auto-spin never tracked it.
                 if events.get('streak', 0) >= 10:
-                    reach_bounty(conn, current_user.id, 'bounty_streak10', now_utc.date())
+                    reach_bounty(conn, current_user.id, 'bounty_streak10', talents.london_date(now_utc))
 
                 if not is_catch_up:
                     resp = _events_to_response(events)
@@ -2971,7 +2971,7 @@ def insurance_buy_with_tokens():
 @game_bp.route('/api/insurance/claim-free', methods=['POST'])
 @login_required
 def insurance_claim_free():
-    """T119: claim 3 free insurance tokens once per UTC day. Gated on
+    """T119: claim up to 3 free chips once per London day, topping up to CHIP_CAP. Gated on
     the `insurance_free_claimed_date` column — if today's date equals
     the stored date, the request is rejected with 409. The atomic
     check inside the FOR UPDATE transaction prevents double-claims
@@ -2980,23 +2980,26 @@ def insurance_claim_free():
     if err:
         return err
     FREE_PER_DAY = 3
-    today = dt.datetime.now(timezone.utc).date()
+    today = talents.london_date(dt.datetime.now(timezone.utc))
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             gs = _load_game_state(cur, current_user.id, for_update=True)
             if gs.get('insurance_free_claimed_date') == today:
                 return jsonify({'error': 'Already claimed today'}), 409
+            current_tokens = int(gs.get('insurance_tokens', 0) or 0)
+            # At the cap the day's claim isn't used up: spend a chip, then claim.
+            if current_tokens >= CHIP_CAP:
+                return jsonify({'error': f'Chips full ({CHIP_CAP} max)'}), 409
+            new_tokens = min(current_tokens + FREE_PER_DAY, CHIP_CAP)
             cur.execute(
                 '''UPDATE game_state
-                   SET insurance_tokens = insurance_tokens + %s,
+                   SET insurance_tokens = %s,
                        insurance_free_claimed_date = %s
-                   WHERE user_id = %s
-                   RETURNING insurance_tokens''',
-                (FREE_PER_DAY, today, current_user.id),
+                   WHERE user_id = %s''',
+                (new_tokens, today, current_user.id),
             )
-            new_tokens = int(cur.fetchone()['insurance_tokens'])
         conn.commit()
-    return jsonify({'ok': True, 'tokens_awarded': FREE_PER_DAY,
+    return jsonify({'ok': True, 'tokens_awarded': new_tokens - current_tokens,
                     'insurance_tokens': new_tokens})
 
 
@@ -3023,7 +3026,7 @@ def get_bounties_endpoint():
     step is still advanced so the modal disappears, but no tokens
     are credited.
     """
-    bounty_date = dt.datetime.now(timezone.utc).date()
+    bounty_date = talents.london_date(dt.datetime.now(timezone.utc))
     onboarding_advance = False
     with db_connection() as conn:
         status = get_bounty_status(conn, current_user.id, bounty_date)
@@ -3055,7 +3058,7 @@ def claim_bounty():
     bounty_id = (request.json or {}).get('bounty_id')
     if not bounty_id:
         return jsonify({'error': 'bounty_id required'}), 400
-    bounty_date = dt.datetime.now(timezone.utc).date()
+    bounty_date = talents.london_date(dt.datetime.now(timezone.utc))
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             rewards = get_claim_rewards_for_bounty(conn, current_user.id, bounty_date, bounty_id)

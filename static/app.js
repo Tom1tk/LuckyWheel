@@ -6753,17 +6753,44 @@ function CommunityPot(_ref43) {
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
+var CHIP_CAP = 6; // mirrors models.CHIP_CAP
+
+// YYYY-MM-DD in London, the day every daily reset runs on.
+var londonToday = function londonToday() {
+  return new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Europe/London'
+  });
+};
+
+// Happy Hour ends 22:00 London; show that moment on the viewer's own clock.
+function happyHourEndLocal() {
+  var p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23'
+  }).formatToParts(new Date()).map(function (x) {
+    return [x.type, x.value];
+  }));
+  var minsLeft = 22 * 60 - (Number(p.hour) * 60 + Number(p.minute));
+  return new Date(Date.now() + minsLeft * 60000).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
 function FreeTokensPanel(_ref44) {
   var insuranceFreeClaimedToday = _ref44.insuranceFreeClaimedToday,
+    insuranceTokens = _ref44.insuranceTokens,
     onClaim = _ref44.onClaim;
+  var claimable = Math.min(3, CHIP_CAP - insuranceTokens);
   return /*#__PURE__*/React.createElement("div", {
     className: "free-tokens-section"
   }, /*#__PURE__*/React.createElement("button", {
     className: "free-tokens-claim-btn",
     onClick: onClaim,
-    disabled: insuranceFreeClaimedToday,
-    title: "Chips pay part of a 30% stake (1 \uD83E\uDE99 = 1 \uD83C\uDFC6) or arm Insurance"
-  }, insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow' : '🪙 Claim 3 free stake chips'));
+    disabled: insuranceFreeClaimedToday || claimable <= 0,
+    title: "Hold up to ".concat(CHIP_CAP, " \uD83E\uDE99 chips. A staked spin or arming Insurance costs 1")
+  }, insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow' : claimable <= 0 ? "\uD83E\uDE99 Chips full (".concat(CHIP_CAP, " max) \xB7 spend one to claim") : "\uD83E\uDE99 Claim ".concat(claimable, " free stake chip").concat(claimable === 1 ? '' : 's')));
 }
 function BountiesPanel(_ref45) {
   var bounties = _ref45.bounties,
@@ -6775,7 +6802,7 @@ function BountiesPanel(_ref45) {
     className: "bounties-header"
   }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties"), /*#__PURE__*/React.createElement("span", {
     className: "panel-subtitle"
-  }, "Daily tasks \xB7 reset at midnight UTC")), bounties.map(function (b) {
+  }, "Daily tasks \xB7 reset at midnight UK time")), bounties.map(function (b) {
     return /*#__PURE__*/React.createElement("div", {
       key: b.bounty_id,
       className: "bounty-card"
@@ -8488,14 +8515,14 @@ function GameApp(_ref48) {
     _useState302 = _slicedToArray(_useState301, 2),
     autoSpinActive = _useState302[0],
     setAutoSpinActive = _useState302[1];
-  // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
-  // server gates the 3-free-per-day claim. We surface it as a string
+  // T119: free-tokens daily claim — "insurance_free_claimed_date" (a London
+  // date) on the server gates the once-a-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
   var _useState303 = useState(gameState.insurance_free_claimed_date || null),
     _useState304 = _slicedToArray(_useState303, 2),
     insuranceFreeClaimedDate = _useState304[0],
     setInsuranceFreeClaimedDate = _useState304[1];
-  var todayStr = new Date().toISOString().slice(0, 10);
+  var todayStr = londonToday();
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
@@ -8977,7 +9004,7 @@ function GameApp(_ref48) {
   // [Removed 2026-06-26: the buy-charge button was confusing — the
   // operator cut it from the UI. Arm insurance now consumes a token
   // directly, so the token→charge exchange has no role.]
-  // T119: claim 3 free insurance tokens once per UTC day.
+  // T119: claim up to 3 free chips once per London day (tops up to CHIP_CAP).
   var handleClaimFreeTokens = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
     var _yield$apiGame20, ok, data;
     return _regenerator().w(function (_context35) {
@@ -8993,10 +9020,10 @@ function GameApp(_ref48) {
           ok = _yield$apiGame20.ok;
           data = _yield$apiGame20.data;
           // A 409 means it was already claimed today (e.g. in another tab): show it as claimed too.
-          if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(new Date().toISOString().slice(0, 10));
+          if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(londonToday());
           if (ok) {
             if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
-            showToast('🪙 Claimed 3 free tokens');
+            showToast("\uD83E\uDE99 Claimed ".concat(data.tokens_awarded, " free chip").concat(data.tokens_awarded === 1 ? '' : 's'));
           } else {
             showToast(data.error || 'Free token claim failed');
           }
@@ -9121,10 +9148,7 @@ function GameApp(_ref48) {
     onClick: dismissWhatsNew
   }, "Got it")), happyHour && !happyHourDismissed && /*#__PURE__*/React.createElement("div", {
     className: "happy-hour-banner"
-  }, "\u2B50 Happy Hour until ", new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit'
-  }), ": more legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
+  }, "\u2B50 Happy Hour until ", happyHourEndLocal(), ": more legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
     className: "happy-hour-banner-close",
     onClick: function onClick() {
       return setHappyHourDismissed(true);
@@ -9598,6 +9622,7 @@ function GameApp(_ref48) {
     rolledSinceSpin: diceRolledSinceSpin
   })), /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
+    insuranceTokens: insuranceTokens,
     onClaim: handleClaimFreeTokens
   }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
     className: gateClass('bounties')
@@ -9658,6 +9683,7 @@ function GameApp(_ref48) {
     className: "mobile-drawer-section"
   }, /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
+    insuranceTokens: insuranceTokens,
     onClaim: handleClaimFreeTokens
   }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
     className: gateClass('bounties')

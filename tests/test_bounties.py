@@ -617,3 +617,12 @@ def test_every_bounty_is_open_to_every_chart_build():
     from bounties import BOUNTY_DEFS
     assert {b['id'] for b in BOUNTY_DEFS} == {
         'bounty_fish10', 'bounty_streak10', 'bounty_hand5', 'bounty_rare', 'bounty_trophy'}
+
+
+def test_bounty_reset_is_london_midnight():
+    """BST: 23:00 UTC is midnight London, so at 22:30 UTC 30 min remain; GMT: a full hour."""
+    import datetime as dt
+    import bounties
+    utc = dt.timezone.utc
+    assert bounties.get_bounty_reset_seconds(dt.datetime(2026, 10, 15, 22, 30, tzinfo=utc)) == 30 * 60
+    assert bounties.get_bounty_reset_seconds(dt.datetime(2026, 11, 2, 23, 0, tzinfo=utc)) == 60 * 60

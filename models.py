@@ -376,9 +376,13 @@ AUTO_FISH_INTERVAL_SECONDS = 6.0   # 1 auto-fish tick every 6 seconds
 MAX_FISH_CATCHUP_TICKS     = 14_400  # cap at 24 hours (86400s / 6s)
 FISH_CATCHUP_THRESHOLD     = 2     # min missed ticks before catch-up fires
 
-# Happy Hour: 9pm–10pm BST (20:00–21:00 UTC)
-HAPPY_HOUR_START_UTC = 20
-HAPPY_HOUR_END_UTC   = 21
+# Happy Hour: 9pm–10pm London time, BST or GMT
+HAPPY_HOUR_START_LONDON = 21
+HAPPY_HOUR_END_LONDON   = 22
+
+# Most 🪙 chips a player can hold: two days of free claims, so chips can't be
+# stockpiled all tide and spent in one last-day burst.
+CHIP_CAP = 6
 
 REGEN_SHIELD_RECHARGE_WINS = 25
 

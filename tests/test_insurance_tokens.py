@@ -454,11 +454,11 @@ def _drive_claim_free(gs, *, returning_new_tokens=3):
 
 def test_free_claim_3_tokens():
     """T119 AC#7: first call to /api/insurance/claim-free returns 3
-    tokens, second call in same UTC day returns 409 'Already claimed
+    tokens, second call in same London day returns 409 'Already claimed
     today'."""
     import datetime as dt
     from datetime import timezone
-    today = dt.datetime.now(timezone.utc).date()
+    today = _game.talents.london_date(dt.datetime.now(timezone.utc))
     # First call: gs has no claimed_date → 3 tokens awarded.
     gs_initial = {
         'owned_items': ['wager_insurance'],
@@ -480,9 +480,9 @@ def test_free_claim_3_tokens():
         f"expected exactly 1 UPDATE for the atomic claim, got {len(updates)}: {updates}"
     )
     sql, params = updates[0]
-    assert 'insurance_tokens = insurance_tokens + %s' in sql
+    assert 'insurance_tokens = %s' in sql
     assert 'insurance_free_claimed_date = %s' in sql
-    # Params: (3, today, user_id)
+    # Params: (new total, today, user_id)
     assert params[0] == 3
     assert params[1] == today
 
@@ -514,15 +514,15 @@ def test_free_claim_3_tokens():
     )
 
 
-def test_free_claim_resets_at_2359_utc():
+def test_free_claim_resets_at_london_midnight():
     """T119 AC#7 (reset semantics): manually advance
     insurance_free_claimed_date to yesterday; the next claim succeeds.
-    The reset is at UTC 00:00 (per the implementation sketch) — when
-    the stored date is before today, the claim gate opens.
+    The reset is at London midnight — when the stored date is before
+    today, the claim gate opens.
     """
     import datetime as dt
     from datetime import timezone, timedelta
-    today = dt.datetime.now(timezone.utc).date()
+    today = _game.talents.london_date(dt.datetime.now(timezone.utc))
     yesterday = today - timedelta(days=1)
     # Pre-state: claimed yesterday with 3 tokens from the prior day.
     gs = {
@@ -549,6 +549,42 @@ def test_free_claim_resets_at_2359_utc():
     assert params[1] == today, (
         f"UPDATE should set insurance_free_claimed_date to today={today}, got {params[1]}"
     )
+
+
+def test_free_claim_tops_up_to_chip_cap():
+    """Chip cap: at 5 chips a claim adds 1 (to CHIP_CAP=6), not 3."""
+    gs = {'owned_items': [], 'insurance_tokens': 5, 'insurance_free_claimed_date': None}
+    conn, result = _drive_claim_free(gs)
+    assert result['tokens_awarded'] == 1
+    assert result['insurance_tokens'] == 6
+    (sql, params), = [(q, p) for q, p in conn.log if q.lstrip().upper().startswith('UPDATE')]
+    assert params[0] == 6
+
+
+def test_free_claim_when_full_is_rejected_and_not_used_up():
+    """Chip cap: at 6 chips the claim 409s and the day's claim isn't stamped."""
+    gs = {'owned_items': [], 'insurance_tokens': 6, 'insurance_free_claimed_date': None}
+    conn, result = _drive_claim_free(gs)
+    body, status = result
+    assert status == 409 and 'full' in body['error']
+    assert not any(q.lstrip().upper().startswith('UPDATE') for q, _ in conn.log)
+
+
+def test_free_claim_uses_london_date_after_midnight_bst(monkeypatch):
+    """00:30 BST on 16 Oct is still 15 Oct in UTC; the claim day must be 16 Oct."""
+    import datetime as dt
+
+    class _Clock(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return dt.datetime(2026, 10, 15, 23, 30, tzinfo=dt.timezone.utc)
+    monkeypatch.setattr(_game.dt, 'datetime', _Clock)
+    gs = {'owned_items': [], 'insurance_tokens': 0,
+          'insurance_free_claimed_date': dt.date(2026, 10, 15)}
+    conn, result = _drive_claim_free(gs)
+    assert result['ok'] is True
+    (sql, params), = [(q, p) for q, p in conn.log if q.lstrip().upper().startswith('UPDATE')]
+    assert params[1] == dt.date(2026, 10, 16)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1039,8 +1075,8 @@ def test_jsx_free_tokens_section():
     assert 'free-tokens-section' in jsx, (
         "JSX must include a .free-tokens-section element above the bounties panel"
     )
-    assert 'Claim 3 free stake chips' in jsx, (
-        "free-tokens section must show the 'Claim 3 free stake chips' button"
+    assert 'free stake chip' in jsx and 'Chips full' in jsx, (
+        "free-tokens section must show the claim button and a chips-full state"
     )
     assert 'claimed today' in jsx.lower() or 'Claimed today' in jsx, (
         "free-tokens section must show a 'claimed today' indicator after claim"
@@ -1190,3 +1226,15 @@ def test_built_app_js_contains_new_endpoints():
     assert 'Pay stake with ' in bundle, (
         "static/app.js must include the renamed toggle label"
     )
+
+
+def test_happy_hour_is_9pm_london_in_bst_and_gmt():
+    """Happy Hour is 21:00–22:00 London: 20:00 UTC in BST, 21:00 UTC in GMT."""
+    import datetime as dt
+    import fish
+    utc = dt.timezone.utc
+    for check in (_game.is_happy_hour, fish._is_happy_hour):
+        assert check(dt.datetime(2026, 10, 15, 20, 30, tzinfo=utc))       # 21:30 BST
+        assert not check(dt.datetime(2026, 10, 15, 21, 0, tzinfo=utc))   # 22:00 BST
+        assert check(dt.datetime(2026, 11, 2, 21, 30, tzinfo=utc))        # 21:30 GMT
+        assert not check(dt.datetime(2026, 11, 2, 20, 30, tzinfo=utc))   # 20:30 GMT
