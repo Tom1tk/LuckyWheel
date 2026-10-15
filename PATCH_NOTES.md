@@ -2,6 +2,49 @@
 
 ---
 
+## Tide 9.2 — Friday 16 October
+
+The tide turns at 9pm on Friday with a balance pass: Riptide gets stronger, keystones stop switching other talents off, and the rotating wheel modes pay out like real options. Halloween arrives at the same moment. 🎃
+
+### 🎃 Halloween
+
+The **Spooky Wheel** is here until the tide turns on Friday 6 November: an orange and purple tide theme with bats, ghosts, jack-o'-lanterns, a witch and a graveyard.
+
+### 🌀 Riptide Gets Stronger
+
+- **🔱 Deep Water**: stake up to **40% / 50%** (was 35% / 40%).
+- **💎 Treasure**: **3%** of wins are jackpots (was 1%), and a staked jackpot pays **×10** (was ×5).
+- **🛟 Safety Line**: a staked loss refunds **half** the stake (was a quarter), and your **first insurance each day is free**.
+- **🎯 Third Die**: only **triple 1s** curse your streak now. A pair of 1s on three dice just adds to it.
+- **⚖️ Double or Nothing**: a win pays **×2.5** (your stake back plus 1.5×). It was ×2.
+
+### 🧭 Charts
+
+- **Keystones no longer switch other talents off.** **Spring Tide**'s extra ×2 streak bonus skips staked and diced spins, but you can stake and roll dice again. **Rogue Wave** keeps your Surge; Surge just skips diced spins.
+- Levels cost **×8** each time (8k, 64k, 512k, …). They were ×6.
+
+### 🎡 Wheel Modes
+
+- **Volatile**: 60% win, 35% loss, 5% jackpot (was 45 / 50 / 5).
+- **Long Shot**: 40% win, 35% loss, 25% jackpot (was 20 / 60 / 20). A quarter of spins hit a jackpot.
+- **Gravity**: win odds now drift between **40% and 70%** (was 20% to 90%).
+
+### 🎣 Auto-Fishing
+
+Auto-fished catches now earn **half** the Surge of a manual catch (was a quarter).
+
+### 🪙 Stake Chips: Hold Up to 6
+
+You can hold at most **6 chips**. The daily claim tops you up: 3 chips, or fewer if you're near the cap. If you're already full, today's claim waits until you spend a chip. Community goal chips stop at 6 too.
+
+### 🕘 UK Time
+
+- **Bounties, the free chip claim and your first-catch bonus** all reset at **midnight UK time**. In summer, some of them used to reset at 1am.
+- **Happy Hour** is **9pm to 10pm UK time** all year. Without this it would have moved to 8pm when the clocks go back.
+- Times show on a 12-hour clock: the tide banner says "resets Fri 9pm".
+
+---
+
 ## Season 9 — Tides
 
 Welcome to Season 9: Tides! 🌊
@@ -10,7 +53,7 @@ This season is built around a weekly rhythm. Short races, a long chase, and noth
 
 ### 🌊 The Tide Turns Every Friday
 
-Season 9 runs in weekly **tides**: Tide 9.1, 9.2, 9.3 and so on. Every **Friday at 21:00 (UK time)** the tide turns:
+Season 9 runs in weekly **tides**: Tide 9.1, 9.2, 9.3 and so on. Every **Friday at 9pm (UK time)** the tide turns:
 
 - **Wins, losses, streaks, Charts, Surge and 🪙 chips reset.** Everyone starts the new tide level.
 - The **top three** of the tide that just ended are posted in chat and saved to the Hall of Fame.
@@ -23,11 +66,11 @@ The banner at the top of the screen shows the current tide, a countdown to the n
 The functional shop is gone. Gear now comes from **Charts**: three talent trees, and not enough points for all of them.
 
 - You start each tide with **1 point** and get **one free point every day**.
-- **Level up** to get more points sooner. Each level costs wins: 1,000 for the first, then ×6 each time (6k, 36k, 216k, …).
+- **Level up** to get more points sooner. Each level costs wins: 1,000 for the first, then ×8 each time (8k, 64k, 512k, …).
 - The cap is **14 points**: enough for one full tree and a splash of another, never all three. Levels reset when the tide turns.
 - The shop now shows your Chart at a glance. Tap it to open the full Charts.
-- **🌊 Swell — ride the streak.** Bigger streak bonuses, win multipliers, Echo and the Breakwater shield. Keystone **Spring Tide** doubles streak bonuses again, but you can't stake or roll dice.
-- **🌀 Riptide — bet the tide.** Staking, dice charges, jackpots, insurance and Double or Nothing. Keystone **Rogue Wave**: dice come back twice as fast and stack two higher, but no Surge for you.
+- **🌊 Swell — ride the streak.** Bigger streak bonuses, win multipliers, Echo and the Breakwater shield. Keystone **Spring Tide** doubles streak bonuses again, except on staked or diced spins.
+- **🌀 Riptide — bet the tide.** Staking, dice charges, jackpots, insurance and Double or Nothing. Keystone **Rogue Wave**: dice come back twice as fast and stack two higher, but Surge skips diced spins.
 - **🎣 Angler — read the water.** Bigger Surge, better bait, auto-fishing and **Steady Hands** for the fight. Keystone **Deep Sea**: junk and common fish stop biting, rares and legendaries bite three times as often, and bites take longer.
 - Higher rows need points in that tree first, and you can hold **one keystone**. Adding points is always free; a **re-chart** (clearing points) is allowed once a day.
 
@@ -41,7 +84,7 @@ A cleaner fight lands a **heavier fish**, and heavier fish are worth more 🐟. 
 
 ### 🌊 Surge: Fishing Powers the Wheel
 
-Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip under your score shows how many Surge spins you have left and what they pay, and the first time you earn Surge a short card explains it. **Bounties now pay Surge** too: 100, 200 and 300 spins. Bounties are now streaks and fishing only (land fish in a fight, a rare, a trophy-sized catch), so every build can finish them.
+Every catch charges **Surge spins**: more for rarer and heavier fish, half as much from auto-fishing. While you have Surge, each spin uses one and pays extra: ×5 for everyone, up to ×100 with Rich Waters in the Angler tree. The chip under your score shows how many Surge spins you have left and what they pay, and the first time you earn Surge a short card explains it. **Bounties now pay Surge** too: 100, 200 and 300 spins. Bounties are now streaks and fishing only (land fish in a fight, a rare, a trophy-sized catch), so every build can finish them.
 
 ### 🐠 46 Species
 
@@ -49,7 +92,7 @@ The Encyclopaedia has grown from 13 to **46** fish. Many only bite at **dawn, da
 
 ### 🪙 Stake Chips
 
-Free tokens are now **stake chips**: 3 a day. A chip pays for one staked spin or arms insurance. Once you've claimed today's chips, the button says so.
+Free tokens are now **stake chips**: 3 a day, and you can hold up to 6. A chip pays for one staked spin or arms insurance. Once you've claimed today's chips, the button says so.
 
 The **stake panel** is new too: tap to raise your stake in 5% steps, and it shows what you'd win or lose before you spin.
 
