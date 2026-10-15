@@ -5,6 +5,7 @@ import json
 import logging
 from collections import defaultdict
 from datetime import timezone
+from pathlib import Path
 
 import psycopg2.extras
 from flask import Blueprint, jsonify, request
@@ -22,6 +23,11 @@ admin_bp = Blueprint('admin', __name__)
 UNINFORMATIVE_IPS = anticheat.UNINFORMATIVE_IPS
 CLOSED_UNTIL = dt.datetime(anticheat.CLOSED_YEAR, 12, 31, tzinfo=timezone.utc)
 REASON_MAX = 80
+# Written by bin/rollover.sh in the app dir (its defaults: $APP_DIR/ROLLOVER_FAILED, $APP_DIR/logs).
+APP_DIR = Path(__file__).resolve().parent
+ROLLOVER_MARKER = APP_DIR / 'ROLLOVER_FAILED'
+ROLLOVER_LOGS = APP_DIR / 'logs'
+LOG_TAIL_LINES = 80
 
 
 def admin_required(view):
@@ -58,6 +64,31 @@ def fingerprint():
     except Exception:
         log.exception('FINGERPRINT_ERROR  user_id=%s', current_user.id)
         return jsonify({'error': 'Could not save'}), 500
+
+
+def _log_tail(path: Path) -> str:
+    try:
+        return '\n'.join(path.read_text(errors='replace').splitlines()[-LOG_TAIL_LINES:])
+    except OSError as e:
+        return f'(could not read {path.name}: {e.strerror})'
+
+
+def _rollover() -> dict:
+    """The last tide-turn run and any unresolved failure, for the admin Tide tab."""
+    logs = sorted(ROLLOVER_LOGS.glob('rollover-*.log'))
+    last = None
+    if logs:
+        tail = _log_tail(logs[-1])
+        last = {'log': logs[-1].name, 'time': _iso(dt.datetime.fromtimestamp(logs[-1].stat().st_mtime, timezone.utc)),
+                'result': tail.splitlines()[-1] if tail else '', 'tail': tail}
+    failed = None
+    if ROLLOVER_MARKER.exists():
+        info = dict(line.split('=', 1) for line in ROLLOVER_MARKER.read_text(errors='replace').splitlines() if '=' in line)
+        log_path = Path(info.get('log', '')).resolve()
+        # Only show logs from our own logs dir, whatever the marker says.
+        tail = _log_tail(log_path) if log_path.parent == ROLLOVER_LOGS.resolve() else '(log not found)'
+        failed = {'time': info.get('time'), 'step': info.get('step', 'unknown'), 'log': log_path.name, 'tail': tail}
+    return {'failed': failed, 'last': last, 'release_hold': (APP_DIR / 'RELEASE_HOLD').exists()}
 
 
 def _iso(v):
@@ -146,7 +177,17 @@ def overview():
         'players': [r for r in rows if r['approved'] or r['banned_until']],
         'flags': [{**f, 'started_at': _iso(f['started_at']), 'last_seen': _iso(f['last_seen'])} for f in flags],
         'next_tide': _iso(next_rollover_after(now)),
+        'rollover': _rollover(),
     })
+
+
+@admin_bp.route('/api/admin/rollover-dismiss', methods=['POST'])
+@login_required
+@admin_required
+def rollover_dismiss():
+    ROLLOVER_MARKER.unlink(missing_ok=True)
+    log.warning('ADMIN_ACTION  admin=%s  action=rollover-dismiss', current_user.username)
+    return jsonify({'ok': True})
 
 
 def _target():
