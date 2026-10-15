@@ -2430,7 +2430,7 @@ function AdminPanel({ open, onClose, onPending }) {
                         </div>
                         <div className="admin-sub">{ROLLOVER_STEPS[failed.step] || 'This step is not one the panel knows. Read the log below.'}</div>
                         <div className="admin-note">Log: {failed.log}</div>
-                        <pre className="admin-log">{failed.tail}</pre>
+                        <pre className="admin-log" ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>{failed.tail}</pre>
                         <div className="admin-actions">
                           <button className="charts-btn" disabled={busy} onClick={dismissRollover}>Dismiss</button>
                         </div>
