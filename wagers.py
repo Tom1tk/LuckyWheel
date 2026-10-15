@@ -15,6 +15,7 @@ from datetime import timezone, timedelta
 MIN_STAKE_PCT = 0
 BASE_MAX_STAKE_PCT = 30
 STAKE_PCT_STEP = 5
+DEEP_WATER_PCT_PER_RANK = 10
 STAKE_EXTENSION_ITEMS = ('wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3')
 
 # T110: wager tokens are spent on "high-stake" spins (above 5x in the
@@ -25,17 +26,17 @@ HIGH_STAKE_TOKEN_THRESHOLD = 30
 
 
 def compute_max_stake_pct(owned_items):
-    """T102+T104: 30% base + 5% per stake extension item owned (max 45%).
+    """30% base + 10% per stake extension item owned (Deep Water).
 
     Args:
         owned_items: list/iterable of item ids the player owns.
 
     Returns:
-        int — the max stake percentage this player can set (30, 35, 40, or 45).
+        int — the max stake percentage this player can set (30, 40, 50 or 60).
     """
     owned = set(owned_items) if owned_items else set()
     extend_count = sum(1 for item in STAKE_EXTENSION_ITEMS if item in owned)
-    return BASE_MAX_STAKE_PCT + (extend_count * STAKE_PCT_STEP)
+    return BASE_MAX_STAKE_PCT + (extend_count * DEEP_WATER_PCT_PER_RANK)
 
 
 def compute_stake_risk(current_amount, stake_pct, max_stake_pct=None):
@@ -117,9 +118,9 @@ def should_reset_streak(current_stake, last_stake):
 
 
 def apply_safety_net(stake_value, stake_pct, owns_safety_net):
-    """T102: safety net refunds 25% of stake_value on a loss at >=15% stake."""
-    if owns_safety_net and stake_pct >= 15:
-        return int(stake_value * 0.25)
+    """Safety Line: refunds half of stake_value on a staked loss."""
+    if owns_safety_net and stake_pct > 0:
+        return stake_value // 2
     return 0
 
 
@@ -172,9 +173,9 @@ if __name__ == '__main__':
     assert compute_stake_risk(1000, 30, max_stake_pct=30) == 300
     # compute_max_stake_pct
     assert compute_max_stake_pct([]) == 30
-    assert compute_max_stake_pct(['wager_stake_extend_1']) == 35
-    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2']) == 40
-    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 45
+    assert compute_max_stake_pct(['wager_stake_extend_1']) == 40
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2']) == 50
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 60
     # validate_stake
     assert validate_stake(10, True, 30) == 10
     assert validate_stake(13, True, 30) == 15  # snap to 5% step

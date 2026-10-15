@@ -659,6 +659,34 @@ def test_arm_no_tokens_returns_403():
     assert not any(s.lstrip().upper().startswith('UPDATE') for s, _ in conn.log)
 
 
+def test_safety_line_first_arm_each_day_is_free():
+    """Safety Line: the first arm of the London day costs no token, even at 0 tokens."""
+    gs = {
+        'owned_items': ['wager_insurance', 'wager_safety_net'],
+        'insurance_tokens': 0,
+        'insurance_armed': False,
+        'insurance_free_arm_date': None,
+    }
+    conn, result = _drive_arm(gs)
+    assert result['ok'] is True and result['free'] is True
+    assert result['insurance_tokens'] == 0
+    sql, params = [(q, p) for q, p in conn.log if q.lstrip().upper().startswith('UPDATE')][0]
+    assert 'insurance_free_arm_date' in sql
+    assert params[1] is True  # stamps today's date
+
+
+def test_safety_line_second_arm_same_day_costs_a_token():
+    gs = {
+        'owned_items': ['wager_insurance', 'wager_safety_net'],
+        'insurance_tokens': 0,
+        'insurance_armed': False,
+        'insurance_free_arm_date': _game.talents.london_date(_game.dt.datetime.now(_game.timezone.utc)),
+    }
+    conn, result = _drive_arm(gs)
+    body, status = result
+    assert status == 403
+
+
 def test_arm_already_armed_returns_409():
     """T119: arming when already armed → 409."""
     gs = {

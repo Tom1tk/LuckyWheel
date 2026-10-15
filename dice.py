@@ -126,7 +126,8 @@ def roll_dice_core(
     # Triple outcomes (3-die only) take priority over the pair outcomes.
     cursed_triple = (num_dice == 3 and ones == 3)
     blessed_triple = (num_dice == 3 and sixes == 3)
-    cursed = (not cursed_triple) and ones >= 2
+    # Third Die: with three dice only three 1s curse, not a pair.
+    cursed = num_dice == 2 and ones >= 2
     blessed = (not blessed_triple) and sixes >= 2
 
     # Streak math — independent of the money math in _resolve_spin.

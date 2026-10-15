@@ -146,7 +146,7 @@ def test_wager_panel_props_signature_unchanged():
         '  wagerBankedWins, wagerLastWinAmount, insuranceTokens, insuranceArmed,\n'
         '  activeWheelMode, maxStakePct, autoSpinActive, payWithTokens,\n'
         '  onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,\n'
-        '  onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone,\n'
+        '  onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone, insuranceFreeToday,\n'
         '})'
     )
     assert expected in src, (

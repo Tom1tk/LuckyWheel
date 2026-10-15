@@ -36,7 +36,7 @@ Finish a tide in the top three to earn 🥇 🥈 🥉. Medals are the long chase
 - **Streak panel**: appears in the left sidebar only when a streak is active (fire emoji for wins, skull for losses)
 - **Stats popup**: the 📊 button shows total spins, wins, losses, win rate, fish bucks, fastest catch, and your **Season History**
 - **Leaderboard**: top 10 players of the current tide, ranked by wins
-- **🎲 Dice**: roll two dice (three with Third Die) to add the sum to a win streak of 3+. Snake eyes halves your streak, double sixes doubles it; with three dice, triple 1s ÷3 and triple 6s ×3. One charge to start, recharging every 10 minutes. Riptide's Loaded Dice holds more
+- **🎲 Dice**: roll two dice (three with Third Die) to add the sum to a win streak of 3+. Snake eyes halves your streak, double sixes doubles it; with three dice, only triple 1s curse (÷3) and triple 6s ×3. One charge to start, recharging every 10 minutes. Riptide's Loaded Dice holds more
 
 ### 🧭 Charts
 The functional shop is gone. Gear comes from **Charts**: three talent trees, and not enough points for all of them.
@@ -57,11 +57,11 @@ The functional shop is gone. Gear comes from **Charts**: three talent trees, and
 | | 🌕 **Spring Tide** (keystone) | 1 | Streak bonuses ×2 again, but not on staked or diced spins |
 | 🌀 **Riptide**: bet the tide | 🪙 Open Water | 1 | Stake up to 30% of your wins. Each staked spin costs 1 🪙 |
 | | 🎲 Loaded Dice | 3 | Hold 2 / 3 / 4 dice charges |
-| | 🔱 Deep Water | 2 | Stake up to 35% / 40% |
-| | 💎 Treasure | 1 | 1% of wins are jackpots: ×25, or ×5 on a staked spin |
-| | 🛟 Safety Line | 1 | Staked losses refund a little; arm insurance |
-| | 🎯 Third Die | 1 | Roll three dice |
-| | ⚖️ Double or Nothing | 1 | Re-stake your last win in one go |
+| | 🔱 Deep Water | 2 | Stake up to 40% / 50% |
+| | 💎 Treasure | 1 | 3% of wins are jackpots: ×25, or ×10 on a staked spin |
+| | 🛟 Safety Line | 1 | Staked losses refund half; your first insurance each day is free |
+| | 🎯 Third Die | 1 | Roll three dice — and a pair of 1s no longer curses |
+| | ⚖️ Double or Nothing | 1 | Re-stake your last win in one go — a win pays ×2.5 |
 | | 🌪️ **Rogue Wave** (keystone) | 1 | Dice come back twice as fast and stack two higher, but Surge skips diced spins |
 | 🎣 **Angler**: read the water | 🐚 Rich Waters | 3 | Surge spins pay ×25 / ×50 / ×100 (base ×5) |
 | | 🪱 Better Bait | 2 | Faster bites, bigger catches, +25% / +50% Surge |
@@ -89,11 +89,11 @@ The **Fish Encyclopaedia** (📖) tracks **46** species across junk, common, unc
 Fishing powers the wheel. Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and multiplies its wins: ×5 for everyone, up to ×100 with Rich Waters. The chip under your score shows how many Surge spins you have left and what they pay.
 
 ### 🪙 Stake Chips & the Stake Panel
-With **Open Water** you can stake part of your wins on a spin. The stake panel raises your stake in 5% steps (30% cap, 40% with Deep Water) and shows what you'd win or lose before you spin.
+With **Open Water** you can stake part of your wins on a spin. The stake panel raises your stake in 5% steps (30% cap, 40% / 50% with Deep Water) and shows what you'd win or lose before you spin.
 - **Stake escrow**: the stake is debited up front and held at risk. Win it back plus your payout, or lose it.
 - **Stake chips**: claim **3 free chips a day**. Each staked spin costs one chip. Community goals pay chips too.
-- **Safety Line**: a staked loss refunds 25% of the stake, and you can **arm insurance** to cap a spin's loss and refund the stake.
-- **Double or Nothing**: put your entire last win on the line. All-or-nothing: no insurance or safety net applies.
+- **Safety Line**: a staked loss refunds half the stake, and you can **arm insurance** to refund the whole stake on a loss. The first arm each day is free; after that it costs 1 🪙.
+- **Double or Nothing**: put your entire last win on the line. A win pays ×2.5 (stake back plus 1.5×). All-or-nothing: no insurance or safety net applies.
 
 ### Wheel Modes
 Switch the wheel's odds profile at will. **Steady** and **Volatile** are always available; one more mode rotates weekly, turning with the tide on Friday at 21:00.

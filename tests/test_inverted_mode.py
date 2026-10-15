@@ -436,9 +436,9 @@ def test_inverted_safety_net_on_bad_outcome(monkeypatch):
     assert events['result'] == 'win'
     # Escrow = int(10000 * 0.25) = 2500.
     # Without safety net: losses = 10000 - 2500 (escrow) = 7500.
-    # With safety net: 7500 + int(2500 * 0.25) = 7500 + 625 = 8125.
-    assert new_state['losses'] == 8125, (
-        f"expected losses=8125 (7500 + 625 safety net), got {new_state['losses']}"
+    # With safety net: 7500 + 2500 // 2 = 8750.
+    assert new_state['losses'] == 8750, (
+        f"expected losses=8750 (7500 + 1250 safety net), got {new_state['losses']}"
     )
 
 

@@ -76,7 +76,7 @@ _GAME_STATE_SQL = '''
            bounty_claimed_date, biggest_win_announced,
            wager_last_win_amount, wager_banked_losses,
            insurance_free_claimed_date, insurance_unlock_grant_given,
-           gravity_drift,
+           insurance_free_arm_date, gravity_drift,
            talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins
     FROM game_state WHERE user_id = %s
 '''
@@ -141,6 +141,9 @@ _BONUS_MULT_TABLE = [1, 2, 4, 8, 15, 35, 70]
 # S9 Charts: a staked jackpot pays the stake ×5, not ×25 — ×25 on a 40% stake
 # was the ×1000 tail that let one lucky staker win the tide outright.
 STAKED_JACKPOT_MULT = 5
+TREASURE_STAKED_JACKPOT_MULT = 10
+# Double or Nothing: a won re-stake pays ×2.5 (stake back + 1.5× stake).
+DOUBLE_OR_NOTHING_NUM, DOUBLE_OR_NOTHING_DEN = 3, 2
 
 
 def _bonusmult_level(owned: list) -> int:
@@ -175,7 +178,7 @@ def _build_spin_context(gs: dict) -> dict:
     return {
         'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),
         'bonus_mult':         base_bonus_mult,
-        'jackpot_chance':     0.01 + moon_bonus,  # flat 1% base (resonance removed)
+        'jackpot_chance':     0.03 + moon_bonus,  # Treasure: 3% of wins
         'echo_chance':        0.20 + moon_bonus,  # flat 20% base (echo_amp removed)
         'charm_chance':       0.25 + moon_bonus,
         'resilience_chance':  min(0.50 + moon_bonus, 0.65),  # flat 50% (streak_armor removed)
@@ -393,6 +396,7 @@ def _resolve_spin(
     # the cash portion only; the wager refund / payout still uses the full
     # `stake_cost_total` so the player gets credit for the tokens they spent.
     stake_cost_total = 0
+    dd_escrowed = False
     tokens_spent = 0
     token_spend_eligible = (
         pay_with_tokens
@@ -438,6 +442,7 @@ def _resolve_spin(
         # normal computed value (or 0).
         if double_down_active and owns_wager_unlock and wager_last_win_amount > 0:
             stake_wins = wager_last_win_amount
+            dd_escrowed = True
         stake_cost_total = stake_wins
         # T102: when there is no escrow (player lacks wager_unlock, or stake=0,
         # or current_wins is so low the percentage risk floors to 0), the stake
@@ -693,7 +698,9 @@ def _resolve_spin(
         # T110: use stake_cost_total (pre-token-spend) so a token-funded spin
         # still gets the wager-based payout. The `wins += stake_wins` lines
         # below also use stake_cost_total for the wager refund.
-        if stake_cost_total > 0:
+        if dd_escrowed:
+            net_payout = stake_cost_total * DOUBLE_OR_NOTHING_NUM // DOUBLE_OR_NOTHING_DEN + bonus_earned
+        elif stake_cost_total > 0:
             net_payout = stake_cost_total + bonus_earned
         else:
             net_payout = effective_win_mult + bonus_earned
@@ -711,7 +718,7 @@ def _resolve_spin(
             bonus_earned = direct_wins + banked_wins - effective_win_mult
         elif 'jackpot' in owned and random.random() < jackpot_chance:
             jackpot_hit  = True
-            jackpot_multiplier = STAKED_JACKPOT_MULT if stake_cost_total > 0 else 25
+            jackpot_multiplier = TREASURE_STAKED_JACKPOT_MULT if stake_cost_total > 0 else 25
             raw_payout   = net_payout * jackpot_multiplier
             direct_wins, banked_wins = compute_wager_payout(raw_payout, hot_streak_bonus)
             wins        += stake_cost_total
@@ -988,7 +995,7 @@ def get_state():
                               wager_banked_wins,
                               insurance_charges, insurance_armed,
                               wager_last_win_amount, wager_banked_losses,
-                              insurance_free_claimed_date,
+                              insurance_free_claimed_date, insurance_free_arm_date,
                               active_wheel_mode, insurance_tokens, aquarium_species,
                               cosmetic_fragments, guard_charges,
                               gravity_drift,
@@ -1111,6 +1118,8 @@ def get_state():
             'wager_last_win_amount': int(gs.get('wager_last_win_amount', 0) or 0),
             'insurance_charges':     int(gs.get('insurance_charges', 0) or 0),
             'insurance_armed':       bool(gs.get('insurance_armed', False)),
+            'insurance_free_today':  ('wager_safety_net' in gs.get('owned_items', [])
+                                      and gs.get('insurance_free_arm_date') != talents.london_date(now_utc)),
             # T224: surface auto_fish_enabled so the client stays in sync
             # with the server. Without this, a player who prestiged with
             # auto-fish on would have a stale client state (manual-fish UI
@@ -2890,19 +2899,24 @@ def wager_insurance():
             if gs.get('insurance_armed'):
                 return jsonify({'error': 'Insurance already armed'}), 409
             current_tokens = int(gs.get('insurance_tokens', 0) or 0)
-            if current_tokens < 1:
+            # Safety Line: the first arm each London day is free.
+            today = talents.london_date(dt.datetime.now(timezone.utc))
+            free = ('wager_safety_net' in gs['owned_items']
+                    and gs.get('insurance_free_arm_date') != today)
+            if not free and current_tokens < 1:
                 return jsonify({'error': 'No insurance tokens left'}), 403
-            new_tokens = current_tokens - 1
+            new_tokens = current_tokens if free else current_tokens - 1
             cur.execute(
                 '''UPDATE game_state
                    SET insurance_tokens = %s,
-                       insurance_armed = TRUE
+                       insurance_armed = TRUE,
+                       insurance_free_arm_date = CASE WHEN %s THEN %s ELSE insurance_free_arm_date END
                    WHERE user_id = %s''',
-                (new_tokens, current_user.id),
+                (new_tokens, free, today, current_user.id),
             )
         conn.commit()
     return jsonify({'ok': True, 'message': 'Insurance activated',
-                    'insurance_tokens': new_tokens})
+                    'insurance_tokens': new_tokens, 'insurance_free_today': False, 'free': free})
 
 
 @game_bp.route('/api/insurance/cancel', methods=['POST'])
