@@ -63,6 +63,10 @@ body {
 /* Phones: the rotating wheel canvas's corners overflow sideways and zoom the page out. */
 @media (max-width: 768px) {
   html, body { overflow-x: clip; }
+  /* Phones: the frame wraps the whole page and scrolls with it, so it runs under
+     Safari's bars like the page does (fixed elements stop at the bars). */
+  body { position: relative; }
+  body::before { position: absolute; }
 }
 
 /* Background themes */
@@ -118,9 +122,6 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  /* iOS Safari: the large viewport runs under the floating toolbar, so the frame does too
-     (older browsers ignore this and keep inset: 0). */
-  height: 100lvh;
   box-sizing: border-box;  /* the * rule does not reach pseudo-elements */
   border: 6px solid;
   border-image: linear-gradient(90deg, var(--p-dk), var(--p-2x), var(--p-dk), var(--p-2x)) 1;
