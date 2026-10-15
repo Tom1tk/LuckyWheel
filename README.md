@@ -86,7 +86,7 @@ Some talents need another first: Deep Water, Safety Line and Double or Nothing n
 The **Fish Encyclopaedia** (📖) tracks **46** species across junk, common, uncommon, rare and legendary. Many only bite at **dawn, day, dusk or night** (UK time), at **high or low tide** (the tide turns every 6¼ hours), or are **migrants** that visit for a week at a time. The Encyclopaedia shows the current tide, what's **biting now**, a hint for every fish and your record weights.
 
 ### 🌊 Surge
-Fishing powers the wheel. Every catch charges **Surge spins**: more for rarer and heavier fish, a quarter as much from auto-fishing. While you have Surge, each spin uses one and multiplies its wins: ×5 for everyone, up to ×100 with Rich Waters. The chip under your score shows how many Surge spins you have left and what they pay.
+Fishing powers the wheel. Every catch charges **Surge spins**: more for rarer and heavier fish, half as much from auto-fishing. While you have Surge, each spin uses one and multiplies its wins: ×5 for everyone, up to ×100 with Rich Waters. The chip under your score shows how many Surge spins you have left and what they pay.
 
 ### 🪙 Stake Chips & the Stake Panel
 With **Open Water** you can stake part of your wins on a spin. The stake panel raises your stake in 5% steps (30% cap, 40% / 50% with Deep Water) and shows what you'd win or lose before you spin.
