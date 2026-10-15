@@ -46,9 +46,6 @@
    All game UI elements (z-index 45+) paint above it; fire shows as a background
    glow over the transparent page areas. */
 #root { position: relative; z-index: 2; }
-/* Safari tints its status bar and the area behind its toolbar from the page's root
-   background; body is transparent on the ocean theme, so without this they show white. */
-html { background: var(--bg); }
 
 body {
   background: var(--bg);
@@ -63,6 +60,8 @@ body {
 /* Phones: the rotating wheel canvas's corners overflow sideways and zoom the page out. */
 @media (max-width: 768px) {
   html, body { overflow-x: clip; }
+  /* No ambient frame on phones: Safari cuts it off at its own bars. */
+  body::before { display: none; }
 }
 
 /* Background themes */
@@ -118,17 +117,10 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  box-sizing: border-box;  /* the * rule does not reach pseudo-elements */
   border: 6px solid;
   border-image: linear-gradient(90deg, var(--p-dk), var(--p-2x), var(--p-dk), var(--p-2x)) 1;
   pointer-events: none;
   z-index: 100;
-}
-/* Phones: the frame wraps the whole page and scrolls with it, so it runs under
-   Safari's bars like the page does (fixed elements stop at the bars). */
-@media (max-width: 768px) {
-  body { position: relative; }
-  body::before { position: absolute; }
 }
 
 .casino-container {
