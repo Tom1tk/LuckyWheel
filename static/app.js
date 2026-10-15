@@ -3907,7 +3907,10 @@ function AdminPanel(_ref29) {
     }, ROLLOVER_STEPS[failed.step] || 'This step is not one the panel knows. Read the log below.'), /*#__PURE__*/React.createElement("div", {
       className: "admin-note"
     }, "Log: ", failed.log), /*#__PURE__*/React.createElement("pre", {
-      className: "admin-log"
+      className: "admin-log",
+      ref: function ref(el) {
+        if (el) el.scrollTop = el.scrollHeight;
+      }
     }, failed.tail), /*#__PURE__*/React.createElement("div", {
       className: "admin-actions"
     }, /*#__PURE__*/React.createElement("button", {
