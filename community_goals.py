@@ -10,6 +10,7 @@ import psycopg2.extras
 
 import chat
 import chat_triggers
+from models import CHIP_CAP
 from wheel_modes import get_week_number
 
 
@@ -272,10 +273,10 @@ def check_goal_completion(conn, goal_id):
                 for c in contributors:
                     cur.execute(
                         '''UPDATE game_state
-                           SET insurance_tokens = insurance_tokens + %s,
+                           SET insurance_tokens = LEAST(insurance_tokens + %s, %s),
                                cosmetic_fragments = cosmetic_fragments + %s
                            WHERE user_id = %s''',
-                        (tokens_per_player, fragments_per_player, c['user_id']),
+                        (tokens_per_player, CHIP_CAP, fragments_per_player, c['user_id']),
                     )
 
         # Activate the community pot buff: +5% win% for 1 week

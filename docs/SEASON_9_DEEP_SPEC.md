@@ -242,6 +242,7 @@ The 13 original ids are kept and are **always available**. New species have a **
 - The ×1000 staking tail is cut (staked jackpot ×10, was ×5 before the 23 Oct Riptide buff).
 - Chips are limited to 3 a day plus the goal's reward, about 31 a tide.
 - Bounties pay 🌊 Surge spins (100 / 200 / 300 by position), not chips. Sim: at 52 chips a tide Riptide's median jumps from 1.9e9 to 5.6e10, and at 73 (the old 1/2/3-chip bounties) to 5.9e11. Staking compounds, so chips stay scarce.
+- Chips cap at 6 (two days of claims). Without it a player could bank ~34 chips over a tide and re-chart into Riptide for one last-minute burst.
 - The bounty pool is build-neutral (streaks and fishing only): Catch 10 fish, Reach a 10-spin win streak, Land 5 fish in a fight, Land a rare or legendary fish, Land a trophy fish (top 10% of its size range). Stake, jackpot, bank and double-down bounties were removed, since most builds could never finish them.
 - Arming insurance costs a chip and the staked spin costs another, so an insured spin costs 2.
 - Inverted mode lets anyone stake (losses, not wins) without Open Water; it still costs a chip. Intended: it's the week's wildcard wheel.

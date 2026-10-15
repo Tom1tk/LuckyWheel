@@ -1620,8 +1620,8 @@ var WHEEL_MODE_DRAW = {
     jackpot_pct: 2
   },
   "volatile": {
-    win_pct: 60,
-    lose_pct: 35,
+    win_pct: 45,
+    lose_pct: 50,
     jackpot_pct: 5
   },
   inverted: {
@@ -1640,9 +1640,9 @@ var WHEEL_MODE_DRAW = {
     jackpot_pct: 5
   },
   long_shot: {
-    win_pct: 40,
-    lose_pct: 35,
-    jackpot_pct: 25
+    win_pct: 20,
+    lose_pct: 60,
+    jackpot_pct: 20
   },
   singularity: {
     win_pct: 75,
@@ -6753,17 +6753,44 @@ function CommunityPot(_ref43) {
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
+var CHIP_CAP = 6; // mirrors models.CHIP_CAP
+
+// YYYY-MM-DD in London, the day every daily reset runs on.
+var londonToday = function londonToday() {
+  return new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Europe/London'
+  });
+};
+
+// Happy Hour ends 22:00 London; show that moment on the viewer's own clock.
+function happyHourEndLocal() {
+  var p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23'
+  }).formatToParts(new Date()).map(function (x) {
+    return [x.type, x.value];
+  }));
+  var minsLeft = 22 * 60 - (Number(p.hour) * 60 + Number(p.minute));
+  return new Date(Date.now() + minsLeft * 60000).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
 function FreeTokensPanel(_ref44) {
   var insuranceFreeClaimedToday = _ref44.insuranceFreeClaimedToday,
+    insuranceTokens = _ref44.insuranceTokens,
     onClaim = _ref44.onClaim;
+  var claimable = Math.min(3, CHIP_CAP - insuranceTokens);
   return /*#__PURE__*/React.createElement("div", {
     className: "free-tokens-section"
   }, /*#__PURE__*/React.createElement("button", {
     className: "free-tokens-claim-btn",
     onClick: onClaim,
-    disabled: insuranceFreeClaimedToday,
-    title: "Chips pay part of a 30% stake (1 \uD83E\uDE99 = 1 \uD83C\uDFC6) or arm Insurance"
-  }, insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow' : '🪙 Claim 3 free stake chips'));
+    disabled: insuranceFreeClaimedToday || claimable <= 0,
+    title: "Hold up to ".concat(CHIP_CAP, " \uD83E\uDE99 chips. A staked spin or arming Insurance costs 1")
+  }, insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow' : claimable <= 0 ? "\uD83E\uDE99 Chips full (".concat(CHIP_CAP, " max) \xB7 spend one to claim") : "\uD83E\uDE99 Claim ".concat(claimable, " free stake chip").concat(claimable === 1 ? '' : 's')));
 }
 function BountiesPanel(_ref45) {
   var bounties = _ref45.bounties,
@@ -6775,7 +6802,7 @@ function BountiesPanel(_ref45) {
     className: "bounties-header"
   }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCB Bounties"), /*#__PURE__*/React.createElement("span", {
     className: "panel-subtitle"
-  }, "Daily tasks \xB7 reset at midnight UTC")), bounties.map(function (b) {
+  }, "Daily tasks \xB7 reset at midnight UK time")), bounties.map(function (b) {
     return /*#__PURE__*/React.createElement("div", {
       key: b.bounty_id,
       className: "bounty-card"
@@ -6840,9 +6867,7 @@ function WagerPanel(_ref47) {
     onCancelDoubleDown = _ref47.onCancelDoubleDown,
     onInsurance = _ref47.onInsurance,
     onCancelInsurance = _ref47.onCancelInsurance,
-    onTogglePayWithTokens = _ref47.onTogglePayWithTokens,
-    keystone = _ref47.keystone,
-    insuranceFreeToday = _ref47.insuranceFreeToday;
+    onTogglePayWithTokens = _ref47.onTogglePayWithTokens;
   var _useState123 = useState(false),
     _useState124 = _slicedToArray(_useState123, 2),
     infoOpen = _useState124[0],
@@ -6901,9 +6926,7 @@ function WagerPanel(_ref47) {
     }, v, "%");
   })), infoOpen && /*#__PURE__*/React.createElement("div", {
     className: "stake-explainer"
-  }, /*#__PURE__*/React.createElement("p", null, "Stake puts part of your wins on the line each spin."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Win:"), " you get your stake back plus the same again (plus any streak bonus), instead of the normal win."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Lose:"), " the stake is gone."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Jackpot:"), " stake \xD7 the mode's jackpot multiplier."), /*#__PURE__*/React.createElement("p", null, "0% is a normal, risk-free spin."), ownedItems.includes('wager_safety_net') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Safety Net:"), " you get half of a lost stake back."), ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Hot Streak:"), " wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in."), ownedItems.includes('wager_double_down') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Double Down:"), " bet your whole last win, all or nothing. A win pays \xD72.5. No insurance or safety net."), ownedItems.includes('wager_insurance') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Insurance:"), " costs 1 token", ownedItems.includes('wager_safety_net') ? ' (first one each day free)' : '', "; if your next spin loses, you get the stake back."), keystone === 'spring_tide' && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "\uD83C\uDF15 Spring Tide:"), " staked or diced spins don't get the \xD72 streak bonus.")), keystone === 'spring_tide' && stakePct > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "stake-keystone-note"
-  }, "\uD83C\uDF15 No Spring Tide \xD72 while staked"), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("p", null, "Stake puts part of your wins on the line each spin."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Win:"), " you get your stake back plus the same again (plus any streak bonus), instead of the normal win."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Lose:"), " the stake is gone."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Jackpot:"), " stake \xD7 the mode's jackpot multiplier."), /*#__PURE__*/React.createElement("p", null, "0% is a normal, risk-free spin."), ownedItems.includes('wager_safety_net') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Safety Net:"), " at 15%+ you get 25% of a lost stake back."), ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Hot Streak:"), " wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in."), ownedItems.includes('wager_double_down') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Double Down:"), " bet your whole last win, all or nothing. No insurance or safety net."), ownedItems.includes('wager_insurance') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Insurance:"), " costs 1 token; if your next spin loses, you get the stake back.")), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
     className: "wager-hotstreak"
   }, "\uD83D\uDD25 Hot Streak: ", wagerStreak, " (+", Math.min(wagerStreak * 5, 50), "%)"), wagerBankedWins > 0 && !doubleDownPending && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn wager-bank-btn",
@@ -6920,11 +6943,11 @@ function WagerPanel(_ref47) {
   }, "\u26A1 Double Down"), ownedItems.includes('wager_insurance') && insuranceArmed && /*#__PURE__*/React.createElement("button", {
     className: "wager-insurance-armed wager-cancel-btn",
     onClick: onCancelInsurance
-  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !insuranceArmed && (insuranceFreeToday || insuranceTokens >= 1) && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDEE1\uFE0F Insurance ARMED (click to cancel)"), ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && /*#__PURE__*/React.createElement("button", {
     className: "wager-action-btn",
     onClick: onInsurance,
-    title: insuranceFreeToday ? 'Arm insurance — free once a day' : 'Arm insurance — consumes 1 token (not refunded if you cancel)'
-  }, insuranceFreeToday ? 'Insurance (free)' : 'Insurance'))), insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
+    title: "Arm insurance \u2014 consumes 1 token (not refunded if you cancel)"
+  }, "Insurance"))), insuranceTokens > 0 && /*#__PURE__*/React.createElement("div", {
     className: "wager-tokens-balance"
   }, "\uD83E\uDE99 ", fmt(insuranceTokens), " tokens", stakePct < 30 ? ' · stake 30% to use them' : ''), insuranceTokens > 0 && stakePct >= 30 && !doubleDownPending && /*#__PURE__*/React.createElement("label", {
     className: "wager-pay-tokens-toggle",
@@ -8387,10 +8410,6 @@ function GameApp(_ref48) {
     _useState278 = _slicedToArray(_useState277, 2),
     insuranceArmed = _useState278[0],
     setInsuranceArmed = _useState278[1];
-  var _useState279 = useState(gameState.insurance_free_today || false),
-    _useState280 = _slicedToArray(_useState279, 2),
-    insuranceFreeToday = _useState280[0],
-    setInsuranceFreeToday = _useState280[1];
   var handleChartsSaved = function handleChartsSaved(data) {
     var alloc = data.alloc,
       points = data.points,
@@ -8434,85 +8453,85 @@ function GameApp(_ref48) {
     });
     showToast("\u2B06 Chart level ".concat(data.points));
   };
-  var _useState281 = useState(gameState.active_wheel_mode || 'steady'),
+  var _useState279 = useState(gameState.active_wheel_mode || 'steady'),
+    _useState280 = _slicedToArray(_useState279, 2),
+    activeWheelMode = _useState280[0],
+    setActiveWheelMode = _useState280[1];
+  var _useState281 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
     _useState282 = _slicedToArray(_useState281, 2),
-    activeWheelMode = _useState282[0],
-    setActiveWheelMode = _useState282[1];
-  var _useState283 = useState(gameState.available_wheel_modes || ['steady', 'volatile']),
-    _useState284 = _slicedToArray(_useState283, 2),
-    availableWheelModes = _useState284[0],
-    setAvailableWheelModes = _useState284[1];
+    availableWheelModes = _useState282[0],
+    setAvailableWheelModes = _useState282[1];
   // T80: server-provided wheel probabilities (drift-adjusted for gravity,
   // static for other modes). null → fall back to WHEEL_MODE_DRAW.
-  var _useState285 = useState(gameState.wheel_probabilities || null),
-    _useState286 = _slicedToArray(_useState285, 2),
-    wheelProbabilities = _useState286[0],
-    setWheelProbabilities = _useState286[1];
+  var _useState283 = useState(gameState.wheel_probabilities || null),
+    _useState284 = _slicedToArray(_useState283, 2),
+    wheelProbabilities = _useState284[0],
+    setWheelProbabilities = _useState284[1];
   // T80: gravity drift echoed by the server; not consumed by the wheel
   // itself but kept in state for UI badges / debug.
-  var _useState287 = useState(gameState.gravity_drift || 0),
+  var _useState285 = useState(gameState.gravity_drift || 0),
+    _useState286 = _slicedToArray(_useState285, 2),
+    gravityDrift = _useState286[0],
+    setGravityDrift = _useState286[1];
+  var _useState287 = useState(gameState.insurance_tokens || 0),
     _useState288 = _slicedToArray(_useState287, 2),
-    gravityDrift = _useState288[0],
-    setGravityDrift = _useState288[1];
-  var _useState289 = useState(gameState.insurance_tokens || 0),
+    insuranceTokens = _useState288[0],
+    setInsuranceTokens = _useState288[1];
+  var _useState289 = useState(gameState.cosmetic_fragments || 0),
     _useState290 = _slicedToArray(_useState289, 2),
-    insuranceTokens = _useState290[0],
-    setInsuranceTokens = _useState290[1];
-  var _useState291 = useState(gameState.cosmetic_fragments || 0),
+    cosmeticFragments = _useState290[0],
+    setCosmeticFragments = _useState290[1];
+  var _useState291 = useState(gameState.bounties || []),
     _useState292 = _slicedToArray(_useState291, 2),
-    cosmeticFragments = _useState292[0],
-    setCosmeticFragments = _useState292[1];
-  var _useState293 = useState(gameState.bounties || []),
+    bounties = _useState292[0],
+    setBounties = _useState292[1];
+  var _useState293 = useState(gameState.community_goal || null),
     _useState294 = _slicedToArray(_useState293, 2),
-    bounties = _useState294[0],
-    setBounties = _useState294[1];
-  var _useState295 = useState(gameState.community_goal || null),
-    _useState296 = _slicedToArray(_useState295, 2),
-    communityGoal = _useState296[0],
-    setCommunityGoal = _useState296[1];
+    communityGoal = _useState294[0],
+    setCommunityGoal = _useState294[1];
   // T102: stake is now a percentage (0-45), not a 1-10 multiplier. 0 is
   // the safe "no risk" position and is valid — use ?? 0 not || 1.
-  var _useState297 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
-    _useState298 = _slicedToArray(_useState297, 2),
-    stakePct = _useState298[0],
-    setStakePct = _useState298[1];
+  var _useState295 = useState((_gameState$wager_last3 = gameState.wager_last_stake) !== null && _gameState$wager_last3 !== void 0 ? _gameState$wager_last3 : 0),
+    _useState296 = _slicedToArray(_useState295, 2),
+    stakePct = _useState296[0],
+    setStakePct = _useState296[1];
   // T102: max stake percentage for this player (30 base, 35/40/45 with
   // stake extension items). Used to size the slider's max attribute.
-  var _useState299 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
-    _useState300 = _slicedToArray(_useState299, 2),
-    maxStakePct = _useState300[0],
-    setMaxStakePct = _useState300[1];
+  var _useState297 = useState((_gameState$max_stake_ = gameState.max_stake_pct) !== null && _gameState$max_stake_ !== void 0 ? _gameState$max_stake_ : 30),
+    _useState298 = _slicedToArray(_useState297, 2),
+    maxStakePct = _useState298[0],
+    setMaxStakePct = _useState298[1];
   // T102+T105: live display of the stake amount (wins escrowed on next
   // spin). Recomputed on stake/wins/losses change and after each spin.
-  var _useState301 = useState(0),
-    _useState302 = _slicedToArray(_useState301, 2),
-    stakeValue = _useState302[0],
-    setStakeValue = _useState302[1];
+  var _useState299 = useState(0),
+    _useState300 = _slicedToArray(_useState299, 2),
+    stakeValue = _useState300[0],
+    setStakeValue = _useState300[1];
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   // T216: the per-activation 100-spin budget was removed; auto-spin is
   // simply on/off. The server tracks `auto_spin_since`.
-  var _useState303 = useState(gameState.auto_spin_active || false),
-    _useState304 = _slicedToArray(_useState303, 2),
-    autoSpinActive = _useState304[0],
-    setAutoSpinActive = _useState304[1];
-  // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
-  // server gates the 3-free-per-day claim. We surface it as a string
+  var _useState301 = useState(gameState.auto_spin_active || false),
+    _useState302 = _slicedToArray(_useState301, 2),
+    autoSpinActive = _useState302[0],
+    setAutoSpinActive = _useState302[1];
+  // T119: free-tokens daily claim — "insurance_free_claimed_date" (a London
+  // date) on the server gates the once-a-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
-  var _useState305 = useState(gameState.insurance_free_claimed_date || null),
-    _useState306 = _slicedToArray(_useState305, 2),
-    insuranceFreeClaimedDate = _useState306[0],
-    setInsuranceFreeClaimedDate = _useState306[1];
-  var todayStr = new Date().toISOString().slice(0, 10);
+  var _useState303 = useState(gameState.insurance_free_claimed_date || null),
+    _useState304 = _slicedToArray(_useState303, 2),
+    insuranceFreeClaimedDate = _useState304[0],
+    setInsuranceFreeClaimedDate = _useState304[1];
+  var todayStr = londonToday();
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
   // wager-stale pattern as stakeRef).
-  var _useState307 = useState(false),
-    _useState308 = _slicedToArray(_useState307, 2),
-    payWithTokens = _useState308[0],
-    setPayWithTokens = _useState308[1];
+  var _useState305 = useState(false),
+    _useState306 = _slicedToArray(_useState305, 2),
+    payWithTokens = _useState306[0],
+    setPayWithTokens = _useState306[1];
   var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
@@ -8715,7 +8734,7 @@ function GameApp(_ref48) {
     },
     "volatile": {
       label: 'Volatile',
-      desc: '60% win · 35% loss · 5% jackpot (×50). High variance — bigger swings both ways.'
+      desc: '45% win · 50% loss · 5% jackpot (×50). High variance — bigger swings both ways.'
     },
     inverted: {
       label: 'Inverted',
@@ -8723,7 +8742,7 @@ function GameApp(_ref48) {
     },
     gravity: {
       label: 'Gravity',
-      desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result (win odds 40–70%) — streaks amplify.'
+      desc: '55% win · 40% loss · 5% jackpot. Outcomes drift toward the last result — streaks amplify.'
     },
     mirror: {
       label: 'Mirror',
@@ -8731,7 +8750,7 @@ function GameApp(_ref48) {
     },
     long_shot: {
       label: 'Long Shot',
-      desc: '40% win · 35% loss · 25% jackpot (×10). Loses more often than Steady, but a quarter of spins hit a jackpot (paying less).'
+      desc: '20% win · 60% loss · 20% jackpot (×10). Most spins lose; jackpots hit often but pay less.'
     },
     singularity: {
       label: 'Singularity',
@@ -8913,8 +8932,7 @@ function GameApp(_ref48) {
           if (ok) {
             if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
             setInsuranceArmed(true);
-            setInsuranceFreeToday(false);
-            showToast(data.free ? '🛡️ Insurance armed (free today)' : '🛡️ Insurance armed (1 token used)');
+            showToast('🛡️ Insurance armed (1 token used)');
           } else {
             showToast(data.error || 'Insurance failed');
           }
@@ -8986,7 +9004,7 @@ function GameApp(_ref48) {
   // [Removed 2026-06-26: the buy-charge button was confusing — the
   // operator cut it from the UI. Arm insurance now consumes a token
   // directly, so the token→charge exchange has no role.]
-  // T119: claim 3 free insurance tokens once per UTC day.
+  // T119: claim up to 3 free chips once per London day (tops up to CHIP_CAP).
   var handleClaimFreeTokens = useCallback(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee35() {
     var _yield$apiGame20, ok, data;
     return _regenerator().w(function (_context35) {
@@ -9002,10 +9020,10 @@ function GameApp(_ref48) {
           ok = _yield$apiGame20.ok;
           data = _yield$apiGame20.data;
           // A 409 means it was already claimed today (e.g. in another tab): show it as claimed too.
-          if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(new Date().toISOString().slice(0, 10));
+          if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(londonToday());
           if (ok) {
             if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
-            showToast('🪙 Claimed 3 free tokens');
+            showToast("\uD83E\uDE99 Claimed ".concat(data.tokens_awarded, " free chip").concat(data.tokens_awarded === 1 ? '' : 's'));
           } else {
             showToast(data.error || 'Free token claim failed');
           }
@@ -9130,10 +9148,7 @@ function GameApp(_ref48) {
     onClick: dismissWhatsNew
   }, "Got it")), happyHour && !happyHourDismissed && /*#__PURE__*/React.createElement("div", {
     className: "happy-hour-banner"
-  }, "\u2B50 Happy Hour until ", new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit'
-  }), ": more legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
+  }, "\u2B50 Happy Hour until ", happyHourEndLocal(), ": more legendary fish \u2B50", /*#__PURE__*/React.createElement("button", {
     className: "happy-hour-banner-close",
     onClick: function onClick() {
       return setHappyHourDismissed(true);
@@ -9417,7 +9432,7 @@ function GameApp(_ref48) {
     className: "subtitle"
   }, tidesActive ? 'The tide turns every Friday' : 'All or nothing')), /*#__PURE__*/React.createElement("div", {
     className: "wheel-and-wager"
-  }, !isMobile && ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
+  }, !isMobile && ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement(WagerPanel, {
     ownedItems: ownedItems,
     stakePct: stakePct,
     stakeValue: stakeValue,
@@ -9426,7 +9441,6 @@ function GameApp(_ref48) {
     wagerBankedWins: wagerBankedWins,
     wagerLastWinAmount: wagerLastWinAmount,
     insuranceTokens: insuranceTokens,
-    insuranceFreeToday: insuranceFreeToday,
     insuranceArmed: insuranceArmed,
     activeWheelMode: activeWheelMode,
     maxStakePct: maxStakePct,
@@ -9438,8 +9452,7 @@ function GameApp(_ref48) {
     onCancelDoubleDown: handleCancelDoubleDown,
     onInsurance: handleInsurance,
     onCancelInsurance: handleCancelInsurance,
-    onTogglePayWithTokens: setPayWithTokens,
-    keystone: keystone
+    onTogglePayWithTokens: setPayWithTokens
   }), /*#__PURE__*/React.createElement("div", {
     className: "wheel-wrapper ".concat(activeCosmetics.includes('golden_wheel') ? 'golden' : ''),
     onClick: !spinning ? handleManualSpin : undefined,
@@ -9495,10 +9508,10 @@ function GameApp(_ref48) {
     wins: wins,
     losses: losses,
     lastResult: result
-  }), surgeSpins > 0 && charts && /*#__PURE__*/React.createElement("div", {
+  }), surgeSpins > 0 && keystone !== 'rogue_wave' && charts && /*#__PURE__*/React.createElement("div", {
     className: "surge-chip",
     title: "Surge spins come from fishing and bounties. Each spin uses one."
-  }, "\uD83C\uDF0A Surge \xB7 next ", fmt(surgeSpins), " spin", surgeSpins !== 1 ? 's' : '', " pay \xD7", charts.surge_mult, keystone === 'rogue_wave' ? ' · not diced spins' : ''), surgeSpins > 0 && charts && !surgeExplained && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF0A Surge \xB7 next ", fmt(surgeSpins), " spin", surgeSpins !== 1 ? 's' : '', " pay \xD7", charts.surge_mult), surgeSpins > 0 && keystone !== 'rogue_wave' && charts && !surgeExplained && /*#__PURE__*/React.createElement("div", {
     className: "surge-hint"
   }, /*#__PURE__*/React.createElement("span", null, "Surge spins come from \uD83C\uDFA3 fishing and \uD83D\uDCCB bounties. Each spin uses one and multiplies its wins \xD7", charts.surge_mult, "."), /*#__PURE__*/React.createElement("button", {
     className: "surge-hint-btn",
@@ -9513,7 +9526,7 @@ function GameApp(_ref48) {
   }, /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
-  }), unlocked.dice && /*#__PURE__*/React.createElement("div", {
+  }), unlocked.dice && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement("div", {
     className: gateClass('dice')
   }, /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,
@@ -9528,7 +9541,7 @@ function GameApp(_ref48) {
     rechargeSecs: keystone === 'rogue_wave' ? 300 : 600,
     hasDiceExtra: ownedItems.includes('dice_extra'),
     rolledSinceSpin: diceRolledSinceSpin
-  }))), ownedItems.includes('wager_unlock') && /*#__PURE__*/React.createElement(WagerPanel, {
+  }))), ownedItems.includes('wager_unlock') && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement(WagerPanel, {
     ownedItems: ownedItems,
     stakePct: stakePct,
     stakeValue: stakeValue,
@@ -9537,7 +9550,6 @@ function GameApp(_ref48) {
     wagerBankedWins: wagerBankedWins,
     wagerLastWinAmount: wagerLastWinAmount,
     insuranceTokens: insuranceTokens,
-    insuranceFreeToday: insuranceFreeToday,
     insuranceArmed: insuranceArmed,
     activeWheelMode: activeWheelMode,
     maxStakePct: maxStakePct,
@@ -9549,8 +9561,7 @@ function GameApp(_ref48) {
     onCancelDoubleDown: handleCancelDoubleDown,
     onInsurance: handleInsurance,
     onCancelInsurance: handleCancelInsurance,
-    onTogglePayWithTokens: setPayWithTokens,
-    keystone: keystone
+    onTogglePayWithTokens: setPayWithTokens
   }), /*#__PURE__*/React.createElement("div", {
     className: "fish-counter"
   }, /*#__PURE__*/React.createElement("span", {
@@ -9594,7 +9605,7 @@ function GameApp(_ref48) {
   }, "\uD83D\uDEE1\uFE0F Guard ready"), hasRegen && /*#__PURE__*/React.createElement("div", null, regenRechargeWins > 0 ? "\uD83D\uDD04 ".concat(regenRechargeWins, " win").concat(regenRechargeWins !== 1 ? 's' : '') : '🔄 ready')), /*#__PURE__*/React.createElement(StreakPanel, {
     streak: streak,
     bonusmultLevel: 0
-  }), unlocked.dice && /*#__PURE__*/React.createElement("div", {
+  }), unlocked.dice && keystone !== 'spring_tide' && /*#__PURE__*/React.createElement("div", {
     className: gateClass('dice')
   }, /*#__PURE__*/React.createElement(DicePanel, {
     streak: streak,
@@ -9611,6 +9622,7 @@ function GameApp(_ref48) {
     rolledSinceSpin: diceRolledSinceSpin
   })), /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
+    insuranceTokens: insuranceTokens,
     onClaim: handleClaimFreeTokens
   }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
     className: gateClass('bounties')
@@ -9671,6 +9683,7 @@ function GameApp(_ref48) {
     className: "mobile-drawer-section"
   }, /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
+    insuranceTokens: insuranceTokens,
     onClaim: handleClaimFreeTokens
   }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
     className: gateClass('bounties')
@@ -9728,18 +9741,18 @@ function GameApp(_ref48) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState309 = useState(undefined),
+  var _useState307 = useState(undefined),
+    _useState308 = _slicedToArray(_useState307, 2),
+    user = _useState308[0],
+    setUser = _useState308[1];
+  var _useState309 = useState(null),
     _useState310 = _slicedToArray(_useState309, 2),
-    user = _useState310[0],
-    setUser = _useState310[1];
-  var _useState311 = useState(null),
+    gameState = _useState310[0],
+    setGameState = _useState310[1];
+  var _useState311 = useState(''),
     _useState312 = _slicedToArray(_useState311, 2),
-    gameState = _useState312[0],
-    setGameState = _useState312[1];
-  var _useState313 = useState(''),
-    _useState314 = _slicedToArray(_useState313, 2),
-    sessionMsg = _useState314[0],
-    setSessionMsg = _useState314[1];
+    sessionMsg = _useState312[0],
+    setSessionMsg = _useState312[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
       var _yield$apiFetch2, ok, data, gs;

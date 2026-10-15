@@ -1,9 +1,9 @@
 """Season 8 daily bounty system.
 
-Three bounties are selected per user per UTC day from a pool of definitions.
+Three bounties are selected per user per London day from a pool of definitions.
 Selection is deterministic per (user_id, date) using a hash seed, ensuring
 the same 3 bounties are shown all day regardless of which worker handles
-the request. Bounties reset at the UTC 00:00 boundary (a "day" flips at
+the request. Bounties reset at London midnight (a "day" flips at
 23:59 the prior day, per operator UX language) — the previous day's
 progress is implicitly discarded because `bounty_date` is recomputed
 at request time and yesterday's rows are never queried.
@@ -11,7 +11,8 @@ at request time and yesterday's rows are never queried.
 
 import hashlib
 import datetime as dt
-from datetime import date
+
+import talents
 
 
 # Bounty definitions (from spec S8). Each has an id, description, tracking
@@ -64,7 +65,7 @@ def get_daily_bounties(user_id, bounty_date=None):
     Selection is deterministic per (user_id, date).
     """
     if bounty_date is None:
-        bounty_date = date.today()
+        bounty_date = talents.london_date(dt.datetime.now(dt.timezone.utc))
 
     # Deterministic seed from user_id + date
     seed_str = f'{user_id}:{bounty_date.isoformat()}'
@@ -146,7 +147,7 @@ def get_bounty_status(conn, user_id, bounty_date=None):
     returns, preserving positions and keys.
     """
     if bounty_date is None:
-        bounty_date = date.today()
+        bounty_date = talents.london_date(dt.datetime.now(dt.timezone.utc))
 
     selected = get_daily_bounties(user_id, bounty_date)
     bounty_ids = [b['id'] for b in selected]
@@ -192,7 +193,7 @@ def get_claim_rewards_for_bounty(conn, user_id, bounty_date, bounty_id):
     🪙 chips — chips feed staking, which compounds, so they stay at 3 a day.
     """
     if bounty_date is None:
-        bounty_date = date.today()
+        bounty_date = talents.london_date(dt.datetime.now(dt.timezone.utc))
     selected = get_daily_bounties(user_id, bounty_date)
     for i, b in enumerate(selected, start=1):
         if b['id'] == bounty_id:
@@ -201,14 +202,13 @@ def get_claim_rewards_for_bounty(conn, user_id, bounty_date, bounty_id):
 
 
 def get_bounty_reset_seconds(now_utc):
-    """Seconds until the next UTC 00:00 boundary (called "23:59" in UX).
+    """Seconds until the next London midnight (called "23:59" in UX).
 
     The substantive reset is implicit — `bounty_date` is recomputed at
     request time, so yesterday's rows are simply not queried. This helper
     is for an optional UI countdown ("Resets in 4h 32m") and reflects the
     operator's UX framing of the boundary moment.
     """
-    boundary = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    if now_utc >= boundary:
-        boundary += dt.timedelta(days=1)
+    tomorrow = talents.london_date(now_utc) + dt.timedelta(days=1)
+    boundary = dt.datetime.combine(tomorrow, dt.time(), tzinfo=talents._LONDON)
     return int((boundary - now_utc).total_seconds())

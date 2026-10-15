@@ -91,7 +91,7 @@ Fishing powers the wheel. Every catch charges **Surge spins**: more for rarer an
 ### 🪙 Stake Chips & the Stake Panel
 With **Open Water** you can stake part of your wins on a spin. The stake panel raises your stake in 5% steps (30% cap, 40% / 50% with Deep Water) and shows what you'd win or lose before you spin.
 - **Stake escrow**: the stake is debited up front and held at risk. Win it back plus your payout, or lose it.
-- **Stake chips**: claim **3 free chips a day**. Each staked spin costs one chip. Community goals pay chips too.
+- **Stake chips**: claim **3 free chips a day**, holding **6 at most**. Each staked spin costs one chip. Community goals pay chips too.
 - **Safety Line**: a staked loss refunds half the stake, and you can **arm insurance** to refund the whole stake on a loss. The first arm each day is free; after that it costs 1 🪙.
 - **Double or Nothing**: put your entire last win on the line. A win pays ×2.5 (stake back plus 1.5×). All-or-nothing: no insurance or safety net applies.
 
@@ -109,10 +109,10 @@ Switch the wheel's odds profile at will. **Steady** and **Volatile** are always 
 The rotating slot cycles Inverted → Gravity → Long Shot by week.
 
 ### Daily Bounties
-Three bounties a day, the same three all day, resetting at midnight UTC. They are streaks and fishing only, so every build can finish them: reach a 10-spin win streak, catch 10 fish, land 5 fish in a fight, land a rare or legendary, land a trophy-sized fish. Each one pays **Surge**: 100, 200 and 300 spins.
+Three bounties a day, the same three all day, resetting at midnight UK time. They are streaks and fishing only, so every build can finish them: reach a 10-spin win streak, catch 10 fish, land 5 fish in a fight, land a rare or legendary, land a trophy-sized fish. Each one pays **Surge**: 100, 200 and 300 spins.
 
 ### Community Goals
-One server-wide goal per tide: catch fish, land jackpots, or wager wins. Everyone's progress counts toward one shared target, with a per-player cap so no one can solo it. Completing it pays every contributor 10 🪙 chips and lifts everyone's win chance to 55% for a week.
+One server-wide goal per tide: catch fish, land jackpots, or wager wins. Everyone's progress counts toward one shared target, with a per-player cap so no one can solo it. Completing it pays every contributor 10 🪙 chips (up to the 6-chip cap) and lifts everyone's win chance to 55% for a week.
 
 ### 🔁 Auto-Spin
 - **Free for everyone.** Tick auto-spin and the wheel spins every 3 seconds.
@@ -171,7 +171,7 @@ In Season 9 the shop sells **cosmetics only**, paid for in **losses**. Gameplay 
 - **Losses**: spent on cosmetics (skins, trails, themes, backgrounds).
 - **Fish Bucks 🐟**: earned from fishing.
 - **Surge spins 🌊**: earned from fishing and bounties; each one multiplies a spin's wins.
-- **Stake chips 🪙**: 3 free a day, plus community goals; spent on staked spins.
+- **Stake chips 🪙**: 3 free a day, plus community goals, capped at 6; spent on staked spins.
 
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
@@ -520,7 +520,7 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/wager/double-down/cancel` | POST | — | Disarm it |
 | `/api/insurance/arm` | POST | — | Arm insurance for the next spin |
 | `/api/insurance/cancel` | POST | — | Disarm it |
-| `/api/insurance/claim-free` | POST | — | Claim today's 3 stake chips (409 if already claimed) |
+| `/api/insurance/claim-free` | POST | — | Claim up to 3 stake chips, topping up to 6 (409 if already claimed today or already full) |
 | `/api/wheel-mode` | POST | — | Set active wheel mode. Body: `{mode}` |
 | `/api/bounties` | GET | — | Today's 3 bounties with progress |
 | `/api/bounties/claim` | POST | — | Claim a completed bounty's Surge. Body: `{bounty_id}` |

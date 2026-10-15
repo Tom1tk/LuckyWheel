@@ -3889,12 +3889,28 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
-function FreeTokensPanel({ insuranceFreeClaimedToday, onClaim }) {
+const CHIP_CAP = 6; // mirrors models.CHIP_CAP
+
+// YYYY-MM-DD in London, the day every daily reset runs on.
+const londonToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+
+// Happy Hour ends 22:00 London; show that moment on the viewer's own clock.
+function happyHourEndLocal() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  const minsLeft = 22 * 60 - (Number(p.hour) * 60 + Number(p.minute));
+  return new Date(Date.now() + minsLeft * 60000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function FreeTokensPanel({ insuranceFreeClaimedToday, insuranceTokens, onClaim }) {
+  const claimable = Math.min(3, CHIP_CAP - insuranceTokens);
   return (
     <div className="free-tokens-section">
-      <button className="free-tokens-claim-btn" onClick={onClaim} disabled={insuranceFreeClaimedToday}
-        title="Chips pay part of a 30% stake (1 🪙 = 1 🏆) or arm Insurance">
-        {insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow' : '🪙 Claim 3 free stake chips'}
+      <button className="free-tokens-claim-btn" onClick={onClaim} disabled={insuranceFreeClaimedToday || claimable <= 0}
+        title={`Hold up to ${CHIP_CAP} 🪙 chips. A staked spin or arming Insurance costs 1`}>
+        {insuranceFreeClaimedToday ? '✓ Chips claimed · more tomorrow'
+          : claimable <= 0 ? `🪙 Chips full (${CHIP_CAP} max) · spend one to claim`
+          : `🪙 Claim ${claimable} free stake chip${claimable === 1 ? '' : 's'}`}
       </button>
     </div>
   );
@@ -3906,7 +3922,7 @@ function BountiesPanel({ bounties, onClaim }) {
     <div className="season8-bounties-panel">
       <div className="bounties-header">
         <span>📋 Bounties</span>
-        <span className="panel-subtitle">Daily tasks · reset at midnight UTC</span>
+        <span className="panel-subtitle">Daily tasks · reset at midnight UK time</span>
       </div>
       {bounties.map(b => (
         <div key={b.bounty_id} className="bounty-card">
@@ -4915,11 +4931,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T216: the per-activation 100-spin budget was removed; auto-spin is
   // simply on/off. The server tracks `auto_spin_since`.
   const [autoSpinActive, setAutoSpinActive]         = useState(gameState.auto_spin_active || false);
-  // T119: free-tokens daily claim — "insurance_free_claimed_date" on the
-  // server gates the 3-free-per-day claim. We surface it as a string
+  // T119: free-tokens daily claim — "insurance_free_claimed_date" (a London
+  // date) on the server gates the once-a-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
   const [insuranceFreeClaimedDate, setInsuranceFreeClaimedDate] = useState(gameState.insurance_free_claimed_date || null);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = londonToday();
   const insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
@@ -5203,14 +5219,14 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // [Removed 2026-06-26: the buy-charge button was confusing — the
   // operator cut it from the UI. Arm insurance now consumes a token
   // directly, so the token→charge exchange has no role.]
-  // T119: claim 3 free insurance tokens once per UTC day.
+  // T119: claim up to 3 free chips once per London day (tops up to CHIP_CAP).
   const handleClaimFreeTokens = useCallback(async () => {
     const { ok, data } = await apiGame('/api/insurance/claim-free', { method: 'POST', body: JSON.stringify({}) });
     // A 409 means it was already claimed today (e.g. in another tab): show it as claimed too.
-    if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(new Date().toISOString().slice(0, 10));
+    if (ok || data.error === 'Already claimed today') setInsuranceFreeClaimedDate(londonToday());
     if (ok) {
       if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
-      showToast('🪙 Claimed 3 free tokens');
+      showToast(`🪙 Claimed ${data.tokens_awarded} free chip${data.tokens_awarded === 1 ? '' : 's'}`);
     } else {
       showToast(data.error || 'Free token claim failed');
     }
@@ -5294,7 +5310,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       )}
       {happyHour && !happyHourDismissed && (
         <div className="happy-hour-banner">
-          ⭐ Happy Hour until {new Date(Date.UTC(2000, 0, 1, 21)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: more legendary fish ⭐
+          ⭐ Happy Hour until {happyHourEndLocal()}: more legendary fish ⭐
           <button className="happy-hour-banner-close" onClick={() => setHappyHourDismissed(true)}>✕</button>
         </div>
       )}
@@ -5749,6 +5765,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   pixel-identical to pre-T202). */}
               <FreeTokensPanel
                 insuranceFreeClaimedToday={insuranceFreeClaimedToday}
+                insuranceTokens={insuranceTokens}
                 onClaim={handleClaimFreeTokens}
               />
               {unlocked.bounties && <div className={gateClass('bounties')}><BountiesPanel
@@ -5818,6 +5835,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           <div className="mobile-drawer-section">
             <FreeTokensPanel
               insuranceFreeClaimedToday={insuranceFreeClaimedToday}
+              insuranceTokens={insuranceTokens}
               onClaim={handleClaimFreeTokens}
             />
             {unlocked.bounties && <div className={gateClass('bounties')}><BountiesPanel
