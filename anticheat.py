@@ -59,7 +59,9 @@ def suspension_message(user) -> str:
     reason = f' ({user.ban_reason})' if user.ban_reason else ''
     if user.banned_until.year >= CLOSED_YEAR:
         return f'Your account has been closed{reason}.'
-    until = user.banned_until.astimezone(_LONDON).strftime('%a %-d %b, %H:%M')
+    t = user.banned_until.astimezone(_LONDON)
+    clock = f"{t:%-I:%M}" if t.minute else f"{t:%-I}"
+    until = f"{t:%a %-d %b}, {clock}{t.strftime('%p').lower()}"
     return f'Your account is suspended until {until}{reason}.'
 
 

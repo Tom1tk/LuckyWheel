@@ -120,3 +120,13 @@ def test_a_break_starts_a_new_run(game_app, db_url):  # noqa: F811
     assert not _sql(db_url, 'SELECT 1 FROM cheat_flags f JOIN users u ON u.id = f.user_id WHERE u.username = %s', (name,))
     assert _sql(db_url, "SELECT active_since > NOW() - interval '1 minute' FROM users WHERE username = %s",
                 (name,))[0][0]
+
+
+def test_suspension_message_uses_12_hour_london_time():
+    import datetime as dt
+    import anticheat
+    import types
+    utc = dt.timezone.utc
+    user = lambda t: types.SimpleNamespace(ban_reason=None, banned_until=t)
+    assert anticheat.suspension_message(user(dt.datetime(2026, 10, 16, 20, 0, tzinfo=utc))).endswith('Fri 16 Oct, 9pm.')
+    assert anticheat.suspension_message(user(dt.datetime(2026, 11, 2, 9, 30, tzinfo=utc))).endswith('Mon 2 Nov, 9:30am.')

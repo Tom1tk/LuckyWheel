@@ -2089,7 +2089,13 @@ function SeasonInfo({ seasonName, playerFacingNumber, endsAt }) {
 }
 
 
-// RV-08: "🌊 Season 9 · Tide N — resets Fri 21:00 (countdown)"; the whole strip opens the Hall of Fame.
+// 12-hour clock for the UI, in the viewer's time: "9pm", or "9:30pm" off the hour.
+const fmt12 = d => {
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'am' : 'pm'}`;
+};
+
+// RV-08: "🌊 Season 9 · Tide N — resets Fri 9pm (countdown)"; the whole strip opens the Hall of Fame.
 function TideBanner({ season, onOpenHof }) {
   const [timeLeft, setTimeLeft] = useState('');
   useEffect(() => {
@@ -2108,7 +2114,7 @@ function TideBanner({ season, onOpenHof }) {
   }, [season.ends_at]);
 
   const resets = season.ends_at
-    ? new Date(season.ends_at).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+    ? `${new Date(season.ends_at).toLocaleDateString('en-GB', { weekday: 'short' })} ${fmt12(new Date(season.ends_at))}`
     : null;
   // Before Tide 2 the previous season is S8, which is not a tide podium.
   const podium = season.sub_number > 1
@@ -2256,7 +2262,7 @@ function describeBrowser(ua) {
 }
 
 const adminWhen = iso => iso
-  ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  ? `${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, ${fmt12(new Date(iso))}`
   : 'never';
 
 function AdminDevice({ d }) {
@@ -3894,12 +3900,12 @@ const CHIP_CAP = 6; // mirrors models.CHIP_CAP
 // YYYY-MM-DD in London, the day every daily reset runs on.
 const londonToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
 
-// Happy Hour ends 22:00 London; show that moment on the viewer's own clock.
+// Happy Hour ends 10pm London; show that moment on the viewer's own clock.
 function happyHourEndLocal() {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
     .formatToParts(new Date()).map(x => [x.type, x.value]));
   const minsLeft = 22 * 60 - (Number(p.hour) * 60 + Number(p.minute));
-  return new Date(Date.now() + minsLeft * 60000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return fmt12(new Date(Date.now() + minsLeft * 60000));
 }
 
 function FreeTokensPanel({ insuranceFreeClaimedToday, insuranceTokens, onClaim }) {

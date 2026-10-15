@@ -3336,7 +3336,14 @@ function SeasonInfo(_ref20) {
   }, timeLeft));
 }
 
-// RV-08: "🌊 Season 9 · Tide N — resets Fri 21:00 (countdown)"; the whole strip opens the Hall of Fame.
+// 12-hour clock for the UI, in the viewer's time: "9pm", or "9:30pm" off the hour.
+var fmt12 = function fmt12(d) {
+  var h = d.getHours(),
+    m = d.getMinutes();
+  return "".concat(h % 12 || 12).concat(m ? ':' + String(m).padStart(2, '0') : '').concat(h < 12 ? 'am' : 'pm');
+};
+
+// RV-08: "🌊 Season 9 · Tide N — resets Fri 9pm (countdown)"; the whole strip opens the Hall of Fame.
 function TideBanner(_ref21) {
   var season = _ref21.season,
     onOpenHof = _ref21.onOpenHof;
@@ -3363,11 +3370,9 @@ function TideBanner(_ref21) {
       return clearInterval(id);
     };
   }, [season.ends_at]);
-  var resets = season.ends_at ? new Date(season.ends_at).toLocaleString('en-GB', {
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : null;
+  var resets = season.ends_at ? "".concat(new Date(season.ends_at).toLocaleDateString('en-GB', {
+    weekday: 'short'
+  }), " ").concat(fmt12(new Date(season.ends_at))) : null;
   // Before Tide 2 the previous season is S8, which is not a tide podium.
   var podium = season.sub_number > 1 ? (season.latest_winners || []).filter(function (w) {
     return w.position <= 3 && w.wins > 0;
@@ -3575,12 +3580,10 @@ function describeBrowser(ua) {
   return "".concat(browser, " \xB7 ").concat(os);
 }
 var adminWhen = function adminWhen(iso) {
-  return iso ? new Date(iso).toLocaleString('en-GB', {
+  return iso ? "".concat(new Date(iso).toLocaleDateString('en-GB', {
     day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : 'never';
+    month: 'short'
+  }), ", ").concat(fmt12(new Date(iso))) : 'never';
 };
 function AdminDevice(_ref23) {
   var d = _ref23.d;
@@ -6762,7 +6765,7 @@ var londonToday = function londonToday() {
   });
 };
 
-// Happy Hour ends 22:00 London; show that moment on the viewer's own clock.
+// Happy Hour ends 10pm London; show that moment on the viewer's own clock.
 function happyHourEndLocal() {
   var p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
@@ -6773,10 +6776,7 @@ function happyHourEndLocal() {
     return [x.type, x.value];
   }));
   var minsLeft = 22 * 60 - (Number(p.hour) * 60 + Number(p.minute));
-  return new Date(Date.now() + minsLeft * 60000).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit'
-  });
+  return fmt12(new Date(Date.now() + minsLeft * 60000));
 }
 function FreeTokensPanel(_ref44) {
   var insuranceFreeClaimedToday = _ref44.insuranceFreeClaimedToday,
