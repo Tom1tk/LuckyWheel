@@ -3559,7 +3559,20 @@ var VIA_LABELS = {
   fingerprint: 'device fingerprint',
   network: 'network'
 };
-var ADMIN_TABS = ['approvals', 'players', 'flags', 'settings'];
+var ADMIN_TABS = ['approvals', 'players', 'flags', 'tide', 'settings'];
+// What a failed step in bin/rollover.sh means for the live game, and what to do next.
+var ROLLOVER_STEPS = {
+  'startup': "The tide-turn script couldn't start. Nothing was changed and the tide has not turned. Run it again once the cause in the log is fixed.",
+  'check tide due': "The script couldn't read the current season from the database. Nothing was changed and the tide has not turned.",
+  'clone prod to rehearsal': "Copying the live database for the practice run failed. Nothing live was changed and the tide has not turned.",
+  'rehearsal': "The practice run on a copy of the live database failed, so the real tide turn was never tried. Nothing live was changed and the tide has not turned. The copy is kept for inspection.",
+  'back up prod': "Backing up the live database failed, so the script stopped before touching it. The tide has not turned.",
+  'snapshot prod': "Recording the live database's before-state failed. Nothing live was changed and the tide has not turned. A backup was taken just before.",
+  'advance prod': "Turning the tide on the live database failed. Check the tide shown in the game: if it still shows the old tide, nothing changed. A backup was taken just before this step. The new code was not released.",
+  'verify prod': "The tide turned, but the checks run afterwards found a problem (the log says which). Players are on the new tide. The new code was not released.",
+  'release': "The tide turned and passed its checks, but releasing staging's code failed. Players are on the new tide with last tide's code: if the failure came after the code switch, the old code was restored and restarted. Master was not pushed. The log's last 'release:' line says why.",
+  'drop rehearsal': "Everything worked, including the release. Only deleting the practice copy of the database failed, which doesn't affect players."
+};
 function describeBrowser(ua) {
   if (!ua) return 'Unknown';
   var b = (ua.match(/(Edg|OPR|Firefox|SamsungBrowser|CriOS|FxiOS|Chrome)\/(\d+)/) || []).slice(1);
@@ -3651,7 +3664,8 @@ function AdminPanel(_ref29) {
       if (r.ok) {
         setData(r.data);
         setError(null);
-        onPending(r.data.pending.length);
+        onPending(r.data.pending.length + (r.data.rollover.failed ? 1 : 0));
+        if (r.data.rollover.failed) setTab('tide');
       } else setError(r.data && r.data.error || 'Could not load the admin panel.');
     });
   }, [onPending]);
@@ -3721,10 +3735,14 @@ function AdminPanel(_ref29) {
   var status = function status(p) {
     return p.is_admin ? ['Admin', 'admin'] : p.closed ? ['Closed', 'bad'] : p.banned_until ? ["Suspended until ".concat(adminWhen(p.banned_until)), 'bad'] : !p.approved ? ['Waiting', 'warn'] : ['Active', 'ok'];
   };
+  var dismissRollover = function dismissRollover() {
+    if (window.confirm("Dismiss this alert? Only do this once it's sorted. The log stays on the server.")) act('/api/admin/rollover-dismiss', {});
+  };
   var labels = data ? {
     approvals: "Approvals (".concat(data.pending.length, ")"),
     players: 'Players',
     flags: 'Flags',
+    tide: data.rollover.failed ? '⚠ Tide' : 'Tide',
     settings: 'Settings'
   } : {};
   return /*#__PURE__*/React.createElement("div", {
@@ -3868,7 +3886,49 @@ function AdminPanel(_ref29) {
     }, adminWhen(f.last_seen))), /*#__PURE__*/React.createElement("div", {
       className: "admin-sub"
     }, f.detail));
-  })), tab === 'settings' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("label", {
+  })), tab === 'tide' && function () {
+    var _data$rollover = data.rollover,
+      failed = _data$rollover.failed,
+      last = _data$rollover.last,
+      release_hold = _data$rollover.release_hold;
+    return /*#__PURE__*/React.createElement(React.Fragment, null, failed && /*#__PURE__*/React.createElement("div", {
+      className: "admin-item"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "admin-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "admin-warn"
+    }, "\u26A0 Tide turn failed at \u201C", failed.step, "\u201D"), /*#__PURE__*/React.createElement("span", {
+      className: "hof-tide-date"
+    }, adminWhen(failed.time))), /*#__PURE__*/React.createElement("div", {
+      className: "admin-sub"
+    }, ROLLOVER_STEPS[failed.step] || 'This step is not one the panel knows. Read the log below.'), /*#__PURE__*/React.createElement("div", {
+      className: "admin-note"
+    }, "Log: ", failed.log), /*#__PURE__*/React.createElement("pre", {
+      className: "admin-log"
+    }, failed.tail), /*#__PURE__*/React.createElement("div", {
+      className: "admin-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "charts-btn",
+      disabled: busy,
+      onClick: dismissRollover
+    }, "Dismiss"))), /*#__PURE__*/React.createElement("div", {
+      className: "admin-item"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "admin-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "hof-name"
+    }, "Last tide turn"), /*#__PURE__*/React.createElement("span", {
+      className: "hof-tide-date"
+    }, last ? adminWhen(last.time) : 'never')), last && /*#__PURE__*/React.createElement("div", {
+      className: "admin-sub"
+    }, last.result), last && /*#__PURE__*/React.createElement("details", null, /*#__PURE__*/React.createElement("summary", {
+      className: "admin-note"
+    }, "Show log (", last.log, ")"), /*#__PURE__*/React.createElement("pre", {
+      className: "admin-log"
+    }, last.tail))), /*#__PURE__*/React.createElement("div", {
+      className: "admin-item admin-sub"
+    }, "Next tide turn: ", adminWhen(data.next_tide), ". ", release_hold ? "Release on hold (RELEASE_HOLD is set): the tide will turn but staging's code won't ship." : "Staging's code ships automatically right after it."));
+  }(), tab === 'settings' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("label", {
     className: "admin-item admin-setting"
   }, /*#__PURE__*/React.createElement("input", {
     type: "checkbox",

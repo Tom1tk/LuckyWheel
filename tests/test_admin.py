@@ -281,3 +281,31 @@ def test_responses_carry_the_build_id(game_app):  # noqa: F811
     with open('static/app.js', 'rb') as f:
         expected = hashlib.sha256(f.read()).hexdigest()[:12]
     assert game_app.test_client().get('/api/me').headers['X-Build'] == expected
+
+
+def test_tide_tab_shows_rollover_failure_and_dismiss(game_app, db_url, tmp_path, monkeypatch):  # noqa: F811
+    import admin as admin_mod
+    logs = tmp_path / 'logs'
+    logs.mkdir()
+    log = logs / 'rollover-20261016-210000.log'
+    log.write_text('step one\nrelease: prod HEAD is not origin/master\nROLLOVER FAILED at step \'release\': x\n')
+    marker = tmp_path / 'ROLLOVER_FAILED'
+    marker.write_text(f'time=2026-10-16T21:00:40+01:00\nstep=release\nlog={log}\n')
+    monkeypatch.setattr(admin_mod, 'ROLLOVER_LOGS', logs)
+    monkeypatch.setattr(admin_mod, 'ROLLOVER_MARKER', marker)
+
+    client, name = _new_user(game_app, 'boss')
+    _make_admin(db_url, name)
+    ro = client.get('/api/admin/overview').get_json()['rollover']
+    assert ro['failed']['step'] == 'release' and 'prod HEAD is not' in ro['failed']['tail']
+    assert ro['last']['result'].startswith('ROLLOVER FAILED')
+    assert client.get('/api/state').get_json()['admin_pending'] >= 1
+
+    # A marker pointing outside the logs dir doesn't leak that file.
+    marker.write_text('step=release\nlog=/etc/passwd\n')
+    assert client.get('/api/admin/overview').get_json()['rollover']['failed']['tail'] == '(log not found)'
+
+    h = {'X-CSRFToken': _read_csrf(client)}
+    assert client.post('/api/admin/rollover-dismiss', json={}, headers=h).status_code == 200
+    assert not marker.exists()
+    assert client.get('/api/admin/overview').get_json()['rollover']['failed'] is None

@@ -2241,7 +2241,20 @@ function reportFingerprint() {
 // ── Admin panel (users.is_admin only; the API 404s for everyone else) ──
 const FLAG_LABELS = { continuous_play: 'Long session', steady_timing: 'Machine-like timing', daily_cap: 'Hit daily cast limit' };
 const VIA_LABELS = { browser: 'browser', fingerprint: 'device fingerprint', network: 'network' };
-const ADMIN_TABS = ['approvals', 'players', 'flags', 'settings'];
+const ADMIN_TABS = ['approvals', 'players', 'flags', 'tide', 'settings'];
+// What a failed step in bin/rollover.sh means for the live game, and what to do next.
+const ROLLOVER_STEPS = {
+  'startup': "The tide-turn script couldn't start. Nothing was changed and the tide has not turned. Run it again once the cause in the log is fixed.",
+  'check tide due': "The script couldn't read the current season from the database. Nothing was changed and the tide has not turned.",
+  'clone prod to rehearsal': "Copying the live database for the practice run failed. Nothing live was changed and the tide has not turned.",
+  'rehearsal': "The practice run on a copy of the live database failed, so the real tide turn was never tried. Nothing live was changed and the tide has not turned. The copy is kept for inspection.",
+  'back up prod': "Backing up the live database failed, so the script stopped before touching it. The tide has not turned.",
+  'snapshot prod': "Recording the live database's before-state failed. Nothing live was changed and the tide has not turned. A backup was taken just before.",
+  'advance prod': "Turning the tide on the live database failed. Check the tide shown in the game: if it still shows the old tide, nothing changed. A backup was taken just before this step. The new code was not released.",
+  'verify prod': "The tide turned, but the checks run afterwards found a problem (the log says which). Players are on the new tide. The new code was not released.",
+  'release': "The tide turned and passed its checks, but releasing staging's code failed. Players are on the new tide with last tide's code: if the failure came after the code switch, the old code was restored and restarted. Master was not pushed. The log's last 'release:' line says why.",
+  'drop rehearsal': "Everything worked, including the release. Only deleting the practice copy of the database failed, which doesn't affect players.",
+};
 
 function describeBrowser(ua) {
   if (!ua) return 'Unknown';
@@ -2298,7 +2311,11 @@ function AdminPanel({ open, onClose, onPending }) {
 
   const load = useCallback(() => {
     apiFetch('/api/admin/overview').then(r => {
-      if (r.ok) { setData(r.data); setError(null); onPending(r.data.pending.length); }
+      if (r.ok) {
+        setData(r.data); setError(null);
+        onPending(r.data.pending.length + (r.data.rollover.failed ? 1 : 0));
+        if (r.data.rollover.failed) setTab('tide');
+      }
       else setError((r.data && r.data.error) || 'Could not load the admin panel.');
     });
   }, [onPending]);
@@ -2322,7 +2339,11 @@ function AdminPanel({ open, onClose, onPending }) {
   };
   const status = p => p.is_admin ? ['Admin', 'admin'] : p.closed ? ['Closed', 'bad']
     : p.banned_until ? [`Suspended until ${adminWhen(p.banned_until)}`, 'bad'] : !p.approved ? ['Waiting', 'warn'] : ['Active', 'ok'];
-  const labels = data ? { approvals: `Approvals (${data.pending.length})`, players: 'Players', flags: 'Flags', settings: 'Settings' } : {};
+  const dismissRollover = () => {
+    if (window.confirm("Dismiss this alert? Only do this once it's sorted. The log stays on the server.")) act('/api/admin/rollover-dismiss', {});
+  };
+  const labels = data ? { approvals: `Approvals (${data.pending.length})`, players: 'Players', flags: 'Flags',
+    tide: data.rollover.failed ? '⚠ Tide' : 'Tide', settings: 'Settings' } : {};
 
   return (
     <div className="stats-overlay" onClick={onClose}>
@@ -2397,6 +2418,40 @@ function AdminPanel({ open, onClose, onPending }) {
                     <div className="admin-sub">{f.detail}</div>
                   </div>
                 )))}
+              {tab === 'tide' && (() => {
+                const { failed, last, release_hold } = data.rollover;
+                return (
+                  <>
+                    {failed && (
+                      <div className="admin-item">
+                        <div className="admin-head">
+                          <span className="admin-warn">⚠ Tide turn failed at “{failed.step}”</span>
+                          <span className="hof-tide-date">{adminWhen(failed.time)}</span>
+                        </div>
+                        <div className="admin-sub">{ROLLOVER_STEPS[failed.step] || 'This step is not one the panel knows. Read the log below.'}</div>
+                        <div className="admin-note">Log: {failed.log}</div>
+                        <pre className="admin-log">{failed.tail}</pre>
+                        <div className="admin-actions">
+                          <button className="charts-btn" disabled={busy} onClick={dismissRollover}>Dismiss</button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="admin-item">
+                      <div className="admin-head">
+                        <span className="hof-name">Last tide turn</span>
+                        <span className="hof-tide-date">{last ? adminWhen(last.time) : 'never'}</span>
+                      </div>
+                      {last && <div className="admin-sub">{last.result}</div>}
+                      {last && <details><summary className="admin-note">Show log ({last.log})</summary><pre className="admin-log">{last.tail}</pre></details>}
+                    </div>
+                    <div className="admin-item admin-sub">
+                      Next tide turn: {adminWhen(data.next_tide)}. {release_hold
+                        ? "Release on hold (RELEASE_HOLD is set): the tide will turn but staging's code won't ship."
+                        : "Staging's code ships automatically right after it."}
+                    </div>
+                  </>
+                );
+              })()}
               {tab === 'settings' && (
                 <>
                   <label className="admin-item admin-setting">

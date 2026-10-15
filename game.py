@@ -1003,7 +1003,7 @@ def get_state():
                 # Season 8: singularity meter
                 cur.execute('SELECT total_contributed, target, filled, filled_at, fill_count FROM singularity_meter WHERE id = 1')
                 singularity = cur.fetchone()
-            admin_pending = admin.pending_count(conn) if current_user.is_admin else 0
+            admin_pending = admin.pending_count(conn) + admin.ROLLOVER_MARKER.exists() if current_user.is_admin else 0
 
             # T238: bounties + community goal run on the same conn as the rest
             # of the route. All three helpers are read-only (or read+INSERT-
