@@ -38,6 +38,7 @@ import fish
 import fish_catalog
 import shop
 import talents
+import tide_stats
 import loadout
 from fish import get_total_fish_clicks
 
@@ -835,6 +836,7 @@ def _resolve_spin(
         'proc_streak':             proc_streak,
         'wager_streak':            wager_streak,
         'stake':                   actual_stake,
+        'stake_escrow':            stake_wins,
         'effective_stake':         effective_stake,
         'wager_last_stake':        wager_last_stake,
         'max_stake_pct':           max_stake_pct,
@@ -1548,6 +1550,19 @@ def spin():
                      json.dumps(recent_spins),
                      current_user.id),
                 )
+                # Insurance can fire on an unstaked loss (armed flag only), so it is counted here.
+                tide_stats.bump(cur, current_user.id, now_utc,
+                                manual_spins=1, surge_spent=surge_spent,
+                                insurance_used=int(events['insurance_used']))
+                if events.get('staked'):
+                    d = events['wins_delta']
+                    # Inverted-mode stakes come out of losses: counted as staked, but their wins are not.
+                    wins_stats = {} if events['active_wheel_mode'] == 'inverted' else {
+                        'staked_wins_gained': max(d, 0), 'staked_wins_lost': max(-d, 0),
+                        'stake_wins_sum': events['stake_escrow']}
+                    tide_stats.bump(cur, current_user.id, now_utc,
+                                    staked_spins=1, stake_pct_sum=events['stake'],
+                                    double_downs=int(double_down_active), **wins_stats)
             conn.commit()
 
         resp = _events_to_response(events)
@@ -1758,11 +1773,13 @@ def tick():
             dice_refunded_this_tick = False
 
             surge_left = int(gs.get('surge_spins', 0) or 0) + fish_surge
+            surge_spent_total = 0
             recent_spins = gs.get('recent_spins') or []
             for _ in range(spins_due):
                 new_spin_count += 1
                 win_mult, bonus_mult, surge_spent = _surge_mults(ctx, gs, surge_left)
                 surge_left -= surge_spent
+                surge_spent_total += surge_spent
                 new_state, events = _resolve_spin(
                     owned=owned,
                     streak=streak,
@@ -1901,6 +1918,8 @@ def tick():
                      new_last_spin,
                      current_user.id),
                 )
+                tide_stats.bump(cur, current_user.id, now_utc,
+                                auto_spins=spins_due, surge_spent=surge_spent_total)
 
             conn.commit()
 
@@ -1988,6 +2007,7 @@ def roll_dice():
                      result['new_charges'], result['new_last_recharge'],
                      current_user.id),
                 )
+                tide_stats.bump(cur, current_user.id, now_utc, dice_rolls=1)
             conn.commit()
 
         return jsonify({
@@ -3083,6 +3103,8 @@ def claim_bounty():
                    WHERE user_id = %s''',
                 (rewards['surge'], current_user.id),
             )
+            tide_stats.bump(cur, current_user.id, dt.datetime.now(timezone.utc),
+                            surge_from_bounty=rewards['surge'])
         conn.commit()
     return jsonify({'ok': True, 'rewards': rewards})
 
