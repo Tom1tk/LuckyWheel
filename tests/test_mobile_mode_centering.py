@@ -7,7 +7,7 @@
 
 Pre-T206 the flex row had no justify-content, so the buttons clustered
 on the left (gapLeft=0, gapRight=43 on a 390px viewport with
-testing7 logged in). The fix is a single CSS rule
+a user logged in). The fix is a single CSS rule
 (`justify-content: center;`) inside the @media (max-width: 768px)
 block at line ~5495.
 
@@ -23,14 +23,14 @@ import pytest
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _login_via_api(page, server_url):
-    """Log in as the pre-existing 'testing7' user via the API. Same
+def _login_via_api(page, server_url, user):
+    """Log in as the module's throwaway user via the API. Same
     pattern as test_mobile_e2e._api_post: fetch /api/me for the
     csrf_token (httponly cookie, not in document.cookie), then POST
     /api/login with X-CSRFToken header."""
     page.goto(f'{server_url}/')
     result = page.evaluate(
-        """async () => {
+        """async (user) => {
             const me = await fetch('/api/me');
             const meData = await me.json();
             const csrf = meData.csrf_token;
@@ -40,22 +40,23 @@ def _login_via_api(page, server_url):
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrf
                 },
-                body: JSON.stringify({username: 'testing7', password: 'pw1234'})
+                body: JSON.stringify(user)
             });
             return {ok: r.ok, status: r.status};
-        }"""
+        }""",
+        user,
     )
     assert result['ok'], f'login failed: {result}'
 
 
 @pytest.fixture
-def mobile_page(browser, server_url):
-    """Open a 390x844 mobile context, log in as testing7, dismiss the
+def mobile_page(browser, server_url, fresh_user):
+    """Open a 390x844 mobile context, log in as the throwaway user, dismiss the
     patch-notes overlay (so it doesn't shift layout), and wait for
     .season8-wheel-mode to render. Closes the page on teardown."""
     ctx = browser.new_context(viewport={'width': 390, 'height': 844})
     page = ctx.new_page()
-    _login_via_api(page, server_url)
+    _login_via_api(page, server_url, fresh_user)
     page.goto(f'{server_url}/')
     page.evaluate(
         """() => {
@@ -81,7 +82,7 @@ def test_mode_buttons_centered_on_mobile(mobile_page):
     justify-content, so the flex row defaulted to flex-start and the
     three mode buttons (Steady / Volatile / Long Shot) clustered on
     the left. Measured: gapLeft=0, gapRight=43 on a 390x844 viewport
-    with testing7 logged in.
+    with the throwaway user logged in.
 
     The fix is a single CSS line:
         justify-content: center;

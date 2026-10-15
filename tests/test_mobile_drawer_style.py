@@ -15,8 +15,8 @@ Expected: 4 PASS. Full suite: 432+ pass, 1 skip.
 """
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _login_via_api(page, server_url):
-    """Log in as the pre-existing 'testing7' user via the API. Faster
+def _login_via_api(page, server_url, user):
+    """Log in as the module's throwaway user via the API. Faster
     and more reliable than driving the login UI.
 
     The session cookie is httponly, so we can't read the csrf_token
@@ -26,7 +26,7 @@ def _login_via_api(page, server_url):
     """
     page.goto(f'{server_url}/')
     result = page.evaluate(
-        """async () => {
+        """async (user) => {
             const me = await fetch('/api/me');
             const meData = await me.json();
             const csrf = meData.csrf_token;
@@ -36,20 +36,21 @@ def _login_via_api(page, server_url):
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrf
                 },
-                body: JSON.stringify({username: 'testing7', password: 'pw1234'})
+                body: JSON.stringify(user)
             });
             return {ok: r.ok, status: r.status};
-        }"""
+        }""",
+        user,
     )
     assert result['ok'], f'login failed: {result}'
 
 
-def _open_mobile_page(browser, server_url, w=390, h=844):
-    """Open a fresh mobile context, log in as testing7, navigate to /,
+def _open_mobile_page(browser, server_url, user, w=390, h=844):
+    """Open a fresh mobile context, log in as the throwaway user, navigate to /,
     and dismiss the patch-notes overlay. Returns the page object."""
     ctx = browser.new_context(viewport={'width': w, 'height': h})
     page = ctx.new_page()
-    _login_via_api(page, server_url)
+    _login_via_api(page, server_url, user)
     page.goto(f'{server_url}/')
     # Mark every season's patch notes as seen so the stats-overlay
     # doesn't cover the mobile-toolbar. Reload so React picks up the
@@ -77,11 +78,11 @@ def _open_drawer(page):
 # Tests
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_s8_drawer_does_not_cover_toolbar(browser, server_url):
+def test_s8_drawer_does_not_cover_toolbar(browser, server_url, fresh_user):
     """T205: drawer bottom must be <= toolbar top. The drawer must sit
     above the mobile toolbar, not cover it. Pre-T205 the drawer's
     bottom: 0 made it stretch over the toolbar (y=788-844)."""
-    page = _open_mobile_page(browser, server_url)
+    page = _open_mobile_page(browser, server_url, fresh_user)
     try:
         _open_drawer(page)
         r = page.evaluate("""() => {
@@ -101,11 +102,11 @@ def test_s8_drawer_does_not_cover_toolbar(browser, server_url):
         page.close()
 
 
-def test_s8_drawer_z_index_matches_shop(browser, server_url):
+def test_s8_drawer_z_index_matches_shop(browser, server_url, fresh_user):
     """T205: drawer z-index <= 150 (matches the shop panel). Pre-T205
     the drawer had z-index: 10000, which made it float above every
     other UI element including the mobile toolbar."""
-    page = _open_mobile_page(browser, server_url)
+    page = _open_mobile_page(browser, server_url, fresh_user)
     try:
         _open_drawer(page)
         z = page.evaluate(
@@ -116,11 +117,11 @@ def test_s8_drawer_z_index_matches_shop(browser, server_url):
         page.close()
 
 
-def test_s8_drawer_no_close_button(browser, server_url):
+def test_s8_drawer_no_close_button(browser, server_url, fresh_user):
     """T205: the .mobile-drawer-close ✕ button is dropped. Open/close
     is via the 🎒 toolbar icon only — toggling on the same button the
     user opened it with."""
-    page = _open_mobile_page(browser, server_url)
+    page = _open_mobile_page(browser, server_url, fresh_user)
     try:
         _open_drawer(page)
         n = page.evaluate(
@@ -131,11 +132,11 @@ def test_s8_drawer_no_close_button(browser, server_url):
         page.close()
 
 
-def test_s8_drawer_no_header(browser, server_url):
+def test_s8_drawer_no_header(browser, server_url, fresh_user):
     """T205: the .mobile-drawer-header "📋 S8 Menu" title is dropped.
     The operator wants the drawer to look like a continuation of the
     page (no banner, no chrome — just the panels)."""
-    page = _open_mobile_page(browser, server_url)
+    page = _open_mobile_page(browser, server_url, fresh_user)
     try:
         _open_drawer(page)
         n = page.evaluate(
