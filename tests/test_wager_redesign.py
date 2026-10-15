@@ -285,12 +285,12 @@ def test_compute_stake_risk_clamps_to_max():
 
 
 def test_compute_max_stake_pct():
-    """T102+T104: 30% base + 5% per stake extension item owned (max 45%)."""
+    """30% base + 10% per stake extension item owned (Deep Water: 40/50%)."""
     assert wagers.compute_max_stake_pct([]) == 30
     assert wagers.compute_max_stake_pct(['wager_unlock']) == 30
-    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1']) == 35
-    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1', 'wager_stake_extend_2']) == 40
-    assert wagers.compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 45
+    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1']) == 40
+    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1', 'wager_stake_extend_2']) == 50
+    assert wagers.compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 60
 
 
 def test_validate_stake_snaps_to_step():
@@ -337,15 +337,11 @@ def test_compute_stake_value_inverted():
     )
 
 
-def test_apply_safety_net_threshold():
-    """T102 AC#12: safety net fires at 15%+ (was 5× in old system)."""
-    # Below threshold
-    assert wagers.apply_safety_net(1000, 5, True) == 0
-    assert wagers.apply_safety_net(1000, 10, True) == 0
-    # At threshold
-    assert wagers.apply_safety_net(1000, 15, True) == 250  # 25% of 1000
-    # Above threshold
-    assert wagers.apply_safety_net(1000, 25, True) == 250
+def test_apply_safety_net_refunds_half():
+    """Safety Line: any staked loss refunds half the stake."""
+    assert wagers.apply_safety_net(1000, 0, True) == 0
+    assert wagers.apply_safety_net(1000, 5, True) == 500
+    assert wagers.apply_safety_net(1000, 25, True) == 500
     # No safety_net owned
     assert wagers.apply_safety_net(1000, 30, False) == 0
 
@@ -484,32 +480,28 @@ def test_inverted_uses_losses(monkeypatch):
 
 
 def test_safety_net_at_15pct(monkeypatch):
-    """T102 AC#12: safety net at 15%+ refunds 25% of stake_value on a loss."""
+    """Safety net refunds half of stake_value on a loss."""
     monkeypatch.setattr(random, 'random', lambda: 0.95)  # force a loss
     state = _base_state(owned=['wager_unlock', 'wager_safety_net'], wins=10000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=15, active_wheel_mode='steady'),
     )
-    # stake_wins = 1500, lost. Safety net refunds 25% = 375.
-    # losses = stake_wins (escrow forfeited) + base_loss
-    # wins += 375 (safety net refund)
-    # So wins = 10000 - 1500 + 375 = 8875
-    assert new_state['wins'] == 8875, (
-        f"expected wins=8875 (10000 - 1500 + 375 safety), got {new_state['wins']}"
+    # stake_wins = 1500, lost. Safety net refunds half = 750.
+    assert new_state['wins'] == 9250, (
+        f"expected wins=9250 (10000 - 1500 + 750 safety), got {new_state['wins']}"
     )
 
 
-def test_no_safety_net_below_15pct(monkeypatch):
-    """T102 AC#12: safety net does NOT fire below 15%."""
+def test_safety_net_below_15pct(monkeypatch):
+    """Safety net has no stake threshold any more: 10% still refunds half."""
     monkeypatch.setattr(random, 'random', lambda: 0.95)
     state = _base_state(owned=['wager_unlock', 'wager_safety_net'], wins=10000)
     new_state, events = _resolve_spin(
         **state, **_base_ctx(stake_pct=10, active_wheel_mode='steady'),
     )
-    # No safety net at 10% — full stake forfeit
-    # wins = 10000 - 1000 = 9000
-    assert new_state['wins'] == 9000, (
-        f"expected wins=9000 (no safety net at 10%), got {new_state['wins']}"
+    # wins = 10000 - 1000 + 500 = 9500
+    assert new_state['wins'] == 9500, (
+        f"expected wins=9500 (safety net at 10%), got {new_state['wins']}"
     )
 
 
@@ -708,3 +700,15 @@ def test_stylesheet_has_stake_value_classes():
     assert '.stake-odds-lose' in css_src
     assert '.stake-value-inverted' in css_src
     assert '.stake-value-dd' in css_src
+
+
+def test_treasure_staked_jackpot_pays_x10(monkeypatch):
+    """Treasure on a staked spin: jackpot pays ×10 of the stake (was ×5)."""
+    monkeypatch.setattr(random, 'random', lambda: 0.10)  # win, jackpot, no echo
+    state = _base_state(owned=['wager_unlock', 'jackpot'], wins=10000)
+    new_state, events = _resolve_spin(
+        **state, **_base_ctx(stake_pct=10, jackpot_chance=1.0, active_wheel_mode='steady'),
+    )
+    assert events['jackpot_hit'] is True
+    # stake 1000 refunded + 1000 × 10 paid out (direct + banked).
+    assert new_state['wins'] - 10000 + new_state['wager_banked_wins'] == 10000

@@ -612,9 +612,9 @@ def test_mirror_mode_safety_net_refunds_25pct_of_full_escrow(monkeypatch):
     )
     assert events['result'] == 'lose'
     # Mirrored stake_wins = 2 * int(10000 * 0.25) = 5000. Safety net refunds
-    # 25% of that = 1250. Wins = 10000 - 5000 + 1250 = 6250.
-    assert new_state['wins'] == 6250, (
-        f"expected wins=6250 (10000 - 5000 + 1250), got {new_state['wins']}"
+    # half of that = 2500. Wins = 10000 - 5000 + 2500 = 7500.
+    assert new_state['wins'] == 7500, (
+        f"expected wins=7500 (10000 - 5000 + 2500), got {new_state['wins']}"
     )
 
 

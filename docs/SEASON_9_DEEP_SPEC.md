@@ -45,7 +45,7 @@ All wins-priced items leave the shop. The shop sells **cosmetics only**. Functio
 | `resilience`, `fortune_charm`, `win_echo` | 1 | 🌊 Steady Keel, Fortune Charm, Echo |
 | `wager_unlock`, `wager_stake_extend_1–2` | 3 / 1 | 🌀 Open Water, Deep Water |
 | `wager_stake_extend_3`, `wager_hot_streak` | 1 | **Retired.** Hot streak never fires under chip-limited staking (sim: identical to the digit). |
-| `jackpot` | 1 | 🌀 Treasure. **A staked jackpot pays ×5, not ×25.** |
+| `jackpot` | 1 | 🌀 Treasure. **A staked jackpot pays ×10, not ×25.** |
 | `wager_safety_net` + `wager_insurance` | 1 | 🌀 Safety Line (both) |
 | `wager_double_down` | 1 | 🌀 Double or Nothing |
 | `dice_charge_2–4`, `dice_extra` | 1 | 🌀 Loaded Dice, Third Die |
@@ -99,11 +99,11 @@ Rank `n` grants every item up to rank `n` (the full chain), so the engine helper
 |---|---|---|---|---|
 | 1 | Open Water | 1 | `wager_unlock` | "Stake up to 30% of your wins. Each staked spin costs 1 🪙" |
 | 1 | Loaded Dice | 3 | `dice_charge_2..4` | "Hold 2 / 3 / 4 dice charges" |
-| 2 | Deep Water | 2 | `wager_stake_extend_1..2` | "Stake up to 35% / 40%" (requires Open Water) |
-| 2 | Treasure | 1 | `jackpot` | "1% of wins are jackpots: ×25, or ×5 on a staked spin" |
-| 2 | Safety Line | 1 | `wager_safety_net`, `wager_insurance` | "Staked losses refund a little; arm insurance once a day" (requires Open Water) |
-| 3 | Third Die | 1 | `dice_extra` | "Roll three dice" |
-| 3 | Double or Nothing | 1 | `wager_double_down` | "Re-stake your last win in one go" (requires Open Water) |
+| 2 | Deep Water | 2 | `wager_stake_extend_1..2` | "Stake up to 40% / 50%" (requires Open Water) |
+| 2 | Treasure | 1 | `jackpot` | "3% of wins are jackpots: ×25, or ×10 on a staked spin" |
+| 2 | Safety Line | 1 | `wager_safety_net`, `wager_insurance` | "Staked losses refund half; your first insurance each day is free" (requires Open Water) |
+| 3 | Third Die | 1 | `dice_extra` | "Roll three dice — and a pair of 1s no longer curses" |
+| 3 | Double or Nothing | 1 | `wager_double_down` | "Re-stake your last win in one go — a win pays ×2.5" (requires Open Water) |
 | K | **Rogue Wave** | 1 | +2 max dice charges, dice recharge in 5 min | "Dice come back twice as fast and stack two higher — but 🎣 Surge skips diced spins" |
 
 **🎣 Angler: read the water.**
@@ -239,7 +239,7 @@ The 13 original ids are kept and are **always available**. New species have a **
 - Carry-over is **horizontal**: knowledge, collection, records.
 - Points are equal for everyone on a given day. Nothing bought, grown or caught last tide makes this tide's wheel stronger.
 - The race starts level every Friday.
-- The ×1000 staking tail is cut (staked jackpot ×5).
+- The ×1000 staking tail is cut (staked jackpot ×10, was ×5 before the 23 Oct Riptide buff).
 - Chips are limited to 3 a day plus the goal's reward, about 31 a tide.
 - Bounties pay 🌊 Surge spins (100 / 200 / 300 by position), not chips. Sim: at 52 chips a tide Riptide's median jumps from 1.9e9 to 5.6e10, and at 73 (the old 1/2/3-chip bounties) to 5.9e11. Staking compounds, so chips stay scarce.
 - The bounty pool is build-neutral (streaks and fishing only): Catch 10 fish, Reach a 10-spin win streak, Land 5 fish in a fight, Land a rare or legendary fish, Land a trophy fish (top 10% of its size range). Stake, jackpot, bank and double-down bounties were removed, since most builds could never finish them.
@@ -340,7 +340,7 @@ Net: −3 systems, +2.
 - **Spring Tide:** no ×2 on staked or diced spins.
 - **Rogue Wave:** no surge spent on diced spins.
 - **Chips:** a staked spin costs 1; 0 chips → 400; auto-spin never charges.
-- **Staked jackpot:** ×5.
+- **Staked jackpot:** ×10 from Treasure; wheel-mode and echo jackpots stay capped at ×5.
 - **Surge:**
   - additive multiplier;
   - decrements per spin, including the tick catch-up;

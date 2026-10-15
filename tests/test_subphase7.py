@@ -251,9 +251,9 @@ def test_double_down_win_doubles_previous_payout(monkeypatch):
     # T102: DD ignores the percentage slider; escrow is wager_last_win_amount=100.
     # payout = 100 (the wager, per user flow: "wins an additional 100" = 2×100 - the
     # 100 refund + 100 payout = 200 added, ending at 1100).
-    # wins = 1000 - 100 + 100 + 100 = 1100.
-    assert new_state['wins'] == 1100, (
-        f"expected wins=1100 (1000 - 100 + 100 + 100 payout), got {new_state['wins']}"
+    # Win pays ×2.5: wins = 1000 - 100 + 100 + 150 = 1150.
+    assert new_state['wins'] == 1150, (
+        f"expected wins=1150 (1000 - 100 + 100 + 150 payout), got {new_state['wins']}"
     )
 
 
@@ -324,7 +324,7 @@ def test_double_down_uses_previous_payout_not_computed_risk(monkeypatch):
     )
     assert events['result'] == 'win'
     # T102: stake_wins = 50 (DD override). payout = 50 (the wager).
-    # wins = 10000 - 50 + 50 + 50 = 10050.
-    assert new_state['wins'] == 10050, (
-        f"expected wins=10050 (10000 - 50 + 50 + 50 payout), got {new_state['wins']}"
+    # Win pays ×2.5: wins = 10000 - 50 + 50 + 75 = 10075.
+    assert new_state['wins'] == 10075, (
+        f"expected wins=10075 (10000 - 50 + 50 + 75 payout), got {new_state['wins']}"
     )

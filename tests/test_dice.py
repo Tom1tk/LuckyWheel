@@ -212,14 +212,14 @@ class TestRollDiceCore:
         assert result['dice'] == [2, 5, 6]
         assert result['pending']['die3'] == 6
 
-    def test_cursed_pair_halves_streak(self):
-        # Two 1s on 2 dice → cursed → streak // 2.
+    def test_pair_of_ones_on_three_dice_does_not_curse(self):
+        # Third Die: only three 1s curse; a pair of 1s is a plain roll.
         gs = _gs(streak=10)
         rand = _ForcedRand(1, 1, 5)
         result = roll_dice_core(gs, ['dice_extra'], self.NOW, rand_func=rand)
-        assert result['cursed'] is True
+        assert result['cursed'] is False
         assert result['cursed_triple'] is False
-        assert result['new_streak'] == 5  # 10 // 2
+        assert result['new_streak'] == 17  # plain roll: 10 + 1 + 1 + 5
 
     def test_cursed_triple_streak_third(self):
         # 3 dice, all 1s → cursed_triple → streak // 3.
@@ -236,8 +236,8 @@ class TestRollDiceCore:
         # in the original handler is a defensive guard against negative
         # inputs that can't actually occur in production.)
         gs = _gs(streak=3)
-        rand = _ForcedRand(1, 1, 5)
-        result = roll_dice_core(gs, ['dice_extra'], self.NOW, rand_func=rand)
+        rand = _ForcedRand(1, 1)
+        result = roll_dice_core(gs, [], self.NOW, rand_func=rand)
         assert result['cursed'] is True
         assert result['new_streak'] == 1
 

@@ -3946,7 +3946,7 @@ function WagerPanel({
   wagerBankedWins, wagerLastWinAmount, insuranceTokens, insuranceArmed,
   activeWheelMode, maxStakePct, autoSpinActive, payWithTokens,
   onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
-  onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone,
+  onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone, insuranceFreeToday,
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   if (autoSpinActive) return null;
@@ -3989,10 +3989,10 @@ function WagerPanel({
           <p><b>Lose:</b> the stake is gone.</p>
           <p><b>Jackpot:</b> stake × the mode's jackpot multiplier.</p>
           <p>0% is a normal, risk-free spin.</p>
-          {ownedItems.includes('wager_safety_net') && <p><b>Safety Net:</b> at 15%+ you get 25% of a lost stake back.</p>}
+          {ownedItems.includes('wager_safety_net') && <p><b>Safety Net:</b> you get half of a lost stake back.</p>}
           {ownedItems.includes('wager_hot_streak') && <p><b>Hot Streak:</b> wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in.</p>}
-          {ownedItems.includes('wager_double_down') && <p><b>Double Down:</b> bet your whole last win, all or nothing. No insurance or safety net.</p>}
-          {ownedItems.includes('wager_insurance') && <p><b>Insurance:</b> costs 1 token; if your next spin loses, you get the stake back.</p>}
+          {ownedItems.includes('wager_double_down') && <p><b>Double Down:</b> bet your whole last win, all or nothing. A win pays ×2.5. No insurance or safety net.</p>}
+          {ownedItems.includes('wager_insurance') && <p><b>Insurance:</b> costs 1 token{ownedItems.includes('wager_safety_net') ? ' (first one each day free)' : ''}; if your next spin loses, you get the stake back.</p>}
           {keystone === 'spring_tide' && <p><b>🌕 Spring Tide:</b> staked or diced spins don't get the ×2 streak bonus.</p>}
         </div>
       )}
@@ -4018,8 +4018,8 @@ function WagerPanel({
         {ownedItems.includes('wager_insurance') && insuranceArmed && (
           <button className="wager-insurance-armed wager-cancel-btn" onClick={onCancelInsurance}>🛡️ Insurance ARMED (click to cancel)</button>
         )}
-        {ownedItems.includes('wager_insurance') && !insuranceArmed && insuranceTokens >= 1 && (
-          <button className="wager-action-btn" onClick={onInsurance} title="Arm insurance — consumes 1 token (not refunded if you cancel)">Insurance</button>
+        {ownedItems.includes('wager_insurance') && !insuranceArmed && (insuranceFreeToday || insuranceTokens >= 1) && (
+          <button className="wager-action-btn" onClick={onInsurance} title={insuranceFreeToday ? 'Arm insurance — free once a day' : 'Arm insurance — consumes 1 token (not refunded if you cancel)'}>{insuranceFreeToday ? 'Insurance (free)' : 'Insurance'}</button>
         )}
       </div>
       </>)}
@@ -4873,6 +4873,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [wagerLastWinAmount, setWagerLastWinAmount] = useState(gameState.wager_last_win_amount || 0);
   const [insuranceCharges, setInsuranceCharges] = useState(gameState.insurance_charges || 0);
   const [insuranceArmed, setInsuranceArmed]   = useState(gameState.insurance_armed || false);
+  const [insuranceFreeToday, setInsuranceFreeToday] = useState(gameState.insurance_free_today || false);
   const handleChartsSaved = data => {
     const { alloc, points, max_points, bought, next_cost, spent, keystone: k, surge_mult, can_rechart } = data;
     setCharts({ alloc, points, max_points, bought, next_cost, spent, keystone: k, surge_mult, can_rechart });
@@ -5165,7 +5166,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     if (ok) {
       if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
       setInsuranceArmed(true);
-      showToast('🛡️ Insurance armed (1 token used)');
+      setInsuranceFreeToday(false);
+      showToast(data.free ? '🛡️ Insurance armed (free today)' : '🛡️ Insurance armed (1 token used)');
     } else {
       showToast(data.error || 'Insurance failed');
     }
@@ -5544,6 +5546,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 wagerBankedWins={wagerBankedWins}
                 wagerLastWinAmount={wagerLastWinAmount}
                 insuranceTokens={insuranceTokens}
+                insuranceFreeToday={insuranceFreeToday}
                 insuranceArmed={insuranceArmed}
                 activeWheelMode={activeWheelMode}
                 maxStakePct={maxStakePct}
@@ -5667,6 +5670,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   wagerBankedWins={wagerBankedWins}
                   wagerLastWinAmount={wagerLastWinAmount}
                   insuranceTokens={insuranceTokens}
+                  insuranceFreeToday={insuranceFreeToday}
                   insuranceArmed={insuranceArmed}
                   activeWheelMode={activeWheelMode}
                   maxStakePct={maxStakePct}
