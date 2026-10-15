@@ -121,6 +121,7 @@ body::before {
   /* iOS Safari: the large viewport runs under the floating toolbar, so the frame does too
      (older browsers ignore this and keep inset: 0). */
   height: 100lvh;
+  box-sizing: border-box;  /* the * rule does not reach pseudo-elements */
   border: 6px solid;
   border-image: linear-gradient(90deg, var(--p-dk), var(--p-2x), var(--p-dk), var(--p-2x)) 1;
   pointer-events: none;
