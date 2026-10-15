@@ -46,6 +46,9 @@
    All game UI elements (z-index 45+) paint above it; fire shows as a background
    glow over the transparent page areas. */
 #root { position: relative; z-index: 2; }
+/* Safari tints its status bar and the area behind its toolbar from the page's root
+   background; body is transparent on the ocean theme, so without this they show white. */
+html { background: var(--bg); }
 
 body {
   background: var(--bg);
@@ -115,6 +118,9 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
+  /* iOS Safari: the large viewport runs under the floating toolbar, so the frame does too
+     (older browsers ignore this and keep inset: 0). */
+  height: 100lvh;
   border: 6px solid;
   border-image: linear-gradient(90deg, var(--p-dk), var(--p-2x), var(--p-dk), var(--p-2x)) 1;
   pointer-events: none;
