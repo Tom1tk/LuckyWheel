@@ -2,7 +2,8 @@
 # RV-10: weekly tide rollover, run by wheel-rollover.timer (Fri 21:00 London).
 #
 # Flow: check a tide is due -> clone prod to a rehearsal DB and rehearse the
-# rollover there -> back up prod -> advance prod -> verify prod -> drop rehearsal.
+# rollover there -> back up prod -> advance prod -> verify prod -> release staging
+# (prod only, bin/release.sh) -> drop rehearsal.
 # Any failure writes $FAIL_MARKER (step and log path) and exits 1. The rehearsal DB
 # is kept on failure for inspection. "No tide due" exits 0.
 set -Eeuo pipefail
@@ -15,6 +16,7 @@ BACKUP_CMD="${BACKUP_CMD-/home/user/backup-wheeldb.sh}"
 FAIL_MARKER="${FAIL_MARKER-$APP_DIR/ROLLOVER_FAILED}"
 POST_CHECK="${POST_CHECK-python3 $APP_DIR/bin/post_rollover_check.py}"
 LOG_DIR="${LOG_DIR-$APP_DIR/logs}"
+RELEASE_CMD="${RELEASE_CMD-}"  # set on the prod unit only: ships origin/staging after the advance
 LOCK_FILE="/tmp/wheel-rollover-$PROD_DB.lock"  # per DB: staging and prod timers fire at the same minute
 STEP="startup"
 
@@ -83,6 +85,11 @@ if [[ -n "$LIVE_URL" ]]; then
 fi
 $POST_CHECK verify --db "$PROD_DB" --before "$LOG_DIR/rollover-$ts-prod-before.json" \
     ${LIVE_ARGS[@]+"${LIVE_ARGS[@]}"}
+
+if [[ -n "$RELEASE_CMD" ]]; then
+    STEP="release"
+    APP_DIR="$APP_DIR" PROD_DB="$PROD_DB" REHEARSAL_DB="$REHEARSAL_DB" BACKUP_CMD="$BACKUP_CMD" $RELEASE_CMD
+fi
 
 STEP="drop rehearsal"
 sudo -u postgres dropdb --if-exists "$REHEARSAL_DB"
