@@ -184,6 +184,21 @@ def server_url(db_url: str) -> str:
 
 
 @pytest.fixture(scope='module')
+def fresh_user(server_url: str) -> dict:
+    """Module-scoped: register a throwaway account on the test server (never a real one)."""
+    import uuid
+    import requests
+    me = requests.get(server_url + '/api/me', timeout=5)
+    # Session cookie is Secure, so requests won't resend it over http; pass it explicitly.
+    cookie = '; '.join(f'{k}={v}' for k, v in me.cookies.items())
+    user = {'username': f'e2e{uuid.uuid4().hex[:10]}', 'password': 'testpass123'}
+    r = requests.post(server_url + '/api/register', json=user, timeout=5,
+                      headers={'X-CSRFToken': me.json()['csrf_token'], 'Cookie': cookie})
+    assert r.status_code == 201, f'register failed: {r.status_code} {r.text}'
+    return user
+
+
+@pytest.fixture(scope='module')
 def playwright_instance():
     """Module-scoped: one `sync_playwright()` context shared across the
     module's tests. Opening multiple `sync_playwright()` blocks in the
