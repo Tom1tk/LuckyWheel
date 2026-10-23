@@ -157,6 +157,7 @@ def _install_stubs():
         compute_wager_loss=lambda *a, **kw: 0,
         compute_stake_risk=lambda wins, pct, *a, **kw: int(wins * pct / 100) if wins and pct else 0,
         compute_max_stake_pct=lambda *a, **kw: 30,
+        haul_after=lambda haul, *a, **kw: haul,
         compute_stake_value=lambda *a, **kw: 0,
         HIGH_STAKE_TOKEN_THRESHOLD=30,
     ))
@@ -325,6 +326,7 @@ def _stub_specs():
             compute_wager_loss=lambda *a, **kw: 0,
             compute_stake_risk=lambda wins, pct, *a, **kw: int(wins * pct / 100) if wins and pct else 0,
             compute_max_stake_pct=lambda *a, **kw: 30,
+            haul_after=lambda haul, *a, **kw: haul,
             compute_stake_value=lambda *a, **kw: 0,
             HIGH_STAKE_TOKEN_THRESHOLD=30,
         )),

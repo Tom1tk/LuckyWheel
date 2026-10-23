@@ -4022,17 +4022,18 @@ function CommunityGoalPanel({ communityGoal }) {
 function WagerPanel({
   ownedItems, stakePct, stakeValue, doubleDownPending, wagerStreak,
   wagerBankedWins, wagerLastWinAmount, insuranceTokens, insuranceArmed,
-  activeWheelMode, maxStakePct, autoSpinActive, payWithTokens,
+  activeWheelMode, maxStakePct, autoSpinActive, payWithTokens, haul,
   onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,
   onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone, insuranceFreeToday,
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
-  const tier = stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless';
+  const tier = stakePct === 0 ? 'stake-safe' : stakePct <= maxStakePct / 2 ? 'stake-bold' : 'stake-reckless';
   const ddLive = doubleDownPending && wagerLastWinAmount > 0;
+  const inverted = activeWheelMode === 'inverted';
   const steps = [];
-  for (let v = 0; v <= maxStakePct; v += 5) steps.push(v);
+  for (let v = 0; v <= maxStakePct; v += maxStakePct > 50 ? 10 : 5) steps.push(v);
   return (
     <div className={`season8-wager-panel ${tier}${infoOpen ? ' info-open' : ''}`}>
       <div className="stake-top">
@@ -4043,7 +4044,7 @@ function WagerPanel({
             <span className="stake-value-dd">⚡ {fmt(stakeValue)} all or nothing</span>
           ) : stakePct === 0 ? (
             <span className="stake-value-safe">No risk</span>
-          ) : activeWheelMode === 'inverted' ? (
+          ) : inverted ? (
             <span className="stake-value-inverted">💀 {fmt(stakeValue)} at stake</span>
           ) : (<>
             <span className="stake-odds-win">Win +{fmt(stakeValue)}</span>
@@ -4060,9 +4061,12 @@ function WagerPanel({
             disabled={ddLive} onClick={() => onStakeChange(v)}>{v}%</button>
         ))}
       </div>
+      {!inverted && <div className="stake-haul">🏆 {fmt(haul)} won today</div>}
       {infoOpen && (
         <div className="stake-explainer">
-          <p>Stake puts part of your wins on the line each spin.</p>
+          {inverted
+            ? <p>Stake puts part of your wins on the line each spin.</p>
+            : <p>Stake puts part of today's haul on the line each spin: the wins you've earned since midnight (London time). Stake losses come out of the haul; stake winnings go to your bank but not back into the haul.</p>}
           <p><b>Win:</b> you get your stake back plus the same again (plus any streak bonus), instead of the normal win.</p>
           <p><b>Lose:</b> the stake is gone.</p>
           <p><b>Jackpot:</b> stake × the mode's jackpot multiplier.</p>
@@ -4753,6 +4757,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         setWagerLastStake(data.stake);
       }
       if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
+      if (data.haul != null) setHaul(data.haul);
       // T110/T119: server echoes the post-spend token balance. Update
       // immediately so the wager panel reflects the new total. T119
       // renamed the response key from `wager_tokens` → `insurance_tokens`.
@@ -4866,6 +4871,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
           if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
           if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
+          if (data.state.haul != null) setHaul(data.state.haul);
           setDiceRolledSinceSpin(false);
         }
         setAway(a => {
@@ -4915,6 +4921,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
 
       if (data.state) {
         if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
+        if (data.state.haul != null) setHaul(data.state.haul);
         if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
         if (data.state.dice_rolled_since_spin != null) {
           setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
@@ -4985,6 +4992,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // T102: max stake percentage for this player (30 base, 35/40/45 with
   // stake extension items). Used to size the slider's max attribute.
   const [maxStakePct, setMaxStakePct]               = useState(gameState.max_stake_pct ?? 30);
+  const [haul, setHaul]                             = useState(gameState.haul ?? 0);
   // T102+T105: live display of the stake amount (wins escrowed on next
   // spin). Recomputed on stake/wins/losses change and after each spin.
   const [stakeValue, setStakeValue]                 = useState(0);
@@ -5073,6 +5081,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     // `wager_last_stake` is 0-45 in the new system (0 = safe/no-stake).
     if (gameState.wager_last_stake != null) setStakePct(gameState.wager_last_stake);
     if (gameState.max_stake_pct != null) setMaxStakePct(gameState.max_stake_pct);
+    if (gameState.haul != null) setHaul(gameState.haul);
     // T224: sync auto-fish state from server. The FishingPanel child
     // does the heavy lifting (forcing autoFish off when the upgrade
     // is missing); we just mirror the server flag here.
@@ -5109,12 +5118,12 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   // wagers.compute_stake_value on the server; the client computes its
   // own copy because the server doesn't echo stake_value in the spin
   // response (T102: response carries stake + effective_stake only).
-  const computeStakeValueForDisplay = useCallback((wins, losses, stakePctArg, ownedItemsArg, mode, ddActive, wagerLastWinAmountArg) => {
+  const computeStakeValueForDisplay = useCallback((wins, losses, stakePctArg, ownedItemsArg, mode, ddActive, wagerLastWinAmountArg, haulArg) => {
     if (ddActive && wagerLastWinAmountArg > 0) return wagerLastWinAmountArg;
     if (stakePctArg === 0) return 0;
     const ownsUnlock = ownedItemsArg.includes('wager_unlock') || mode === 'inverted';
     if (!ownsUnlock) return 0;
-    const base = mode === 'inverted' ? losses : wins;
+    const base = mode === 'inverted' ? losses : Math.min(haulArg, wins);
     return Math.floor(Math.max(0, base) * stakePctArg / 100);
   }, []);
 
@@ -5125,9 +5134,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   useEffect(() => {
     setStakeValue(computeStakeValueForDisplay(
       wins, losses, stakePct, ownedItems, activeWheelMode,
-      doubleDownPending, wagerLastWinAmount,
+      doubleDownPending, wagerLastWinAmount, haul,
     ));
-  }, [wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount, computeStakeValueForDisplay]);
+  }, [wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount, haul, computeStakeValueForDisplay]);
 
   // Season 8: handle stake change
   const handleStakeChange = useCallback(async (newStakePct) => {
@@ -5628,6 +5637,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 insuranceArmed={insuranceArmed}
                 activeWheelMode={activeWheelMode}
                 maxStakePct={maxStakePct}
+                haul={haul}
                 autoSpinActive={autoSpinActive}
                 payWithTokens={payWithTokens}
                 onStakeChange={handleStakeChange}
@@ -5752,6 +5762,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                   insuranceArmed={insuranceArmed}
                   activeWheelMode={activeWheelMode}
                   maxStakePct={maxStakePct}
+                  haul={haul}
                   autoSpinActive={autoSpinActive}
                   payWithTokens={payWithTokens}
                   onStakeChange={handleStakeChange}

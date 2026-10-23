@@ -2,6 +2,21 @@
 
 ---
 
+## Tide 9.4 — Friday 30 October
+
+The tide turns at 9pm on Friday. Staking is now about the day you're having: you stake out of today's haul instead of your whole bank, and you can stake far more of it.
+
+### 🎲 Stake Today's Haul
+
+- Your stake now comes from **today's haul**: the wins you've earned since midnight (London time). The wager panel shows it under the stake steps.
+- **🌊 Open Water** lets you stake up to **60%** of the haul. It was 30% of your bank.
+- **🌊 Deep Water** raises that to **80% / 100%**.
+- Stake losses come out of the haul. Stake winnings go to your bank but don't go back into the haul, so a good run can't snowball.
+- Spins while you're away count toward the haul too, as long as they land after midnight.
+- **Inverted** mode is unchanged: it still stakes your losses, at the old limits.
+
+---
+
 ## Tide 9.3 — Friday 23 October
 
 The tide turns at 9pm on Friday. Charts open up: points in any tree now count toward unlocking the next row of every tree, Swell's multipliers finally stack with Surge, and time away counts for a lot more. Nothing pays less than before.

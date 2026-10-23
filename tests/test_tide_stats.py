@@ -11,7 +11,8 @@ import pytest
 import tide_stats
 from tests.test_charts import _chart, _reset, _set, user  # noqa: F401
 from tests.test_spin_integration import (  # noqa: F401
-    _ROLL_LOSE, _ROLL_WIN, _post_spin, _read_csrf, _user_id_for, force_random, game_app,
+    _ROLL_LOSE, _ROLL_WIN, _post_spin, _read_csrf, _today_london, _user_id_for, force_random,
+    game_app,
 )
 
 NOW = dt.datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
@@ -119,7 +120,7 @@ def test_manual_unstaked_spin_counts_one_manual_spin(user, db_url, force_random)
 def test_staked_spin_counts_the_wins_it_moved(user, db_url, force_random, roll, won):  # noqa: F811
     client, username = user
     _chart(client, {'open_water': 1})
-    _set(db_url, username, insurance_tokens=1)
+    _set(db_url, username, insurance_tokens=1, haul=1000, haul_date=_today_london())
     with force_random(roll):
         status, body = _post_spin(client, _read_csrf(client), stake=10)
     assert status == 200

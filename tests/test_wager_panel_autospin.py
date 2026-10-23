@@ -144,7 +144,7 @@ def test_wager_panel_props_signature_unchanged():
         'function WagerPanel({\n'
         '  ownedItems, stakePct, stakeValue, doubleDownPending, wagerStreak,\n'
         '  wagerBankedWins, wagerLastWinAmount, insuranceTokens, insuranceArmed,\n'
-        '  activeWheelMode, maxStakePct, autoSpinActive, payWithTokens,\n'
+        '  activeWheelMode, maxStakePct, autoSpinActive, payWithTokens, haul,\n'
         '  onStakeChange, onBank, onDoubleDown, onCancelDoubleDown,\n'
         '  onInsurance, onCancelInsurance, onTogglePayWithTokens, keystone, insuranceFreeToday,\n'
         '})'

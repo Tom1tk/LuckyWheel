@@ -25,6 +25,7 @@ import re
 import sys
 import types
 import datetime as dt
+import pytest
 from contextlib import contextmanager
 from datetime import timezone
 
@@ -722,3 +723,33 @@ def test_app_jsx_shop_desc_dropped_100_spins_wording():
         "the `auto_spin_unlock` shop desc still says `100 spins per "
         "activation` — the per-activation budget was dropped in T216."
     )
+
+
+def test_catch_up_haul_counts_only_spins_after_london_midnight():
+    """Tide 9.4: offline spins add to today's haul only once their spin
+    time is past London midnight; yesterday's spins don't count. tick()
+    reads the real clock, so the gap is anchored to real London midnight."""
+    import talents
+    now = dt.datetime.now(timezone.utc)
+    midnight = dt.datetime.combine(talents.london_date(now), dt.time(),
+                                   tzinfo=talents._LONDON).astimezone(timezone.utc)
+    interval = _game.AUTO_SPIN_INTERVAL_SECONDS
+    # Up to 10 min before midnight, keeping the gap inside one tick's 24 h.
+    room = dt.timedelta(seconds=_game.MAX_SPINS_PER_TICK * interval) - (now - midnight)
+    pre = min(dt.timedelta(minutes=10), room - dt.timedelta(minutes=1))
+    if pre < dt.timedelta(minutes=1):
+        pytest.skip('too close to London midnight')
+    pre -= dt.timedelta(seconds=pre.total_seconds() % interval)
+    gs = _base_gs(
+        auto_spin_since=midnight - pre - dt.timedelta(seconds=60),
+        last_spin_at=midnight - pre,
+        haul=999, haul_date=talents.london_date(now) - dt.timedelta(days=1),
+    )
+    conn = _install_fakes(gs, _make_events(), now=now)
+    _game._resolve_spin = _win_per_spin(50)
+
+    first = _drain_ticks(gs, conn)[0]
+
+    # Spin i lands at cursor + (i+1)*interval; those before midnight don't count.
+    before = int(pre.total_seconds() // interval) - 1
+    assert first['state']['haul'] == (_spins_in(first) - before) * 50, first['state']

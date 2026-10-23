@@ -17,7 +17,7 @@ from models import (DICE_RECHARGE_SECONDS, ROGUE_WAVE_RECHARGE_SECONDS,
                     dice_max_charges, dice_recharge_seconds)
 from tests.test_spin_integration import (  # noqa: F401
     _ROLL_JACKPOT, _ROLL_LOSE, _ROLL_WIN, _post_spin, _read_csrf, _register,
-    force_random, game_app,
+    _today_london, force_random, game_app,
 )
 
 LONDON_FRI_2100 = dt.datetime(2026, 10, 9, 20, 0, tzinfo=timezone.utc)  # 21:00 BST
@@ -221,7 +221,7 @@ def test_chart_grants_gear_and_keeps_cosmetics(user, db_url):
     owned = set(_get(db_url, username)['owned_items'])
     assert owned == {'auto_spin_unlock', 'trail_2', 'bonusmult_1', 'bonusmult_2', 'wager_unlock'}
     assert set(body['owned_items']) == owned
-    assert body['spent'] == 3 and body['max_stake_pct'] == 30
+    assert body['spent'] == 3 and body['max_stake_pct'] == 60
 
 
 def test_adding_is_free_refund_once_a_day(user, db_url):
@@ -275,7 +275,7 @@ def test_staked_spin_without_chips_is_refused(user, db_url):
 def test_staked_spin_costs_one_chip_unstaked_costs_none(user, db_url, force_random):  # noqa: F811
     client, username = user
     _chart(client, {'open_water': 1})
-    _set(db_url, username, insurance_tokens=3)
+    _set(db_url, username, insurance_tokens=3, haul=1000, haul_date=_today_london())
     with force_random(_ROLL_WIN):
         status, body = _post_spin(client, _read_csrf(client), stake=10)
     assert status == 200 and body['insurance_tokens'] == 2 and body['tokens_spent'] == 1
@@ -375,7 +375,7 @@ def test_tick_spends_surge_per_auto_spin(user, db_url):
 def test_staked_jackpot_pays_five_times_the_stake(user, db_url, force_random):  # noqa: F811
     client, username = user
     _chart(client, {'open_water': 1})
-    _set(db_url, username, insurance_tokens=1)
+    _set(db_url, username, insurance_tokens=1, haul=1000, haul_date=_today_london())
     with force_random(_ROLL_JACKPOT):
         status, body = _post_spin(client, _read_csrf(client), stake=10)
     assert status == 200 and body['result'] == 'jackpot', body

@@ -22,7 +22,7 @@ from seasons import ensure_current_season, get_season_info, get_latest_winners, 
 from security import require_json
 from wagers import (validate_stake, compute_hot_streak_bonus, should_reset_streak,
                     apply_safety_net, compute_wager_payout, compute_wager_loss,
-                    compute_stake_risk, compute_max_stake_pct,
+                    compute_stake_risk, compute_max_stake_pct, haul_after,
                     HIGH_STAKE_TOKEN_THRESHOLD)
 from wheel_modes import WHEEL_MODES, get_available_modes, get_week_number, compute_gravity_probabilities, clamp_gravity_drift
 from prestige import (get_prestige_bonus, get_prestige_threshold, MAX_PRESTIGE_LEVEL)
@@ -77,7 +77,8 @@ _GAME_STATE_SQL = '''
            wager_last_win_amount, wager_banked_losses,
            insurance_free_claimed_date, insurance_unlock_grant_given,
            insurance_free_arm_date, gravity_drift,
-           talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins
+           talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins,
+           haul, haul_date
     FROM game_state WHERE user_id = %s
 '''
 
@@ -188,6 +189,11 @@ def _build_spin_context(gs: dict) -> dict:
     }
 
 
+def _haul_today(gs: dict, now: dt.datetime) -> int:
+    """Wins earned since London midnight that a normal stake can draw on."""
+    return int(gs.get('haul') or 0) if gs.get('haul_date') == talents.london_date(now) else 0
+
+
 def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: bool):
     """S9 Surge: one banked Surge spin adds (M-1) to both multipliers.
 
@@ -284,6 +290,8 @@ def _resolve_spin(
     # parameter follows the new name.
     insurance_tokens: int = 0,
     pay_with_tokens: bool = False,
+    # Tide 9.4: normal stakes come out of today's haul; None stakes the whole bank.
+    stake_base: int | None = None,
 ) -> tuple[dict, dict]:
     """Resolve one spin. Returns (new_state, events). Does not mutate inputs.
 
@@ -382,7 +390,7 @@ def _resolve_spin(
     # wager_unlock for stake validation + escrow purposes.
     owns_wager_unlock_eff = True if is_inverted else owns_wager_unlock
     # T102: max stake is 30% base + 5% per stake extension item owned (max 45%).
-    max_stake_pct = compute_max_stake_pct(owned)
+    max_stake_pct = compute_max_stake_pct(owned, inverted=is_inverted)
     actual_stake = validate_stake(stake_pct, owns_wager_unlock_eff, max_stake_pct)
     owns_hot_streak = 'wager_hot_streak' in owned
     if should_reset_streak(actual_stake, wager_last_stake):
@@ -434,12 +442,13 @@ def _resolve_spin(
         # v2 (T45): escrow stake before outcome — real wins are now at risk.
         # Only for players who own wager_unlock; without it, stake is locked to 0
         # (above) and there must be zero escrow/risk, matching base game behavior.
-        stake_wins = compute_stake_risk(wins, actual_stake, max_stake_pct) if owns_wager_unlock else 0
+        base = wins if stake_base is None else min(stake_base, wins)
+        stake_wins = compute_stake_risk(base, actual_stake, max_stake_pct) if owns_wager_unlock else 0
         # T78: mirror mode doubles the escrow (2× stake_wins debited; full refund
         # on a win, full forfeit on a double-loss). Insurance, when armed, still
         # returns the full doubled escrow and caps the loss at the player's stake.
         if active_wheel_mode == 'mirror' and owns_wager_unlock:
-            stake_wins = stake_wins * 2
+            stake_wins = min(stake_wins * 2, wins)
         # T73: double-down escrows the *previous* payout (wager_last_win_amount),
         # not the standard stake_pct / 100 risk. If the player has no prior win to
         # risk, double-down is a no-op (per AC#7) — stake_wins stays at the
@@ -1005,7 +1014,8 @@ def get_state():
                               cosmetic_fragments, guard_charges,
                               gravity_drift,
                               auto_fish_enabled, auto_fish_last_tick,
-                              talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins
+                              talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins,
+           haul, haul_date
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -1153,7 +1163,8 @@ def get_state():
             'cosmetic_fragments':   gs.get('cosmetic_fragments', 0),
             # T102: max stake percentage for this player (30 base, 35/40/45
             # with stake extension items). Frontend uses this to size the slider.
-            'max_stake_pct':        compute_max_stake_pct(owned_items),
+            'max_stake_pct':        compute_max_stake_pct(owned_items, gs.get('active_wheel_mode') == 'inverted'),
+            'haul':                 _haul_today(gs, now_utc),
             'bounties':             bounties,
             'community_goal': {
                 'goal_id':     goal_def['goal_id'],
@@ -1346,7 +1357,8 @@ def spin():
             pay_with_tokens = False
             owns_stake = 'wager_unlock' in gs['owned_items'] or gs.get('active_wheel_mode') == 'inverted'
             wants_stake = owns_stake and (double_down_active or validate_stake(
-                req_stake, owns_stake, compute_max_stake_pct(list(gs['owned_items']))) > 0)
+                req_stake, owns_stake, compute_max_stake_pct(
+                    list(gs['owned_items']), gs.get('active_wheel_mode') == 'inverted')) > 0)
             if wants_stake and int(gs.get('insurance_tokens', 0) or 0) < 1:
                 return jsonify({'error': "Out of 🪙 chips — claim today's 3"}), 400
             pd = gs.get('pending_dice')
@@ -1405,7 +1417,9 @@ def spin():
                 # T110: insurance-token spend (column renamed to insurance_tokens in T119)
                 insurance_tokens=int(gs.get('insurance_tokens', 0)),
                 pay_with_tokens=pay_with_tokens,
+                stake_base=_haul_today(gs, now_utc),
             )
+            new_haul = haul_after(_haul_today(gs, now_utc), int(events['wins_delta']), events.get('staked'))
             chips_after = int(events.get('insurance_tokens', 0)) - (1 if events.get('staked') else 0)
             surge_after = int(gs.get('surge_spins', 0) or 0) - surge_spent
 
@@ -1537,6 +1551,7 @@ def spin():
                           insurance_tokens = %s,
                           surge_spins = %s,
                           recent_spins = %s,
+                          haul = %s, haul_date = %s,
                           onboarding_step = CASE WHEN onboarding_step = 0 THEN 1 ELSE onboarding_step END
                        WHERE user_id = %s''',
                      (new_state['wins'], new_state['losses'],
@@ -1557,6 +1572,7 @@ def spin():
                      new_state.get('gravity_drift', 0),
                      chips_after, surge_after,
                      json.dumps(recent_spins),
+                     new_haul, talents.london_date(now_utc),
                      current_user.id),
                 )
                 # Insurance can fire on an unstaked loss (armed flag only), so it is counted here.
@@ -1599,8 +1615,8 @@ def spin():
         resp['effective_stake'] = events.get('effective_stake', 0.0)
         resp['wager_last_stake'] = new_state.get('wager_last_stake', 0)
         # T102: max_stake_pct for this player (30-45 with stake extension items).
-        resp['max_stake_pct'] = events.get('max_stake_pct',
-                                            compute_max_stake_pct(list(gs['owned_items'])))
+        resp['max_stake_pct'] = events['max_stake_pct']
+        resp['haul'] = new_haul
         resp['onboarding_advance'] = onboarding_advance
         resp['double_down_active'] = double_down_active
         # T119: surface insurance state on spin response. Column renamed
@@ -1783,8 +1799,11 @@ def tick():
             surge_left = int(gs.get('surge_spins', 0) or 0) + fish_surge
             surge_spent_total = 0
             jackpots_this_tick = 0
+            # Only spins after London midnight add to today's haul.
+            haul = _haul_today(gs, now_utc)
+            midnight = dt.datetime.combine(talents.london_date(now_utc), dt.time(), tzinfo=talents._LONDON)
             recent_spins = gs.get('recent_spins') or []
-            for _ in range(spins_due):
+            for i in range(spins_due):
                 new_spin_count += 1
                 win_mult, bonus_mult, surge_spent = _surge_mults(
                     ctx, gs, surge_left, staked=False, diced=bool(pd))
@@ -1863,6 +1882,8 @@ def tick():
                 jackpots_this_tick += 1 if events['jackpot_hit'] else 0
                 # T106: cumulative_wins — track lifetime value of wins gained.
                 new_cumulative_wins += max(0, int(events.get('wins_delta', 0)))
+                if cursor + timedelta(seconds=(i + 1) * AUTO_SPIN_INTERVAL_SECONDS) >= midnight:
+                    haul = haul_after(haul, int(events['wins_delta']), False)
                 recent_spins = _push_recent_spin(recent_spins, events)
 
                 # T221: jackpot chat messages are gone entirely (see /api/spin).
@@ -1920,6 +1941,7 @@ def tick():
                            wager_banked_losses = %s,
                            surge_spins = %s,
                            recent_spins = %s,
+                           haul = %s, haul_date = %s,
                        dice_rolled_since_spin = FALSE, pending_dice = NULL,
                        last_spin_at = %s
                       WHERE user_id = %s''',
@@ -1935,6 +1957,7 @@ def tick():
                      current_wager_banked_losses,
                      surge_left,
                      json.dumps(recent_spins),
+                     haul, talents.london_date(now_utc),
                      new_last_spin,
                      current_user.id),
                 )
@@ -1964,6 +1987,7 @@ def tick():
             # T106: cumulative_wins after all processed spins (catch-up summary).
             'cumulative_wins':       new_cumulative_wins,
             'surge_spins':           surge_left,
+            'haul':                  haul,
         }
 
         if is_catch_up:
@@ -2107,7 +2131,8 @@ def charts_set():
     now = dt.datetime.now(timezone.utc)
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('''SELECT owned_items, talent_alloc, talent_rechart_date, chart_points_bought
+            cur.execute('''SELECT owned_items, talent_alloc, talent_rechart_date, chart_points_bought,
+                                  active_wheel_mode
                            FROM game_state WHERE user_id = %s FOR UPDATE''', (current_user.id,))
             gs = cur.fetchone()
             problem = talents.validate(alloc, talents.points_total(now, gs['chart_points_bought']))
@@ -2135,7 +2160,8 @@ def charts_set():
         conn.commit()
     log.info('CHARTS_SET  user_id=%s  alloc=%s', current_user.id, alloc)
     payload = _charts_payload({**gs, 'talent_alloc': alloc, 'talent_rechart_date': rechart_date}, now)
-    return jsonify({**payload, 'owned_items': owned, 'max_stake_pct': compute_max_stake_pct(owned)})
+    return jsonify({**payload, 'owned_items': owned,
+                    'max_stake_pct': compute_max_stake_pct(owned, gs['active_wheel_mode'] == 'inverted')})
 
 
 @game_bp.route('/api/charts/level-up', methods=['POST'])
@@ -2858,7 +2884,8 @@ def wager_set_stake():
             gs = _load_game_state(cur, current_user.id, for_update=True)
             owns_unlock = 'wager_unlock' in gs['owned_items']
             # T102: clamp to player's max stake (30 base, up to 45 with items).
-            max_pct = compute_max_stake_pct(list(gs.get('owned_items', [])))
+            max_pct = compute_max_stake_pct(list(gs.get('owned_items', [])),
+                                            gs.get('active_wheel_mode') == 'inverted')
             actual_stake = validate_stake(stake, owns_unlock, max_pct)
             cur.execute('UPDATE game_state SET wager_last_stake = %s WHERE user_id = %s',
                         (actual_stake, current_user.id))
@@ -3274,7 +3301,8 @@ def set_wheel_mode():
             # itself if the player has bought stake extension items since
             # the last state load.
             response['max_stake_pct'] = compute_max_stake_pct(
-                list(row['owned_items']) if row and row.get('owned_items') else []
+                list(row['owned_items']) if row and row.get('owned_items') else [],
+                inverted=mode == 'inverted',
             )
             if mode != current_mode:
                 # T76: mode change resets state that doesn't carry across modes.

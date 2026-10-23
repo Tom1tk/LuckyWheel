@@ -146,6 +146,7 @@ def _install_game_load_stubs():
         compute_stake_risk=lambda *a, **kw: 0,
         compute_stake_value=lambda *a, **kw: 0,
         compute_max_stake_pct=lambda *a, **kw: 30,
+        haul_after=lambda haul, *a, **kw: haul,
         compute_hot_streak_bonus=lambda *a, **kw: 0.0,
         should_reset_streak=lambda *a, **kw: False,
         apply_safety_net=lambda *a, **kw: 0,
@@ -285,12 +286,19 @@ def test_compute_stake_risk_clamps_to_max():
 
 
 def test_compute_max_stake_pct():
-    """30% base + 10% per stake extension item owned (Deep Water: 40/50%)."""
-    assert wagers.compute_max_stake_pct([]) == 30
-    assert wagers.compute_max_stake_pct(['wager_unlock']) == 30
-    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1']) == 40
-    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1', 'wager_stake_extend_2']) == 50
-    assert wagers.compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 60
+    """Normal stakes (of today's haul): 60% base + 20% per stake extension item, capped at 100.
+    Inverted stakes (of the losses bank) keep 30% base + 10% per item (30/40/50/60).
+    """
+    assert wagers.compute_max_stake_pct([]) == 60
+    assert wagers.compute_max_stake_pct(['wager_unlock']) == 60
+    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1']) == 80
+    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1', 'wager_stake_extend_2']) == 100
+    assert wagers.compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 100
+    assert wagers.compute_max_stake_pct([], inverted=True) == 30
+    assert wagers.compute_max_stake_pct(['wager_unlock'], inverted=True) == 30
+    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1'], inverted=True) == 40
+    assert wagers.compute_max_stake_pct(['wager_unlock', 'wager_stake_extend_1', 'wager_stake_extend_2'], inverted=True) == 50
+    assert wagers.compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3'], inverted=True) == 60
 
 
 def test_validate_stake_snaps_to_step():
@@ -643,12 +651,12 @@ def test_state_handler_returns_max_stake_pct():
 
 
 def test_frontend_slider_uses_new_pct_system():
-    """T102: stake steps run from 0 to maxStakePct in 5% increments."""
+    """T102: stake steps run from 0 to maxStakePct, in 10% steps above a 50% max (Tide 9.4)."""
     jsx_src = open(os.path.join(
         os.path.dirname(os.path.dirname(__file__)), 'static', 'app.jsx',
     )).read()
-    assert 'for (let v = 0; v <= maxStakePct; v += 5)' in jsx_src, (
-        "stake steps must cover 0% to the player's max in 5% steps")
+    assert 'for (let v = 0; v <= maxStakePct; v += maxStakePct > 50 ? 10 : 5)' in jsx_src, (
+        "stake steps must cover 0% to the player's max")
 
 
 def test_frontend_stake_value_display():

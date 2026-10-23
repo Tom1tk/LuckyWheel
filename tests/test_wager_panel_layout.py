@@ -210,7 +210,7 @@ def test_stake_step_click_selects(logged_in_page):
     page.locator('.stake-step', has_text='10%').first.click()
     page.wait_for_timeout(300)
     assert page.locator('.stake-step.active').inner_text() == '10%'
-    assert page.locator('.stake-step.filled').count() == 3
+    assert page.locator('.stake-step.filled').count() == 2  # 0% and 10%: steps go up by 10 above a 50% max
     assert page.locator('.stake-step[aria-checked="true"]').count() == 1
     assert 'Lose' in page.locator('.wager-stake-value').inner_text()
     page.locator('.stake-step', has_text='0%').first.click()

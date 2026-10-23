@@ -5530,3 +5530,11 @@ body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,18
 .admin-chip--bad { color: #ff6b6b; border-color: rgba(255,107,107,0.6); }
 .admin-setting { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .admin-setting input { margin-top: 3px; accent-color: var(--p); }
+
+/* Tide 9.4: today's haul, the base a normal stake draws on. */
+.stake-haul {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+  margin-top: 4px;
+}

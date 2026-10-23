@@ -16,6 +16,9 @@ MIN_STAKE_PCT = 0
 BASE_MAX_STAKE_PCT = 30
 STAKE_PCT_STEP = 5
 DEEP_WATER_PCT_PER_RANK = 10
+# Tide 9.4: normal stakes come out of today's haul, a smaller base, so the caps go up.
+HAUL_MAX_STAKE_PCT = 60
+HAUL_PCT_PER_RANK = 20
 STAKE_EXTENSION_ITEMS = ('wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3')
 
 # T110: wager tokens are spent on "high-stake" spins (above 5x in the
@@ -25,18 +28,23 @@ STAKE_EXTENSION_ITEMS = ('wager_stake_extend_1', 'wager_stake_extend_2', 'wager_
 HIGH_STAKE_TOKEN_THRESHOLD = 30
 
 
-def compute_max_stake_pct(owned_items):
-    """30% base + 10% per stake extension item owned (Deep Water).
+def compute_max_stake_pct(owned_items, inverted=False):
+    """Max stake % per stake extension item owned (Deep Water).
 
-    Args:
-        owned_items: list/iterable of item ids the player owns.
-
-    Returns:
-        int — the max stake percentage this player can set (30, 40, 50 or 60).
+    Normal stakes (of today's haul): 60 / 80 / 100, never above 100.
+    Inverted stakes (of the whole losses bank) keep 30 / 40 / 50 / 60.
     """
     owned = set(owned_items) if owned_items else set()
     extend_count = sum(1 for item in STAKE_EXTENSION_ITEMS if item in owned)
-    return BASE_MAX_STAKE_PCT + (extend_count * DEEP_WATER_PCT_PER_RANK)
+    if inverted:
+        return BASE_MAX_STAKE_PCT + (extend_count * DEEP_WATER_PCT_PER_RANK)
+    return min(100, HAUL_MAX_STAKE_PCT + extend_count * HAUL_PCT_PER_RANK)
+
+
+def haul_after(haul, wins_delta, staked):
+    """Today's haul after a spin. Unstaked spins add what they won; staked
+    spins only take away what they lost, so stake wins never compound."""
+    return max(0, haul + (min(0, wins_delta) if staked else max(0, wins_delta)))
 
 
 def compute_stake_risk(current_amount, stake_pct, max_stake_pct=None):
@@ -172,10 +180,18 @@ if __name__ == '__main__':
     assert compute_stake_risk(1000, 50, max_stake_pct=45) == 450
     assert compute_stake_risk(1000, 30, max_stake_pct=30) == 300
     # compute_max_stake_pct
-    assert compute_max_stake_pct([]) == 30
-    assert compute_max_stake_pct(['wager_stake_extend_1']) == 40
-    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2']) == 50
-    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 60
+    assert compute_max_stake_pct([], inverted=True) == 30
+    assert compute_max_stake_pct(['wager_stake_extend_1'], inverted=True) == 40
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2'], inverted=True) == 50
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3'], inverted=True) == 60
+    assert compute_max_stake_pct([]) == 60
+    assert compute_max_stake_pct(['wager_stake_extend_1']) == 80
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2']) == 100
+    assert compute_max_stake_pct(['wager_stake_extend_1', 'wager_stake_extend_2', 'wager_stake_extend_3']) == 100
+    assert haul_after(100, 50, staked=False) == 150
+    assert haul_after(100, -30, staked=False) == 100
+    assert haul_after(100, 500, staked=True) == 100
+    assert haul_after(100, -300, staked=True) == 0
     # validate_stake
     assert validate_stake(10, True, 30) == 10
     assert validate_stake(13, True, 30) == 15  # snap to 5% step

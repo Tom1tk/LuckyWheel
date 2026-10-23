@@ -25,6 +25,7 @@ Two consecutive spins per path (per ticket) so the test sees the
 update land in the row, then sees a second update land in the same
 row (covers the UPDATE's full state-assignment statement).
 """
+import datetime as dt
 import importlib
 import os
 import sys
@@ -33,6 +34,8 @@ from contextlib import contextmanager
 from typing import Any
 
 import pytest
+
+import talents
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -189,6 +192,11 @@ def _set_owned(db_url, username, items):
         conn.close()
 
 
+def _today_london():
+    """Today's London date: the day a `haul` counts against (game._haul_today)."""
+    return talents.london_date(dt.datetime.now(dt.timezone.utc))
+
+
 def _set_columns(db_url, username, **fields):
     """UPDATE the named columns on the user's game_state row.
 
@@ -203,6 +211,7 @@ def _set_columns(db_url, username, **fields):
         'insurance_armed', 'insurance_charges', 'insurance_tokens',
         'onboarding_step', 'active_wheel_mode', 'gravity_drift',
         'active_tab_id', 'tab_last_seen', 'proc_streak', 'cumulative_wins',
+        'haul', 'haul_date',
     }
     sets = []
     params = []
@@ -473,7 +482,7 @@ def test_wager_stake_escrow_on_loss(game_app, db_url, force_random, shared_user)
     _set_owned(db_url, username, ['wager_unlock'])
     _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
-        db_url, username, wins=1000, losses=0, streak=0, spin_count=0,
+        db_url, username, wins=1000, haul=1000, haul_date=_today_london(), losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0, wager_banked_wins=0,
     )
 
@@ -515,7 +524,7 @@ def test_wager_stake_refund_on_win(game_app, db_url, force_random, shared_user):
     _set_owned(db_url, username, ['wager_unlock'])
     _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
-        db_url, username, wins=1000, losses=0, streak=0, spin_count=0,
+        db_url, username, wins=1000, haul=1000, haul_date=_today_london(), losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0, wager_banked_wins=0,
     )
 
@@ -582,7 +591,7 @@ def test_insurance_armed_fires_on_loss(game_app, db_url, force_random, shared_us
     _set_owned(db_url, username, ['wager_unlock', 'wager_insurance'])
     _set_columns(
         db_url, username,
-        wins=1000, losses=0, streak=0, spin_count=0,
+        wins=1000, haul=1000, haul_date=_today_london(), losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0,
         insurance_armed=True, insurance_tokens=2, insurance_charges=0,
     )
@@ -638,7 +647,7 @@ def test_insurance_armed_does_not_fire_on_win(game_app, db_url, force_random, sh
     _set_owned(db_url, username, ['wager_unlock', 'wager_insurance'])
     _set_columns(
         db_url, username,
-        wins=1000, losses=0, streak=0, spin_count=0,
+        wins=1000, haul=1000, haul_date=_today_london(), losses=0, streak=0, spin_count=0,
         wager_last_stake=5, wager_streak=0,
         insurance_armed=True, insurance_tokens=1,
     )
@@ -689,7 +698,7 @@ def test_double_down_uses_last_win_amount(game_app, db_url, force_random, shared
     _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username,
-        wins=1000, losses=0, streak=0, spin_count=0,
+        wins=1000, haul=1000, haul_date=_today_london(), losses=0, streak=0, spin_count=0,
         wager_last_stake=10, wager_streak=0,
         wager_last_win_amount=0, double_down_pending=False,
     )
@@ -758,7 +767,7 @@ def test_hot_streak_banks_wager_banked_wins(game_app, db_url, force_random, shar
     _set_columns(db_url, username, insurance_tokens=10)  # S9: each staked spin costs 1 🪙 chip
     _set_columns(
         db_url, username,
-        wins=10000, losses=0, streak=0, spin_count=0,
+        wins=10000, haul=10000, haul_date=_today_london(), losses=0, streak=0, spin_count=0,
         wager_last_stake=10, wager_streak=0, wager_banked_wins=0,
     )
 

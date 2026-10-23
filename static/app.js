@@ -6925,6 +6925,7 @@ function WagerPanel(_ref47) {
     maxStakePct = _ref47.maxStakePct,
     autoSpinActive = _ref47.autoSpinActive,
     payWithTokens = _ref47.payWithTokens,
+    haul = _ref47.haul,
     onStakeChange = _ref47.onStakeChange,
     onBank = _ref47.onBank,
     onDoubleDown = _ref47.onDoubleDown,
@@ -6940,10 +6941,11 @@ function WagerPanel(_ref47) {
     setInfoOpen = _useState124[1];
   if (autoSpinActive) return null;
   if (!ownedItems.includes('wager_unlock')) return null;
-  var tier = stakePct === 0 ? 'stake-safe' : stakePct <= 20 ? 'stake-bold' : 'stake-reckless';
+  var tier = stakePct === 0 ? 'stake-safe' : stakePct <= maxStakePct / 2 ? 'stake-bold' : 'stake-reckless';
   var ddLive = doubleDownPending && wagerLastWinAmount > 0;
+  var inverted = activeWheelMode === 'inverted';
   var steps = [];
-  for (var v = 0; v <= maxStakePct; v += 5) steps.push(v);
+  for (var v = 0; v <= maxStakePct; v += maxStakePct > 50 ? 10 : 5) steps.push(v);
   return /*#__PURE__*/React.createElement("div", {
     className: "season8-wager-panel ".concat(tier).concat(infoOpen ? ' info-open' : '')
   }, /*#__PURE__*/React.createElement("div", {
@@ -6958,7 +6960,7 @@ function WagerPanel(_ref47) {
     className: "stake-value-dd"
   }, "\u26A1 ", fmt(stakeValue), " all or nothing") : stakePct === 0 ? /*#__PURE__*/React.createElement("span", {
     className: "stake-value-safe"
-  }, "No risk") : activeWheelMode === 'inverted' ? /*#__PURE__*/React.createElement("span", {
+  }, "No risk") : inverted ? /*#__PURE__*/React.createElement("span", {
     className: "stake-value-inverted"
   }, "\uD83D\uDC80 ", fmt(stakeValue), " at stake") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: "stake-odds-win"
@@ -6990,9 +6992,11 @@ function WagerPanel(_ref47) {
         return onStakeChange(v);
       }
     }, v, "%");
-  })), infoOpen && /*#__PURE__*/React.createElement("div", {
+  })), !inverted && /*#__PURE__*/React.createElement("div", {
+    className: "stake-haul"
+  }, "\uD83C\uDFC6 ", fmt(haul), " won today"), infoOpen && /*#__PURE__*/React.createElement("div", {
     className: "stake-explainer"
-  }, /*#__PURE__*/React.createElement("p", null, "Stake puts part of your wins on the line each spin."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Win:"), " you get your stake back plus the same again (plus any streak bonus), instead of the normal win."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Lose:"), " the stake is gone."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Jackpot:"), " stake \xD7 the mode's jackpot multiplier."), /*#__PURE__*/React.createElement("p", null, "0% is a normal, risk-free spin."), ownedItems.includes('wager_safety_net') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Safety Net:"), " you get half of a lost stake back."), ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Hot Streak:"), " wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in."), ownedItems.includes('wager_double_down') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Double Down:"), " bet your whole last win, all or nothing. A win pays \xD72.5. No insurance or safety net."), ownedItems.includes('wager_insurance') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Insurance:"), " costs 1 token", ownedItems.includes('wager_safety_net') ? ' (first one each day free)' : '', "; if your next spin loses, you get the stake back."), keystone === 'spring_tide' && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "\uD83C\uDF15 Spring Tide:"), " staked or diced spins don't get the \xD72 streak bonus.")), keystone === 'spring_tide' && stakePct > 0 && /*#__PURE__*/React.createElement("div", {
+  }, inverted ? /*#__PURE__*/React.createElement("p", null, "Stake puts part of your wins on the line each spin.") : /*#__PURE__*/React.createElement("p", null, "Stake puts part of today's haul on the line each spin: the wins you've earned since midnight (London time). Stake losses come out of the haul; stake winnings go to your bank but not back into the haul."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Win:"), " you get your stake back plus the same again (plus any streak bonus), instead of the normal win."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Lose:"), " the stake is gone."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Jackpot:"), " stake \xD7 the mode's jackpot multiplier."), /*#__PURE__*/React.createElement("p", null, "0% is a normal, risk-free spin."), ownedItems.includes('wager_safety_net') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Safety Net:"), " you get half of a lost stake back."), ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Hot Streak:"), " wins in a row at the same stake add +5% each (max +50%) to a bank you can cash in."), ownedItems.includes('wager_double_down') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Double Down:"), " bet your whole last win, all or nothing. A win pays \xD72.5. No insurance or safety net."), ownedItems.includes('wager_insurance') && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "Insurance:"), " costs 1 token", ownedItems.includes('wager_safety_net') ? ' (first one each day free)' : '', "; if your next spin loses, you get the stake back."), keystone === 'spring_tide' && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("b", null, "\uD83C\uDF15 Spring Tide:"), " staked or diced spins don't get the \xD72 streak bonus.")), keystone === 'spring_tide' && stakePct > 0 && /*#__PURE__*/React.createElement("div", {
     className: "stake-keystone-note"
   }, "\uD83C\uDF15 No Spring Tide \xD72 while staked"), !autoSpinActive && /*#__PURE__*/React.createElement(React.Fragment, null, wagerStreak > 0 && ownedItems.includes('wager_hot_streak') && /*#__PURE__*/React.createElement("div", {
     className: "wager-hotstreak"
@@ -7031,7 +7035,7 @@ function WagerPanel(_ref47) {
 
 // ── Game App ───────────────────────────────────────────────────────────────
 function GameApp(_ref48) {
-  var _gameState$dice_charg, _gameState$dice_rolle, _gameState$wager_last, _gameState$wager_last2, _gameState$wager_last3, _gameState$max_stake_;
+  var _gameState$dice_charg, _gameState$dice_rolle, _gameState$wager_last, _gameState$wager_last2, _gameState$wager_last3, _gameState$max_stake_, _gameState$haul;
   var username = _ref48.username,
     gameState = _ref48.gameState,
     onLogout = _ref48.onLogout,
@@ -8146,6 +8150,7 @@ function GameApp(_ref48) {
             setWagerLastStake(data.stake);
           }
           if (data.max_stake_pct != null) setMaxStakePct(data.max_stake_pct);
+          if (data.haul != null) setHaul(data.haul);
           // T110/T119: server echoes the post-spend token balance. Update
           // immediately so the wager panel reflects the new total. T119
           // renamed the response key from `wager_tokens` → `insurance_tokens`.
@@ -8335,6 +8340,7 @@ function GameApp(_ref48) {
             if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
             if (data.state.proc_streak != null) setProcStreak(data.state.proc_streak);
             if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
+            if (data.state.haul != null) setHaul(data.state.haul);
             setDiceRolledSinceSpin(false);
           }
           setAway(function (a) {
@@ -8398,6 +8404,7 @@ function GameApp(_ref48) {
           }, Math.round(WHEEL_SPIN_SPEED * 1000) + 100);
           if (data.state) {
             if (data.state.surge_spins != null) setSurgeSpins(data.state.surge_spins);
+            if (data.state.haul != null) setHaul(data.state.haul);
             if (data.state.dice_charges != null) setDiceCharges(data.state.dice_charges);
             if (data.state.dice_rolled_since_spin != null) {
               setDiceRolledSinceSpin(data.state.dice_rolled_since_spin);
@@ -8573,37 +8580,41 @@ function GameApp(_ref48) {
     _useState300 = _slicedToArray(_useState299, 2),
     maxStakePct = _useState300[0],
     setMaxStakePct = _useState300[1];
+  var _useState301 = useState((_gameState$haul = gameState.haul) !== null && _gameState$haul !== void 0 ? _gameState$haul : 0),
+    _useState302 = _slicedToArray(_useState301, 2),
+    haul = _useState302[0],
+    setHaul = _useState302[1];
   // T102+T105: live display of the stake amount (wins escrowed on next
   // spin). Recomputed on stake/wins/losses change and after each spin.
-  var _useState301 = useState(0),
-    _useState302 = _slicedToArray(_useState301, 2),
-    stakeValue = _useState302[0],
-    setStakeValue = _useState302[1];
+  var _useState303 = useState(0),
+    _useState304 = _slicedToArray(_useState303, 2),
+    stakeValue = _useState304[0],
+    setStakeValue = _useState304[1];
   // T107: auto-spin as upgrade. `autoSpinActive` mirrors server state — when
   // true, the stake slider is hidden (auto-spin always uses 0% stake).
   // T216: the per-activation 100-spin budget was removed; auto-spin is
   // simply on/off. The server tracks `auto_spin_since`.
-  var _useState303 = useState(gameState.auto_spin_active || false),
-    _useState304 = _slicedToArray(_useState303, 2),
-    autoSpinActive = _useState304[0],
-    setAutoSpinActive = _useState304[1];
+  var _useState305 = useState(gameState.auto_spin_active || false),
+    _useState306 = _slicedToArray(_useState305, 2),
+    autoSpinActive = _useState306[0],
+    setAutoSpinActive = _useState306[1];
   // T119: free-tokens daily claim — "insurance_free_claimed_date" (a London
   // date) on the server gates the once-a-day claim. We surface it as a string
   // (ISO date) and a derived boolean for the "claimed today" UI state.
-  var _useState305 = useState(gameState.insurance_free_claimed_date || null),
-    _useState306 = _slicedToArray(_useState305, 2),
-    insuranceFreeClaimedDate = _useState306[0],
-    setInsuranceFreeClaimedDate = _useState306[1];
+  var _useState307 = useState(gameState.insurance_free_claimed_date || null),
+    _useState308 = _slicedToArray(_useState307, 2),
+    insuranceFreeClaimedDate = _useState308[0],
+    setInsuranceFreeClaimedDate = _useState308[1];
   var todayStr = londonToday();
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
   // wager-stale pattern as stakeRef).
-  var _useState307 = useState(false),
-    _useState308 = _slicedToArray(_useState307, 2),
-    payWithTokens = _useState308[0],
-    setPayWithTokens = _useState308[1];
+  var _useState309 = useState(false),
+    _useState310 = _slicedToArray(_useState309, 2),
+    payWithTokens = _useState310[0],
+    setPayWithTokens = _useState310[1];
   var payWithTokensRef = useRef(false);
 
   // T107: poll /api/tick every 3s while auto-spin is active. The tick
@@ -8686,6 +8697,7 @@ function GameApp(_ref48) {
     // `wager_last_stake` is 0-45 in the new system (0 = safe/no-stake).
     if (gameState.wager_last_stake != null) setStakePct(gameState.wager_last_stake);
     if (gameState.max_stake_pct != null) setMaxStakePct(gameState.max_stake_pct);
+    if (gameState.haul != null) setHaul(gameState.haul);
     // T224: sync auto-fish state from server. The FishingPanel child
     // does the heavy lifting (forcing autoFish off when the upgrade
     // is missing); we just mirror the server flag here.
@@ -8748,12 +8760,12 @@ function GameApp(_ref48) {
   // wagers.compute_stake_value on the server; the client computes its
   // own copy because the server doesn't echo stake_value in the spin
   // response (T102: response carries stake + effective_stake only).
-  var computeStakeValueForDisplay = useCallback(function (wins, losses, stakePctArg, ownedItemsArg, mode, ddActive, wagerLastWinAmountArg) {
+  var computeStakeValueForDisplay = useCallback(function (wins, losses, stakePctArg, ownedItemsArg, mode, ddActive, wagerLastWinAmountArg, haulArg) {
     if (ddActive && wagerLastWinAmountArg > 0) return wagerLastWinAmountArg;
     if (stakePctArg === 0) return 0;
     var ownsUnlock = ownedItemsArg.includes('wager_unlock') || mode === 'inverted';
     if (!ownsUnlock) return 0;
-    var base = mode === 'inverted' ? losses : wins;
+    var base = mode === 'inverted' ? losses : Math.min(haulArg, wins);
     return Math.floor(Math.max(0, base) * stakePctArg / 100);
   }, []);
 
@@ -8762,8 +8774,8 @@ function GameApp(_ref48) {
   // including the post-spin wins_delta update from applySpinResult. Pure
   // derived state; no need to thread it through every callback.
   useEffect(function () {
-    setStakeValue(computeStakeValueForDisplay(wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount));
-  }, [wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount, computeStakeValueForDisplay]);
+    setStakeValue(computeStakeValueForDisplay(wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount, haul));
+  }, [wins, losses, stakePct, ownedItems, activeWheelMode, doubleDownPending, wagerLastWinAmount, haul, computeStakeValueForDisplay]);
 
   // Season 8: handle stake change
   var handleStakeChange = useCallback(/*#__PURE__*/function () {
@@ -9518,6 +9530,7 @@ function GameApp(_ref48) {
     insuranceArmed: insuranceArmed,
     activeWheelMode: activeWheelMode,
     maxStakePct: maxStakePct,
+    haul: haul,
     autoSpinActive: autoSpinActive,
     payWithTokens: payWithTokens,
     onStakeChange: handleStakeChange,
@@ -9629,6 +9642,7 @@ function GameApp(_ref48) {
     insuranceArmed: insuranceArmed,
     activeWheelMode: activeWheelMode,
     maxStakePct: maxStakePct,
+    haul: haul,
     autoSpinActive: autoSpinActive,
     payWithTokens: payWithTokens,
     onStakeChange: handleStakeChange,
@@ -9818,18 +9832,18 @@ function GameApp(_ref48) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 function App() {
-  var _useState309 = useState(undefined),
-    _useState310 = _slicedToArray(_useState309, 2),
-    user = _useState310[0],
-    setUser = _useState310[1];
-  var _useState311 = useState(null),
+  var _useState311 = useState(undefined),
     _useState312 = _slicedToArray(_useState311, 2),
-    gameState = _useState312[0],
-    setGameState = _useState312[1];
-  var _useState313 = useState(''),
+    user = _useState312[0],
+    setUser = _useState312[1];
+  var _useState313 = useState(null),
     _useState314 = _slicedToArray(_useState313, 2),
-    sessionMsg = _useState314[0],
-    setSessionMsg = _useState314[1];
+    gameState = _useState314[0],
+    setGameState = _useState314[1];
+  var _useState315 = useState(''),
+    _useState316 = _slicedToArray(_useState315, 2),
+    sessionMsg = _useState316[0],
+    setSessionMsg = _useState316[1];
   useEffect(function () {
     _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
       var _yield$apiFetch2, ok, data, gs;

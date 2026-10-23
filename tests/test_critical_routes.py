@@ -259,9 +259,9 @@ def test_wager_stake_happy_path(logged_in_page):
     assert status == 200, f'expected 200, got {status} {body}'
     # Response echoes the actual (clamped) stake value.
     assert body['stake'] == 15, f"response stake={body['stake']!r}, expected 15"
-    # 30% is the base max for an owner of wager_unlock only.
-    assert body['max_stake_pct'] == 30, (
-        f"response max_stake_pct={body['max_stake_pct']!r}, expected 30"
+    # 60% is the base max for an owner of wager_unlock only.
+    assert body['max_stake_pct'] == 60, (
+        f"response max_stake_pct={body['max_stake_pct']!r}, expected 60"
     )
 
     # DB persistence.
@@ -290,7 +290,7 @@ def test_wager_stake_happy_path_zero_is_safe_position(logged_in_page):
 
 def test_wager_stake_clamps_to_player_max(logged_in_page):
     """AC#3: requesting a stake above max_stake_pct is clamped (the route
-    uses `validate_stake`). 99% with only wager_unlock (max 30) → 30."""
+    uses `validate_stake`). 99% with only wager_unlock (max 60) → 60."""
     page = logged_in_page['page']
     base = logged_in_page['base_url']
     username = logged_in_page['username']
@@ -300,13 +300,13 @@ def test_wager_stake_clamps_to_player_max(logged_in_page):
     )
     assert status == 200
     # Response echoes the clamped value.
-    assert body['stake'] == 30, (
-        f"stake=99 with max=30 should clamp to 30, got {body['stake']!r}"
+    assert body['stake'] == 60, (
+        f"stake=99 with max=60 should clamp to 60, got {body['stake']!r}"
     )
     # DB shows the clamped value.
     after = _read_game_state(logged_in_page['db_url'], username, ['wager_last_stake'])
-    assert after['wager_last_stake'] == 30, (
-        f"DB wager_last_stake should be the clamped 30, got "
+    assert after['wager_last_stake'] == 60, (
+        f"DB wager_last_stake should be the clamped 60, got "
         f"{after['wager_last_stake']!r}"
     )
 
@@ -404,9 +404,9 @@ def test_wager_stake_without_unlock_locks_to_zero(logged_in_page):
     assert body['stake'] == 0, (
         f"without wager_unlock, stake must lock to 0, got {body['stake']!r}"
     )
-    # max_stake_pct is still 30 (the base) — the route just doesn't
+    # max_stake_pct is still 60 (the base) — the route just doesn't
     # let the player USE any of it.
-    assert body['max_stake_pct'] == 30
+    assert body['max_stake_pct'] == 60
     after = _read_game_state(db_url, username, ['wager_last_stake'])
     assert after['wager_last_stake'] == 0
 
