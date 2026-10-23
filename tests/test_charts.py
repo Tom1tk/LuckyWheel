@@ -67,10 +67,10 @@ def test_full_swell_with_keystone_is_legal_at_ten():
     ({'undertow': -1}, 'Bad rank for undertow'),
     ({'undertow': True}, 'Bad rank for undertow'),
     ({'undertow': '1'}, 'Bad rank for undertow'),
-    ({'steady_keel': 1}, 'Steady Keel needs 2 points in 🌊 Swell'),
+    ({'steady_keel': 1}, 'Steady Keel needs 2 points in earlier rows'),
     # Row 2 talents can't unlock each other.
-    ({'steady_keel': 1, 'echo': 1, 'fortune_charm': 1}, 'Steady Keel needs 2 points in 🌊 Swell'),
-    ({'undertow': 3, 'breakwater': 1}, 'Breakwater needs 4 points in 🌊 Swell'),
+    ({'steady_keel': 1, 'echo': 1, 'fortune_charm': 1}, 'Steady Keel needs 2 points in earlier rows'),
+    ({'undertow': 3, 'breakwater': 1}, 'Breakwater needs 4 points in earlier rows'),
     ({'undertow': 3, 'rising_tide': 2, 'spring_tide': 1}, 'Spring Tide needs 6 points in 🌊 Swell'),
     ({'loaded_dice': 2, 'deep_water': 1}, 'Deep Water needs Open Water first'),
     ({'undertow': 3, 'rising_tide': 2, 'steady_keel': 1, 'spring_tide': 1,
@@ -78,6 +78,14 @@ def test_full_swell_with_keystone_is_legal_at_ten():
 ])
 def test_validate_rejects(alloc, error):
     assert talents.validate(alloc, 10) == error
+
+
+def test_row_gates_count_every_tree():
+    # Tide 9.3: two Riptide points open Swell's row 2; keystones still need their own tree.
+    assert talents.validate({'open_water': 1, 'loaded_dice': 1, 'steady_keel': 1}, 10) is None
+    assert talents.validate({'rich_waters': 3, 'better_bait': 1, 'treasure': 1, 'breakwater': 1}, 10) is None
+    assert talents.validate({'rich_waters': 3, 'better_bait': 2, 'deckhand': 1, 'spring_tide': 1}, 10) \
+        == 'Spring Tide needs 6 points in 🌊 Swell'
 
 
 def test_only_one_keystone():
@@ -451,3 +459,18 @@ def test_level_up_refused_at_max_level(user, db_url, monkeypatch):
     status, _ = _level_up(client)
     assert status == 409
     assert _get(db_url, username)['chart_points_bought'] == 1
+
+
+def test_surge_mults_undertow_and_spring_tide_never_pay_less():
+    import game
+    ctx = {'effective_win_mult': 1, 'bonus_mult': 8}
+    # Undertow 3 with Rich Waters 3 (Surge ×100): max(8 + 99, 100 × 2) = 200.
+    gs = {'talent_alloc': {'undertow': 3, 'rich_waters': 3}}
+    assert game._surge_mults(ctx, gs, 1, staked=False, diced=False) == (100, 200, 1)
+    # Base Surge ×5: the old additive 8 + 4 = 12 beats 5 × 2.
+    gs = {'talent_alloc': {'undertow': 3}}
+    assert game._surge_mults(ctx, gs, 1, staked=False, diced=False) == (5, 12, 1)
+    # Spring Tide doubles after Surge; no Surge left keeps the plain ×2.
+    gs = {'talent_alloc': {'undertow': 3, 'spring_tide': 1}}
+    assert game._surge_mults(ctx, gs, 1, staked=False, diced=False) == (5, 24, 1)
+    assert game._surge_mults(ctx, gs, 0, staked=False, diced=False) == (1, 16, 0)

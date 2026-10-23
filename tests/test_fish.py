@@ -20,6 +20,7 @@ from datetime import timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import fish
+import pytest
 from fish import (
     lure_level,
     autofisher_level,
@@ -519,6 +520,10 @@ class TestLandLine:
 
 class TestAutoFishTick:
     NOW = dt.datetime(2026, 6, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    @pytest.fixture(autouse=True)
+    def _no_bookkeeping(self, monkeypatch):
+        monkeypatch.setattr(fish, "_post_catch_bookkeeping", lambda *a, **k: None)
 
     def _row(self, **kw):
         row = {

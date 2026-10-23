@@ -2,6 +2,33 @@
 
 ---
 
+## Tide 9.3 — Friday 23 October
+
+The tide turns at 9pm on Friday. Charts open up: points in any tree now count toward unlocking the next row of every tree, Swell's multipliers finally stack with Surge, and time away counts for a lot more. Nothing pays less than before.
+
+### 🧭 Charts: Mix Your Trees
+
+- **Row gates count every tree.** Any 2 points in row 1, in any tree, open row 2 of every tree, and 4 points in rows 1 and 2 open row 3. Two points in Riptide now unlock **⚓ Steady Keel**.
+- Keystones still need **6 points in their own tree**.
+
+### 🌊 Swell Works With Surge
+
+- **🫧 Undertow**: on a Surge spin, your streak bonus is now at least Surge's bonus **×1.25 / ×1.5 / ×2**. Spins without Surge keep ×2 / ×4 / ×8.
+- **🌕 Spring Tide**: its ×2 now applies after Surge, so it doubles your whole streak bonus.
+- **📈 Rising Tide**: keeps its win multiplier and adds **+1 / +2 chips** to your daily free claim (you can still hold 6 at most).
+
+### 🌙 Time Away
+
+- Auto-spin and auto-fishing now catch up to **72 hours** while you're away. It was 24.
+- Your **first visit of a tide** catches up all the way back to the turn. Join late in the week and you still get the whole week.
+
+### 🎯 Goals and Bounties
+
+- **Auto-fished catches** now count toward fish community goals and the "Catch 10 fish" bounty.
+- **Jackpots from auto-spin and time away** now count toward the jackpot community goal.
+
+---
+
 ## Tide 9.2 — Friday 16 October
 
 The tide turns at 9pm on Friday with a balance pass: Riptide gets stronger, keystones stop switching other talents off, and the rotating wheel modes pay out like real options. Halloween arrives at the same moment. 🎃

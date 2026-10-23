@@ -367,13 +367,13 @@ LOCKOUT_RULES = [
 # Season 7: server-side auto-spinning
 AUTO_SPIN_INTERVAL_SECONDS = 3.0   # 1 spin every 3 seconds
 CATCH_UP_THRESHOLD         = 10    # above this many pending spins, use summary mode
-AUTO_SPIN_OFFLINE_CAP_S    = 24 * 3600  # S9 RV-03: credit at most 24 h of time away
-# S9 RV-03: one catch-up tick clears the full offline cap (~0.6 s measured)
-MAX_SPINS_PER_TICK         = int(AUTO_SPIN_OFFLINE_CAP_S / AUTO_SPIN_INTERVAL_SECONDS)
+AUTO_SPIN_OFFLINE_CAP_S    = 72 * 3600  # Tide 9.3: credit up to 72 h away (first visit of a tide: back to the turn)
+# One catch-up tick clears 24 h (~0.6 s measured); longer absences drain over a few ticks
+MAX_SPINS_PER_TICK         = int(24 * 3600 / AUTO_SPIN_INTERVAL_SECONDS)
 
 # Auto-fish AFK catch-up
 AUTO_FISH_INTERVAL_SECONDS = 6.0   # 1 auto-fish tick every 6 seconds
-MAX_FISH_CATCHUP_TICKS     = 14_400  # cap at 24 hours (86400s / 6s)
+MAX_FISH_CATCHUP_TICKS     = 100_800  # a full 7-day tide (604800s / 6s), see offline_floor
 FISH_CATCHUP_THRESHOLD     = 2     # min missed ticks before catch-up fires
 
 # Happy Hour: 9pm–10pm London time, BST or GMT

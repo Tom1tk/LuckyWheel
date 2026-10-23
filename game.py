@@ -16,7 +16,6 @@ from models import (REGEN_SHIELD_RECHARGE_WINS,
                     CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, dice_max_charges, dice_recharge_seconds,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
-                    AUTO_SPIN_OFFLINE_CAP_S,
                     HAPPY_HOUR_START_LONDON, HAPPY_HOUR_END_LONDON, CHIP_CAP,
                     RETIRED_S9_ITEMS)
 from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
@@ -192,16 +191,20 @@ def _build_spin_context(gs: dict) -> dict:
 def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: bool):
     """S9 Surge: one banked Surge spin adds (M-1) to both multipliers.
 
-    Returns (win_mult, bonus_mult, spent). Spring Tide doubles the streak bonus
-    on plain spins; Rogue Wave doesn't spend Surge on diced spins.
+    Returns (win_mult, bonus_mult, spent). Tide 9.3: on a Surge spin Undertow pays
+    whichever is larger, the additive bonus or M × UNDERTOW_SURGE_MULT, and Spring
+    Tide doubles after Surge, so neither pays less than before. Spring Tide skips
+    staked/diced spins; Rogue Wave doesn't spend Surge on diced spins.
     """
     alloc = gs.get('talent_alloc')
     ks = talents.keystone(alloc)
-    bonus_mult = ctx['bonus_mult'] * (2 if ks == 'spring_tide' and not (staked or diced) else 1)
+    spring = 2 if ks == 'spring_tide' and not (staked or diced) else 1
     if surge_left <= 0 or (ks == 'rogue_wave' and diced):
-        return ctx['effective_win_mult'], bonus_mult, 0
-    extra = talents.surge_mult(alloc) - 1
-    return ctx['effective_win_mult'] + extra, bonus_mult + extra, 1
+        return ctx['effective_win_mult'], ctx['bonus_mult'] * spring, 0
+    m = talents.surge_mult(alloc)
+    undertow = talents.UNDERTOW_SURGE_MULT[talents.rank(alloc, 'undertow')]
+    bonus_mult = max(ctx['bonus_mult'] + m - 1, m * undertow) * spring
+    return ctx['effective_win_mult'] + m - 1, bonus_mult, 1
 
 
 def _charts_payload(gs: dict, now: dt.datetime) -> dict:
@@ -1706,10 +1709,9 @@ def tick():
 
             last_spin = gs['last_spin_at'] or auto_spin_since
             last_spin = _aware(last_spin)
-            # Never count time before the wheel started this session, or more
-            # than AUTO_SPIN_OFFLINE_CAP_S before now (S9 RV-03 offline cap).
-            cursor = max(auto_spin_since, last_spin,
-                         now_utc - timedelta(seconds=AUTO_SPIN_OFFLINE_CAP_S))
+            # Never count time before the wheel started this session, or before
+            # the offline floor (72 h, or the tide turn on a first visit).
+            cursor = max(auto_spin_since, last_spin, talents.offline_floor(now_utc, last_spin))
 
             elapsed = (now_utc - cursor).total_seconds()
             # T216: only the MAX_SPINS_PER_TICK catch-up cap remains; the
@@ -1780,6 +1782,7 @@ def tick():
 
             surge_left = int(gs.get('surge_spins', 0) or 0) + fish_surge
             surge_spent_total = 0
+            jackpots_this_tick = 0
             recent_spins = gs.get('recent_spins') or []
             for _ in range(spins_due):
                 new_spin_count += 1
@@ -1857,6 +1860,7 @@ def tick():
 
                 new_win_count  += 1 if events['result'] == 'win'  else 0
                 new_loss_count += 1 if events['result'] == 'lose' else 0
+                jackpots_this_tick += 1 if events['jackpot_hit'] else 0
                 # T106: cumulative_wins — track lifetime value of wins gained.
                 new_cumulative_wins += max(0, int(events.get('wins_delta', 0)))
                 recent_spins = _push_recent_spin(recent_spins, events)
@@ -1888,6 +1892,15 @@ def tick():
                     resp['dice_refunded'] = dice_refunded_this_tick
                     resp['recent_spins'] = recent_spins
                     spin_results.append(resp)
+
+            # Auto and catch-up jackpots count toward the jackpot goal like manual ones.
+            if jackpots_this_tick:
+                season_info = get_season_info(conn)
+                season_num = season_info.get('season_number', 8) if season_info else 8
+                _, goal_def = get_active_goal(conn, season_num, get_week_number(now_utc))
+                if goal_def and goal_def['metric'] == 'jackpots_landed':
+                    increment_goal(conn, goal_def['goal_id'], current_user.id, jackpots_this_tick)
+                    check_goal_completion(conn, goal_def['goal_id'])
 
             # Advance last_spin_at cursor
             new_last_spin = cursor + timedelta(seconds=spins_due * AUTO_SPIN_INTERVAL_SECONDS)
@@ -3011,7 +3024,6 @@ def insurance_claim_free():
     err = require_json()
     if err:
         return err
-    FREE_PER_DAY = 3
     today = talents.london_date(dt.datetime.now(timezone.utc))
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -3022,7 +3034,9 @@ def insurance_claim_free():
             # At the cap the day's claim isn't used up: spend a chip, then claim.
             if current_tokens >= CHIP_CAP:
                 return jsonify({'error': f'Chips full ({CHIP_CAP} max)'}), 409
-            new_tokens = min(current_tokens + FREE_PER_DAY, CHIP_CAP)
+            # Rising Tide (Tide 9.3): +1 free chip a day per rank.
+            free_per_day = 3 + talents.rank(gs.get('talent_alloc'), 'rising_tide')
+            new_tokens = min(current_tokens + free_per_day, CHIP_CAP)
             cur.execute(
                 '''UPDATE game_state
                    SET insurance_tokens = %s,

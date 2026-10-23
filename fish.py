@@ -470,7 +470,7 @@ def land_line(cur, conn, user_id: int, now_utc: dt.datetime,
     # Bounty / community-goal / onboarding bookkeeping.  These are
     # all called on the open conn — they share this catch's
     # transaction, so any failure rolls the whole catch back.
-    _post_catch_bookkeeping(conn, user_id, now_utc, first_catch)
+    _post_catch_bookkeeping(conn, user_id, now_utc, int(first_catch))
     bounty_date = talents.london_date(now_utc)
     increment_bounty(conn, user_id, "bounty_hand5", bounty_date)
     if species["rarity"] in ("rare", "legendary"):
@@ -508,8 +508,10 @@ def afk_catch_up(cur, user_id: int, gs: dict, now_utc: dt.datetime) -> dict | No
     """
     if not gs.get("auto_fish_enabled") or gs["auto_fish_last_tick"] is None:
         return None
-    fish_elapsed = (now_utc - _aware(gs["auto_fish_last_tick"])).total_seconds()
-    pending_fish = min(int(fish_elapsed / AUTO_FISH_INTERVAL_SECONDS), MAX_FISH_CATCHUP_TICKS)
+    last_tick = _aware(gs["auto_fish_last_tick"])
+    fish_elapsed = (now_utc - last_tick).total_seconds()
+    credited = (now_utc - max(last_tick, talents.offline_floor(now_utc, last_tick))).total_seconds()
+    pending_fish = min(int(credited / AUTO_FISH_INTERVAL_SECONDS), MAX_FISH_CATCHUP_TICKS)
     autofisher_lvl = autofisher_level(list(gs["owned_items"]))
     if pending_fish < FISH_CATCHUP_THRESHOLD or autofisher_lvl < 1:
         return None
@@ -549,6 +551,8 @@ def afk_catch_up(cur, user_id: int, gs: dict, now_utc: dt.datetime) -> dict | No
          psycopg2.extras.Json(records), user_id),
     )
     tide_stats.bump(cur, user_id, now_utc, surge_from_catch_up=surge_earned)
+    _post_catch_bookkeeping(cur.connection, user_id, now_utc, len(first_catches),
+                            caught=catch_count, onboarding=False)
     return {
         "fish_count": catch_count,
         "total_value": total_value,
@@ -642,6 +646,7 @@ def auto_fish_tick(
          psycopg2.extras.Json(catch["records"]), user_id),
     )
     tide_stats.bump(cur, user_id, now_utc, surge_from_auto_fish=catch["surge"])
+    _post_catch_bookkeeping(conn, user_id, now_utc, int(first_catch), onboarding=False)
 
     return {
         "result": "hit",
@@ -702,7 +707,8 @@ def _is_happy_hour(now_utc: dt.datetime) -> bool:
 
 
 def _post_catch_bookkeeping(
-    conn, user_id: int, now_utc: dt.datetime, first_catch: bool
+    conn, user_id: int, now_utc: dt.datetime, new_species: int,
+    caught: int = 1, onboarding: bool = True,
 ) -> None:
     """Side effects that must follow every successful catch:
 
@@ -714,10 +720,13 @@ def _post_catch_bookkeeping(
         and grant ``fish_tropical`` (the starter skin)
 
     These are run on the same open transaction as the catch so any
-    failure rolls everything back.
+    failure rolls everything back. Auto-fish and catch-up pass their
+    counts too: every bounty must be completable by any Chart build.
     """
+    if caught < 1:
+        return
     bounty_date = talents.london_date(now_utc)
-    increment_bounty(conn, user_id, "bounty_fish10", bounty_date)
+    increment_bounty(conn, user_id, "bounty_fish10", bounty_date, caught)
 
     season_info = get_season_info(conn)
     season_num = season_info.get("season_number", 8) if season_info else 8
@@ -725,12 +734,14 @@ def _post_catch_bookkeeping(
     _, goal_def = get_active_goal(conn, season_num, week_num)
     if goal_def:
         if goal_def["metric"] == "fish_caught":
-            increment_goal(conn, goal_def["goal_id"], user_id, 1)
+            increment_goal(conn, goal_def["goal_id"], user_id, caught)
             check_goal_completion(conn, goal_def["goal_id"])
-        elif goal_def["metric"] == "unique_species" and first_catch:
-            increment_goal(conn, goal_def["goal_id"], user_id, 1)
+        elif goal_def["metric"] == "unique_species" and new_species:
+            increment_goal(conn, goal_def["goal_id"], user_id, new_species)
             check_goal_completion(conn, goal_def["goal_id"])
 
+    if not onboarding:
+        return
     # Onboarding: advance step 2→3 on first successful catch
     with conn.cursor() as cur:
         cur.execute(

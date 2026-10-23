@@ -6116,13 +6116,14 @@ function chartProblem(alloc, points, def) {
           v: "Needs ".concat(def.keystone_gate, " points in ").concat(treeName, " \xB7 one keystone only")
         };
       } else {
+        // Tide 9.3: row gates count earlier rows of every tree.
         var below = def.talents.filter(function (o) {
-          return o.tree === t.tree && o.row !== 'K' && o.row < t.row;
+          return o.row !== 'K' && o.row < t.row;
         }).reduce(function (a, o) {
           return a + (alloc[o.id] || 0);
         }, 0);
         if (below < def.row_gate[t.row]) return {
-          v: "Needs ".concat(def.row_gate[t.row], " points in ").concat(treeName)
+          v: "Needs ".concat(def.row_gate[t.row], " points in earlier rows")
         };
       }
       if (t.requires && (alloc[t.requires] || 0) < byId[t.requires].max_rank) return {

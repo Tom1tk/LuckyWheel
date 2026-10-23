@@ -565,8 +565,9 @@ def test_two_hour_gap_catches_up_with_summary():
     )
 
 
-def test_thirty_hour_gap_capped_at_24_hours():
-    """S9 RV-03: a 30 h gap credits at most the 24 h offline cap."""
+def test_thirty_hour_gap_credited_in_full():
+    """Tide 9.3: the offline cap is 72 h, so a 30 h gap is credited in full,
+    drained 24 h per tick."""
     now = dt.datetime.now(timezone.utc)
     gap = dt.timedelta(hours=30)
     gs = _base_gs(
@@ -578,17 +579,11 @@ def test_thirty_hour_gap_capped_at_24_hours():
 
     payloads = _drain_ticks(gs, conn)
 
-    cap_s = 24 * 3600  # the spec value, pinned here rather than read from game.py
-    cap_spins = int(cap_s // _game.AUTO_SPIN_INTERVAL_SECONDS)
     first = payloads[0]
-    assert first.get('catch_up') is True, (
-        f"a 30 h gap must return a catch-up summary, got: {first}"
-    )
-    assert first['spins_processed'] == cap_spins, first
-    assert first['elapsed_seconds'] <= cap_s + 5, (
-        f"elapsed must be capped at 24 h, got: {first['elapsed_seconds']}"
-    )
-    assert sum(_spins_in(p) for p in payloads) == cap_spins
+    assert first.get('catch_up') is True, first
+    assert first['spins_processed'] == _game.MAX_SPINS_PER_TICK, first
+    gap_spins = int(gap.total_seconds() // _game.AUTO_SPIN_INTERVAL_SECONDS)
+    assert abs(sum(_spins_in(p) for p in payloads) - gap_spins) <= 1
 
 
 def test_fresh_session_keeps_running():

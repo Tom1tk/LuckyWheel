@@ -8,7 +8,7 @@ keystones) are read from the Chart directly via ``rank()`` / ``keystone()``.
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from models import ITEM_CURRENCY
+from models import AUTO_SPIN_OFFLINE_CAP_S, ITEM_CURRENCY
 
 _LONDON = ZoneInfo('Europe/London')
 
@@ -17,10 +17,12 @@ START_POINTS = 1           # day 0 of a tide; +1 free each tide day
 MAX_POINTS = 14            # one full tree plus a splash, of 32 ranks
 LEVEL_COST_BASE = 1_000    # wins for the first bought point
 LEVEL_COST_GROWTH = 8      # each bought point costs ×8 the last
-ROW_GATE = {1: 0, 2: 2, 3: 4}   # points already in the tree to unlock a row
+ROW_GATE = {1: 0, 2: 2, 3: 4}   # points in earlier rows of ANY tree to unlock a row (Tide 9.3)
 KEYSTONE_GATE = 6
 SURGE_MULT_BY_RICH_WATERS = {0: 5, 1: 25, 2: 50, 3: 100}
 SURGE_BAIT_BONUS_PER_RANK = 0.25
+# Tide 9.3: on a Surge spin Undertow pays at least Surge's bonus × this.
+UNDERTOW_SURGE_MULT = {0: 1, 1: 1.25, 2: 1.5, 3: 2}
 
 TREES = {
     'swell':   {'name': '🌊 Swell',   'motto': 'ride the streak'},
@@ -33,9 +35,10 @@ TREES = {
 TALENTS = {
     # 🌊 Swell
     'undertow':      {'tree': 'swell', 'row': 1, 'name': 'Undertow', 'grants': [['bonusmult_1'], ['bonusmult_2'], ['bonusmult_3']],
-                      'desc': ['Streak bonuses ×2', 'Streak bonuses ×4', 'Streak bonuses ×8']},
+                      'desc': ['Streak bonuses ×2, or ×1.25 on top of 🎣 Surge', 'Streak bonuses ×4, or ×1.5 on top of 🎣 Surge',
+                               'Streak bonuses ×8, or ×2 on top of 🎣 Surge']},
     'rising_tide':   {'tree': 'swell', 'row': 1, 'name': 'Rising Tide', 'grants': [['winmult_1'], ['winmult_2']],
-                      'desc': ['Every win pays ×2', 'Every win pays ×4']},
+                      'desc': ['Every win pays ×2, and +1 free 🪙 a day', 'Every win pays ×4, and +2 free 🪙 a day']},
     'steady_keel':   {'tree': 'swell', 'row': 2, 'name': 'Steady Keel', 'grants': [['resilience']],
                       'desc': ['Sometimes a loss only knocks your streak back one']},
     'fortune_charm': {'tree': 'swell', 'row': 2, 'name': 'Fortune Charm', 'grants': [['fortune_charm']],
@@ -45,7 +48,7 @@ TALENTS = {
     'breakwater':    {'tree': 'swell', 'row': 3, 'name': 'Breakwater', 'grants': [['regen_shield']],
                       'desc': ['Blocks one loss, recharges after 25 wins']},
     'spring_tide':   {'tree': 'swell', 'row': 'K', 'name': 'Spring Tide', 'grants': [[]],
-                      'desc': ["Streak bonuses ×2 again — but not on staked or diced spins"]},
+                      'desc': ["Streak bonuses ×2 again, 🎣 Surge included — but not on staked or diced spins"]},
     # 🌀 Riptide
     'open_water':    {'tree': 'riptide', 'row': 1, 'name': 'Open Water', 'grants': [['wager_unlock']],
                       'desc': ['Stake up to 30% of your wins. Each staked spin costs 1 🪙']},
@@ -112,6 +115,21 @@ def tide_day(now: datetime) -> int:
     return (london + timedelta(days=2, hours=3)).weekday()
 
 
+def tide_start(now: datetime) -> datetime:
+    """The last tide turn (Fri 21:00 London) at or before now."""
+    shifted = now.astimezone(_LONDON).replace(tzinfo=None) + timedelta(days=2, hours=3)
+    monday = datetime.combine(shifted.date() - timedelta(days=shifted.weekday()), datetime.min.time())
+    return (monday - timedelta(days=2, hours=3)).replace(tzinfo=_LONDON)
+
+
+def offline_floor(now: datetime, last_seen: datetime) -> datetime:
+    """Earliest time offline catch-up credits: 72 h back, or back to the
+    turn on a player's first visit of the tide, so late starters keep the week."""
+    floor = now - timedelta(seconds=AUTO_SPIN_OFFLINE_CAP_S)
+    start = tide_start(now)
+    return min(floor, start) if last_seen < start else floor
+
+
 def points_total(now: datetime, bought: int = 0) -> int:
     return min(MAX_POINTS, START_POINTS + tide_day(now) + bought)
 
@@ -160,13 +178,15 @@ def validate(alloc, points: int):
         if not r:
             continue
         d = TALENTS[tid]
-        # Gates count points in the tree's *earlier* rows, so rows can't unlock each other.
+        # Row gates count earlier rows of every tree (Tide 9.3), so hybrids pay no toll;
+        # keystones still need their own tree. Rows can't unlock each other.
         top = 4 if d['row'] == 'K' else d['row']
         below = sum(rank(alloc, o) for o, od in TALENTS.items()
-                    if od['tree'] == d['tree'] and od['row'] != 'K' and od['row'] < top)
+                    if (d['row'] != 'K' or od['tree'] == d['tree']) and od['row'] != 'K' and od['row'] < top)
         gate = KEYSTONE_GATE if d['row'] == 'K' else ROW_GATE[d['row']]
         if below < gate:
-            return f"{d['name']} needs {gate} points in {TREES[d['tree']]['name']}"
+            where = TREES[d['tree']]['name'] if d['row'] == 'K' else 'earlier rows'
+            return f"{d['name']} needs {gate} points in {where}"
         req = d.get('requires')
         if req and rank(alloc, req) < max_rank(req):
             return f"{d['name']} needs {TALENTS[req]['name']} first"

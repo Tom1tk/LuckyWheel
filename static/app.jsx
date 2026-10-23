@@ -3585,9 +3585,10 @@ function chartProblem(alloc, points, def) {
         .reduce((a, o) => a + (alloc[o.id] || 0), 0);
       if (other || inTree < def.keystone_gate) return `Needs ${def.keystone_gate} points in ${treeName} · one keystone only`;
     } else {
-      const below = def.talents.filter(o => o.tree === t.tree && o.row !== 'K' && o.row < t.row)
+      // Tide 9.3: row gates count earlier rows of every tree.
+      const below = def.talents.filter(o => o.row !== 'K' && o.row < t.row)
         .reduce((a, o) => a + (alloc[o.id] || 0), 0);
-      if (below < def.row_gate[t.row]) return `Needs ${def.row_gate[t.row]} points in ${treeName}`;
+      if (below < def.row_gate[t.row]) return `Needs ${def.row_gate[t.row]} points in earlier rows`;
     }
     if (t.requires && (alloc[t.requires] || 0) < byId[t.requires].max_rank) return `Needs ${byId[t.requires].name} first`;
   }
