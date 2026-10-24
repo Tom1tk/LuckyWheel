@@ -275,7 +275,7 @@ def check_goal_completion(conn, goal_id):
                 for c in contributors:
                     cur.execute(
                         '''UPDATE game_state
-                           SET insurance_tokens = LEAST(insurance_tokens + %s, %s),
+                           SET insurance_tokens = GREATEST(insurance_tokens, LEAST(insurance_tokens + %s, %s)),
                                cosmetic_fragments = cosmetic_fragments + %s
                            WHERE user_id = %s''',
                         (tokens_per_player, CHIP_CAP, fragments_per_player, c['user_id']),

@@ -6464,17 +6464,21 @@ function ChartsPanel(_ref41) {
     onClick: levelUp
   }, "\u2B06 Level up \xB7 ", fmt(def.next_cost), " wins")) : /*#__PURE__*/React.createElement("div", {
     className: "charts-level-next"
-  }, "Max level \xB7 your Chart is full for this tide"))), /*#__PURE__*/React.createElement("div", {
+  }, "Max level \xB7 your Chart is full for this tide"))), def.current && /*#__PURE__*/React.createElement("div", {
+    className: "charts-current charts-tree--".concat(def.current.id)
+  }, /*#__PURE__*/React.createElement("b", null, def.current.name, " current"), " this tide \xB7 ", def.current.desc), /*#__PURE__*/React.createElement("div", {
     className: "charts-sub"
   }, chartSpent(pending), " / ", points, " points placed"), /*#__PURE__*/React.createElement("div", {
     className: "charts-trees"
   }, CHART_TREES.map(function (tree) {
     return /*#__PURE__*/React.createElement("div", {
       key: tree,
-      className: "charts-tree charts-tree--".concat(tree)
+      className: "charts-tree charts-tree--".concat(tree).concat(def.current && def.current.id === tree ? ' charts-tree--current' : '')
     }, /*#__PURE__*/React.createElement("div", {
       className: "charts-tree-head"
-    }, def.trees[tree].name, " \u2014 ", def.trees[tree].motto), CHART_ROWS.map(function (row) {
+    }, def.trees[tree].name, " \u2014 ", def.trees[tree].motto), def.current && def.current.id === tree && /*#__PURE__*/React.createElement("div", {
+      className: "charts-tree-current"
+    }, "\u3030 Current this tide"), CHART_ROWS.map(function (row) {
       return /*#__PURE__*/React.createElement("div", {
         key: row,
         className: "charts-row".concat(row === 'K' ? ' charts-row--k' : '')
@@ -6836,8 +6840,6 @@ function CommunityPot(_ref45) {
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
-var CHIP_CAP = 6; // mirrors models.CHIP_CAP
-
 // YYYY-MM-DD in London, the day every daily reset runs on.
 var londonToday = function londonToday() {
   return new Date().toLocaleDateString('en-CA', {
@@ -6858,11 +6860,16 @@ function happyHourEndLocal() {
   var minsLeft = 22 * 60 - (Number(p.hour) * 60 + Number(p.minute));
   return fmt12(new Date(Date.now() + minsLeft * 60000));
 }
+
+// Mirrors talents.free_chips: 3, +1 per Rising Tide rank, +2 in a Riptide current.
 function FreeTokensPanel(_ref46) {
   var insuranceFreeClaimedToday = _ref46.insuranceFreeClaimedToday,
     insuranceTokens = _ref46.insuranceTokens,
+    chipCap = _ref46.chipCap,
+    freeChips = _ref46.freeChips,
     onClaim = _ref46.onClaim;
-  var claimable = Math.min(3, CHIP_CAP - insuranceTokens);
+  var CHIP_CAP = chipCap;
+  var claimable = Math.min(freeChips, CHIP_CAP - insuranceTokens);
   return /*#__PURE__*/React.createElement("div", {
     className: "free-tokens-section"
   }, /*#__PURE__*/React.createElement("button", {
@@ -8623,6 +8630,9 @@ function GameApp(_ref50) {
     setInsuranceFreeClaimedDate = _useState308[1];
   var todayStr = londonToday();
   var insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
+  var current = gameState.current || null;
+  var chipCap = gameState.chip_cap || 6;
+  var freeChips = 3 + (charts && charts.alloc && charts.alloc.rising_tide || 0) + (current && current.id === 'riptide' ? 2 : 0);
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
@@ -9731,6 +9741,8 @@ function GameApp(_ref50) {
   })), /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
     insuranceTokens: insuranceTokens,
+    chipCap: chipCap,
+    freeChips: freeChips,
     onClaim: handleClaimFreeTokens
   }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
     className: gateClass('bounties')
@@ -9792,6 +9804,8 @@ function GameApp(_ref50) {
   }, /*#__PURE__*/React.createElement(FreeTokensPanel, {
     insuranceFreeClaimedToday: insuranceFreeClaimedToday,
     insuranceTokens: insuranceTokens,
+    chipCap: chipCap,
+    freeChips: freeChips,
     onClaim: handleClaimFreeTokens
   }), unlocked.bounties && /*#__PURE__*/React.createElement("div", {
     className: gateClass('bounties')

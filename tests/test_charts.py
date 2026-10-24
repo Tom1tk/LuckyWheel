@@ -495,3 +495,33 @@ def test_get_charts_offers_last_tides_chart_fitted_to_points(user, db_url, monke
     # Restoring is an ordinary save: adding points is free.
     status, saved = _chart(client, body['last_alloc'])
     assert status == 200 and saved['alloc'] == body['last_alloc']
+
+
+def test_tide_current_rotates_from_tide_9_4():
+    assert talents.current(None) is None and talents.current(12) is None
+    assert [talents.current(n) for n in (13, 14, 15, 16)] == ['riptide', 'angler', 'swell', 'riptide']
+    assert talents.current_info(14) == {'id': 'angler', 'name': '🎣 Angler', 'desc': talents.CURRENT_DESC['angler']}
+
+
+def test_riptide_current_adds_two_chips_and_raises_the_cap():
+    assert (talents.free_chips({'rising_tide': 1}, 13), talents.chip_cap(13)) == (6, 8)
+    assert (talents.free_chips({'rising_tide': 1}, 14), talents.chip_cap(14)) == (4, 6)
+    assert (talents.free_chips({}, 12), talents.chip_cap(12)) == (3, 6)
+
+
+def test_angler_current_scales_surge_pay_by_better_bait():
+    import game
+    ctx = {'effective_win_mult': 1, 'bonus_mult': 8, 'current': 'angler'}
+    gs = {'talent_alloc': {'rich_waters': 3, 'better_bait': 2}}
+    # Surge ×100 × 1.5 = ×150; bonus max(8 + 149, 150 × 1) = 157.
+    assert game._surge_mults(ctx, gs, 1, staked=False, diced=False) == (150, 157, 1)
+    assert game._surge_mults({**ctx, 'current': 'swell'}, gs, 1, staked=False, diced=False) == (100, 107, 1)
+
+
+def test_swell_current_doubles_echo_and_charm_chance():
+    import game
+    gs = {'equipped_class': None, 'owned_items': [], 'season_number': 15}
+    ctx = game._build_spin_context(gs)
+    assert (ctx['echo_chance'], ctx['charm_chance'], ctx['current']) == (0.40, 0.50, 'swell')
+    ctx = game._build_spin_context({**gs, 'season_number': 13})
+    assert (ctx['echo_chance'], ctx['charm_chance']) == (0.20, 0.25)

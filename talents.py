@@ -8,7 +8,7 @@ keystones) are read from the Chart directly via ``rank()`` / ``keystone()``.
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from models import AUTO_SPIN_OFFLINE_CAP_S, ITEM_CURRENCY
+from models import AUTO_SPIN_OFFLINE_CAP_S, CHIP_CAP, ITEM_CURRENCY
 
 _LONDON = ZoneInfo('Europe/London')
 
@@ -23,6 +23,18 @@ SURGE_MULT_BY_RICH_WATERS = {0: 5, 1: 25, 2: 50, 3: 100}
 SURGE_BAIT_BONUS_PER_RANK = 0.25
 # Tide 9.3: on a Surge spin Undertow pays at least Surge's bonus × this.
 UNDERTOW_SURGE_MULT = {0: 1, 1: 1.25, 2: 1.5, 3: 2}
+
+# Tide Currents (Tide 9.4): each tide one tree's waters run strong, rotating from 9.4
+# (season_number 13) so the best build shifts and a stale Chart isn't always right.
+CURRENTS = ('riptide', 'angler', 'swell')
+CURRENT_FIRST_SEASON = 13
+CURRENT_DESC = {
+    'riptide': "Daily 🪙 claim gives 2 more chips, and you can hold up to 8",
+    'angler':  'Better Bait also raises 🎣 Surge pay by 25% a rank',
+    'swell':   'Echo and Fortune Charm trigger twice as often',
+}
+RIPTIDE_CHIP_BONUS = 2
+RIPTIDE_CHIP_CAP = 8
 
 TREES = {
     'swell':   {'name': '🌊 Swell',   'motto': 'ride the streak'},
@@ -153,6 +165,28 @@ def surge_mult(alloc: dict) -> int:
 
 def surge_bonus(alloc: dict) -> float:
     return 1.0 + SURGE_BAIT_BONUS_PER_RANK * rank(alloc, 'better_bait')
+
+
+def current(season_number):
+    """This tide's current, or None before Tide 9.4."""
+    if not season_number or season_number < CURRENT_FIRST_SEASON:
+        return None
+    return CURRENTS[(season_number - CURRENT_FIRST_SEASON) % len(CURRENTS)]
+
+
+def current_info(season_number):
+    cur = current(season_number)
+    return cur and {'id': cur, 'name': TREES[cur]['name'], 'desc': CURRENT_DESC[cur]}
+
+
+def chip_cap(season_number) -> int:
+    return RIPTIDE_CHIP_CAP if current(season_number) == 'riptide' else CHIP_CAP
+
+
+def free_chips(alloc: dict, season_number) -> int:
+    """Chips the daily claim gives: 3, +1 per Rising Tide rank, +2 in a Riptide current."""
+    riptide = RIPTIDE_CHIP_BONUS if current(season_number) == 'riptide' else 0
+    return 3 + rank(alloc, 'rising_tide') + riptide
 
 
 def max_rank(talent_id: str) -> int:

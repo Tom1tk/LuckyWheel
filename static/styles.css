@@ -5332,7 +5332,23 @@ body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,18
   color: var(--tree); text-shadow: 0 0 8px rgba(var(--tree-rgb),0.4);
 }
 .charts-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px dashed rgba(var(--tree-rgb),0.15); }
-.charts-tree-head + .charts-row { border-top: none; }
+.charts-tree-head + .charts-row, .charts-tree-current + .charts-row { border-top: none; }
+/* Tide Currents (9.4): one tree runs strong each tide */
+.charts-current {
+  --tree: #3FD6C6; --tree-rgb: 63, 214, 198;
+  margin: 0 auto 16px; max-width: 640px; padding: 8px 12px; text-align: center;
+  font-size: 0.78rem; line-height: 1.4; color: #cfd8df;
+  border: 1px solid rgba(var(--tree-rgb),0.45); border-radius: 6px; background: rgba(var(--tree-rgb),0.08);
+}
+.charts-current b { font-weight: 400; letter-spacing: 2px; text-transform: uppercase; color: var(--tree); }
+.charts-tree--current {
+  border-color: rgba(var(--tree-rgb),0.7); background: rgba(var(--tree-rgb),0.08);
+  box-shadow: 0 0 18px rgba(var(--tree-rgb),0.15);
+}
+.charts-tree-current {
+  text-align: center; margin: -2px 0 6px;
+  font-size: 0.62rem; letter-spacing: 2px; text-transform: uppercase; color: var(--tree); opacity: 0.85;
+}
 .charts-row--k { border-top: 1px solid rgba(var(--tree-rgb),0.4); margin-top: 4px; padding-top: 10px; }
 .chart-node { display: flex; }
 .chart-node-main {

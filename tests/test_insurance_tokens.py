@@ -1268,3 +1268,13 @@ def test_happy_hour_is_9pm_london_in_bst_and_gmt():
         assert not check(dt.datetime(2026, 10, 15, 21, 0, tzinfo=utc))   # 22:00 BST
         assert check(dt.datetime(2026, 11, 2, 21, 30, tzinfo=utc))        # 21:30 GMT
         assert not check(dt.datetime(2026, 11, 2, 20, 30, tzinfo=utc))   # 20:30 GMT
+
+
+def test_free_claim_in_riptide_current_gives_two_more_and_holds_eight():
+    """Tide Currents (9.4): a Riptide current claims 5 and the cap is 8."""
+    gs = {'owned_items': [], 'insurance_tokens': 5, 'insurance_free_claimed_date': None, 'season_number': 13}
+    conn, result = _drive_claim_free(gs)
+    assert (result['tokens_awarded'], result['insurance_tokens']) == (3, 8)
+    gs = {**gs, 'insurance_tokens': 0}
+    conn, result = _drive_claim_free(gs)
+    assert result['tokens_awarded'] == 5

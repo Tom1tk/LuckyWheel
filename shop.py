@@ -328,7 +328,7 @@ def _buy_item(cur, conn, item_id: str, user_id: int, gs: dict) -> dict:
     ):
         cur.execute(
             """UPDATE game_state
-               SET insurance_tokens = LEAST(insurance_tokens + 5, %s),
+               SET insurance_tokens = GREATEST(insurance_tokens, LEAST(insurance_tokens + 5, %s)),
                    insurance_unlock_grant_given = TRUE
                WHERE user_id = %s""",
             (CHIP_CAP, user_id),

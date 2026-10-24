@@ -16,7 +16,7 @@ from models import (REGEN_SHIELD_RECHARGE_WINS,
                     CLASS_MOON_PROC_BONUS, CLASS_STAR_WIN_BONUS,
                     streak_bonus, dice_max_charges, dice_recharge_seconds,
                     AUTO_SPIN_INTERVAL_SECONDS, MAX_SPINS_PER_TICK, CATCH_UP_THRESHOLD,
-                    HAPPY_HOUR_START_LONDON, HAPPY_HOUR_END_LONDON, CHIP_CAP,
+                    HAPPY_HOUR_START_LONDON, HAPPY_HOUR_END_LONDON,
                     RETIRED_S9_ITEMS)
 from seasons import ensure_current_season, get_season_info, get_latest_winners, advance_season
 from security import require_json
@@ -78,7 +78,8 @@ _GAME_STATE_SQL = '''
            insurance_free_claimed_date, insurance_unlock_grant_given,
            insurance_free_arm_date, gravity_drift,
            talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins,
-           haul, haul_date
+           haul, haul_date,
+           (SELECT season_number FROM seasons ORDER BY id LIMIT 1) AS season_number
     FROM game_state WHERE user_id = %s
 '''
 
@@ -176,12 +177,15 @@ def _build_spin_context(gs: dict) -> dict:
     base_win_mult = 1 << _winmult_level(owned)            # 1, 2, 4, ..., 128
     base_bonus_mult = _BONUS_MULT_TABLE[_bonusmult_level(owned)]  # 1, 2, 4, 8, 15, 35, 70
 
+    current = talents.current(gs.get('season_number'))
+    swell = 2 if current == 'swell' else 1  # Swell current: Echo and Fortune Charm twice as often
     return {
         'effective_win_mult': base_win_mult * (1.0 + star_win_bonus) * (1.0 + prestige_bonus),
         'bonus_mult':         base_bonus_mult,
         'jackpot_chance':     0.03 + moon_bonus,  # Treasure: 3% of wins
-        'echo_chance':        0.20 + moon_bonus,  # flat 20% base (echo_amp removed)
-        'charm_chance':       0.25 + moon_bonus,
+        'echo_chance':        0.20 * swell + moon_bonus,  # flat 20% base (echo_amp removed)
+        'charm_chance':       0.25 * swell + moon_bonus,
+        'current':            current,
         'resilience_chance':  min(0.50 + moon_bonus, 0.65),  # flat 50% (streak_armor removed)
         'proc_streak_level':  0,  # frozen
         'aquarium_luck':      aquarium_luck,
@@ -208,6 +212,8 @@ def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: b
     if surge_left <= 0 or (ks == 'rogue_wave' and diced):
         return ctx['effective_win_mult'], ctx['bonus_mult'] * spring, 0
     m = talents.surge_mult(alloc)
+    if ctx.get('current') == 'angler':
+        m *= talents.surge_bonus(alloc)  # Angler current: Better Bait also raises Surge pay
     undertow = talents.UNDERTOW_SURGE_MULT[talents.rank(alloc, 'undertow')]
     bonus_mult = max(ctx['bonus_mult'] + m - 1, m * undertow) * spring
     return ctx['effective_win_mult'] + m - 1, bonus_mult, 1
@@ -1156,6 +1162,8 @@ def get_state():
             ),
             'insurance_tokens':     gs.get('insurance_tokens', 0),
             'charts':               _charts_payload(gs, now_utc),
+            'current':              talents.current_info(season_info['season_number']),
+            'chip_cap':             talents.chip_cap(season_info['season_number']),
             'surge_spins':          int(gs.get('surge_spins', 0) or 0),
             'fish_records':         gs.get('fish_records') or {},
             'recent_spins':         gs.get('recent_spins') or [],
@@ -2106,11 +2114,13 @@ def charts_get():
     now = dt.datetime.now(timezone.utc)
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('''SELECT talent_alloc, talent_rechart_date, chart_points_bought, last_talent_alloc
+            cur.execute('''SELECT talent_alloc, talent_rechart_date, chart_points_bought, last_talent_alloc,
+                                  (SELECT season_number FROM seasons ORDER BY id LIMIT 1) AS season_number
                            FROM game_state WHERE user_id = %s''', (current_user.id,))
             gs = cur.fetchone()
     payload = _charts_payload(gs, now)
     return jsonify({**payload, 'trees': talents.TREES, 'talents': talents.catalog(),
+                    'current': talents.current_info(gs['season_number']),
                     'row_gate': talents.ROW_GATE, 'keystone_gate': talents.KEYSTONE_GATE,
                     'last_alloc': talents.fit(gs['last_talent_alloc'], payload['points'])})
 
@@ -3040,7 +3050,7 @@ def insurance_buy_with_tokens():
 @game_bp.route('/api/insurance/claim-free', methods=['POST'])
 @login_required
 def insurance_claim_free():
-    """T119: claim up to 3 free chips once per London day, topping up to CHIP_CAP. Gated on
+    """T119: claim up to 3 free chips once per London day, topping up to the chip cap (8 in a Riptide current, else 6). Gated on
     the `insurance_free_claimed_date` column — if today's date equals
     the stored date, the request is rejected with 409. The atomic
     check inside the FOR UPDATE transaction prevents double-claims
@@ -3055,12 +3065,11 @@ def insurance_claim_free():
             if gs.get('insurance_free_claimed_date') == today:
                 return jsonify({'error': 'Already claimed today'}), 409
             current_tokens = int(gs.get('insurance_tokens', 0) or 0)
+            cap = talents.chip_cap(gs.get('season_number'))
             # At the cap the day's claim isn't used up: spend a chip, then claim.
-            if current_tokens >= CHIP_CAP:
-                return jsonify({'error': f'Chips full ({CHIP_CAP} max)'}), 409
-            # Rising Tide (Tide 9.3): +1 free chip a day per rank.
-            free_per_day = 3 + talents.rank(gs.get('talent_alloc'), 'rising_tide')
-            new_tokens = min(current_tokens + free_per_day, CHIP_CAP)
+            if current_tokens >= cap:
+                return jsonify({'error': f'Chips full ({cap} max)'}), 409
+            new_tokens = min(current_tokens + talents.free_chips(gs.get('talent_alloc'), gs.get('season_number')), cap)
             cur.execute(
                 '''UPDATE game_state
                    SET insurance_tokens = %s,

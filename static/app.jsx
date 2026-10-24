@@ -3748,11 +3748,17 @@ function ChartsPanel({ open, charts, wins, onClose, onSaved, onLeveled }) {
               ) : <div className="charts-level-next">Max level · your Chart is full for this tide</div>}
             </div>
           </div>
+          {def.current && (
+            <div className={`charts-current charts-tree--${def.current.id}`}>
+              <b>{def.current.name} current</b> this tide · {def.current.desc}
+            </div>
+          )}
           <div className="charts-sub">{chartSpent(pending)} / {points} points placed</div>
           <div className="charts-trees">
             {CHART_TREES.map(tree => (
-              <div key={tree} className={`charts-tree charts-tree--${tree}`}>
+              <div key={tree} className={`charts-tree charts-tree--${tree}${def.current && def.current.id === tree ? ' charts-tree--current' : ''}`}>
                 <div className="charts-tree-head">{def.trees[tree].name} — {def.trees[tree].motto}</div>
+                {def.current && def.current.id === tree && <div className="charts-tree-current">〰 Current this tide</div>}
                 {CHART_ROWS.map(row => (
                   <div key={row} className={`charts-row${row === 'K' ? ' charts-row--k' : ''}`}>
                     {def.talents.filter(t => t.tree === tree && t.row === row).map(t => {
@@ -3961,7 +3967,6 @@ function CommunityPot({ pot, fishClicks, onContribute }) {
 // around the same JSX that used to live inline in GameApp — no
 // behavior changes, just the same children in a function body.
 
-const CHIP_CAP = 6; // mirrors models.CHIP_CAP
 
 // YYYY-MM-DD in London, the day every daily reset runs on.
 const londonToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
@@ -3974,8 +3979,10 @@ function happyHourEndLocal() {
   return fmt12(new Date(Date.now() + minsLeft * 60000));
 }
 
-function FreeTokensPanel({ insuranceFreeClaimedToday, insuranceTokens, onClaim }) {
-  const claimable = Math.min(3, CHIP_CAP - insuranceTokens);
+// Mirrors talents.free_chips: 3, +1 per Rising Tide rank, +2 in a Riptide current.
+function FreeTokensPanel({ insuranceFreeClaimedToday, insuranceTokens, chipCap, freeChips, onClaim }) {
+  const CHIP_CAP = chipCap;
+  const claimable = Math.min(freeChips, CHIP_CAP - insuranceTokens);
   return (
     <div className="free-tokens-section">
       <button className="free-tokens-claim-btn" onClick={onClaim} disabled={insuranceFreeClaimedToday || claimable <= 0}
@@ -5017,6 +5024,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [insuranceFreeClaimedDate, setInsuranceFreeClaimedDate] = useState(gameState.insurance_free_claimed_date || null);
   const todayStr = londonToday();
   const insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
+  const current = gameState.current || null;
+  const chipCap = gameState.chip_cap || 6;
+  const freeChips = 3 + ((charts && charts.alloc && charts.alloc.rising_tide) || 0) + (current && current.id === 'riptide' ? 2 : 0);
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
   // state into the spin handler so it reads the latest value (same
@@ -5849,6 +5859,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
               <FreeTokensPanel
                 insuranceFreeClaimedToday={insuranceFreeClaimedToday}
                 insuranceTokens={insuranceTokens}
+                chipCap={chipCap}
+                freeChips={freeChips}
                 onClaim={handleClaimFreeTokens}
               />
               {unlocked.bounties && <div className={gateClass('bounties')}><BountiesPanel
@@ -5919,6 +5931,8 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <FreeTokensPanel
               insuranceFreeClaimedToday={insuranceFreeClaimedToday}
               insuranceTokens={insuranceTokens}
+              chipCap={chipCap}
+              freeChips={freeChips}
               onClaim={handleClaimFreeTokens}
             />
             {unlocked.bounties && <div className={gateClass('bounties')}><BountiesPanel
