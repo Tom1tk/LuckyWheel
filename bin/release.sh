@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Tide release: ship origin/staging to prod right after the tide advances.
-# Called by rollover.sh when RELEASE_CMD is set (the prod unit only), while the
-# advanced rehearsal DB still exists. Fast-forward only. A RELEASE_HOLD file in
+# Tide release: ship origin/staging to prod just before the tide advances.
+# Called by rollover.sh when RELEASE_CMD is set (the prod unit only), right after
+# prod is cloned to the rehearsal DB. Fast-forward only. A RELEASE_HOLD file in
 # $APP_DIR skips the release. On failure after the switch the old code is restored
 # and restarted; migrations are not reversed, so they must stay additive.
 set -Eeuo pipefail
@@ -41,13 +41,9 @@ if [[ "$PREV" == "$NEXT" ]]; then
 fi
 git merge-base --is-ancestor "$PREV" "$NEXT" || die "master has commits staging lacks: merge master into staging"
 git diff --quiet "$PREV" "$NEXT" -- requirements.txt || die "requirements.txt changed: release by hand"
-# ponytail: the advance runs before the release, on the old code. Until the order is
-# swapped, a staging change to the advance itself has to be released by hand.
-git diff --quiet "$PREV" "$NEXT" -- seasons.py bin/advance_tide.py bin/post_rollover_check.py \
-    || die "staging changes the tide advance: release by hand"
 echo "release: $(git rev-parse --short "$PREV") -> $(git rev-parse --short "$NEXT") ($(git rev-list --count "$PREV..$NEXT") commits)"
 
-# Rehearse staging's migrations on the advanced clone. Explicit DATABASE_URL: run
+# Rehearse staging's migrations on the prod clone. Explicit DATABASE_URL: run
 # without it, migrate.py would fall back to a .env.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
