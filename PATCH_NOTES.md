@@ -4,7 +4,7 @@
 
 ## Tide 9.4 — Friday 30 October
 
-The tide turns at 9pm on Friday. Staking is now about the day you're having: you stake out of today's haul instead of your whole bank, and you can stake far more of it.
+The tide turns at 9pm on Friday. Staking is now about the day you're having, each tide one tree's waters run strong, and every day brings a small Fair Winds choice. Nothing pays less than before.
 
 ### 🎲 Stake Today's Haul
 
@@ -14,6 +14,39 @@ The tide turns at 9pm on Friday. Staking is now about the day you're having: you
 - Stake losses come out of the haul. Stake winnings go to your bank but don't go back into the haul, so a good run can't snowball.
 - Spins while you're away count toward the haul too, as long as they land after midnight.
 - **Inverted** mode is unchanged: it still stakes your losses, at the old limits.
+
+### 〰 Tide Currents
+
+Each tide, one tree's current runs strong. The Charts panel shows which one, and that tree's talents get a boost while it lasts. The current rotates every tide.
+
+- **🌀 Riptide (Tide 9.4)**: your daily 🪙 claim gives **2 more chips**, and you can hold up to **8**.
+- **🎣 Angler (Tide 9.5)**: each rank of **🪱 Better Bait** also raises 🎣 Surge pay by **25%**.
+- **🌊 Swell (Tide 9.6)**: **Echo** and **Fortune Charm** trigger **twice as often**.
+
+### 🌬️ Fair Winds
+
+Once a day, tap 🌬️ and pick one of three boons. It lasts until midnight (London time), and spins while you're away count if they land after you picked.
+
+- **🐚 High Water**: 🎣 Surge spins pay **×1.5**.
+- **🪙 Spare Change**: **+1 chip** right now, even past the cap.
+- **Borrow a talent** you don't have for the day: **Treasure**, **Echo**, **Fortune Charm** or **Steady Keel**. Your offer changes each day.
+
+The 🌬️ button shows a dot until you've picked.
+
+### ✋ A Friendlier Fight
+
+- Landing a fish by hand now gives **5×** the 🎣 Surge it did.
+- **✋ Steady Hands** is reordered so the first point does the most: rank 1 makes the reel bar move **50% faster**, rank 2 lets a slipping fish get away **25% slower**, and rank 3 makes the bar **much wider**.
+
+### 🎯 Community Goals
+
+- Goals are sized for auto play: **60,000 fish** (30,000 per player) and **4,000 jackpots** (2,000 per player). Two active players can fill one between them.
+- The wager goal is now **Place 40 stakes** (20 per player): it counts stakes, not wins wagered.
+
+### 🧭 Charts
+
+- The 🧭 button shows how many points you have **left to place**.
+- **↺ Restore last Chart** puts your points back the way last tide's Chart had them. Your Chart is saved at each turn from now on, so the first restore is at Tide 9.5.
 
 ---
 

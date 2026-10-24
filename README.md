@@ -43,21 +43,22 @@ The functional shop is gone. Gear comes from **Charts**: three talent trees, and
 - You start each tide with **1 point** and get **one free point every day** (days start at 21:00 UK time, in step with the tide).
 - **Level up** to get points sooner. Each level costs wins: 1,000 for the first, then ×8 each time (8k, 64k, 512k, …).
 - The cap is **14 points**: one full tree and a splash of another, never all three. Levels reset when the tide turns.
-- Higher rows need points in that tree first (row 2 needs 2, row 3 needs 4, the keystone needs 6), and you can hold **one keystone**.
+- Higher rows open with points in earlier rows of **any** tree (row 2 needs 2, row 3 needs 4). A keystone needs 6 points in its own tree, and you can hold **one keystone**.
 - Adding points is always free. A **re-chart** (taking points back) is allowed once a day.
+- The 🧭 button shows how many points you have left to place. **↺ Restore last Chart** puts your points back the way last tide's Chart had them (each Chart is saved when the tide turns).
 
 | Tree | Talent | Ranks | Effect |
 |------|--------|-------|--------|
-| 🌊 **Swell**: ride the streak | 🫧 Undertow | 3 | Streak bonuses ×2 / ×4 / ×8 |
-| | 📈 Rising Tide | 2 | Every win pays ×2 / ×4 |
+| 🌊 **Swell**: ride the streak | 🫧 Undertow | 3 | Streak bonuses ×2 / ×4 / ×8, or ×1.25 / ×1.5 / ×2 on top of Surge |
+| | 📈 Rising Tide | 2 | Every win pays ×2 / ×4, and +1 / +2 free 🪙 a day |
 | | ⚓ Steady Keel | 1 | Sometimes a loss only knocks your streak back one |
 | | 🍀 Fortune Charm | 1 | Streak bonuses sometimes pay +25% |
 | | 🔔 Echo | 1 | Wins sometimes pay twice |
 | | 🛡️ Breakwater | 1 | Blocks one loss, recharges after 25 wins |
-| | 🌕 **Spring Tide** (keystone) | 1 | Streak bonuses ×2 again, but not on staked or diced spins |
-| 🌀 **Riptide**: bet the tide | 🪙 Open Water | 1 | Stake up to 30% of your wins. Each staked spin costs 1 🪙 |
+| | 🌕 **Spring Tide** (keystone) | 1 | Streak bonuses ×2 again, Surge included, but not on staked or diced spins |
+| 🌀 **Riptide**: bet the tide | 🪙 Open Water | 1 | Stake up to 60% of today's haul. Each staked spin costs 1 🪙 |
 | | 🎲 Loaded Dice | 3 | Hold 2 / 3 / 4 dice charges |
-| | 🔱 Deep Water | 2 | Stake up to 40% / 50% |
+| | 🔱 Deep Water | 2 | Stake up to 80% / 100% of the haul |
 | | 💎 Treasure | 1 | 3% of wins are jackpots: ×25, or ×10 on a staked spin |
 | | 🛟 Safety Line | 1 | Staked losses refund half; your first insurance each day is free |
 | | 🎯 Third Die | 1 | Roll three dice — and a pair of 1s no longer curses |
@@ -66,17 +67,27 @@ The functional shop is gone. Gear comes from **Charts**: three talent trees, and
 | 🎣 **Angler**: read the water | 🐚 Rich Waters | 3 | Surge spins pay ×25 / ×50 / ×100 (base ×5) |
 | | 🪱 Better Bait | 2 | Faster bites, bigger catches, +25% / +50% Surge |
 | | ⛵ Deckhand | 2 | Auto-fish while you're away; catches more often |
-| | ✋ Steady Hands | 3 | Wider reel bar; bar moves 50% faster; a slipping fish escapes 25% slower |
+| | ✋ Steady Hands | 3 | Reel bar moves 50% faster; a slipping fish escapes 25% slower; a much wider bar |
 | | 🔁 Auto-Cast | 1 | Recast automatically |
 | | 🧓 Old Salt | 1 | Auto-fish catches rares, and more often |
 | | 🐋 **Deep Sea** (keystone) | 1 | Junk and commons stop biting, rares and legendaries bite three times as often, and bites take longer |
 
 Some talents need another first: Deep Water, Safety Line and Double or Nothing need Open Water; Old Salt needs Deckhand.
 
+### 〰 Tide Currents
+From Tide 9.4, each tide one tree's current runs strong, rotating Riptide → Angler → Swell. The Charts panel names it.
+- **🌀 Riptide**: the daily 🪙 claim gives 2 more chips, and you can hold up to 8.
+- **🎣 Angler**: each rank of Better Bait also raises Surge pay by 25%.
+- **🌊 Swell**: Echo and Fortune Charm trigger twice as often.
+
+### 🌬️ Fair Winds
+Once a day (UK days), pick one of three boons from the 🌬️ button. It lasts until midnight: **🐚 High Water** (Surge spins pay ×1.5), **🪙 Spare Change** (+1 chip now, even past the cap), or **borrow** one talent you don't own (Treasure, Echo, Fortune Charm or Steady Keel), a different offer each day.
+
 ### 🎣 Fishing Is a Fight
 - Click **🎣 CAST** to drop your line. When the fish bites, tap to **hook** it.
 - Then keep the 🐟 inside your **green reel bar**. Hold (mouse, touch or Space) to push the bar right; let go and it drifts back. The catch meter fills while the fish is in the bar and drains while it isn't. If it empties, the fish gets away.
 - Rarer fish swim faster, dart more often and take longer to land.
+- Landing a fish in a fight charges 5× Surge.
 - A cleaner fight lands a **heavier fish**, and heavier fish are worth more 🐟. Your heaviest catch of each species is saved as a **record** that never resets.
 - Your first catch of each day pays ×5.
 - **Auto-fish** (Angler: Deckhand) catches commons and uncommons every few seconds, rares with Old Salt, never legendaries. It keeps fishing while you're away.
@@ -86,12 +97,12 @@ Some talents need another first: Deep Water, Safety Line and Double or Nothing n
 The **Fish Encyclopaedia** (📖) tracks **46** species across junk, common, uncommon, rare and legendary. Many only bite at **dawn, day, dusk or night** (UK time), at **high or low tide** (the tide turns every 6¼ hours), or are **migrants** that visit for a week at a time. The Encyclopaedia shows the current tide, what's **biting now**, a hint for every fish and your record weights.
 
 ### 🌊 Surge
-Fishing powers the wheel. Every catch charges **Surge spins**: more for rarer and heavier fish, half as much from auto-fishing. While you have Surge, each spin uses one and multiplies its wins: ×5 for everyone, up to ×100 with Rich Waters. The chip under your score shows how many Surge spins you have left and what they pay.
+Fishing powers the wheel. Every catch charges **Surge spins**: more for rarer and heavier fish, 5× for a fish landed in a fight, half as much from auto-fishing. While you have Surge, each spin uses one and multiplies its wins: ×5 for everyone, up to ×100 with Rich Waters. The chip under your score shows how many Surge spins you have left and what they pay.
 
 ### 🪙 Stake Chips & the Stake Panel
-With **Open Water** you can stake part of your wins on a spin. The stake panel raises your stake in 5% steps (30% cap, 40% / 50% with Deep Water) and shows what you'd win or lose before you spin.
+With **Open Water** you can stake part of **today's haul** (wins since midnight UK time) on a spin. The stake panel raises your stake in 5% steps (60% cap, 80% / 100% with Deep Water) and shows what you'd win or lose before you spin. Stake losses come out of the haul; stake winnings go to your bank but not back into the haul. Inverted mode stakes losses at the old 30% / 40% / 50% limits.
 - **Stake escrow**: the stake is debited up front and held at risk. Win it back plus your payout, or lose it.
-- **Stake chips**: claim **3 free chips a day**, holding **6 at most**. Each staked spin costs one chip. Community goals pay chips too.
+- **Stake chips**: claim **3 free chips a day** (more with Rising Tide or the Riptide current), holding **6 at most** (8 in a Riptide tide). Each staked spin costs one chip. Community goals pay chips too.
 - **Safety Line**: a staked loss refunds half the stake, and you can **arm insurance** to refund the whole stake on a loss. The first arm each day is free; after that it costs 1 🪙.
 - **Double or Nothing**: put your entire last win on the line. A win pays ×2.5 (stake back plus 1.5×). All-or-nothing: no insurance or safety net applies.
 
@@ -112,11 +123,11 @@ The rotating slot cycles Inverted → Gravity → Long Shot by week.
 Three bounties a day, the same three all day, resetting at midnight UK time. They are streaks and fishing only, so every build can finish them: reach a 10-spin win streak, catch 10 fish, land 5 fish in a fight, land a rare or legendary, land a trophy-sized fish. Each one pays **Surge**: 100, 200 and 300 spins.
 
 ### Community Goals
-One server-wide goal per tide: catch fish, land jackpots, or wager wins. Everyone's progress counts toward one shared target, with a per-player cap so no one can solo it. Completing it pays every contributor 10 🪙 chips (up to the 6-chip cap) and lifts everyone's win chance to 55% for a week.
+One server-wide goal per tide: catch 60,000 fish, land 4,000 jackpots, or place 40 stakes. Everyone's progress counts toward one shared target, with a per-player cap of half the target, so it takes at least two players. Completing it pays every contributor 10 🪙 chips (up to the chip cap) and lifts everyone's win chance to 55% for a week.
 
 ### 🔁 Auto-Spin
 - **Free for everyone.** Tick auto-spin and the wheel spins every 3 seconds.
-- It **keeps going when you close the tab or log out**. Come back within 24 hours and your missed spins are played out, with a **"While you were away"** card showing the time, spins and wins (and fish, with auto-fish).
+- It **keeps going when you close the tab or log out**. Come back within 72 hours (or any time since the turn, on your first visit of a tide) and your missed spins are played out, with a **"While you were away"** card showing the time, spins and wins (and fish, with auto-fish).
 - Manual spinning is locked while auto-spin runs.
 
 ### 🌅 A Calmer Start
@@ -171,7 +182,7 @@ In Season 9 the shop sells **cosmetics only**, paid for in **losses**. Gameplay 
 - **Losses**: spent on cosmetics (skins, trails, themes, backgrounds).
 - **Fish Bucks 🐟**: earned from fishing.
 - **Surge spins 🌊**: earned from fishing and bounties; each one multiplies a spin's wins.
-- **Stake chips 🪙**: 3 free a day, plus community goals, capped at 6; spent on staked spins.
+- **Stake chips 🪙**: 3 free a day, plus community goals, capped at 6 (8 in a Riptide tide); spent on staked spins.
 
 ### Fish Skins (Costs Losses)
 | Skin | Cost | Emoji |
@@ -374,9 +385,11 @@ cd /home/user/wheel-app && ./deploy.sh
 The tide turns automatically every Friday at 21:00 UK time, driven by a systemd timer (`deploy/wheel-rollover.timer` → `deploy/wheel-rollover.service`) that runs `bin/rollover.sh`:
 
 1. `bin/advance_tide.py --check-only`: is a tide due? If not, exit quietly.
-2. Clone the live database (`bin/clone-prod-to.sh`) and rehearse the rollover on the clone, then verify it with `bin/post_rollover_check.py`.
-3. Back up the live database.
-4. Advance the live tide (`seasons.advance_season`) and verify it again, including the live `/api/season` and `/api/hall-of-fame`.
+2. Clone the live database (`bin/clone-prod-to.sh`).
+3. On prod only (`RELEASE_CMD`), ship `origin/staging` with `bin/release.sh`: rehearse its migrations on the clone, back up, fast-forward master, migrate and restart. It goes before the advance so a new tide is advanced by the code that runs it. A failed release rolls itself back and the tide still advances, on the old code. A `RELEASE_HOLD` file skips it.
+4. Rehearse the rollover on the clone, then verify it with `bin/post_rollover_check.py`.
+5. Back up the live database.
+6. Advance the live tide (`seasons.advance_season`) and verify it again, including the live `/api/season` and `/api/hall-of-fame`.
 
 The script holds a lock so two runs can't overlap. On any failure it stops, leaves a `ROLLOVER_FAILED` marker in the app directory, and keeps the rehearsal database for inspection. `APP_DIR`, `PROD_DB`, `REHEARSAL_DB`, `LIVE_URL` and `BACKUP_CMD` can be overridden to point it at staging.
 
@@ -505,6 +518,7 @@ All game endpoints require authentication (session cookie). POST endpoints requi
 | `/api/roll-dice` | POST | 3/sec | Roll dice onto a 3+ win streak |
 | `/api/charts` | GET / POST | POST 10/sec | Get your Chart / save it. Body: `{alloc}` |
 | `/api/charts/level-up` | POST | 10/sec | Buy a Chart point with wins |
+| `/api/fair-winds` | GET / POST | POST 5/sec | Today's Fair Winds offers / pick one. Body: `{boon}` |
 | `/api/cast` | POST | 5/sec | Cast the line |
 | `/api/bite-poll` | POST | 8/sec | Check for a bite |
 | `/api/reel` | POST | 5/sec | Hook the fish and start the fight |
