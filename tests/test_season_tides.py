@@ -426,7 +426,20 @@ def test_rollover_clears_chart_surge_chips_and_keeps_records(conn):
 
     gs = _state(conn, user_id)
     assert gs['talent_alloc'] == {} and gs['talent_rechart_date'] is None and gs["chart_points_bought"] == 0
+    assert gs['last_talent_alloc'] == {'undertow': 1, 'open_water': 1}
     assert gs['surge_spins'] == 0 and gs['insurance_tokens'] == 0
     assert gs['fishing_species'] is None and gs['fishing_hooked_at'] is None
     assert gs['fish_records'] == {'tuna': 61.5} and gs['caught_species'] == ['tuna']
     assert set(gs['owned_items']) == {'trail_2', 'page_season9', 'auto_spin_unlock'}
+
+
+def test_rollover_keeps_the_last_real_chart_through_an_empty_tide(conn):
+    """A tide with nothing placed must not wipe the Chart the player can restore."""
+    user_id = _make_user(conn)
+    _set_state(conn, user_id, talent_alloc=psycopg2.extras.Json({}),
+               last_talent_alloc=psycopg2.extras.Json({'undertow': 2}))
+    _seed_season(conn, pfn=9, sub=1, name='Tides')
+
+    seasons.advance_season(conn)
+
+    assert _state(conn, user_id)['last_talent_alloc'] == {'undertow': 2}

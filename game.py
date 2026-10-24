@@ -2106,11 +2106,13 @@ def charts_get():
     now = dt.datetime.now(timezone.utc)
     with db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute('SELECT talent_alloc, talent_rechart_date, chart_points_bought FROM game_state WHERE user_id = %s',
-                        (current_user.id,))
+            cur.execute('''SELECT talent_alloc, talent_rechart_date, chart_points_bought, last_talent_alloc
+                           FROM game_state WHERE user_id = %s''', (current_user.id,))
             gs = cur.fetchone()
-    return jsonify({**_charts_payload(gs, now), 'trees': talents.TREES, 'talents': talents.catalog(),
-                    'row_gate': talents.ROW_GATE, 'keystone_gate': talents.KEYSTONE_GATE})
+    payload = _charts_payload(gs, now)
+    return jsonify({**payload, 'trees': talents.TREES, 'talents': talents.catalog(),
+                    'row_gate': talents.ROW_GATE, 'keystone_gate': talents.KEYSTONE_GATE,
+                    'last_alloc': talents.fit(gs['last_talent_alloc'], payload['points'])})
 
 
 @game_bp.route('/api/charts', methods=['POST'])

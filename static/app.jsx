@@ -3719,6 +3719,11 @@ function ChartsPanel({ open, charts, wins, onClose, onSaved, onLeveled }) {
     onLeveled(r.data);
   };
   const cancel = () => { setPending({ ...committed }); setRecharting(false); setError(''); };
+  // Last tide's Chart, already fitted to today's points by the server. Offered only
+  // when it adds to what's set (a refund would need the daily re-chart).
+  const last = def ? def.last_alloc || {} : {};
+  const canRestore = chartSpent(last) > chartSpent(pending)
+    && Object.entries(recharting ? {} : committed).every(([id, r]) => (last[id] || 0) >= r);
   const rechart = () => { setPending({}); setRecharting(true); setError(''); };
   return (
     <div className="stats-overlay" onClick={onClose}>
@@ -3778,6 +3783,11 @@ function ChartsPanel({ open, charts, wins, onClose, onSaved, onLeveled }) {
             {chartSpent(committed) > 0 && !recharting && (
               <button className="charts-btn" disabled={!def.can_rechart} onClick={rechart}>
                 {def.can_rechart ? 'Re-chart (1 left today)' : 'Re-chart tomorrow'}
+              </button>
+            )}
+            {canRestore && (
+              <button className="charts-btn" title="Place your points the way last tide's Chart had them" onClick={() => { setPending({ ...last }); setError(''); }}>
+                ↺ Restore last Chart
               </button>
             )}
             <button className="charts-btn" disabled={!changed && !recharting} onClick={cancel}>Cancel</button>
@@ -5441,7 +5451,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       <div className="user-bar">
         <span className="user-bar-name">👤 {username}</span>
         <button className="stats-btn charts-open-btn" title="Charts" onClick={() => setShowCharts(true)}>
-          🧭{charts && charts.spent < charts.points && <span className="charts-dot" />}
+          🧭{charts && charts.spent < charts.points && <span className="charts-badge" aria-label={`${charts.points - charts.spent} points to place`}>{charts.points - charts.spent}</span>}
         </button>
         <button className="stats-btn" title="Stats" onClick={() => setShowStats(true)}>📊</button>
         <button className="stats-btn" title="Fish Encyclopaedia" onClick={() => setShowEncyclopedia(true)}>📖</button>

@@ -94,6 +94,16 @@ def test_only_one_keystone():
     assert talents.validate(alloc, 99) == 'Only one keystone'
 
 
+def test_fit_replaces_a_saved_chart_as_far_as_points_allow():
+    assert talents.fit(FULL_SWELL, 10) == FULL_SWELL
+    # Early rows first, so gates open before later rows are tried; the keystone waits.
+    part = talents.fit(FULL_SWELL, 5)
+    assert talents.validate(part, 5) is None and sum(part.values()) == 5
+    assert 'spring_tide' not in part
+    assert talents.fit({'retired_talent': 2, 'undertow': 9}, 10) == {'undertow': 3}
+    assert talents.fit({}, 10) == {} and talents.fit(None, 10) == {}
+
+
 def test_requires_needs_full_rank_of_prerequisite():
     assert talents.validate({'open_water': 1, 'loaded_dice': 1, 'deep_water': 2}, 10) is None
     assert talents.validate({'rich_waters': 2, 'deckhand': 1, 'better_bait': 1, 'old_salt': 1}, 10) \
@@ -474,3 +484,14 @@ def test_surge_mults_undertow_and_spring_tide_never_pay_less():
     gs = {'talent_alloc': {'undertow': 3, 'spring_tide': 1}}
     assert game._surge_mults(ctx, gs, 1, staked=False, diced=False) == (5, 24, 1)
     assert game._surge_mults(ctx, gs, 0, staked=False, diced=False) == (1, 16, 0)
+
+
+def test_get_charts_offers_last_tides_chart_fitted_to_points(user, db_url, monkeypatch):
+    client, username = user
+    _set(db_url, username, last_talent_alloc=FULL_SWELL)
+    monkeypatch.setattr(talents, 'points_total', lambda now, bought=0: 4)
+    body = client.get('/api/charts').get_json()
+    assert body['last_alloc'] == talents.fit(FULL_SWELL, 4) and sum(body['last_alloc'].values()) == 4
+    # Restoring is an ordinary save: adding points is free.
+    status, saved = _chart(client, body['last_alloc'])
+    assert status == 200 and saved['alloc'] == body['last_alloc']

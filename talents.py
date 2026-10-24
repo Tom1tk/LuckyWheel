@@ -193,6 +193,20 @@ def validate(alloc, points: int):
     return None
 
 
+def fit(alloc: dict, points: int) -> dict:
+    """Re-place a saved Chart rank by rank, earliest rows first, as far as
+    ``points`` and the gates allow. Talents since retired are skipped."""
+    out = {}
+    saved = [(t, r) for t, r in (alloc or {}).items() if t in TALENTS and isinstance(r, int)]
+    for tid, r in sorted(saved, key=lambda tr: 4 if TALENTS[tr[0]]['row'] == 'K' else TALENTS[tr[0]]['row']):
+        for _ in range(min(r, max_rank(tid))):
+            trial = {**out, tid: out.get(tid, 0) + 1}
+            if validate(trial, points):
+                break
+            out = trial
+    return out
+
+
 def is_refund(old: dict, new: dict) -> bool:
     """True if ``new`` takes back any rank that ``old`` had."""
     return any(rank(new, t) < r for t, r in (old or {}).items())
