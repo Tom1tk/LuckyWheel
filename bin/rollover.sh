@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # RV-10: weekly tide rollover, run by wheel-rollover.timer (Fri 21:00 London).
 #
-# Flow: check a tide is due -> clone prod to a rehearsal DB and rehearse the
-# rollover there -> back up prod -> advance prod -> verify prod -> release staging
-# (prod only, bin/release.sh) -> drop rehearsal.
+# Flow: check a tide is due -> clone prod to a rehearsal DB -> release staging
+# (prod only, bin/release.sh) -> rehearse the rollover on the clone -> back up prod
+# -> advance prod -> verify prod -> drop rehearsal.
+# The release goes first so the new tide is advanced by the code that will run it.
+# A failed release rolls itself back and the tide still advances, on the old code.
 # Any failure writes $FAIL_MARKER (step and log path) and exits 1. The rehearsal DB
 # is kept on failure for inspection. "No tide due" exits 0.
 set -Eeuo pipefail
+{  # parse the whole script up front: the release rewrites this file mid-run
 
 APP_DIR="${APP_DIR-/home/user/wheel-app}"
 PROD_DB="${PROD_DB-wheeldb}"
@@ -16,7 +19,7 @@ BACKUP_CMD="${BACKUP_CMD-/home/user/backup-wheeldb.sh}"
 FAIL_MARKER="${FAIL_MARKER-$APP_DIR/ROLLOVER_FAILED}"
 POST_CHECK="${POST_CHECK-python3 $APP_DIR/bin/post_rollover_check.py}"
 LOG_DIR="${LOG_DIR-$APP_DIR/logs}"
-RELEASE_CMD="${RELEASE_CMD-}"  # set on the prod unit only: ships origin/staging after the advance
+RELEASE_CMD="${RELEASE_CMD-}"  # set on the prod unit only: ships origin/staging before the advance
 LOCK_FILE="/tmp/wheel-rollover-$PROD_DB.lock"  # per DB: staging and prod timers fire at the same minute
 STEP="startup"
 
@@ -57,6 +60,15 @@ esac
 STEP="clone prod to rehearsal"
 SOURCE_DB="$PROD_DB" "$APP_DIR/bin/clone-prod-to.sh" "$REHEARSAL_DB"
 
+RELEASE_FAILED=""
+if [[ -n "$RELEASE_CMD" ]]; then
+    STEP="release"
+    if ! APP_DIR="$APP_DIR" PROD_DB="$PROD_DB" REHEARSAL_DB="$REHEARSAL_DB" BACKUP_CMD="$BACKUP_CMD" $RELEASE_CMD; then
+        RELEASE_FAILED=1
+        echo "$(date -Is) release failed; the tide advances on the current code"
+    fi
+fi
+
 STEP="rehearsal"
 python3 "$APP_DIR/bin/post_rollover_check.py" snapshot --db "$REHEARSAL_DB" \
     --out "$LOG_DIR/rollover-$ts-rehearsal-before.json"
@@ -86,12 +98,13 @@ fi
 $POST_CHECK verify --db "$PROD_DB" --before "$LOG_DIR/rollover-$ts-prod-before.json" \
     ${LIVE_ARGS[@]+"${LIVE_ARGS[@]}"}
 
-if [[ -n "$RELEASE_CMD" ]]; then
-    STEP="release"
-    APP_DIR="$APP_DIR" PROD_DB="$PROD_DB" REHEARSAL_DB="$REHEARSAL_DB" BACKUP_CMD="$BACKUP_CMD" $RELEASE_CMD
-fi
-
 STEP="drop rehearsal"
 sudo -u postgres dropdb --if-exists "$REHEARSAL_DB"
 
 echo "rollover complete ${ADV_LINE#advanced }"
+if [[ -n "$RELEASE_FAILED" ]]; then
+    STEP="release"
+    fail "release failed and rolled back; the tide advanced on the old code"
+fi
+exit 0
+}
