@@ -83,3 +83,27 @@ def test_borrowed_treasure_pays_a_jackpot_and_never_sticks(user, db_url, monkeyp
     assert status == 200, body
     assert spin()['jackpot_hit']
     assert 'jackpot' not in _get(db_url, username)['owned_items']
+
+
+def test_borrowed_treasure_works_on_auto_spin_and_never_sticks(user, db_url, monkeypatch):
+    import game
+    client, username = user
+    status, body = _chart(client, {'undertow': 2, 'echo': 1, 'fortune_charm': 1, 'steady_keel': 1})
+    assert status == 200, body
+    seen = []
+    real = game._resolve_spin
+    monkeypatch.setattr(game, '_resolve_spin', lambda **kw: seen.append(list(kw['owned'])) or real(**kw))
+
+    def tick():
+        seen.clear()
+        past = dt.datetime.now(timezone.utc) - dt.timedelta(seconds=10)
+        _set(db_url, username, auto_spin_since=past, last_spin_at=past)
+        r = client.post('/api/tick', json={}, headers={'X-CSRFToken': _read_csrf(client)})
+        assert r.status_code == 200 and r.get_json()['spins'], r.get_json()
+        return seen
+
+    assert not any('jackpot' in owned for owned in tick())
+    assert _pick(client, 'borrow:treasure')[0] == 200
+    _set(db_url, username, fair_winds_at=dt.datetime.now(timezone.utc) - dt.timedelta(minutes=1))
+    assert all('jackpot' in owned for owned in tick())
+    assert 'jackpot' not in _get(db_url, username)['owned_items']

@@ -289,6 +289,7 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                                             THEN talent_alloc ELSE last_talent_alloc END,
                    talent_alloc = '{}'::jsonb, talent_rechart_date = NULL, chart_points_bought = 0,
                    surge_spins = 0, insurance_tokens = 0,
+                   fair_winds_boon = NULL, fair_winds_at = NULL,
                    fishing_species = NULL, fishing_hooked_at = NULL""",
             {'always': always, 'cosmetics': cosmetics, 'theme': [new_theme], 'starts': next_starts,
              'force_theme': force_theme},

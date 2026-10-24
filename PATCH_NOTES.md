@@ -25,7 +25,7 @@ Each tide, one tree's current runs strong. The Charts panel shows which one, and
 
 ### 🌬️ Fair Winds
 
-Once a day, tap 🌬️ and pick one of three boons. It lasts until midnight (London time), and spins while you're away count if they land after you picked.
+Once a day, tap 🌬️ and pick one of three boons. It lasts until midnight (London time) or the tide turn, whichever comes first, and spins while you're away count if they land after you picked.
 
 - **🐚 High Water**: 🎣 Surge spins pay **×1.5**.
 - **🪙 Spare Change**: **+1 chip** right now, even past the cap.

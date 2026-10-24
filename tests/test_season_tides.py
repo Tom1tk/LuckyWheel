@@ -419,7 +419,8 @@ def test_rollover_clears_chart_surge_chips_and_keeps_records(conn):
                talent_alloc=psycopg2.extras.Json({'undertow': 1, 'open_water': 1}),
                talent_rechart_date=dt.date(2026, 10, 9), chart_points_bought=3, surge_spins=40, insurance_tokens=12,
                fishing_species='tuna', fishing_hooked_at=dt.datetime.now(dt.timezone.utc),
-               fish_records=psycopg2.extras.Json({'tuna': 61.5}), caught_species=['tuna'])
+               fish_records=psycopg2.extras.Json({'tuna': 61.5}), caught_species=['tuna'],
+               fair_winds_boon='high_water', fair_winds_at=dt.datetime.now(dt.timezone.utc))
     _seed_season(conn, pfn=9, sub=1, name='Tides')
 
     seasons.advance_season(conn)
@@ -428,6 +429,7 @@ def test_rollover_clears_chart_surge_chips_and_keeps_records(conn):
     assert gs['talent_alloc'] == {} and gs['talent_rechart_date'] is None and gs["chart_points_bought"] == 0
     assert gs['last_talent_alloc'] == {'undertow': 1, 'open_water': 1}
     assert gs['surge_spins'] == 0 and gs['insurance_tokens'] == 0
+    assert gs['fair_winds_boon'] is None and gs['fair_winds_at'] is None
     assert gs['fishing_species'] is None and gs['fishing_hooked_at'] is None
     assert gs['fish_records'] == {'tuna': 61.5} and gs['caught_species'] == ['tuna']
     assert set(gs['owned_items']) == {'trail_2', 'page_season9', 'auto_spin_unlock'}

@@ -81,7 +81,7 @@ From Tide 9.4, each tide one tree's current runs strong, rotating Riptide → An
 - **🌊 Swell**: Echo and Fortune Charm trigger twice as often.
 
 ### 🌬️ Fair Winds
-Once a day (UK days), pick one of three boons from the 🌬️ button. It lasts until midnight: **🐚 High Water** (Surge spins pay ×1.5), **🪙 Spare Change** (+1 chip now, even past the cap), or **borrow** one talent you don't own (Treasure, Echo, Fortune Charm or Steady Keel), a different offer each day.
+Once a day (UK days), pick one of three boons from the 🌬️ button. It lasts until midnight or the tide turn: **🐚 High Water** (Surge spins pay ×1.5), **🪙 Spare Change** (+1 chip now, even past the cap), or **borrow** one talent you don't own (Treasure, Echo, Fortune Charm or Steady Keel), a different offer each day.
 
 ### 🎣 Fishing Is a Fight
 - Click **🎣 CAST** to drop your line. When the fish bites, tap to **hook** it.
