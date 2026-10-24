@@ -457,7 +457,7 @@ class TestBuyCoreFishToWager:
         # The grant UPDATE was issued.
         updates = [c for c in cur.execute_calls if c[0].startswith("UPDATE")]
         grant_update = [
-            u for u in updates if "insurance_tokens = LEAST(insurance_tokens + 5, %s)" in u[0]
+            u for u in updates if "GREATEST(insurance_tokens, LEAST(insurance_tokens + 5, %s))" in u[0]
         ]
         assert len(grant_update) == 1
         assert "insurance_unlock_grant_given = TRUE" in grant_update[0][0]
@@ -477,7 +477,7 @@ class TestBuyCoreFishToWager:
         # No grant UPDATE was issued.
         updates = [c for c in cur.execute_calls if c[0].startswith("UPDATE")]
         grant_updates = [
-            u for u in updates if "insurance_tokens = LEAST(insurance_tokens + 5, %s)" in u[0]
+            u for u in updates if "GREATEST(insurance_tokens, LEAST(insurance_tokens + 5, %s))" in u[0]
         ]
         assert grant_updates == []
 

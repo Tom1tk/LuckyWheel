@@ -5562,3 +5562,23 @@ body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,18
   text-align: center;
   margin-top: 4px;
 }
+/* Fair Winds (9.4): a daily pick of one boon */
+.winds-card { width: min(640px, 94vw); }
+.winds-offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.winds-boon {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 16px 12px; font-family: inherit; color: #cfd8df; text-align: center;
+  background: rgba(var(--p-rgb),0.04); border: 1px solid rgba(var(--p-rgb),0.25); border-radius: 8px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+button.winds-boon:hover:not(:disabled) {
+  border-color: var(--p); background: rgba(var(--p-rgb),0.1); box-shadow: 0 0 14px rgba(var(--p-rgb),0.2);
+}
+.winds-boon:disabled { opacity: 0.5; cursor: default; }
+.winds-boon.on {
+  grid-column: 1 / -1; justify-self: center; width: min(280px, 100%); cursor: default;
+  border-color: var(--p); background: rgba(var(--p-rgb),0.1); box-shadow: 0 0 14px rgba(var(--p-rgb),0.2);
+}
+.winds-icon { font-size: 1.8rem; line-height: 1; }
+.winds-name { font-size: 0.85rem; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+.winds-desc { font-size: 0.72rem; line-height: 1.4; color: #9fb0bc; }

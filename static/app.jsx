@@ -3979,6 +3979,57 @@ function happyHourEndLocal() {
   return fmt12(new Date(Date.now() + minsLeft * 60000));
 }
 
+// Fair Winds (Tide 9.4): once a UK day, pick one of three boons; it blows until midnight.
+function FairWindsPanel({ open, onClose, onPicked }) {
+  const [winds, setWinds] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!open) return;
+    setError('');
+    apiGame('/api/fair-winds').then(r => {
+      if (!r.ok) { setError(r.data.error || "Couldn't read the winds."); return; }
+      setWinds(r.data);
+    });
+  }, [open]);
+  if (!open) return null;
+  const pick = async id => {
+    setBusy(true); setError('');
+    const r = await apiGame('/api/fair-winds', { method: 'POST', body: JSON.stringify({ boon: id }) });
+    setBusy(false);
+    if (!r.ok) { setError(r.data.error || "Couldn't catch that wind."); return; }
+    setWinds(r.data.fair_winds);
+    onPicked(r.data);
+  };
+  const boon = b => (
+    <>
+      <span className="winds-icon">{b.icon}</span>
+      <span className="winds-name">{b.name}</span>
+      <span className="winds-desc">{b.desc}</span>
+    </>
+  );
+  return (
+    <div className="stats-overlay" onClick={onClose}>
+      <div className="charts-card winds-card" onClick={e => e.stopPropagation()}>
+        <div className="stats-title">🌬️ Fair Winds</div>
+        <button className="stats-close-btn" onClick={onClose}>✕</button>
+        {!winds ? <div className="stats-loading">{error || 'Loading…'}</div> : winds.picked ? (<>
+          <div className="charts-sub">Blowing until midnight UK time · a new pick tomorrow</div>
+          <div className="winds-offers"><div className="winds-boon on">{boon(winds.picked)}</div></div>
+        </>) : (<>
+          <div className="charts-sub">Pick one for today · it blows until midnight UK time</div>
+          <div className="winds-offers">
+            {winds.offers.map(o => (
+              <button key={o.id} className="winds-boon" disabled={busy} onClick={() => pick(o.id)}>{boon(o)}</button>
+            ))}
+          </div>
+        </>)}
+        {winds && error && <div className="charts-error">{error}</div>}
+      </div>
+    </div>
+  );
+}
+
 // Mirrors talents.free_chips: 3, +1 per Rising Tide rank, +2 in a Riptide current.
 function FreeTokensPanel({ insuranceFreeClaimedToday, insuranceTokens, chipCap, freeChips, onClaim }) {
   const CHIP_CAP = chipCap;
@@ -4205,6 +4256,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     try { localStorage.setItem('tidesSurgeExplained', '1'); } catch (e) {}
   };
   const [showCharts, setShowCharts]         = useState(false);
+  const [showWinds, setShowWinds]           = useState(false);
+  const [fairWinds, setFairWinds]           = useState(gameState.fair_winds || null);
+  const [current, setCurrent]               = useState(gameState.current || null);
+  const [chipCap, setChipCap]               = useState(gameState.chip_cap || 6);
   const keystone = charts ? charts.keystone : null;
   const [procStreak, setProcStreak]         = useState(gameState.proc_streak || 0);
   const [fishExchangeTotal, setFishExchangeTotal] = useState(gameState.fish_exchange_total || 0);
@@ -4428,6 +4483,10 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           if (gs.data.active_wheel_mode != null) setActiveWheelMode(gs.data.active_wheel_mode);
           if (gs.data.available_wheel_modes != null) setAvailableWheelModes(gs.data.available_wheel_modes);
           if (gs.data.insurance_tokens != null) setInsuranceTokens(gs.data.insurance_tokens);
+          setCurrent(gs.data.current || null);
+          if (gs.data.chip_cap != null) setChipCap(gs.data.chip_cap);
+          if (gs.data.fair_winds != null) setFairWinds(gs.data.fair_winds);
+          if (gs.data.charts != null) setCharts(gs.data.charts);
           if (gs.data.bounties != null) setBounties(gs.data.bounties);
           if (gs.data.community_goal != null) setCommunityGoal(gs.data.community_goal);
           // T80: sync wheelProbabilities + gravity drift from the new state.
@@ -4986,6 +5045,11 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
     setInsuranceArmed(p => p && data.owned_items.includes('wager_insurance'));
     showToast('🧭 Course set');
   };
+  const handleWindsPicked = data => {
+    setFairWinds(data.fair_winds);
+    if (data.insurance_tokens != null) setInsuranceTokens(data.insurance_tokens);
+    showToast(`🌬️ ${data.fair_winds.picked.name} until midnight`);
+  };
   const handleChartsLeveled = data => {
     setWins(data.wins);
     setCharts(c => ({ ...c, points: data.points, bought: data.bought, next_cost: data.next_cost }));
@@ -5024,8 +5088,6 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
   const [insuranceFreeClaimedDate, setInsuranceFreeClaimedDate] = useState(gameState.insurance_free_claimed_date || null);
   const todayStr = londonToday();
   const insuranceFreeClaimedToday = insuranceFreeClaimedDate === todayStr;
-  const current = gameState.current || null;
-  const chipCap = gameState.chip_cap || 6;
   const freeChips = 3 + ((charts && charts.alloc && charts.alloc.rising_tide) || 0) + (current && current.id === 'riptide' ? 2 : 0);
   // T110: "Pay with tokens" toggle. Visible only at high stake (>= 30%)
   // when the player owns fish_to_wager and has tokens. The ref mirrors
@@ -5463,6 +5525,9 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
         <button className="stats-btn charts-open-btn" title="Charts" onClick={() => setShowCharts(true)}>
           🧭{charts && charts.spent < charts.points && <span className="charts-badge" aria-label={`${charts.points - charts.spent} points to place`}>{charts.points - charts.spent}</span>}
         </button>
+        <button className="stats-btn charts-open-btn" title="Fair Winds" onClick={() => setShowWinds(true)}>
+          🌬️{(!fairWinds || !fairWinds.picked || fairWinds.day !== londonToday()) && <span className="charts-dot" />}
+        </button>
         <button className="stats-btn" title="Stats" onClick={() => setShowStats(true)}>📊</button>
         <button className="stats-btn" title="Fish Encyclopaedia" onClick={() => setShowEncyclopedia(true)}>📖</button>
         <button
@@ -5500,6 +5565,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
       </div>
 
       <ChartsPanel open={showCharts} charts={charts} wins={wins} onClose={() => setShowCharts(false)} onSaved={handleChartsSaved} onLeveled={handleChartsLeveled} />
+      <FairWindsPanel open={showWinds} onClose={() => setShowWinds(false)} onPicked={handleWindsPicked} />
 
       {showEncyclopedia && (
         <FishEncyclopedia

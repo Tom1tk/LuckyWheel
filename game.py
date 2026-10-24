@@ -33,6 +33,7 @@ import admin
 import anticheat
 import chat_triggers
 import dice
+import fair_winds
 import fish
 import fish_catalog
 import shop
@@ -78,7 +79,7 @@ _GAME_STATE_SQL = '''
            insurance_free_claimed_date, insurance_unlock_grant_given,
            insurance_free_arm_date, gravity_drift,
            talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins,
-           haul, haul_date,
+           haul, haul_date, fair_winds_boon, fair_winds_at,
            (SELECT season_number FROM seasons ORDER BY id LIMIT 1) AS season_number
     FROM game_state WHERE user_id = %s
 '''
@@ -198,7 +199,7 @@ def _haul_today(gs: dict, now: dt.datetime) -> int:
     return int(gs.get('haul') or 0) if gs.get('haul_date') == talents.london_date(now) else 0
 
 
-def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: bool):
+def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: bool, high_water: bool = False):
     """S9 Surge: one banked Surge spin adds (M-1) to both multipliers.
 
     Returns (win_mult, bonus_mult, spent). Tide 9.3: on a Surge spin Undertow pays
@@ -214,6 +215,8 @@ def _surge_mults(ctx: dict, gs: dict, surge_left: int, *, staked: bool, diced: b
     m = talents.surge_mult(alloc)
     if ctx.get('current') == 'angler':
         m *= talents.surge_bonus(alloc)  # Angler current: Better Bait also raises Surge pay
+    if high_water:
+        m *= fair_winds.HIGH_WATER_MULT
     undertow = talents.UNDERTOW_SURGE_MULT[talents.rank(alloc, 'undertow')]
     bonus_mult = max(ctx['bonus_mult'] + m - 1, m * undertow) * spring
     return ctx['effective_win_mult'] + m - 1, bonus_mult, 1
@@ -1021,7 +1024,7 @@ def get_state():
                               gravity_drift,
                               auto_fish_enabled, auto_fish_last_tick,
                               talent_alloc, talent_rechart_date, chart_points_bought, surge_spins, fish_records, recent_spins,
-           haul, haul_date
+           haul, haul_date, fair_winds_boon, fair_winds_at
                        FROM game_state WHERE user_id = %s''',
                     (current_user.id,),
                 )
@@ -1164,6 +1167,7 @@ def get_state():
             'charts':               _charts_payload(gs, now_utc),
             'current':              talents.current_info(season_info['season_number']),
             'chip_cap':             talents.chip_cap(season_info['season_number']),
+            'fair_winds':           fair_winds.payload(current_user.id, gs, now_utc),
             'surge_spins':          int(gs.get('surge_spins', 0) or 0),
             'fish_records':         gs.get('fish_records') or {},
             'recent_spins':         gs.get('recent_spins') or [],
@@ -1370,8 +1374,11 @@ def spin():
             if wants_stake and int(gs.get('insurance_tokens', 0) or 0) < 1:
                 return jsonify({'error': "Out of 🪙 chips — claim today's 3"}), 400
             pd = gs.get('pending_dice')
+            wind = fair_winds.active(gs, now_utc)
+            spin_owned, lent = fair_winds.lend(list(gs['owned_items']), wind)
             win_mult, bonus_mult, surge_spent = _surge_mults(
-                ctx, gs, int(gs.get('surge_spins', 0) or 0), staked=wants_stake, diced=bool(pd))
+                ctx, gs, int(gs.get('surge_spins', 0) or 0), staked=wants_stake, diced=bool(pd),
+                high_water=wind == 'high_water')
 
             new_spin_count = gs['spin_count'] + 1
 
@@ -1388,7 +1395,7 @@ def spin():
                 input_streak = gs['streak']
 
             new_state, events = _resolve_spin(
-                owned=list(gs['owned_items']),
+                owned=spin_owned,
                 streak=input_streak,
                 best_streak=gs['best_streak'],
                 regen_recharge_wins=gs['regen_recharge_wins'],
@@ -1427,6 +1434,8 @@ def spin():
                 pay_with_tokens=pay_with_tokens,
                 stake_base=_haul_today(gs, now_utc),
             )
+            if lent:
+                new_state['owned'] = [i for i in new_state['owned'] if i != lent]
             new_haul = haul_after(_haul_today(gs, now_utc), int(events['wins_delta']), events.get('staked'))
             chips_after = int(events.get('insurance_tokens', 0)) - (1 if events.get('staked') else 0)
             surge_after = int(gs.get('surge_spins', 0) or 0) - surge_spent
@@ -1808,12 +1817,15 @@ def tick():
             recent_spins = gs.get('recent_spins') or []
             for i in range(spins_due):
                 new_spin_count += 1
+                spin_at = cursor + timedelta(seconds=(i + 1) * AUTO_SPIN_INTERVAL_SECONDS)
+                wind = fair_winds.active(gs, spin_at)
+                spin_owned, lent = fair_winds.lend(owned, wind)
                 win_mult, bonus_mult, surge_spent = _surge_mults(
-                    ctx, gs, surge_left, staked=False, diced=bool(pd))
+                    ctx, gs, surge_left, staked=False, diced=bool(pd), high_water=wind == 'high_water')
                 surge_left -= surge_spent
                 surge_spent_total += surge_spent
                 new_state, events = _resolve_spin(
-                    owned=owned,
+                    owned=spin_owned,
                     streak=streak,
                     best_streak=best_streak,
                     regen_recharge_wins=regen_recharge_wins,
@@ -1845,6 +1857,8 @@ def tick():
                     wager_banked_losses=current_wager_banked_losses,
                 )
 
+                if lent:
+                    new_state['owned'] = [i for i in new_state['owned'] if i != lent]
                 # Update carry-over state from result
                 owned               = new_state['owned']
                 streak              = new_state['streak']
@@ -1885,7 +1899,7 @@ def tick():
                 jackpots_this_tick += 1 if events['jackpot_hit'] else 0
                 # T106: cumulative_wins — track lifetime value of wins gained.
                 new_cumulative_wins += max(0, int(events.get('wins_delta', 0)))
-                if cursor + timedelta(seconds=(i + 1) * AUTO_SPIN_INTERVAL_SECONDS) >= midnight:
+                if spin_at >= midnight:
                     haul = haul_after(haul, int(events['wins_delta']), False)
                 recent_spins = _push_recent_spin(recent_spins, events)
 
@@ -3080,6 +3094,46 @@ def insurance_claim_free():
         conn.commit()
     return jsonify({'ok': True, 'tokens_awarded': new_tokens - current_tokens,
                     'insurance_tokens': new_tokens})
+
+
+@game_bp.route('/api/fair-winds', methods=['GET'])
+@login_required
+def fair_winds_get():
+    now = dt.datetime.now(timezone.utc)
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id)
+    return jsonify(fair_winds.payload(current_user.id, gs, now))
+
+
+@game_bp.route('/api/fair-winds', methods=['POST'])
+@login_required
+@limiter.limit('5 per second')
+def fair_winds_pick():
+    """Fair Winds (Tide 9.4): pick one of today's offers. Once a London day; the
+    pick time is the server's, so a boon never reaches spins from before it."""
+    err = require_json()
+    if err:
+        return err
+    boon = (request.json or {}).get('boon')
+    now = dt.datetime.now(timezone.utc)
+    with db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            gs = _load_game_state(cur, current_user.id, for_update=True)
+            if fair_winds.picked_today(gs, now):
+                return jsonify({'error': "You've had today's Fair Winds"}), 409
+            if boon not in fair_winds.offers(current_user.id, gs.get('talent_alloc'), talents.london_date(now)):
+                return jsonify({'error': 'That wind isn\'t on offer today'}), 400
+            chip = 1 if boon == 'spare_change' else 0  # past the cap on purpose
+            cur.execute('''UPDATE game_state SET fair_winds_boon = %s, fair_winds_at = %s,
+                                  insurance_tokens = insurance_tokens + %s
+                           WHERE user_id = %s RETURNING insurance_tokens''',
+                        (boon, now, chip, current_user.id))
+            tokens = cur.fetchone()['insurance_tokens']
+        conn.commit()
+    gs = {**gs, 'fair_winds_boon': boon, 'fair_winds_at': now}
+    return jsonify({'ok': True, 'fair_winds': fair_winds.payload(current_user.id, gs, now),
+                    'insurance_tokens': tokens})
 
 
 @game_bp.route('/api/prestige', methods=['POST'])
