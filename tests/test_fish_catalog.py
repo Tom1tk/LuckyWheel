@@ -160,9 +160,9 @@ def test_records_only_go_up():
     assert r3 == {'crab': 2.0} and new3 and r2 == {'crab': 1.5}
 
 
-@pytest.mark.parametrize('rarity,ratio,expected', [
-    ('junk', 1.0, 0), ('common', 0.5, 6), ('uncommon', 0.5, 15), ('rare', 0.5, 40),
-    ('legendary', 0.5, 150), ('legendary', 1.0, 225), ('common', 0.0, 3)])
+@pytest.mark.parametrize('rarity,ratio,expected', [  # Tide 9.4: fights bank ×5
+    ('junk', 1.0, 0), ('common', 0.5, 30), ('uncommon', 0.5, 75), ('rare', 0.5, 200),
+    ('legendary', 0.5, 750), ('legendary', 1.0, 1125), ('common', 0.0, 15)])
 def test_manual_surge_table(rarity, ratio, expected):
     assert talents.catch_surge({}, rarity, ratio, auto=False) == expected
 
@@ -174,8 +174,8 @@ def test_auto_surge_is_a_half_with_a_floor_of_one():
 
 
 def test_better_bait_adds_25_percent_per_rank_and_rogue_wave_earns_as_normal():
-    assert talents.catch_surge({'better_bait': 2}, 'rare', 0.5, auto=False) == 60
-    assert talents.catch_surge({'rogue_wave': 1}, 'legendary', 1.0, auto=False) == 225
+    assert talents.catch_surge({'better_bait': 2}, 'rare', 0.5, auto=False) == 300
+    assert talents.catch_surge({'rogue_wave': 1}, 'legendary', 1.0, auto=False) == 1125
     assert talents.catch_surge({'rogue_wave': 1}, 'common', 1.0, auto=True) == 4
 
 
@@ -203,7 +203,7 @@ def test_land_earns_surge_and_sets_a_record(user, db_url):
     client, username = user
     body = _land_shark(client, db_url, username)
     assert body['result'] == 'hit' and body['rarity'] == 'rare' and body['new_record']
-    assert 20 <= body['surge'] <= 60
+    assert 100 <= body['surge'] <= 300  # rare ×5 for a fight
     gs = _get(db_url, username)
     assert gs['surge_spins'] == body['surge']
     assert gs['fish_records'] == {'shark': body['kg']}
@@ -213,7 +213,7 @@ def test_rogue_wave_land_earns_surge(user, db_url):
     client, username = user
     _chart(client, {'open_water': 1, 'loaded_dice': 3, 'treasure': 1, 'deep_water': 1, 'rogue_wave': 1})
     body = _land_shark(client, db_url, username)
-    assert body['result'] == 'hit' and 20 <= body['surge'] <= 60
+    assert body['result'] == 'hit' and 100 <= body['surge'] <= 300
     assert _get(db_url, username)['surge_spins'] == body['surge']
 
 

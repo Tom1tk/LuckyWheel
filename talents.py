@@ -90,8 +90,8 @@ TALENTS = {
     'deckhand':      {'tree': 'angler', 'row': 2, 'name': 'Deckhand', 'grants': [['autofisher_1'], ['autofisher_2']],
                       'desc': ["Auto-fish while you're away", 'Auto-fish catches more often']},
     'steady_hands':  {'tree': 'angler', 'row': 2, 'name': 'Steady Hands', 'grants': [[], [], []],
-                      'desc': ['A wider reel bar', 'Wider bar, and it moves 50% faster',
-                               'Wider, faster bar, and a slipping fish gets away 25% slower']},
+                      'desc': ['Reel bar moves 50% faster', 'Faster bar, and a slipping fish gets away 25% slower',
+                               'All that, and a much wider bar']},
     'auto_cast':     {'tree': 'angler', 'row': 2, 'name': 'Auto-Cast', 'grants': [['auto_cast']],
                       'desc': ['Recast automatically']},
     'old_salt':      {'tree': 'angler', 'row': 3, 'name': 'Old Salt', 'requires': 'deckhand',
@@ -275,6 +275,7 @@ def catalog() -> list:
 
 SURGE_BY_RARITY = {'junk': 0, 'common': 6, 'uncommon': 15, 'rare': 40, 'legendary': 150}
 AUTO_SURGE_MULT = 0.5
+FIGHT_SURGE_MULT = 5  # Tide 9.4: a fight you play yourself banks ×5 Surge
 
 
 def catch_surge(alloc: dict, rarity: str, size_ratio: float, auto: bool) -> int:
@@ -283,4 +284,4 @@ def catch_surge(alloc: dict, rarity: str, size_ratio: float, auto: bool) -> int:
     if not base:
         return 0
     s = base * (0.5 + size_ratio) * surge_bonus(alloc)
-    return max(1, round(s * AUTO_SURGE_MULT)) if auto else round(s)
+    return max(1, round(s * AUTO_SURGE_MULT)) if auto else round(s * FIGHT_SURGE_MULT)

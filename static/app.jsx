@@ -1399,10 +1399,10 @@ function FishEncyclopedia({ onClose }) {
 // the bar right, release lets it drift left. The catch fills while the fish is in the
 // bar and drains while it isn't; empty and the fish slips the hook. Units: meter widths.
 const FIGHT_START = 0.3;
-const FIGHT_BAR = [0.24, 0.28];  // bar width: base, Steady Hands 1+
-const FIGHT_ACCEL = [1.6, 2.4];  // bar acceleration /s²: base, Steady Hands 2+
-const FIGHT_VMAX = [0.8, 1.2];   // bar top speed /s: base, Steady Hands 2+
-const FIGHT_DRAIN = [0.2, 0.15]; // catch lost /s outside the bar: base, Steady Hands 3
+const FIGHT_BAR = [0.28, 0.34];  // bar width: base, Steady Hands 3
+const FIGHT_ACCEL = [1.6, 2.4];  // bar acceleration /s²: base, Steady Hands 1+
+const FIGHT_VMAX = [0.8, 1.2];   // bar top speed /s: base, Steady Hands 1+
+const FIGHT_DRAIN = [0.2, 0.15]; // catch lost /s outside the bar: base, Steady Hands 2+
 const FIGHT_BOUNCE = 0.3;        // bar keeps this much speed off the meter's ends
 const FIGHT_GIVE_UP_S = 44;      // the server refuses lands after 45 s
 // [speed /s, darts /s]: rarer fish swim faster and change direction more often.
@@ -1636,10 +1636,10 @@ function FishingPanel({ fishClicks, fishData, caughtSpecies, fishingLuckyNext, o
     const [speed, dart] = FIGHT_FISH[rarity] || FIGHT_FISH.common;
     const x = Math.random();
     fightRef.current = { x, tgt: x, b: 0.5, v: 0, p: FIGHT_START, inZone: 0, elapsed: 0,
-      last: performance.now(), fightS, speed, dart, w: FIGHT_BAR[up(1)], acc: FIGHT_ACCEL[up(2)],
-      vmax: FIGHT_VMAX[up(2)], drain: FIGHT_DRAIN[up(3)], done: false };
+      last: performance.now(), fightS, speed, dart, w: FIGHT_BAR[up(3)], acc: FIGHT_ACCEL[up(1)],
+      vmax: FIGHT_VMAX[up(1)], drain: FIGHT_DRAIN[up(2)], done: false };
     holdRef.current = false;
-    setFight({ x, b: 0.5, w: FIGHT_BAR[up(1)], p: FIGHT_START, out: Math.abs(x - 0.5) > FIGHT_BAR[up(1)] / 2 });
+    setFight({ x, b: 0.5, w: FIGHT_BAR[up(3)], p: FIGHT_START, out: Math.abs(x - 0.5) > FIGHT_BAR[up(3)] / 2 });
     setPhase('fight');
     const step = (now) => {
       const f = fightRef.current;
