@@ -456,8 +456,9 @@ def _resolve_spin(
         # T78: mirror mode doubles the escrow (2× stake_wins debited; full refund
         # on a win, full forfeit on a double-loss). Insurance, when armed, still
         # returns the full doubled escrow and caps the loss at the player's stake.
+        # Tide 9.4: capped at the stake base, so a mirror stake never reaches past today's haul.
         if active_wheel_mode == 'mirror' and owns_wager_unlock:
-            stake_wins = min(stake_wins * 2, wins)
+            stake_wins = min(stake_wins * 2, base)
         # T73: double-down escrows the *previous* payout (wager_last_win_amount),
         # not the standard stake_pct / 100 risk. If the player has no prior win to
         # risk, double-down is a no-op (per AC#7) — stake_wins stays at the

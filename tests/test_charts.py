@@ -525,3 +525,16 @@ def test_swell_current_doubles_echo_and_charm_chance():
     assert (ctx['echo_chance'], ctx['charm_chance'], ctx['current']) == (0.40, 0.50, 'swell')
     ctx = game._build_spin_context({**gs, 'season_number': 13})
     assert (ctx['echo_chance'], ctx['charm_chance']) == (0.20, 0.25)
+
+
+@pytest.mark.parametrize('stake, haul, lost', [(50, 1000, 1000), (25, 1000, 500), (100, 6000, 6000)])
+def test_mirror_doubles_the_stake_but_never_past_todays_haul(monkeypatch, stake, haul, lost):
+    import game
+    monkeypatch.setattr(game.random, 'random', lambda: 0.99)  # both mirror rolls lose
+    _, events = game._resolve_spin(
+        owned=['wager_unlock', 'wager_stake_extend_1', 'wager_stake_extend_2'], streak=0, best_streak=0,
+        regen_recharge_wins=0, wins=10_000, losses=0, jackpot_echo_next=False, spin_count=1,
+        active_cosmetics=[], proc_streak=0, effective_win_mult=1, bonus_mult=1, jackpot_chance=0,
+        echo_chance=0, charm_chance=0, resilience_chance=0, proc_streak_level=0, pot_active=False,
+        pot_win_pct=0.5, stake_pct=stake, active_wheel_mode='mirror', stake_base=haul)
+    assert events['result'] == 'lose' and events['wins_delta'] == -lost
