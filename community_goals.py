@@ -14,35 +14,37 @@ from models import CHIP_CAP
 from wheel_modes import get_week_number
 
 
-# per_player_cap is target / 5: five players at cap fill a goal exactly, and
-# no single player can give more than 20% of it.
+# per_player_cap is target / 2: two players at cap fill a goal, and nobody
+# solos it. Targets are sized for auto play (~500 jackpots, ~8k fish per player
+# per day), so two regulars fill a goal in about 4 days of a 7-day tide.
 # goal_species100 retired for S9: caught species persist across tides, so
 # first catches dry up and the goal becomes unfillable.
 COMMUNITY_GOAL_DEFS = [
     {
         'goal_id': 'goal_fish5000',
-        'description': 'Catch 1,500 fish server-wide',
-        'target': 1500,
-        'per_player_cap': 300,
+        'description': 'Catch 60,000 fish server-wide',
+        'target': 60_000,
+        'per_player_cap': 30_000,
         'metric': 'fish_caught',
         'reward_tokens': 10,
         'reward_fragments': 1,
     },
     {
         'goal_id': 'goal_jackpot500',
-        'description': 'Land 100 jackpots server-wide',
-        'target': 100,
-        'per_player_cap': 20,
+        'description': 'Land 4,000 jackpots server-wide',
+        'target': 4_000,
+        'per_player_cap': 2_000,
         'metric': 'jackpots_landed',
         'reward_tokens': 10,
         'reward_fragments': 1,
     },
     {
+        # goal_id kept so rows from before Tide 9.4 still resolve; it now counts stakes.
         'goal_id': 'goal_wager100k',
-        'description': 'Wager 25k wins total server-wide',
-        'target': 25_000,
-        'per_player_cap': 5_000,
-        'metric': 'wins_wagered',
+        'description': 'Place 40 stakes server-wide',
+        'target': 40,
+        'per_player_cap': 20,
+        'metric': 'stakes_placed',
         'reward_tokens': 10,
         'reward_fragments': 1,
     },

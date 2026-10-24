@@ -225,7 +225,7 @@ def test_sequential_calls_near_cap_never_exceed_cap():
     We simulate that visibility by feeding the second call's SELECT FOR
     UPDATE the post-update state of the first.
     """
-    # Use goal_jackpot500 (per_player_cap=20) so the math is obvious.
+    # Use goal_jackpot500 so the cap comes from the defs.
     goal_id = 'goal_jackpot500'
     cap = next(g['per_player_cap'] for g in community_goals.COMMUNITY_GOAL_DEFS if g['goal_id'] == goal_id)
     # First call: current=cap-2, ask for 6 -> clamps to 2, contrib becomes cap.
@@ -459,7 +459,7 @@ def test_concurrent_increment_goal_never_exceeds_cap():
     dsn = os.environ['DATABASE_URL']
 
     user_id = 990001 + (int(time.time()) % 1000)
-    goal_id = 'goal_jackpot500'  # per_player_cap = 20
+    goal_id = 'goal_jackpot500'
     cap = next(g['per_player_cap'] for g in community_goals.COMMUNITY_GOAL_DEFS
                if g['goal_id'] == goal_id)
     amount_each = cap // 2 + 1  # 11; two threads * 11 = 22 > 20
@@ -538,9 +538,9 @@ def test_concurrent_increment_goal_never_exceeds_cap():
 
 
 _WEEKLY_TARGETS = {
-    'goal_fish5000': 1500,
-    'goal_jackpot500': 100,
-    'goal_wager100k': 25_000,
+    'goal_fish5000': 60_000,
+    'goal_jackpot500': 4_000,
+    'goal_wager100k': 40,
 }
 MIGRATION_075 = Path(__file__).resolve().parent.parent / 'migrations' / '075_community_goals_weekly.sql'
 
@@ -562,15 +562,15 @@ def test_defs_targets_match_weekly_scale():
 
 
 def test_defs_descriptions_show_new_targets():
-    assert '1,500' in _def('goal_fish5000')['description']
-    assert '100 jackpots' in _def('goal_jackpot500')['description']
-    assert '25k' in _def('goal_wager100k')['description']
+    assert '60,000' in _def('goal_fish5000')['description']
+    assert '4,000 jackpots' in _def('goal_jackpot500')['description']
+    assert '40 stakes' in _def('goal_wager100k')['description']
 
 
-def test_per_player_cap_is_one_fifth_of_target():
-    """Five players at cap fill a goal; no one player can give more than 20%."""
+def test_per_player_cap_is_half_of_target():
+    """Two players at cap fill a goal; nobody solos it."""
     for g in community_goals.COMMUNITY_GOAL_DEFS:
-        assert g['per_player_cap'] * 5 == g['target'], g['goal_id']
+        assert g['per_player_cap'] * 2 == g['target'], g['goal_id']
 
 
 def test_get_active_goal_row_keeps_its_own_goal():
@@ -692,3 +692,34 @@ def test_test_account_does_not_move_the_shared_goal():
     finally:
         conn.rollback()
         conn.close()
+
+
+@pytest.mark.skipif(not _db_available(), reason="DATABASE_URL unreachable; skipping integration test")
+def test_migration_088_retargets_open_rows_and_restarts_stake_goal():
+    """The 9.4 row is inserted by old code at the turn; 088 retargets it. Runs twice, rolled back."""
+    sql = (MIGRATION_075.parent / '088_goal_retarget.sql').read_text()
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE community_goals SET completed = TRUE WHERE NOT completed")
+            cur.execute("DELETE FROM community_goal_contributions WHERE goal_id = 'goal_wager100k'")
+            cur.execute(
+                "INSERT INTO community_goals (goal_id, season_number, week_number, target, current) "
+                "VALUES ('goal_wager100k', 9401, 1, 25000, 4000)"
+            )
+            cur.execute("INSERT INTO community_goal_contributions (goal_id, user_id, contributed) "
+                        "SELECT 'goal_wager100k', id, 4000 FROM users ORDER BY id LIMIT 1")
+            seen = []
+            for _ in range(2):
+                cur.execute(sql)
+                cur.execute("SELECT target, current FROM community_goals WHERE season_number = 9401")
+                seen.append(cur.fetchone())
+                cur.execute("SELECT count(*) FROM community_goal_contributions WHERE goal_id = 'goal_wager100k'")
+                seen.append(cur.fetchone()[0])
+                # stake progress made after the first run must survive a re-run
+                cur.execute("UPDATE community_goals SET current = 3 WHERE season_number = 9401")
+    finally:
+        conn.rollback()
+        conn.close()
+
+    assert seen == [(40, 0), 0, (40, 3), 0]
