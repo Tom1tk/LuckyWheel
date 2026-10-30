@@ -1523,15 +1523,24 @@ var THEME_COLORS = {
   halloween: {
     win: ['#5a2600', '#ff8a1f'],
     lose: ['#2a0f45', '#9b5cff']
+  },
+  bonfire: {
+    win: ['#5a4300', '#ffd24a'],
+    lose: ['#4a0f2e', '#ff4fa3']
   }
 };
 
-// Halloween dresses up the tides theme from the tide that turns Fri 16 Oct (9pm BST) until the
-// tide after the 31st turns (Fri 6 Nov, 9pm GMT). Staging (port 5001) shows it early for review.
+// Festive dressing on the tides theme: Halloween from the tide that turns Fri 16 Oct (9pm BST),
+// then Bonfire Night from midnight London on Sun 1 Nov until the tide turns Fri 6 Nov (9pm GMT).
+// Staging (port 5001) shows Bonfire Night early for review.
 var HALLOWEEN_START = Date.UTC(2026, 9, 16, 20);
-var HALLOWEEN_END = Date.UTC(2026, 10, 6, 21);
-var isHalloween = function isHalloween() {
-  return (Date.now() >= HALLOWEEN_START || window.location.port === '5001') && Date.now() < HALLOWEEN_END;
+var BONFIRE_START = Date.UTC(2026, 10, 1, 0);
+var BONFIRE_END = Date.UTC(2026, 10, 6, 21);
+var festiveTheme = function festiveTheme() {
+  var now = Date.now();
+  if (now >= BONFIRE_END) return null;
+  if (now >= BONFIRE_START || window.location.port === '5001') return 'bonfire';
+  return now >= HALLOWEEN_START ? 'halloween' : null;
 };
 
 // ── Casino Background (Season 8) ─────────────────────────────────────────────
@@ -1575,16 +1584,16 @@ function CasinoBackground(_ref3) {
 function TidesBackground(_ref4) {
   var _ref4$lowSpec = _ref4.lowSpec,
     lowSpec = _ref4$lowSpec === void 0 ? false : _ref4$lowSpec,
-    _ref4$halloween = _ref4.halloween,
-    halloween = _ref4$halloween === void 0 ? false : _ref4$halloween;
+    _ref4$festive = _ref4.festive,
+    festive = _ref4$festive === void 0 ? null : _ref4$festive;
   var canvasRef = useRef(null);
   useEffect(function () {
     var canvas = canvasRef.current;
     if (!canvas || !window.createTidesScene) return;
-    var colors = THEME_COLORS[halloween ? 'halloween' : 'tides'];
+    var colors = THEME_COLORS[festive || 'tides'];
     var scene = window.createTidesScene(canvas, {
       lowSpec: lowSpec,
-      halloween: halloween,
+      festive: festive,
       palette: {
         win: colors.win[1],
         lose: colors.lose[1]
@@ -1593,7 +1602,7 @@ function TidesBackground(_ref4) {
     return function () {
       return scene && scene.stop();
     };
-  }, [lowSpec, halloween]);
+  }, [lowSpec, festive]);
   return /*#__PURE__*/React.createElement("canvas", {
     ref: canvasRef,
     "aria-hidden": "true",
@@ -7178,13 +7187,13 @@ function GameApp(_ref51) {
     onLogout = _ref51.onLogout,
     onSessionExpired = _ref51.onSessionExpired;
   // Re-checked every minute so open tabs swap at the tide turn without a reload.
-  var _useState131 = useState(isHalloween),
+  var _useState131 = useState(festiveTheme),
     _useState132 = _slicedToArray(_useState131, 2),
-    halloween = _useState132[0],
-    setHalloween = _useState132[1];
+    festive = _useState132[0],
+    setFestive = _useState132[1];
   useEffect(function () {
     var id = setInterval(function () {
-      return setHalloween(isHalloween());
+      return setFestive(festiveTheme());
     }, 60000);
     return function () {
       return clearInterval(id);
@@ -7567,13 +7576,13 @@ function GameApp(_ref51) {
     if (activeCosmetics.includes('theme_frost')) return 'frost';
     if (activeCosmetics.includes('theme_ember')) return 'ember';
     if (activeCosmetics.includes('theme_tidal')) return 'tidal';
-    if (activeCosmetics.includes('page_season9')) return halloween ? 'halloween' : 'tides';
+    if (activeCosmetics.includes('page_season9')) return festive || 'tides';
     if (activeCosmetics.includes('page_season8')) return 'casino';
     if (activeCosmetics.includes('page_season7')) return 'wormhole';
     if (activeCosmetics.includes('page_season5')) return 'bioluminescence';
     if (activeCosmetics.includes('page_season6')) return 'night_ocean';
     return 'default';
-  }, [activeCosmetics, halloween]);
+  }, [activeCosmetics, festive]);
   var bgClass = useMemo(function () {
     if (activeCosmetics.includes('bg_cosmic')) return 'bg-cosmic';
     if (activeCosmetics.includes('bg_abyss')) return 'bg-abyss';
@@ -7593,7 +7602,7 @@ function GameApp(_ref51) {
     return '';
   }, [activeCosmetics]);
   var pageThemeClass = useMemo(function () {
-    if (activeCosmetics.includes('page_season9')) return halloween ? 'page-season9 halloween' : 'page-season9';
+    if (activeCosmetics.includes('page_season9')) return festive ? "page-season9 ".concat(festive) : 'page-season9';
     if (activeCosmetics.includes('page_season8')) return 'page-season8';
     if (activeCosmetics.includes('page_season7')) return 'page-season7';
     if (activeCosmetics.includes('page_season1')) return 'page-season1';
@@ -7603,7 +7612,7 @@ function GameApp(_ref51) {
     if (activeCosmetics.includes('page_season5')) return 'page-season5';
     if (activeCosmetics.includes('page_season6')) return 'page-season6';
     return '';
-  }, [activeCosmetics, halloween]);
+  }, [activeCosmetics, festive]);
   var wormholeActive = activeCosmetics.includes('page_season7');
   var casinoActive = activeCosmetics.includes('page_season8');
   var tidesActive = activeCosmetics.includes('page_season9');
@@ -9446,7 +9455,7 @@ function GameApp(_ref51) {
     }
   }, /*#__PURE__*/React.createElement(TidesBackground, {
     lowSpec: lowSpec,
-    halloween: halloween
+    festive: festive
   })), /*#__PURE__*/React.createElement("div", {
     className: "overlay ".concat(showResult ? 'active' : '')
   }), !isMobile && guardState && /*#__PURE__*/React.createElement(GuardWheel, {
@@ -9691,7 +9700,10 @@ function GameApp(_ref51) {
     className: "title-lucky"
   }, "Lucky"), /*#__PURE__*/React.createElement("span", {
     className: "title-endless"
-  }, tidesActive ? halloween ? 'Spooky' : 'Tide' : 'Casino')), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
+  }, tidesActive ? {
+    halloween: 'Spooky',
+    bonfire: 'Bonfire'
+  }[festive] || 'Tide' : 'Casino')), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, tidesActive ? 'The tide turns every Friday' : 'All or nothing')), /*#__PURE__*/React.createElement("div", {
     className: "wheel-and-wager"
@@ -9736,7 +9748,10 @@ function GameApp(_ref51) {
     }
   }), /*#__PURE__*/React.createElement("div", {
     className: "center-hub"
-  }, halloween && tidesActive ? '🎃' : '★'))), /*#__PURE__*/React.createElement("div", {
+  }, tidesActive && {
+    halloween: '🎃',
+    bonfire: '🔥'
+  }[festive] || '★'))), /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
     onClick: !spinning ? handleManualSpin : undefined
   }, "\u25B6 Click to Spin \u25C0"), ownedItems.includes('auto_spin_unlock') && /*#__PURE__*/React.createElement("label", {

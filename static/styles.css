@@ -3788,6 +3788,53 @@ body.page-season9.halloween .dice-charge-dot.charged { color: #FF8A1F; text-shad
 body.page-season9.halloween .dice-roll-btn { background: linear-gradient(135deg, #5a2600 0%, #200c02 100%); border-color: #FF8A1F; color: #FFB866; box-shadow: 0 0 8px rgba(255,138,31,0.2); }
 body.page-season9.halloween .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(255,138,31,0.5); }
 body.page-season9.halloween .dice-roll-btn--disabled { border-color: rgba(255,184,102,0.3); color: rgba(255,184,102,0.6); }
+/* Bonfire Night (on top of Season 9): sparkler gold (wins) / firework pink (losses).
+   Same selectors as the Halloween rules above. */
+body.page-season9.bonfire {
+  background: linear-gradient(180deg, #050716 0%, #1c1438 58%, #0a2438 60%, #030c17 100%);
+  --p:        #FFD24A;
+  --p-lt:     #FFE68F;
+  --p-md:     #E0AE1A;
+  --p-dk:     #A88008;
+  --p-xs:     #6E5204;
+  --p-2x:     #3A2B04;
+  --p-rgb:    255, 210, 74;
+  --p-dk-rgb: 168, 128, 8;
+  --s:        #FF4FA3;
+  --s-lt:     #FF94C8;
+  --s-rgb:    255, 79, 163;
+  --bg:       #050716;
+}
+body.page-season9.bonfire::before { border-image: linear-gradient(90deg, #FFD24A, #F2E3C6, #FF4FA3, #F2E3C6, #FFD24A) 1; }
+body.page-season9.bonfire .title-endless { color: #FFD24A; text-shadow: 0 0 8px #FFD24A, 0 0 22px #E0AE1A; }
+body.page-season9.bonfire .subtitle { color: #FF94C8; }
+body.page-season9.bonfire .wheel-wrapper::before {
+  box-shadow: 0 0 34px 14px rgba(255,210,74,0.45), 0 0 90px 30px rgba(255,190,60,0.14), inset 0 0 20px rgba(255,210,74,0.1);
+}
+body.page-season9.bonfire .pointer { filter: drop-shadow(0 0 10px #FFD24A) drop-shadow(0 0 22px #FF4FA3); }
+body.page-season9.bonfire .center-hub { background: radial-gradient(circle, #5e1a40, #1a0612); box-shadow: 0 0 20px #FFD24A, 0 0 45px rgba(255,230,143,0.5); }
+body.page-season9.bonfire .bulb:nth-child(odd)  { background: #FFD24A; box-shadow: 0 0 8px #FFD24A; }
+body.page-season9.bonfire .bulb:nth-child(even) { background: #FF4FA3; box-shadow: 0 0 8px #FF4FA3; }
+body.page-season9.bonfire .result-text.win { color: #FFE68F; border-color: #FFD24A; text-shadow: 0 0 20px #FFD24A, 0 0 50px #E0AE1A; box-shadow: 0 0 40px #FFD24A, inset 0 0 20px rgba(255,210,74,0.1); }
+body.page-season9.bonfire .score-box.wins-box { border-color: #FFD24A; background: rgba(255,210,74,0.08); box-shadow: 0 0 16px rgba(255,210,74,0.2); }
+body.page-season9.bonfire .score-box.wins-box .score-label,
+body.page-season9.bonfire .score-box.wins-box .score-value { color: #FFE68F; }
+body.page-season9.bonfire .score-box.wins-box .score-value { text-shadow: 0 0 12px #FFD24A; }
+body.page-season9.bonfire .dice-panel-label,
+body.page-season9.bonfire .dice-result-text { color: #FFE68F; }
+body.page-season9.bonfire .dice-panel-desc,
+body.page-season9.bonfire .dice-recharge-timer { color: #E0AE1A; }
+body.page-season9.bonfire .dice-panel { border-top-color: rgba(255,210,74,0.15); }
+body.page-season9.bonfire .dice-tooltip { border-color: #FFD24A; }
+body.page-season9.bonfire .die { background: #1a1404; border-color: #FFD24A; box-shadow: 0 0 10px rgba(255,210,74,0.35), inset 0 0 8px rgba(255,210,74,0.08); }
+body.page-season9.bonfire .dice-result-text { text-shadow: 0 0 8px rgba(255,210,74,0.7); }
+body.page-season9.bonfire .dice-charge-dot { color: rgba(255,230,143,0.2); }
+body.page-season9.bonfire .dice-charge-dot.charged { color: #FFD24A; text-shadow: 0 0 6px #FFD24A; }
+body.page-season9.bonfire .dice-roll-btn { background: linear-gradient(135deg, #5a4300 0%, #1e1600 100%); border-color: #FFD24A; color: #FFE68F; box-shadow: 0 0 8px rgba(255,210,74,0.2); }
+body.page-season9.bonfire .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { box-shadow: 0 0 14px rgba(255,210,74,0.5); }
+body.page-season9.bonfire .dice-roll-btn--disabled { border-color: rgba(255,230,143,0.3); color: rgba(255,230,143,0.6); }
+/* 'Bonfire' is wider than the struck-out 'Lucky' it sits over, so give it room before 'Wheel'. */
+body.page-season9.bonfire .title-lucky-wrap { margin-inline: 0.45em; }
 .dice-disabled-reason { font-size: 10px; letter-spacing: 0.04em; color: var(--p-lt); opacity: 0.8; text-align: center; }
 
 /* ── RV-08: Tide banner + Hall of Fame ────────────────────────────────────── */
