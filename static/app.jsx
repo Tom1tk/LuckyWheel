@@ -934,14 +934,15 @@ const THEME_COLORS = {
 
 // Festive dressing on the tides theme: Halloween from the tide that turns Fri 16 Oct (9pm BST),
 // then Bonfire Night from midnight London on Sun 1 Nov until the tide turns Fri 6 Nov (9pm GMT).
-// Staging (port 5001) shows Bonfire Night early for review.
+// Staging (wheel-beta, or port 5001 locally) shows Bonfire Night early for review.
 const HALLOWEEN_START = Date.UTC(2026, 9, 16, 20);
 const BONFIRE_START   = Date.UTC(2026, 10, 1, 0);
 const BONFIRE_END     = Date.UTC(2026, 10, 6, 21);
+const isStaging = window.location.port === '5001' || window.location.hostname.startsWith('wheel-beta.');
 const festiveTheme = () => {
   const now = Date.now();
   if (now >= BONFIRE_END) return null;
-  if (now >= BONFIRE_START || window.location.port === '5001') return 'bonfire';
+  if (now >= BONFIRE_START || isStaging) return 'bonfire';
   return now >= HALLOWEEN_START ? 'halloween' : null;
 };
 
