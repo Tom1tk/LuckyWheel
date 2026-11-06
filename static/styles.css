@@ -2015,9 +2015,9 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 }
 
 .lb-header, .lb-row {
-  /* Fixed columns so every row lines up: rank | name | W | L | TP | streak */
+  /* Fixed columns so every row lines up: rank | name | race points | W | L | TP | streak */
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 64px 44px 22px 38px;
+  grid-template-columns: 18px minmax(0, 1fr) 18px 64px 44px 22px 38px;
   align-items: baseline;
   column-gap: 6px;
 }
@@ -2094,6 +2094,20 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
   overflow: hidden;
 }
 .lb-wins.is-neg { color: #888; }
+.lb-race-h { font-size: 0.5rem; text-align: right; }
+.lb-race { font-size: 0.6rem; font-weight: 700; color: var(--p); text-align: right; }
+.lb-regatta {
+  font-size: 0.6rem;
+  color: #aaa;
+  padding: 0 0 5px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(var(--p-rgb),0.12);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+.lb-regatta b { color: var(--p); font-weight: 700; }
 .lb-spin-result { font-size: 0.62rem; letter-spacing: 1px; text-transform: uppercase; color: #ddd; }
 .lb-spin-result.is-jackpot { color: var(--p); text-shadow: 0 0 6px var(--p); }
 .lb-spin-result.is-lose { color: #777; }

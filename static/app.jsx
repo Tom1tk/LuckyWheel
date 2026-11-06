@@ -2690,10 +2690,31 @@ function HiatusScreen({ season, username, onLogout }) {
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
+const REGATTA_RULES = 'Each day, 9pm to 9pm, is a race. Your first 3 stakes count: a win scores 1, a jackpot 5, a loss 0. '
+  + 'Places earn 5 / 3 / 2 / 1 race points, and the most points at the tide turn wins.';
+const ordinal = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+
+function RegattaStrip({ race }) {
+  const mins = Math.max(0, Math.round((new Date(race.ends_at) - Date.now()) / 60000));
+  const left = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+  const marks = race.my_scores.concat(Array(race.stakes - race.my_scores.length).fill('–'));
+  return (
+    <div className="lb-regatta" title={REGATTA_RULES}>
+      ⛵ <b>Race {race.race} of {race.races}</b>
+      {' · '}
+      {!race.can_race ? 'take 🌊 Open Water to race'
+        : race.my_scores.length === 0 ? 'your first 3 stakes count'
+        : <>{marks.join(' · ')} = <b>{race.my_score}</b>{race.my_place ? ` (${ordinal(race.my_place)})` : ''}</>}
+      {' · '}ends in {left}
+    </div>
+  );
+}
+
 const SPIN_RESULT_LABELS = { win: 'Win', jackpot: 'Jackpot', lose: 'Loss' };
 
 function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, recentSpins }) {
   const [rows, setRows] = useState([]);
+  const [race, setRace] = useState(null);
   const [tab, setTab] = useState('players');
   const [tpPop, setTpPop] = useState(null);
 
@@ -2705,6 +2726,9 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, rec
       ctrl = new AbortController();
       apiFetch('/api/leaderboard', { signal: ctrl.signal })
         .then(r => { if (r.ok) setRows(r.data); })
+        .catch(() => {});
+      apiFetch('/api/regatta', { signal: ctrl.signal })
+        .then(r => { if (r.ok) setRace(r.data); })
         .catch(() => {});
     };
     load();
@@ -2737,9 +2761,11 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, rec
       </div>
       {tab === 'players' && (
         <>
+          {race && <RegattaStrip race={race} />}
           <div className="lb-header">
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
+            <span className="lb-race-h" title="Regatta race points">⛵</span>
             <span className="lb-wins-h">W</span>
             <span className="lb-losses-h">L</span>
             <span className="lb-tp-h" title="Talent points">TP</span>
@@ -2750,6 +2776,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, rec
             <div key={r.username} className={`lb-row${r.active ? '' : ' lb-inactive'}`}>
               <span className={`lb-rank ${rankClass(i)}`}>{i + 1}.</span>
               <span className={`lb-name ${r.username === currentUser ? 'is-you' : ''}`}>{r.username}</span>
+              <span className="lb-race">{r.race_points || 0}</span>
               <span className="lb-wins">{fmt(r.wins)}</span>
               <span className="lb-losses">{fmt(r.losses)}</span>
               <span className="lb-tp" tabIndex={0}

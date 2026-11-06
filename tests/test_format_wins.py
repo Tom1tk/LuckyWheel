@@ -174,12 +174,12 @@ def test_format_wins_handles_string_input():
 def test_lb_wins_column_widened():
     """T227: the leaderboard wins column must be wide enough to fit
     '1.23e+50' (8 chars at 0.6rem). Rows and header share one grid
-    template, so the W track (3rd column) sets both, and the cell clips
+    template, so the W track (4th column, after race points) sets both, and the cell clips
     (overflow:hidden) rather than expanding the row."""
     css = open('static/styles.css').read()
     m = re.search(r'\.lb-header, \.lb-row \{[^}]*grid-template-columns:\s*([^;]+);', css)
     assert m, ".lb-header/.lb-row shared grid template not found"
-    width = int(re.match(r'(\d+)px', m.group(1).split()[3]).group(1))
+    width = int(re.match(r'(\d+)px', m.group(1).split()[4]).group(1))
     assert width >= 64, f"W column {width}px is too narrow for scientific notation"
     rule = re.search(r'\.lb-wins\s*\{([^}]+)\}', css, re.DOTALL).group(1)
     assert 'overflow: hidden' in rule

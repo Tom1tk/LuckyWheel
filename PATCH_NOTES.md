@@ -2,6 +2,23 @@
 
 ---
 
+## Tide 9.5 — The Regatta
+
+Every day of the tide is now a race, and the tide goes to whoever places best across the week, not to the biggest pile of wins. Nothing pays less than before.
+
+### ⛵ The Regatta
+
+- Each day, 9pm to 9pm (London time), is a race: 7 races a tide.
+- Your **first 3 stakes** in a race count. Each scores what the wheel landed: **win 1**, **jackpot 5**, loss 0. Treasure, Echo and Double or Nothing still pay as normal; they don't change the score.
+- Places earn **5 / 3 / 2 / 1** race points, and tied players share the higher place. A score of 0 doesn't place.
+- The leaderboard ranks players by race points (⛵), then wins. Tide medals go the same way.
+- Pick your moment: your wheel mode and your Gravity drift set the odds of each counted stake. Unstaked spins don't use one up.
+- Lucky Seven's free wins don't count.
+- Staking needs 🌊 **Open Water**. Joining late? Every race starts fresh.
+- The Regatta arrived partway through Tide 9.5, so races that ended before it have no results.
+
+---
+
 ## Tide 9.4 — Friday 30 October
 
 The tide turns at 9pm on Friday. Staking is now about the day you're having, each tide one tree's waters run strong, and every day brings a small Fair Winds choice. Nothing pays less than before.

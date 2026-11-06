@@ -7,6 +7,8 @@ import psycopg2.extras
 import chat
 import chat_triggers
 import community_goals
+import regatta
+import tide_stats
 from models import ITEM_CURRENCY
 from season_config import SEASON_CONFIG
 
@@ -153,10 +155,12 @@ def advance_season(conn, player_facing_number=None, name=None, sub_number=None):
                FROM game_state gs
                JOIN users u ON u.id = gs.user_id
                WHERE u.ip_address <> '127.0.0.1' AND gs.wins > 0  -- no medal for 0 wins
-               ORDER BY gs.wins DESC
-               LIMIT 3'''
+               ORDER BY gs.wins DESC'''
         )
-        top3 = cur.fetchall()
+        players = cur.fetchall()
+        # Tide Regatta: placed by race points, then wins.
+        points = regatta.tide_points(cur, tide_stats.tide_date(season['started_at'] or now))
+        top3 = sorted(players, key=lambda r: (-points.get(r['user_id'], 0), -r['wins']))[:3]
 
     with conn.cursor() as cur:
         for pos, row in enumerate(top3, 1):

@@ -38,6 +38,7 @@ import fish
 import fish_catalog
 import shop
 import talents
+import regatta
 import tide_stats
 import loadout
 from fish import get_total_fish_clicks
@@ -1601,6 +1602,9 @@ def spin():
                     tide_stats.bump(cur, current_user.id, now_utc,
                                     staked_spins=1, stake_pct_sum=events['stake'],
                                     double_downs=int(double_down_active), **wins_stats)
+                    # Lucky Seven's forced win isn't a wheel roll, so it doesn't race.
+                    if events['active_wheel_mode'] != 'inverted' and not events['lucky_seven_triggered']:
+                        regatta.log_stake(cur, current_user.id, now_utc, events['result'])
             conn.commit()
 
         resp = _events_to_response(events)
@@ -2753,17 +2757,19 @@ def leaderboard():
                 # connect from 192.168.68.10; never localhost. Filtering here
                 # keeps the leaderboard clean for every viewer, server-side.
                 cur.execute(
-                    '''SELECT u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
+                    '''SELECT gs.user_id, u.username, gs.wins, gs.losses, gs.streak, gs.best_streak,
                               gs.last_spin_at, gs.chart_points_bought, gs.talent_alloc
                        FROM game_state gs
                        JOIN users u ON u.id = gs.user_id
                        WHERE gs.wins > 0
                          AND u.ip_address <> '127.0.0.1'
-                       ORDER BY gs.wins DESC
-                       LIMIT 10'''
+                       ORDER BY gs.wins DESC'''
                 )
                 rows = cur.fetchall()
-        now_utc = dt.datetime.now(timezone.utc)
+                now_utc = dt.datetime.now(timezone.utc)
+                points = regatta.tide_points(cur, tide_stats.tide_date(now_utc))
+        # The tide is ranked by Regatta race points, then wins.
+        rows = sorted(rows, key=lambda r: (-points.get(r['user_id'], 0), -int(r['wins'])))[:10]
         result = []
         for r in rows:
             last_spin = r['last_spin_at']
@@ -2777,12 +2783,45 @@ def leaderboard():
                 'best_streak':     r['best_streak'],
                 'talent_points':   talents.points_total(now_utc, r['chart_points_bought']),
                 'talent_alloc':    r['talent_alloc'] or {},
+                'race_points':     points.get(r['user_id'], 0),
                 'active':          bool(active),
             })
         return jsonify(result)
     except Exception:
         log.exception('LEADERBOARD_ERROR')
         return jsonify([])
+
+
+@game_bp.route('/api/regatta')
+@login_required
+@limiter.limit('30 per minute')
+def regatta_state():
+    """The race in progress and the player's counted stakes in it."""
+    try:
+        now_utc = dt.datetime.now(timezone.utc)
+        race = regatta.race_number(now_utc)
+        with db_connection() as conn:
+            with conn.cursor() as cur:
+                for msg in regatta.announce_finished(cur, now_utc):
+                    post_system_message(conn, msg, event_kind='regatta_race', throttle=False)
+                scores = regatta.race_scores(cur, tide_stats.tide_date(now_utc)).get(race, {})
+                cur.execute('SELECT owned_items FROM game_state WHERE user_id = %s', (current_user.id,))
+                row = cur.fetchone()
+            conn.commit()
+        mine = scores.get(current_user.id, (None, 0, []))
+        return jsonify({
+            'race':        race,
+            'races':       regatta.RACES,
+            'ends_at':     regatta.race_ends_at(now_utc).isoformat(),
+            'stakes':      regatta.STAKES_PER_RACE,
+            'can_race':    bool(row) and 'wager_unlock' in (row[0] or []),
+            'my_scores':   mine[2],
+            'my_score':    mine[1],
+            'my_place':    1 + sum(1 for v in scores.values() if v[1] > mine[1]) if mine[1] > 0 else None,
+        })
+    except Exception:
+        log.exception('REGATTA_ERROR')
+        return jsonify({'error': 'Regatta unavailable'}), 500
 
 
 _PATCH_NOTES_PATH = os.path.join(os.path.dirname(__file__), 'PATCH_NOTES.md')
