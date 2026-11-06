@@ -2017,9 +2017,9 @@ body.bg-inferno { background: radial-gradient(ellipse at center, #2e0000 0%, #15
 .lb-header, .lb-row {
   /* Fixed columns so every row lines up: rank | name | race points | W | L | TP | streak */
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 18px 64px 44px 22px 38px;
+  grid-template-columns: 18px minmax(0, 1fr) 14px 64px 44px 22px 38px;
   align-items: baseline;
-  column-gap: 6px;
+  column-gap: 4px;
 }
 .lb-header.lb-spins, .lb-row.lb-spins { grid-template-columns: 18px minmax(0, 1fr) 80px; }
 
