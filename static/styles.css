@@ -3855,7 +3855,7 @@ body.page-season9.bonfire .title-lucky-wrap { margin-inline: 0.45em; }
 body.page-season9.regatta { background: linear-gradient(180deg, #2f6fb8 0%, #a8d8f0 58%, #2b86b8 60%, #0b3a63 100%); --p:#FFC93C; --p-lt:#FFE08A; --p-md:#E0A814; --p-dk:#A87A08; --p-xs:#6E5004; --p-2x:#3A2A04; --p-rgb:255, 201, 60; --p-dk-rgb:168, 122, 8; --s:#E8443A; --s-lt:#F58C84; --s-rgb:232, 68, 58; --bg:#0b3a63; }
 body.page-season9.regatta::before { border-image: linear-gradient(90deg, #FFC93C, #FFFFFF, #E8443A, #FFFFFF, #FFC93C) 1; }
 body.page-season9.regatta .title-endless { color: #FFC93C; text-shadow: 0 2px 0 #0a2440, 0 0 10px rgba(10,36,64,0.7), 0 0 22px #E0A814; }
-body.page-season9.regatta .casino-title { text-shadow: 0 2px 0 #0a2440, 0 0 10px rgba(10,36,64,0.8); }
+body.page-season9.regatta .casino-title { animation: none; text-shadow: 0 2px 0 #0a2440, 0 0 10px rgba(10,36,64,0.8); }
 body.page-season9.regatta .subtitle { color: #FFFFFF; text-shadow: 0 1px 0 #0a2440, 0 0 8px rgba(10,36,64,0.9); }
 body.page-season9.regatta .wheel-wrapper::before { box-shadow: 0 0 34px 14px rgba(255, 201, 60,0.45), 0 0 90px 30px rgba(255, 201, 60,0.14), inset 0 0 20px rgba(255, 201, 60,0.1); }
 body.page-season9.regatta .pointer { filter: drop-shadow(0 0 10px #FFC93C) drop-shadow(0 0 22px #E8443A); }
