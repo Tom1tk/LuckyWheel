@@ -3886,6 +3886,31 @@ body.page-season9.regatta .wheel-mode-label,
 body.page-season9.regatta .wheel-mode-btn:not(.active),
 body.page-season9.regatta .fish-counter-label { color: #DDE8F2; }
 body.page-season9.regatta .wheel-mode-btn:not(.active) { background: rgba(10,36,64,0.55); }
+
+/* Tide 9.6 Night Race: a lantern-lit fleet on the night sea, lantern amber and port red (static/js/lantern-bg.js). */
+body.page-season9.lantern { background: linear-gradient(180deg, #040a18 0%, #0d2742 58%, #0a2438 60%, #030c17 100%); --p:#FFC266; --p-lt:#FFDDA6; --p-md:#E09A2E; --p-dk:#A86E10; --p-xs:#6E4806; --p-2x:#3A2604; --p-rgb:255, 194, 102; --p-dk-rgb:168, 110, 16; --s:#FF4D5E; --s-lt:#FF94A0; --s-rgb:255, 77, 94; --bg:#040a18; }
+body.page-season9.lantern::before { border-image: linear-gradient(90deg, #FFC266, #F2E3C6, #FF4D5E, #F2E3C6, #FFC266) 1; }
+body.page-season9.lantern .title-endless { color: #FFC266; text-shadow: 0 0 8px #FFC266, 0 0 22px #E09A2E; }
+body.page-season9.lantern .subtitle { color: #FF94A0; }
+body.page-season9.lantern .wheel-wrapper::before { box-shadow: 0 0 34px 14px rgba(255, 194, 102,0.45), 0 0 90px 30px rgba(255, 194, 102,0.14), inset 0 0 20px rgba(255, 194, 102,0.1); }
+body.page-season9.lantern .pointer { filter: drop-shadow(0 0 10px #FFC266) drop-shadow(0 0 22px #FF4D5E); }
+body.page-season9.lantern .center-hub { background: radial-gradient(circle, #3a1a10, #120806); box-shadow: 0 0 20px #FFC266, 0 0 45px rgba(255, 194, 102,0.5); }
+body.page-season9.lantern .bulb:nth-child(odd) { background: #FFC266; box-shadow: 0 0 8px #FFC266; }
+body.page-season9.lantern .bulb:nth-child(even) { background: #FF4D5E; box-shadow: 0 0 8px #FF4D5E; }
+body.page-season9.lantern .result-text.win { color: #FFDDA6; border-color: #FFC266; text-shadow: 0 0 20px #FFC266, 0 0 50px #E09A2E; box-shadow: 0 0 40px #FFC266, inset 0 0 20px rgba(255, 194, 102,0.1); }
+body.page-season9.lantern .score-box.wins-box { border-color: #FFC266; background: rgba(255, 194, 102,0.08); box-shadow: 0 0 16px rgba(255, 194, 102,0.2); }
+body.page-season9.lantern .score-box.wins-box .score-label, body.page-season9.lantern .score-box.wins-box .score-value { color: #FFDDA6; }
+body.page-season9.lantern .score-box.wins-box .score-value { text-shadow: 0 0 12px #FFC266; }
+body.page-season9.lantern .dice-panel-label, body.page-season9.lantern .dice-result-text { color: #FFDDA6; }
+body.page-season9.lantern .dice-panel-desc, body.page-season9.lantern .dice-recharge-timer { color: #E09A2E; }
+body.page-season9.lantern .dice-panel { border-top-color: rgba(255, 194, 102,0.15); }
+body.page-season9.lantern .dice-tooltip { border-color: #FFC266; }
+body.page-season9.lantern .die { background: #1a1004; border-color: #FFC266; box-shadow: 0 0 10px rgba(255, 194, 102,0.35), inset 0 0 8px rgba(255, 194, 102,0.08); }
+body.page-season9.lantern .dice-result-text { text-shadow: 0 0 8px rgba(255, 194, 102,0.7); }
+body.page-season9.lantern .dice-charge-dot { color: rgba(255, 194, 102,0.2); }
+body.page-season9.lantern .dice-charge-dot.charged { color: #FFC266; text-shadow: 0 0 6px #FFC266; }
+body.page-season9.lantern .dice-roll-btn { background: linear-gradient(135deg, #5a3a08 0%, #1e1200 100%); border-color: #FFC266; color: #FFDDA6; box-shadow: 0 0 8px rgba(255, 194, 102,0.2); }
+body.page-season9.lantern .title-lucky-wrap { margin-inline: 0.5em; }
 .dice-disabled-reason { font-size: 10px; letter-spacing: 0.04em; color: var(--p-lt); opacity: 0.8; text-align: center; }
 
 /* ── RV-08: Tide banner + Hall of Fame ────────────────────────────────────── */
