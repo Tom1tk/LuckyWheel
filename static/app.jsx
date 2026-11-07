@@ -931,12 +931,14 @@ const THEME_COLORS = {
   halloween:       { win: ['#5a2600', '#ff8a1f'], lose: ['#2a0f45', '#9b5cff'] },
   bonfire:         { win: ['#5a4300', '#ffd24a'], lose: ['#4a0f2e', '#ff4fa3'] },
   regatta:         { win: ['#5a4300', '#FFC93C'], lose: ['#4a1210', '#E8443A'] },
+  lantern:         { win: ['#5a3a08', '#FFC266'], lose: ['#4a0f18', '#FF4D5E'] },
 };
 
 // Festive dressing on the tides theme, newest first. Each runs from its start until a newer
 // one starts, so a theme stays up if the next one is late. Staging (wheel-beta, or port 5001
 // locally) always previews the newest.
 const FESTIVE = [
+  ['lantern',   Date.UTC(2026, 10, 13, 21)],   // Tide 9.6 Night Race, from the turn on Fri 13 Nov (9pm GMT)
   ['regatta',   Date.UTC(2026, 10, 6, 21)],   // Tide 9.5 Regatta Day, from the turn on Fri 6 Nov (9pm GMT)
   ['bonfire',   Date.UTC(2026, 10, 1, 0)],    // Bonfire Night, from midnight London on Sun 1 Nov
   ['halloween', Date.UTC(2026, 9, 16, 20)],   // Halloween, from the turn on Fri 16 Oct (9pm BST)
@@ -5728,7 +5730,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
             <div className="casino-title">
               <span className="title-lucky-wrap">
                 <span className="title-lucky">Lucky</span>
-                <span className="title-endless">{tidesActive ? ({ halloween: 'Spooky', bonfire: 'Bonfire', regatta: 'Regatta' }[festive] || 'Tide') : 'Casino'}</span>
+                <span className="title-endless">{tidesActive ? ({ halloween: 'Spooky', bonfire: 'Bonfire', regatta: 'Regatta', lantern: 'Lantern' }[festive] || 'Tide') : 'Casino'}</span>
               </span>
               {' '}Wheel
             </div>
@@ -5788,7 +5790,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
                 className="wheel-canvas"
                 style={{ transform: `rotate(${wheelRotation}deg)`, transition: `transform ${WHEEL_SPIN_SPEED}s cubic-bezier(0.17, 0.67, 0.12, 0.99)` }}
               />
-              <div className="center-hub">{tidesActive && { halloween: '🎃', bonfire: '🔥', regatta: '⛵' }[festive] || '★'}</div>
+              <div className="center-hub">{tidesActive && { halloween: '🎃', bonfire: '🔥', regatta: '⛵', lantern: '🏮' }[festive] || '★'}</div>
             </div>
           </div>
 

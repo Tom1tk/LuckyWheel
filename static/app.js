@@ -1531,13 +1531,19 @@ var THEME_COLORS = {
   regatta: {
     win: ['#5a4300', '#FFC93C'],
     lose: ['#4a1210', '#E8443A']
+  },
+  lantern: {
+    win: ['#5a3a08', '#FFC266'],
+    lose: ['#4a0f18', '#FF4D5E']
   }
 };
 
 // Festive dressing on the tides theme, newest first. Each runs from its start until a newer
 // one starts, so a theme stays up if the next one is late. Staging (wheel-beta, or port 5001
 // locally) always previews the newest.
-var FESTIVE = [['regatta', Date.UTC(2026, 10, 6, 21)],
+var FESTIVE = [['lantern', Date.UTC(2026, 10, 13, 21)],
+// Tide 9.6 Night Race, from the turn on Fri 13 Nov (9pm GMT)
+['regatta', Date.UTC(2026, 10, 6, 21)],
 // Tide 9.5 Regatta Day, from the turn on Fri 6 Nov (9pm GMT)
 ['bonfire', Date.UTC(2026, 10, 1, 0)],
 // Bonfire Night, from midnight London on Sun 1 Nov
@@ -9743,7 +9749,8 @@ function GameApp(_ref52) {
   }, tidesActive ? {
     halloween: 'Spooky',
     bonfire: 'Bonfire',
-    regatta: 'Regatta'
+    regatta: 'Regatta',
+    lantern: 'Lantern'
   }[festive] || 'Tide' : 'Casino')), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, tidesActive ? 'The tide turns every Friday' : 'All or nothing')), /*#__PURE__*/React.createElement("div", {
@@ -9792,7 +9799,8 @@ function GameApp(_ref52) {
   }, tidesActive && {
     halloween: '🎃',
     bonfire: '🔥',
-    regatta: '⛵'
+    regatta: '⛵',
+    lantern: '🏮'
   }[festive] || '★'))), /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
     onClick: !spinning ? handleManualSpin : undefined
