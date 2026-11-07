@@ -90,9 +90,10 @@
       const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
       const side = c % 2 ? 1 : -1;
       const x0 = phone(g) ? g.W / 2 + side * g.W * (0.3 + r() * 0.12) : g.moonX + side * (g.moonR * 1.1 + r() * g.moonR * 0.3);
-      const pts = [[x0, 0]];
+      const y0 = g.horizon * 0.12;                                    // out of the cloud base, clear of the top bar
+      const pts = [[x0, y0]];
       let x = x0;
-      for (let y = 0; y < g.horizon; y += g.horizon / 14) { x += (r() - 0.5) * 28; pts.push([x, Math.min(g.horizon, y + g.horizon / 14)]); }
+      for (let y = y0; y < g.horizon; y += (g.horizon - y0) / 14) { x += (r() - 0.5) * 28; pts.push([x, Math.min(g.horizon, y + (g.horizon - y0) / 14)]); }
       const branch = pts.slice(4, 8).map(([bx, by], i) => [bx + (i + 1) * 14 * -side, by + (i + 1) * 10]);
       return { pts, branch: [pts[4], ...branch], foot: pts[pts.length - 1] };
     }
