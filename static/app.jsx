@@ -2705,11 +2705,11 @@ function RegattaStrip({ race, onOpenCharts }) {
   const marks = race.my_scores.concat(Array(race.stakes - race.my_scores.length).fill('–'));
   return (
     <div className="lb-regatta" title={REGATTA_RULES}>
-      ⛵ <b>Race {race.race} of {race.races}</b>
+      🏁 <b>Race {race.race} of {race.races}</b>
       {' · '}
       {!race.can_race ? (onOpenCharts
-          ? <button className="lb-regatta-cta" onClick={onOpenCharts}>needs 🌊 Open Water (🧭 Chart)</button>
-          : 'needs 🌊 Open Water (🧭 Chart)')
+          ? <button className="lb-regatta-cta" onClick={onOpenCharts}>needs 🪙 Open Water (🧭 Chart)</button>
+          : 'needs 🪙 Open Water (🧭 Chart)')
         : race.my_scores.length === 0 ? 'your first 3 stakes count'
         : <>{marks.join(' · ')} = <b>{race.my_score}</b>{race.my_place ? ` (${ordinal(race.my_place)})` : ''}</>}
       {' · '}ends in {left}
@@ -2772,7 +2772,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, rec
           <div className="lb-header">
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
-            <span className="lb-race-h" title="Regatta race points">⛵</span>
+            <span className="lb-race-h" title="Regatta race points">🏁</span>
             <span className="lb-wins-h">W</span>
             <span className="lb-losses-h">L</span>
             <span className="lb-tp-h" title="Talent points">TP</span>
