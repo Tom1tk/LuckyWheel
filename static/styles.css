@@ -3849,6 +3849,42 @@ body.page-season9.bonfire .dice-roll-btn:hover:not(.dice-roll-btn--disabled) { b
 body.page-season9.bonfire .dice-roll-btn--disabled { border-color: rgba(255,230,143,0.3); color: rgba(255,230,143,0.6); }
 /* 'Bonfire' is wider than the struck-out 'Lucky' it sits over, so give it room before 'Wheel'. */
 body.page-season9.bonfire .title-lucky-wrap { margin-inline: 0.45em; }
+
+/* Tide 9.5 Regatta Day: daylight over the bay, spinnaker yellow and signal red (static/js/regatta-bg.js).
+   Navy shadows keep the title and the faint labels readable on the bright sky. */
+body.page-season9.regatta { background: linear-gradient(180deg, #2f6fb8 0%, #a8d8f0 58%, #2b86b8 60%, #0b3a63 100%); --p:#FFC93C; --p-lt:#FFE08A; --p-md:#E0A814; --p-dk:#A87A08; --p-xs:#6E5004; --p-2x:#3A2A04; --p-rgb:255, 201, 60; --p-dk-rgb:168, 122, 8; --s:#E8443A; --s-lt:#F58C84; --s-rgb:232, 68, 58; --bg:#0b3a63; }
+body.page-season9.regatta::before { border-image: linear-gradient(90deg, #FFC93C, #FFFFFF, #E8443A, #FFFFFF, #FFC93C) 1; }
+body.page-season9.regatta .title-endless { color: #FFC93C; text-shadow: 0 2px 0 #0a2440, 0 0 10px rgba(10,36,64,0.7), 0 0 22px #E0A814; }
+body.page-season9.regatta .subtitle { color: #FFFFFF; text-shadow: 0 1px 0 #0a2440, 0 0 8px rgba(10,36,64,0.9); }
+body.page-season9.regatta .wheel-wrapper::before { box-shadow: 0 0 34px 14px rgba(255, 201, 60,0.45), 0 0 90px 30px rgba(255, 201, 60,0.14), inset 0 0 20px rgba(255, 201, 60,0.1); }
+body.page-season9.regatta .pointer { filter: drop-shadow(0 0 10px #FFC93C) drop-shadow(0 0 22px #E8443A); }
+body.page-season9.regatta .center-hub { background: radial-gradient(circle, #1d5a8f, #0a2440); box-shadow: 0 0 20px #FFC93C, 0 0 45px rgba(255, 201, 60,0.5); }
+body.page-season9.regatta .bulb:nth-child(odd) { background: #FFC93C; box-shadow: 0 0 8px #FFC93C; }
+body.page-season9.regatta .bulb:nth-child(even) { background: #E8443A; box-shadow: 0 0 8px #E8443A; }
+body.page-season9.regatta .result-text.win { color: #FFE08A; border-color: #FFC93C; text-shadow: 0 0 20px #FFC93C, 0 0 50px #E0A814; box-shadow: 0 0 40px #FFC93C, inset 0 0 20px rgba(255, 201, 60,0.1); }
+body.page-season9.regatta .score-box.wins-box { border-color: #FFC93C; background: rgba(255, 201, 60,0.08); box-shadow: 0 0 16px rgba(255, 201, 60,0.2); }
+body.page-season9.regatta .score-box.wins-box .score-label, body.page-season9.regatta .score-box.wins-box .score-value { color: #FFE08A; }
+body.page-season9.regatta .score-box.wins-box .score-value { text-shadow: 0 0 12px #FFC93C; }
+body.page-season9.regatta .dice-panel-label, body.page-season9.regatta .dice-result-text { color: #FFE08A; }
+body.page-season9.regatta .dice-panel-desc, body.page-season9.regatta .dice-recharge-timer { color: #E0A814; }
+body.page-season9.regatta .dice-panel { border-top-color: rgba(255, 201, 60,0.15); }
+body.page-season9.regatta .dice-tooltip { border-color: #FFC93C; }
+body.page-season9.regatta .die { background: #1a1404; border-color: #FFC93C; box-shadow: 0 0 10px rgba(255, 201, 60,0.35), inset 0 0 8px rgba(255, 201, 60,0.08); }
+body.page-season9.regatta .dice-result-text { text-shadow: 0 0 8px rgba(255, 201, 60,0.7); }
+body.page-season9.regatta .dice-charge-dot { color: rgba(255, 201, 60,0.2); }
+body.page-season9.regatta .dice-charge-dot.charged { color: #FFC93C; text-shadow: 0 0 6px #FFC93C; }
+body.page-season9.regatta .dice-roll-btn { background: linear-gradient(135deg, #5a4300 0%, #1e1600 100%); border-color: #FFC93C; color: #FFE08A; box-shadow: 0 0 8px rgba(255, 201, 60,0.2); }
+body.page-season9.regatta .title-lucky-wrap { margin-inline: 0.6em; }
+body.page-season9.regatta .spin-prompt,
+body.page-season9.regatta .wheel-mode-label,
+body.page-season9.regatta .wheel-mode-btn,
+body.page-season9.regatta .dice-panel-label,
+body.page-season9.regatta .dice-panel-desc,
+body.page-season9.regatta .fish-counter-label { text-shadow: 0 1px 2px rgba(10,36,64,0.95), 0 0 8px rgba(10,36,64,0.8); }
+body.page-season9.regatta .wheel-mode-label,
+body.page-season9.regatta .wheel-mode-btn:not(.active),
+body.page-season9.regatta .fish-counter-label { color: #DDE8F2; }
+body.page-season9.regatta .wheel-mode-btn:not(.active) { background: rgba(10,36,64,0.55); }
 .dice-disabled-reason { font-size: 10px; letter-spacing: 0.04em; color: var(--p-lt); opacity: 0.8; text-align: center; }
 
 /* ── RV-08: Tide banner + Hall of Fame ────────────────────────────────────── */

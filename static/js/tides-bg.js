@@ -23,8 +23,8 @@
 
   function createTidesScene(canvas, opts) {
     opts = opts || {};
-    // opts.festive ('halloween' or 'bonfire') adds static/js/<name>-bg.js's layer on top of the tide scene.
-    const makeLayer = { halloween: window.createHalloweenLayer, bonfire: window.createBonfireLayer }[opts.festive];
+    // opts.festive ('halloween', 'bonfire' or 'regatta') adds static/js/<name>-bg.js's layer on top of the tide scene.
+    const makeLayer = { halloween: window.createHalloweenLayer, bonfire: window.createBonfireLayer, regatta: window.createRegattaLayer }[opts.festive];
     const hw = makeLayer ? makeLayer() : null;
     const pal = Object.assign({}, DEFAULT_PALETTE, hw ? hw.palette : {}, opts.palette || {});
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -262,13 +262,13 @@
       last = now;
       const t = now - start;
       if (!still && t % 1000 < FRAME_MS) { layout(); refreshStill(); }   // follow the wheel if the layout shifts
-      if (still) { sky(); twinkle(t); sea(); headland(); if (hw) hw.land(ctx, geom()); }
+      if (still) { sky(); if (pal.stars !== false) twinkle(t); sea(); headland(); if (hw) hw.land(ctx, geom()); }
       else ctx.clearRect(0, 0, W, H);
-      if (!still) twinkle(t);
-      beam(t); glitter(t); swell(t);
+      if (!still && pal.stars !== false) twinkle(t);
+      if (pal.beam !== false) beam(t); glitter(t); swell(t);
       buoy(moonX - moonR * 1.45, 0.14, t, pal.win, 1300);
       buoy(moonX + moonR * 1.05, 0.06, t, pal.lose, 1700);
-      boat(t); plankton(t);
+      boat(t); if (pal.plankton !== false) plankton(t);
       if (hw) hw.draw(ctx, geom(), t, still);
       if (!still) raf = requestAnimationFrame(frame);
     }

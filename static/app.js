@@ -1527,21 +1527,30 @@ var THEME_COLORS = {
   bonfire: {
     win: ['#5a4300', '#ffd24a'],
     lose: ['#4a0f2e', '#ff4fa3']
+  },
+  regatta: {
+    win: ['#5a4300', '#FFC93C'],
+    lose: ['#4a1210', '#E8443A']
   }
 };
 
-// Festive dressing on the tides theme: Halloween from the tide that turns Fri 16 Oct (9pm BST),
-// then Bonfire Night from midnight London on Sun 1 Nov until the tide turns Fri 6 Nov (9pm GMT).
-// Staging (wheel-beta, or port 5001 locally) shows Bonfire Night early for review.
-var HALLOWEEN_START = Date.UTC(2026, 9, 16, 20);
-var BONFIRE_START = Date.UTC(2026, 10, 1, 0);
-var BONFIRE_END = Date.UTC(2026, 10, 6, 21);
+// Festive dressing on the tides theme, newest first. Each runs from its start until a newer
+// one starts, so a theme stays up if the next one is late. Staging (wheel-beta, or port 5001
+// locally) always previews the newest.
+var FESTIVE = [['regatta', Date.UTC(2026, 10, 6, 21)],
+// Tide 9.5 Regatta Day, from the turn on Fri 6 Nov (9pm GMT)
+['bonfire', Date.UTC(2026, 10, 1, 0)],
+// Bonfire Night, from midnight London on Sun 1 Nov
+['halloween', Date.UTC(2026, 9, 16, 20)] // Halloween, from the turn on Fri 16 Oct (9pm BST)
+];
 var isStaging = window.location.port === '5001' || window.location.hostname.startsWith('wheel-beta.');
 var festiveTheme = function festiveTheme() {
+  if (isStaging) return FESTIVE[0][0];
   var now = Date.now();
-  if (now >= BONFIRE_END) return null;
-  if (now >= BONFIRE_START || isStaging) return 'bonfire';
-  return now >= HALLOWEEN_START ? 'halloween' : null;
+  var hit = FESTIVE.find(function (f) {
+    return now >= f[1];
+  });
+  return hit ? hit[0] : null;
 };
 
 // ── Casino Background (Season 8) ─────────────────────────────────────────────
@@ -9733,7 +9742,8 @@ function GameApp(_ref52) {
     className: "title-endless"
   }, tidesActive ? {
     halloween: 'Spooky',
-    bonfire: 'Bonfire'
+    bonfire: 'Bonfire',
+    regatta: 'Regatta'
   }[festive] || 'Tide' : 'Casino')), ' ', "Wheel"), /*#__PURE__*/React.createElement("div", {
     className: "subtitle"
   }, tidesActive ? 'The tide turns every Friday' : 'All or nothing')), /*#__PURE__*/React.createElement("div", {
@@ -9781,7 +9791,8 @@ function GameApp(_ref52) {
     className: "center-hub"
   }, tidesActive && {
     halloween: '🎃',
-    bonfire: '🔥'
+    bonfire: '🔥',
+    regatta: '⛵'
   }[festive] || '★'))), /*#__PURE__*/React.createElement("div", {
     className: "spin-prompt ".concat(spinning ? 'hidden' : ''),
     onClick: !spinning ? handleManualSpin : undefined
