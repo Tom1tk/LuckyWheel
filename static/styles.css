@@ -3887,6 +3887,31 @@ body.page-season9.regatta .wheel-mode-btn:not(.active),
 body.page-season9.regatta .fish-counter-label { color: #DDE8F2; }
 body.page-season9.regatta .wheel-mode-btn:not(.active) { background: rgba(10,36,64,0.55); }
 
+/* Tide 9.7 Storm Squall: rain, whitecaps and lightning, lightning yellow and storm violet (static/js/squall-bg.js). */
+body.page-season9.squall { background: linear-gradient(180deg, #07090e 0%, #26303c 58%, #1a2630 60%, #05080c 100%); --p:#F2E86D; --p-lt:#F8F3B0; --p-md:#D4C83A; --p-dk:#9A9014; --p-xs:#5E5808; --p-2x:#302C04; --p-rgb:242, 232, 109; --p-dk-rgb:154, 144, 20; --s:#8F7CFF; --s-lt:#BDB2FF; --s-rgb:143, 124, 255; --bg:#07090e; }
+body.page-season9.squall::before { border-image: linear-gradient(90deg, #F2E86D, #C8D2DC, #8F7CFF, #C8D2DC, #F2E86D) 1; }
+body.page-season9.squall .title-endless { color: #F2E86D; text-shadow: 0 0 8px #F2E86D, 0 0 22px #D4C83A; }
+body.page-season9.squall .subtitle { color: #BDB2FF; }
+body.page-season9.squall .wheel-wrapper::before { box-shadow: 0 0 34px 14px rgba(242, 232, 109,0.45), 0 0 90px 30px rgba(242, 232, 109,0.14), inset 0 0 20px rgba(242, 232, 109,0.1); }
+body.page-season9.squall .pointer { filter: drop-shadow(0 0 10px #F2E86D) drop-shadow(0 0 22px #8F7CFF); }
+body.page-season9.squall .center-hub { background: radial-gradient(circle, #2a2450, #0a0816); box-shadow: 0 0 20px #F2E86D, 0 0 45px rgba(242, 232, 109,0.5); }
+body.page-season9.squall .bulb:nth-child(odd) { background: #F2E86D; box-shadow: 0 0 8px #F2E86D; }
+body.page-season9.squall .bulb:nth-child(even) { background: #8F7CFF; box-shadow: 0 0 8px #8F7CFF; }
+body.page-season9.squall .result-text.win { color: #F8F3B0; border-color: #F2E86D; text-shadow: 0 0 20px #F2E86D, 0 0 50px #D4C83A; box-shadow: 0 0 40px #F2E86D, inset 0 0 20px rgba(242, 232, 109,0.1); }
+body.page-season9.squall .score-box.wins-box { border-color: #F2E86D; background: rgba(242, 232, 109,0.08); box-shadow: 0 0 16px rgba(242, 232, 109,0.2); }
+body.page-season9.squall .score-box.wins-box .score-label, body.page-season9.squall .score-box.wins-box .score-value { color: #F8F3B0; }
+body.page-season9.squall .score-box.wins-box .score-value { text-shadow: 0 0 12px #F2E86D; }
+body.page-season9.squall .dice-panel-label, body.page-season9.squall .dice-result-text { color: #F8F3B0; }
+body.page-season9.squall .dice-panel-desc, body.page-season9.squall .dice-recharge-timer { color: #D4C83A; }
+body.page-season9.squall .dice-panel { border-top-color: rgba(242, 232, 109,0.15); }
+body.page-season9.squall .dice-tooltip { border-color: #F2E86D; }
+body.page-season9.squall .die { background: #14140a; border-color: #F2E86D; box-shadow: 0 0 10px rgba(242, 232, 109,0.35), inset 0 0 8px rgba(242, 232, 109,0.08); }
+body.page-season9.squall .dice-result-text { text-shadow: 0 0 8px rgba(242, 232, 109,0.7); }
+body.page-season9.squall .dice-charge-dot { color: rgba(242, 232, 109,0.2); }
+body.page-season9.squall .dice-charge-dot.charged { color: #F2E86D; text-shadow: 0 0 6px #F2E86D; }
+body.page-season9.squall .dice-roll-btn { background: linear-gradient(135deg, #4a4508 0%, #181600 100%); border-color: #F2E86D; color: #F8F3B0; box-shadow: 0 0 8px rgba(242, 232, 109,0.2); }
+body.page-season9.squall .title-lucky-wrap { margin-inline: 0.4em; }
+
 /* Tide 9.6 Night Race: a lantern-lit fleet on the night sea, lantern amber and port red (static/js/lantern-bg.js). */
 body.page-season9.lantern { background: linear-gradient(180deg, #040a18 0%, #0d2742 58%, #0a2438 60%, #030c17 100%); --p:#FFC266; --p-lt:#FFDDA6; --p-md:#E09A2E; --p-dk:#A86E10; --p-xs:#6E4806; --p-2x:#3A2604; --p-rgb:255, 194, 102; --p-dk-rgb:168, 110, 16; --s:#FF4D5E; --s-lt:#FF94A0; --s-rgb:255, 77, 94; --bg:#040a18; }
 body.page-season9.lantern::before { border-image: linear-gradient(90deg, #FFC266, #F2E3C6, #FF4D5E, #F2E3C6, #FFC266) 1; }

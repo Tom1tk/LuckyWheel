@@ -23,8 +23,8 @@
 
   function createTidesScene(canvas, opts) {
     opts = opts || {};
-    // opts.festive ('halloween', 'bonfire', 'regatta' or 'lantern') adds static/js/<name>-bg.js's layer on top of the tide scene.
-    const makeLayer = { halloween: window.createHalloweenLayer, bonfire: window.createBonfireLayer, regatta: window.createRegattaLayer, lantern: window.createLanternLayer }[opts.festive];
+    // opts.festive ('halloween', 'bonfire', 'regatta', 'lantern' or 'squall') adds static/js/<name>-bg.js's layer on top of the tide scene.
+    const makeLayer = { halloween: window.createHalloweenLayer, bonfire: window.createBonfireLayer, regatta: window.createRegattaLayer, lantern: window.createLanternLayer, squall: window.createSquallLayer }[opts.festive];
     const hw = makeLayer ? makeLayer() : null;
     const pal = Object.assign({}, DEFAULT_PALETTE, hw ? hw.palette : {}, opts.palette || {});
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
