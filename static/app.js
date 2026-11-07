@@ -4280,14 +4280,18 @@ var ordinal = function ordinal(n) {
   return n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
 };
 function RegattaStrip(_ref32) {
-  var race = _ref32.race;
+  var race = _ref32.race,
+    onOpenCharts = _ref32.onOpenCharts;
   var mins = Math.max(0, Math.round((new Date(race.ends_at) - Date.now()) / 60000));
   var left = mins >= 60 ? "".concat(Math.floor(mins / 60), "h ").concat(mins % 60, "m") : "".concat(mins, "m");
   var marks = race.my_scores.concat(Array(race.stakes - race.my_scores.length).fill('–'));
   return /*#__PURE__*/React.createElement("div", {
     className: "lb-regatta",
     title: REGATTA_RULES
-  }, "\u26F5 ", /*#__PURE__*/React.createElement("b", null, "Race ", race.race, " of ", race.races), ' · ', !race.can_race ? 'take 🌊 Open Water to race' : race.my_scores.length === 0 ? 'your first 3 stakes count' : /*#__PURE__*/React.createElement(React.Fragment, null, marks.join(' · '), " = ", /*#__PURE__*/React.createElement("b", null, race.my_score), race.my_place ? " (".concat(ordinal(race.my_place), ")") : ''), ' · ', "ends in ", left);
+  }, "\u26F5 ", /*#__PURE__*/React.createElement("b", null, "Race ", race.race, " of ", race.races), ' · ', !race.can_race ? onOpenCharts ? /*#__PURE__*/React.createElement("button", {
+    className: "lb-regatta-cta",
+    onClick: onOpenCharts
+  }, "needs \uD83C\uDF0A Open Water (\uD83E\uDDED Chart)") : 'needs 🌊 Open Water (🧭 Chart)' : race.my_scores.length === 0 ? 'your first 3 stakes count' : /*#__PURE__*/React.createElement(React.Fragment, null, marks.join(' · '), " = ", /*#__PURE__*/React.createElement("b", null, race.my_score), race.my_place ? " (".concat(ordinal(race.my_place), ")") : ''), ' · ', "ends in ", left);
 }
 var SPIN_RESULT_LABELS = {
   win: 'Win',
@@ -4299,7 +4303,8 @@ function Leaderboard(_ref33) {
     extraClass = _ref33.extraClass,
     seasonWinners = _ref33.seasonWinners,
     seasonNumber = _ref33.seasonNumber,
-    recentSpins = _ref33.recentSpins;
+    recentSpins = _ref33.recentSpins,
+    onOpenCharts = _ref33.onOpenCharts;
   var _useState67 = useState([]),
     _useState68 = _slicedToArray(_useState67, 2),
     rows = _useState68[0],
@@ -4368,7 +4373,8 @@ function Leaderboard(_ref33) {
       return setTab('winners');
     }
   }, "Past Winners")), tab === 'players' && /*#__PURE__*/React.createElement(React.Fragment, null, race && /*#__PURE__*/React.createElement(RegattaStrip, {
-    race: race
+    race: race,
+    onOpenCharts: onOpenCharts
   }), /*#__PURE__*/React.createElement("div", {
     className: "lb-header"
   }, /*#__PURE__*/React.createElement("span", {
@@ -6370,6 +6376,13 @@ function ChartsPanel(_ref42) {
       setPending(_objectSpread({}, r.data.alloc));
     });
   }, [open]);
+  // open can name a talent to show, e.g. 'open_water' from the race strip.
+  useEffect(function () {
+    var _document$getElementB;
+    if (def && typeof open === 'string') (_document$getElementB = document.getElementById('chart-node-' + open)) === null || _document$getElementB === void 0 || _document$getElementB.scrollIntoView({
+      block: 'center'
+    });
+  }, [def, open]);
   if (!open) return null;
   var committed = def ? def.alloc : {};
   var points = def ? def.points : 0;
@@ -6545,6 +6558,7 @@ function ChartsPanel(_ref42) {
         var canDrop = rank > floor(t.id) && !chartProblem(tryAlloc(t.id, -1), points, def);
         return /*#__PURE__*/React.createElement("div", {
           key: t.id,
+          id: 'chart-node-' + t.id,
           className: "chart-node".concat(rank ? ' on' : '').concat(lock ? ' locked' : '').concat(row === 'K' ? ' keystone' : '')
         }, /*#__PURE__*/React.createElement("button", {
           className: "chart-node-main",
@@ -10006,7 +10020,11 @@ function GameApp(_ref52) {
     extraClass: isMobile && mobilePanel === 'leaderboard' ? 'mobile-visible' : '',
     seasonWinners: season && season.latest_winners,
     seasonNumber: season && season.season_number - 1,
-    recentSpins: recentSpins
+    recentSpins: recentSpins,
+    onOpenCharts: function onOpenCharts() {
+      setMobilePanel(null);
+      setShowCharts('open_water');
+    }
   })), isMobile && (mobilePanel || mobileDrawerOpen) && mobilePanel !== 'chat' && /*#__PURE__*/React.createElement("div", {
     className: "mobile-backdrop",
     onClick: function onClick() {

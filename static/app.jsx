@@ -2699,7 +2699,7 @@ const REGATTA_RULES = 'Each day, 9pm to 9pm, is a race. Your first 3 stakes coun
   + 'Places earn 5 / 3 / 2 / 1 race points, and the most points at the tide turn wins.';
 const ordinal = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
 
-function RegattaStrip({ race }) {
+function RegattaStrip({ race, onOpenCharts }) {
   const mins = Math.max(0, Math.round((new Date(race.ends_at) - Date.now()) / 60000));
   const left = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
   const marks = race.my_scores.concat(Array(race.stakes - race.my_scores.length).fill('–'));
@@ -2707,7 +2707,9 @@ function RegattaStrip({ race }) {
     <div className="lb-regatta" title={REGATTA_RULES}>
       ⛵ <b>Race {race.race} of {race.races}</b>
       {' · '}
-      {!race.can_race ? 'take 🌊 Open Water to race'
+      {!race.can_race ? (onOpenCharts
+          ? <button className="lb-regatta-cta" onClick={onOpenCharts}>needs 🌊 Open Water (🧭 Chart)</button>
+          : 'needs 🌊 Open Water (🧭 Chart)')
         : race.my_scores.length === 0 ? 'your first 3 stakes count'
         : <>{marks.join(' · ')} = <b>{race.my_score}</b>{race.my_place ? ` (${ordinal(race.my_place)})` : ''}</>}
       {' · '}ends in {left}
@@ -2717,7 +2719,7 @@ function RegattaStrip({ race }) {
 
 const SPIN_RESULT_LABELS = { win: 'Win', jackpot: 'Jackpot', lose: 'Loss' };
 
-function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, recentSpins }) {
+function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, recentSpins, onOpenCharts }) {
   const [rows, setRows] = useState([]);
   const [race, setRace] = useState(null);
   const [tab, setTab] = useState('players');
@@ -2766,7 +2768,7 @@ function Leaderboard({ currentUser, extraClass, seasonWinners, seasonNumber, rec
       </div>
       {tab === 'players' && (
         <>
-          {race && <RegattaStrip race={race} />}
+          {race && <RegattaStrip race={race} onOpenCharts={onOpenCharts} />}
           <div className="lb-header">
             <span className="lb-rank-h"></span>
             <span className="lb-name-h">Player</span>
@@ -3733,6 +3735,10 @@ function ChartsPanel({ open, charts, wins, onClose, onSaved, onLeveled }) {
       setDef(r.data); setPending({ ...r.data.alloc });
     });
   }, [open]);
+  // open can name a talent to show, e.g. 'open_water' from the race strip.
+  useEffect(() => {
+    if (def && typeof open === 'string') document.getElementById('chart-node-' + open)?.scrollIntoView({ block: 'center' });
+  }, [def, open]);
   if (!open) return null;
   const committed = def ? def.alloc : {};
   const points = def ? def.points : 0;
@@ -3807,7 +3813,7 @@ function ChartsPanel({ open, charts, wins, onClose, onSaved, onLeveled }) {
                       const lock = rank < t.max_rank ? chartProblem(tryAlloc(t.id, 1), points, def) : null;
                       const canDrop = rank > floor(t.id) && !chartProblem(tryAlloc(t.id, -1), points, def);
                       return (
-                        <div key={t.id} className={`chart-node${rank ? ' on' : ''}${lock ? ' locked' : ''}${row === 'K' ? ' keystone' : ''}`}>
+                        <div key={t.id} id={'chart-node-' + t.id} className={`chart-node${rank ? ' on' : ''}${lock ? ' locked' : ''}${row === 'K' ? ' keystone' : ''}`}>
                           <button className="chart-node-main" aria-disabled={!!lock || rank >= t.max_rank}
                             title={lock || ''} onClick={() => { if (!lock && rank < t.max_rank) setPending(tryAlloc(t.id, 1)); }}>
                             <span className="chart-node-name">{t.icon} {t.name}</span>
@@ -6019,6 +6025,7 @@ function GameApp({ username, gameState, onLogout, onSessionExpired }) {
           seasonWinners={season && season.latest_winners}
           seasonNumber={season && season.season_number - 1}
           recentSpins={recentSpins}
+          onOpenCharts={() => { setMobilePanel(null); setShowCharts('open_water'); }}
         />
       </div>
 

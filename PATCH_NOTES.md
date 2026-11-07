@@ -14,7 +14,7 @@ Every day of the tide is now a race, and the tide goes to whoever places best ac
 - The leaderboard ranks players by race points (⛵), then wins. Tide medals go the same way.
 - Pick your moment: your wheel mode and your Gravity drift set the odds of each counted stake. Unstaked spins don't use one up.
 - Lucky Seven's free wins don't count.
-- Staking needs 🌊 **Open Water**. Joining late? Every race starts fresh.
+- Staking needs 🌊 **Open Water**, the first 🌀 Riptide talent on your 🧭 Chart. Joining late? Every race starts fresh.
 - The Regatta arrived partway through Tide 9.5, so races that ended before it have no results.
 
 ---
