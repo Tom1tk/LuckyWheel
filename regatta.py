@@ -86,8 +86,8 @@ def race_end_msg(race: int, scores: dict) -> str | None:
         return None
     names = sorted(v[0] for v in scores.values() if v[1] == top)
     if len(names) == 1:
-        return f'⛵ Race {race} goes to {names[0]}, scoring {top}.'
-    return f'⛵ Race {race} is a dead heat: {" and ".join(names)}, scoring {top}.'
+        return f'🏁 Race {race} goes to {names[0]}, scoring {top}.'
+    return f'🏁 Race {race} is a dead heat: {" and ".join(names)}, scoring {top}.'
 
 
 def announce_finished(cur, now_utc: dt.datetime) -> list:

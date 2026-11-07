@@ -4282,10 +4282,10 @@ function RegattaStrip(_ref32) {
   return /*#__PURE__*/React.createElement("div", {
     className: "lb-regatta",
     title: REGATTA_RULES
-  }, "\u26F5 ", /*#__PURE__*/React.createElement("b", null, "Race ", race.race, " of ", race.races), ' · ', !race.can_race ? onOpenCharts ? /*#__PURE__*/React.createElement("button", {
+  }, "\uD83C\uDFC1 ", /*#__PURE__*/React.createElement("b", null, "Race ", race.race, " of ", race.races), ' · ', !race.can_race ? onOpenCharts ? /*#__PURE__*/React.createElement("button", {
     className: "lb-regatta-cta",
     onClick: onOpenCharts
-  }, "needs \uD83C\uDF0A Open Water (\uD83E\uDDED Chart)") : 'needs 🌊 Open Water (🧭 Chart)' : race.my_scores.length === 0 ? 'your first 3 stakes count' : /*#__PURE__*/React.createElement(React.Fragment, null, marks.join(' · '), " = ", /*#__PURE__*/React.createElement("b", null, race.my_score), race.my_place ? " (".concat(ordinal(race.my_place), ")") : ''), ' · ', "ends in ", left);
+  }, "needs \uD83E\uDE99 Open Water (\uD83E\uDDED Chart)") : 'needs 🪙 Open Water (🧭 Chart)' : race.my_scores.length === 0 ? 'your first 3 stakes count' : /*#__PURE__*/React.createElement(React.Fragment, null, marks.join(' · '), " = ", /*#__PURE__*/React.createElement("b", null, race.my_score), race.my_place ? " (".concat(ordinal(race.my_place), ")") : ''), ' · ', "ends in ", left);
 }
 var SPIN_RESULT_LABELS = {
   win: 'Win',
@@ -4378,7 +4378,7 @@ function Leaderboard(_ref33) {
   }, "Player"), /*#__PURE__*/React.createElement("span", {
     className: "lb-race-h",
     title: "Regatta race points"
-  }, "\u26F5"), /*#__PURE__*/React.createElement("span", {
+  }, "\uD83C\uDFC1"), /*#__PURE__*/React.createElement("span", {
     className: "lb-wins-h"
   }, "W"), /*#__PURE__*/React.createElement("span", {
     className: "lb-losses-h"

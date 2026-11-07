@@ -49,9 +49,9 @@ def test_placings_share_ties_and_zero_does_not_place():
 
 
 def test_race_end_messages():
-    assert regatta.race_end_msg(3, {1: ('worm', 7, []), 2: ('tom', 2, [])}) == '⛵ Race 3 goes to worm, scoring 7.'
+    assert regatta.race_end_msg(3, {1: ('worm', 7, []), 2: ('tom', 2, [])}) == '🏁 Race 3 goes to worm, scoring 7.'
     assert regatta.race_end_msg(2, {1: ('worm', 1, []), 2: ('tom', 1, [])}) == \
-        '⛵ Race 2 is a dead heat: tom and worm, scoring 1.'
+        '🏁 Race 2 is a dead heat: tom and worm, scoring 1.'
     assert regatta.race_end_msg(1, {1: ('worm', 0, [])}) is None
 
 
